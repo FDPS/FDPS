@@ -1,0 +1,25 @@
+対称行列型のラッパーの定義を以下に示す。
+\begin{lstlisting}[caption=matrixsymwrapper]
+namespace ParticleSimulator{
+    typedef MatrixSym2<F32> F32mat2;
+    typedef MatrixSym3<F32> F32mat3;
+    typedef MatrixSym2<F64> F64mat2;
+    typedef MatrixSym3<F64> F64mat3;
+#ifdef PARTICLE_SIMULATOR_TOW_DIMENSION
+    typedef F32mat2 F32mat;
+    typedef F64mat2 F64mat;
+#else
+    typedef F32mat3 F32mat;
+    typedef F64mat3 F64mat;
+#endif
+}
+namespace PS = ParticleSimulator;
+\end{lstlisting}
+
+すなわちPS::F32mat2, PS::F32mat3, PS::F64mat2, PS::F64mat3はそれぞれ単
+精度2x2対称行列、倍精度2x2対称行列、単精度3x3対称行列、倍精度3x3対称行
+列である。FDPSで扱う空間座標系を2次元とした場合、PS::F32matと
+PS::F64matはそれぞれ単精度2x2対称行列、倍精度2x2対称行列となる。一方、
+FDPSで扱う空間座標系を3次元とした場合、PS::F32matとPS::F64matはそれぞ
+れ単精度3x3対称行列、倍精度3x3対称行列となる。
+

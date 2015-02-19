@@ -1,0 +1,992 @@
+本節では、相互作用ツリークラスについて記述する。このクラスは粒子間相互
+作用の計算を行うモジュールである。まずオブジェクトの生成方法を記述し、
+その後APIを記述する。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{オブジェクトの生成}
+
+このクラスは以下のように宣言されている。
+\begin{lstlisting}[caption=TreeForForce0]
+namespace ParticleSimulator {
+    template<class TSM,
+             class Tforce,
+             class Tepi,
+             class Tepj,
+             class Tmomloc,
+             class Tmomglb,
+             class Tspj>
+    class TreeForForce;
+}
+namespace PS = ParticleSimulator;
+\end{lstlisting}
+
+テンプレート引数は順に、SEARCH\_MODE型、Force型(ユーザー定義)、
+EssentialParticleI型(ユーザー定義)、EssentialParticleJ型(ユーザー定義)、
+ローカルツリーのMoment型(ユーザー定義)、グローバルツリーのMoment型(ユー
+ザー定義)、SuperParticleJ型(ユーザー定義)である。
+
+SEARCH\_MODE型に応じてラッパーを用意した。これらのラッパーを使えば入力
+するテンプレート引数の数が減るので、こちらのラッパーを用いることを推奨
+する。以下、SEARCH\_MODE型がSEARCH\_MODE\_LONG,
+SEARCH\_MODE\_LONG\_CUTOFF, SEARCH\_MODE\_GATHER,
+SEARCH\_MODE\_SCATTER, SEARCH\_MODE\_SYMMETRYの場合のオブジェクトの生
+成方法を記述する。
+
+\subsubsubsubsection{SEARCH\_MODE\_LONG}
+
+以下のようにオブジェクトsystemを生成する。
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceLong<Tforce, Tepi, Tepj, Tmom, Tspj>::Normal system;
+\end{verbatim}
+\end{screen}
+テンプレート引数は順に、Force型(ユーザー定義)、EssentialParticleI型(ユー
+ザー定義)、EssentialParticleJ型(ユーザー定義)、ローカルツリー及びグロー
+バルツリーのMoment型(ユーザー定義)、SuperParticleJ型(ユーザー定義)であ
+る。
+
+あらかじめMoment型とSuperParticleJ型を指定した型も用意した。これらはモー
+メントの計算方法別に6種類ある。モーメント計算の中心を粒子の重心または
+粒子の幾何中心とした場合に、単極子まで、四重極子まで計算するものである。
+以下、粒子の重心を中心とした場合の単極子まで、双極子まで、四重極子まで
+のモーメント計算、粒子の幾何中心を中心とした場合の単極子まで、双極子ま
+で、四重極子までのモーメント計算、のオブジェクト方法をこの順で記述する。
+すべてsystemというオブジェクトを生成している。
+
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceLong<Tforce, Tepi, Tepj>::Monopole system;
+\end{verbatim}
+\end{screen}
+
+%%\begin{screen}
+%%\begin{verbatim}
+%%PS::TreeForForceLong<Tforce, Tepi, Tepj>::Dipole system;
+%%\end{verbatim}
+%%\end{screen}
+
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceLong<Tforce, Tepi, Tepj>::Quadrupole system;
+\end{verbatim}
+\end{screen}
+
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceLong<Tforce, Tepi, Tepj>::MonopoleGeometricCenter system;
+\end{verbatim}
+\end{screen}
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceLong<Tforce, Tepi, Tepj>::DipoleGeometricCenter system;
+\end{verbatim}
+\end{screen}
+
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceLong<Tforce, Tepi, Tepj>::QuadrupoleGeometricCenter system;
+\end{verbatim}
+\end{screen}
+すべての型のテンプレート引数は順に、Force型、EssentialParticleI型、
+EssentialParticleJ型である。
+
+\subsubsubsubsection{SEARCH\_MODE\_LONG\_CUTOFF}
+
+
+以下のようにオブジェクトsystemを生成する。
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceLong<Tforce, Tepi, Tepj, Tmom, Tspj>::WithCutoff system;
+\end{verbatim}
+\end{screen}
+テンプレート引数は順に、Force型、EssentialParticleI型、
+EssentialParticleJ型、ローカルツリー及びグローバルツリーのMoment型、
+SuperParticleJ型である。
+
+あらかじめMoment型とSuperParticleJ型を指定した型も用意した。モーメント
+計算の中心を粒子の重心とした場合に、単極子まで計算するものである。ここ
+ではsystemというオブジェクトを生成している。
+
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceLong<Tforce, Tepi, Tepj>::MonopoleWithCutoff system;
+\end{verbatim}
+\end{screen}
+テンプレート引数は順に、Force型、EssentialParticleI型、
+EssentialParticleJ型である。
+
+\subsubsubsubsection{SEARCH\_MODE\_GATHER}
+
+以下のようにオブジェクトsystemを生成する。
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceShort<Tforce, Tepi, Tepj>::Gather system;
+\end{verbatim}
+\end{screen}
+テンプレート引数は順に、Force型、EssentialParticleI型、
+EssentialParticleJ型である。
+
+\subsubsubsubsection{SEARCH\_MODE\_SCATTER}
+
+以下のようにオブジェクトsystemを生成する。
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceShort<Tforce, Tepi, Tepj>::Scatter system;
+\end{verbatim}
+\end{screen}
+テンプレート引数は順に、Force型、EssentialParticleI型、
+EssentialParticleJ型である。
+
+\subsubsubsubsection{SEARCH\_MODE\_SYMMETRY}
+
+以下のようにオブジェクトsystemを生成する。
+\begin{screen}
+\begin{verbatim}
+PS::TreeForForceShort<Tforce, Tepi, Tepj>::Symmetry system;
+\end{verbatim}
+\end{screen}
+テンプレート引数は順に、Force型、EssentialParticleI型、
+EssentialParticleJ型である。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{API}
+
+このモジュールには初期設定関連のAPI、相互作用計算関連の低レベルAPI、相
+互作用計算関連の高レベルAPI、ネイバーリスト関連のAPIがある。以下、各節
+に分けて記述する。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsection{初期設定}
+
+初期設定関連のAPIの宣言は以下のようになっている。このあと各APIについて
+記述する。
+\begin{lstlisting}[caption=TreeForForce1]
+namespace ParticleSimulator {
+    template<class TSM,
+             class Tforce,
+             class Tepi,
+             class Tepj,
+             class Tmomloc,
+             class Tmomglb,
+             class Tspj>
+    class TreeForForce{
+    public:
+    void TreeForForce();
+    void initialize(const U64 n_glb_tot,
+                    const F32 theta=0.7,
+                    const U32 n_leaf_limit=8,
+                    const U32 n_group_limit=64);
+    };
+}
+namespace PS = ParticleSimulator;
+\end{lstlisting}
+
+\subsubsubsubsubsection{コンストラクタ}
+
+\begin{screen}
+\begin{verbatim}
+void PS::TreeForForce::TreeForForce();
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+なし
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+相互作用ツリークラスのオブジェクトを生成する。
+
+\end{itemize}
+
+\subsubsubsubsubsection{initialize}
+
+\begin{screen}
+\begin{verbatim}
+void PS::TreeForForce::initialize
+            (const PS::U64 n_glb_tot,
+             const PS::F32 theta=0.7,
+             const PS::U32 n_leaf_limit=8,
+             const PS::U32 n_group_limit=64);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+n\_glb\_tot: 入力。const PS::U64型。粒子配列の上限。
+
+theta: 入力。const PS::F32型。見こみ角に対する基準。デフォルト0.7。
+
+n\_leaf\_limit。const PS::U32型。ツリーを切るのをやめる粒子数の上限。
+デフォルト8。
+
+n\_group\_limit。const PS::U32型。相互作用リストを共有する粒子数の上限。
+デフォルト64。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+相互作用ツリークラスのオブジェクトを初期化する。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsection{低レベル関数}
+
+相互作用計算関連の低レベルAPIの宣言は以下のようになっている。このあと
+各APIについて記述する。
+\begin{lstlisting}[caption=TreeForForce1]
+namespace ParticleSimulator {
+    template<class TSM,
+             class Tforce,
+             class Tepi,
+             class Tepj,
+             class Tmomloc,
+             class Tmomglb,
+             class Tspj>
+    class TreeForForce{
+    public:
+        template<class Tpsys>
+        void setParticleLocalTree(const Tpsys & psys,
+                                  const bool clear=true);
+        template<class Tdinfo>
+        void makeLocalTree(const Tdinfo & difno);
+        void makeLocalTree(const F32 l,
+                           const F32vec & c = F32vec(0.0));
+        template<class Tdinfo>
+        void makeGlobalTree(const Tdinfo & dinfo);        
+        void calcMomentGlobalTree();
+        template<class Tfunc_ep_ep>
+        void calcForce(Tfunc_ep_ep pfunc_ep_ep,
+                       const bool clear=true);
+        template<class Tfunc_ep_ep, class Tfunc_ep_sp>
+        void calcForce(Tfunc_ep_ep pfunc_ep_ep,
+                       Tfunc_ep_sp pfunc_ep_sp,
+                       const bool clear=true);
+        Tforce getForce(const S32 i);
+    };
+}
+namespace PS = ParticleSimulator;
+\end{lstlisting}
+
+\subsubsubsubsubsection{setParticleLocalTree}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tpsys>
+void PS::TreeForForce::setParticleLocalTree
+            (const Tpsys & psys,
+             const bool clear = true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+psys: 入力。const Tpsys \&型。ローカルツリーを構成する粒子群。
+
+clear: 入力。const bool型。前に読込んだ粒子をクリアするかどうか決定す
+るフラグ。trueでクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+相互作用ツリークラスのオブジェクトに粒子群クラスのオブジェクトの粒子を
+読み込む。clearがtrueならば前に読込んだ粒子情報をクリアし、falseならク
+リアしない。
+
+\end{itemize}
+
+\subsubsubsubsubsection{makeLocalTree}
+%% setRootCell, mortonSortLocalTreeOnly, linkCellLocalTreeOnly
+%% setRootCell関係でオーバーロード
+
+\begin{screen}
+\begin{verbatim}
+template<class Tdinfo>
+void PS::TreeForForce::makeLocalTree
+            (const Tdinfo & dinfo);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+dinfo: 入力。const Tdinfo \&型。領域クラスのオブジェクト。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+ローカルツリーを作る。領域クラスのオブジェクトから扱うべきルートドメイ
+ンを読み取り、ツリーのルートセルを決定する。
+
+\end{itemize}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tdinfo>
+void PS::TreeForForce::makeLocalTree
+            (const PS::F32 l,
+             const PS::F32vec & c = PS::F32vec(0.0));
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+l: 入力。const PS::F32型。ツリーのルートセルの大きさ。
+
+c: 入力。const PS::F32vec \&型。ツリーの中心の座標。デフォルトは座標原点。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+ローカルツリーを作る。ツリーのルートセルを２つの引数で決定する。ツリー
+のルートセルは全プロセスで共通でなければならない。共通でない場合の動作
+の正しさは保証しない。
+
+\end{itemize}
+
+\subsubsubsubsubsection{makeGlobalTree}
+%% calcMomentLocalTreeOnly, exchangeLocalEssentialTree,
+%% setLocalEssentialTreeToGlobalTree, mortonSortGlobalTreeOnly,
+%% linkCellGlobalTreeOnly
+
+\begin{screen}
+\begin{verbatim}
+template<class Tdinfo>
+void PS::TreeForForce::makeGlobalTree
+            (const Tdinfo & dinfo);        
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+dinfo: 入力。const Tdinfo \& 型。領域クラスのオブジェクト。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+グローバルツリーを作る。
+
+\end{itemize}
+
+\subsubsubsubsubsection{calcMomentGlobalTree(仮)}
+%% calcMomentGlobalTreeOnly, makeIPGroup
+
+\begin{screen}
+\begin{verbatim}
+template<class Tdinfo>
+void PS::TreeForForce::calcMomentGlobalTree();
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+なし
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+グローバルツリーの各々のセルのモーメントを計算する。
+
+\end{itemize}
+
+\subsubsubsubsubsection{calcForce}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep>
+void PS::TreeForForce::calcForce
+             (Tfunc_ep_ep pfunc_ep_ep,
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+このオブジェクトに読み込まれた粒子すべての粒子間相互作用を計算する。粒
+子間相互作用は短距離力の場合に限る。
+
+\end{itemize}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep, class Tfunc_ep_sp>
+void PS::TreeForForce::calcForce
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tfunc_ep_sp pfunc_ep_sp,
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+pfunc\_ep\_sp: 入力。返値がvoid型のEssentialParticleIとSuperParticleJ
+の間の相互作用計算用関数ポインタ、または関数オブジェクト。関数の引数は
+第１引数から順にconst EssentialParticleI *型、PS::S32型、const
+SuperParticleJ *型、PS::S32型、Force *型。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+このオブジェクトに読み込まれた粒子すべての粒子間相互作用を計算する。粒
+子間相互作用は長距離力の場合に限る。
+
+\end{itemize}
+
+\subsubsubsubsubsection{getForce}
+
+\begin{screen}
+\begin{verbatim}
+Tforce PS::TreeForForce::getForce(const PS::S32 i);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+i: 入力。const PS::S32型。粒子配列のインデックス。
+
+\item {\bf 返値}
+
+Tforce型。setParticleLocalTreeでi番目に読み込まれた粒子の受ける作用。
+
+\item {\bf 機能}
+
+setParticleLocalTreeでi番目に読み込まれた粒子の受ける作用を返す。
+
+\end{itemize}
+
+\subsubsubsubsubsection{copyLocalTreeStructure}
+
+今後、追加する。
+
+\subsubsubsubsubsection{repeatLocalCalcForce}
+
+今後、追加する。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsection{高レベル関数}
+
+相互作用計算関連の高レベルAPIの宣言は以下のようになっている。このあと
+各APIについて記述する。
+\begin{lstlisting}[caption=TreeForForce1]
+namespace ParticleSimulator {
+    template<class TSM,
+             class Tforce,
+             class Tepi,
+             class Tepj,
+             class Tmomloc,
+             class Tmomglb,
+             class Tspj>
+    class TreeForForce{
+    public:
+        template<class Tfunc_ep_ep,
+                 class Tpsys,
+                 class Tdinfo>
+        void calcForceAllAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
+                                      Tpsys & psys,
+                                      Tdinfo & dinfo,
+                                      const bool clear_force = true);
+        template<class Tfunc_ep_ep,
+                 class Tfunc_ep_sp,
+                 class Tpsys,
+                 class Tdinfo>
+        void calcForceAllAndWriteBack(Tfunc_ep_ep pfunc_ep_ep, 
+                                      Tfunc_ep_sp pfunc_ep_sp,  
+                                      Tpsys & psys,
+                                      TDinfo & dinfo,
+                                      const bool clear_force=true);
+                                      
+        template<class Tfunc_ep_ep,
+                 class Tfunc_ep_sp,
+                 class Tpsys,
+                 class Tdinfo>
+        void calcForceAll(Tfunc_ep_ep pfunc_ep_ep,
+                          Tfunc_ep_sp pfunc_ep_sp,
+                          Tpsys & psys,
+                          Tdinfo & dinfo,
+                          const bool clear_force=true);
+        template<class Tfunc_ep_ep,
+                 class Tfunc_ep_sp,
+                 class Tpsys,
+                 class Tdinfo>
+        void calcForceAll(Tfunc_ep_ep pfunc_ep_ep,
+                          Tfunc_ep_sp pfunc_ep_sp,
+                          Tpsys & psys,
+                          Tdinfo & dinfo,
+                          const bool clear_force=true);
+
+        template<class Tfunc_ep_ep,
+                 class Tdinfo>
+        void calcForceMakeingTree(Tfunc_ep_ep pfunc_ep_ep,
+                                  Tdinfo & dinfo,
+                                  const bool clear_force=true);
+        template<class Tfunc_ep_ep,
+                 class Tfunc_ep_sp,
+                 class Tdinfo>
+        void calcForceMakingTree(Tfunc_ep_ep pfunc_ep_ep,
+                                Tfunc_ep_sp pfunc_ep_sp,
+                                Tdinfo & dinfo,
+                                const bool clear_force=true);
+
+        template<class Tfunc_ep_ep,
+                 class Tpsys>
+        void calcForceAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
+                                   Tpsys & psys,
+                                   const bool clear=true);
+        template<class Tfunc_ep_ep,
+                 class Tfunc_ep_sp,
+                 class Tpsys>
+        void calcForceAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
+                                   Tfunc_ep_sp pfunc_ep_sp,
+                                   Tpsys & psys,
+                                   const bool clear=true);
+    };
+}
+namespace PS = ParticleSimulator;
+\end{lstlisting}
+
+\subsubsubsubsubsection{calcForceAllAndWriteBack}
+%% setParticleLocalTree, makeLocalTree, makeGlobalTree,
+%% calcMomentGlobalTree, calcForce, getForce
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep,
+         class Tpsys,
+         class Tdinfo>
+void PS::TreeForForce::calcForceAllandWriteBack
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tpsys & psys,
+              Tdinfo & dinfo
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+psys: 入力。Tpsys \&型。相互作用を計算したい粒子群クラスのオブジェクト。
+
+dinfo: 入力。Tdinfo \&型。領域クラスのオブジェクト。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+粒子群クラスのオブジェクトpsysの粒子すべての相互作用を計算し、その計算
+結果をpsysに書き戻す。粒子間相互作用は短距離力の場合に限る。
+
+\end{itemize}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep,
+         class Tfunc_ep_sp,
+         class Tpsys,
+         class Tdinfo>
+void PS::TreeForForce::calcForceAllandWriteBack
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tfunc_ep_sp pfunc_ep_sp,
+              Tpsys & psys,
+              Tdinfo & dinfo
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIとSuperParticleJ
+の間の相互作用計算用関数ポインタ、または関数オブジェクト。関数の引数は
+第１引数から順にconst EssentialParticleI *型、PS::S32型、const
+SuperParticleJ *型、PS::S32型、Force *型。
+
+psys: 入力。Tpsys \&型。相互作用を計算したい粒子群クラスのオブジェクト。
+
+dinfo: 入力。Tdinfo \&型。領域クラスのオブジェクト。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+粒子群クラスのオブジェクトpsysの粒子すべての相互作用を計算し、その計算
+結果をpsysに書き戻す。粒子間相互作用は長距離力の場合に限る。
+
+\end{itemize}
+
+\subsubsubsubsubsection{calcForceAll}
+%% setParticleLocalTree, makeLocalTree, makeGlobalTree,
+%% calcMomentGlobalTree, calcForce
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep,
+         class Tpsys,
+         class Tdinfo>
+void PS::TreeForForce::calcForceAll
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tpsys & psys,
+              Tdinfo & dinfo
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+psys: 入力。Tpsys \&型。相互作用を計算したい粒子群クラスのオブジェクト。
+
+dinfo: 入力。Tdinfo \&型。領域クラスのオブジェクト。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+粒子群クラスのオブジェクトpsysの粒子すべての相互作用を計算する。粒子間
+相互作用は短距離力の場合に限る。
+PS::TreeForForce::calcForceAllAndWriteBackから計算結果の書き戻しがなく
+なったもの。
+
+\end{itemize}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep,
+         class Tfunc_ep_sp,
+         class Tpsys,
+         class Tdinfo>
+void PS::TreeForForce::calcForceAll
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tfunc_ep_sp pfunc_ep_sp,
+              Tpsys & psys,
+              Tdinfo & dinfo
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIとSuperParticleJ
+の間の相互作用計算用関数ポインタ、または関数オブジェクト。関数の引数は
+第１引数から順にconst EssentialParticleI *型、PS::S32型、const
+SuperParticleJ *型、PS::S32型、Force *型。
+
+psys: 入力。Tpsys \&型。相互作用を計算したい粒子群クラスのオブジェクト。
+
+dinfo: 入力。Tdinfo \&型。領域クラスのオブジェクト。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+粒子群クラスのオブジェクトpsysの粒子すべての相互作用を計算する。粒子間
+相互作用は長距離力の場合に限る。
+PS::TreeForForce::calcForceAllAndWriteBackから計算結果の書き戻しがなく
+なったもの。
+
+\end{itemize}
+
+\subsubsubsubsubsection{calcForceMakingTree}
+%% makeLocalTree, makeGlobalTree, calcMomentGlobalTree, calcForce
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep,
+         class Tdinfo>
+void PS::TreeForForce::calcForceMakingTree
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tdinfo & dinfo
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+dinfo: 入力。Tdinfo \&型。領域クラスのオブジェクト。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+これより前に相互作用ツリークラスのオブジェクトに読み込まれた粒子群クラ
+スのオブジェクトの粒子すべての相互作用を計算する。粒子間相互作用は短距
+離力の場合に限る。PS::TreeForForce::calcForceAllAndWriteBackから粒子群
+クラスのオブジェクトの読込と計算結果の書き戻しがなくなったもの。
+
+\end{itemize}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep,
+         class Tfunc_ep_sp,
+         class Tdinfo>
+void PS::TreeForForce::calcForceMakingTree
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tfunc_ep_sp pfunc_ep_sp,
+              Tdinfo & dinfo
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIとSuperParticleJ
+の間の相互作用計算用関数ポインタ、または関数オブジェクト。関数の引数は
+第１引数から順にconst EssentialParticleI *型、PS::S32型、const
+SuperParticleJ *型、PS::S32型、Force *型。
+
+dinfo: 入力。Tdinfo \&型。領域クラスのオブジェクト。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+これより前に相互作用ツリークラスのオブジェクトに読み込まれた粒子群クラ
+スのオブジェクトの粒子すべての相互作用を計算する。粒子間相互作用は長距
+離力の場合に限る。PS::TreeForForce::calcForceAllAndWriteBackから粒子群
+クラスのオブジェクトの読込と計算結果の書き戻しがなくなったもの。
+
+\end{itemize}
+
+\subsubsubsubsubsection{calcForceAndWriteBack}
+%% calcForce, getForce
+%% いる？
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep,
+         class Tpsys>
+void PS::TreeForForce::calcForceAndWriteBack
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tpsys & psys,
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+psys: 入力。Tpsys \&型。相互作用の計算結果を書き戻したい粒子群クラスの
+オブジェクト。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+これより前に相互作用ツリークラスのオブジェクトに構築されたグローバルツ
+リーとそのモーメントをもとに、相互作用ツリークラスのオブジェクトに属す
+る粒子すべての相互作用が計算され、さらにその結果が粒子群クラスのオブジェ
+クトpsysに書き戻される。粒子間相互作用は短距離力の場合に限る。
+PS::TreeForForce::calcForceAllAndWriteBackから粒子群クラスのオブジェク
+トの読込、ローカルツリーの構築、グローバルツリーの構築、グローバルツリー
+のモーメントの計算がなくなったもの。
+
+\end{itemize}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tfunc_ep_ep,
+         class Tfunc_ep_sp,
+         class Tpsys>
+void PS::TreeForForce::calcForceAllandWriteBack
+             (Tfunc_ep_ep pfunc_ep_ep,
+              Tfunc_ep_sp pfunc_ep_sp,
+              Tpsys & psys,
+              const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIと
+EssentialParticleJの間の相互作用計算用関数ポインタ、または関数オブジェ
+クト。関数の引数は第１引数から順にconst EssentialParticleI *型、
+PS::S32型、const EssentialParticleJ *型、PS::S32型、Force *型。
+
+pfunc\_ep\_ep: 入力。返値がvoid型のEssentialParticleIとSuperParticleJ
+の間の相互作用計算用関数ポインタ、または関数オブジェクト。関数の引数は
+第１引数から順にconst EssentialParticleI *型、PS::S32型、const
+SuperParticleJ *型、PS::S32型、Force *型。
+
+psys: 入力。Tpsys \&型。相互作用の計算結果を書き戻したい粒子群クラスの
+オブジェクト。
+
+clear: 入力。const bool型。前に計算された相互作用の結果をクリアするか
+どうかを決定するフラグ。trueならばクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+これより前に相互作用ツリークラスのオブジェクトに構築されたグローバルツ
+リーとそのモーメントをもとに、相互作用ツリークラスのオブジェクトに属す
+る粒子すべての相互作用が計算され、さらにその結果が粒子群クラスのオブジェ
+クトpsysに書き戻される。粒子間相互作用は長距離力の場合に限る。
+PS::TreeForForce::calcForceAllAndWriteBackから粒子群クラスのオブジェク
+トの読込、ローカルツリーの構築、グローバルツリーの構築、グローバルツリー
+のモーメントの計算がなくなったもの。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsection{ネイバーリスト}
+
+今後、追加する。
+
+%%\subsubsubsubsubsection{getNeighborListOneParticle}
+
+%%\subsubsubsubsubsection{getNeighborListOneIPGroup}
+
+%%\subsubsubsubsubsection{getNeighborListOneIPGroupEachParticle}
+
+%%\subsubsubsubsubsection{getNumberOfIPG}

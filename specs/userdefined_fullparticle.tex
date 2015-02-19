@@ -1,0 +1,414 @@
+\subsubsection{概要}
+
+FullParticleクラスは粒子情報すべてを持つクラスである。FDPSはこのクラス
+からいくつかの情報を読み取る。FDPSが情報を読み取るために、このクラスは
+いくつかのメンバ関数を持つ必要がある。以下、この節の前提、常に必要なメ
+ンバ関数と、場合によっては必要なメンバ関数について記述する。
+
+\subsubsection{前提}
+
+この節の中では、以下のように、名前空間ParticleSimulatorをPSと省略し、
+FullParticleというクラスを例とする。FullParticleという名前は自由に変え
+ることができる。
+\begin{screen}
+\begin{verbatim}
+namespace PS = ParticleSimulator;
+class FullParticle;
+\end{verbatim}
+\end{screen}
+
+\subsubsection{必要なメンバ関数}
+
+\subsubsubsection{概要}
+
+常に必要なメンバ関数はgetPosとcopyFromForceである。getPosは
+FullParticleの位置情報をFDPSに読み込ませるための関数で、copyFromForce
+は計算された相互作用の結果をFullParticleに書き戻す関数である。これらの
+メンバ関数の記述例と解説を以下に示す。
+
+\subsubsubsection{getPos}
+
+\begin{screen}
+\begin{verbatim}
+class FullParticle {
+public:
+    PS::F64vec pos;
+    PS::F64vec getPos() const {
+        return this->pos;
+    }
+};
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 前提}
+  
+  FullParticleのメンバ変数posはある１つの粒子の位置情報。このposのデー
+  タ型はPS::F32vec型またはPS::F64vec型。
+  
+\item {\bf 引数}
+
+  なし
+  
+\item {\bf 返値}
+
+  PS::F32vec型またはPS::F64vec型。FullParticleクラスの位置情報を保持し
+  たメンバ変数。
+  
+\item {\bf 機能}
+
+  FullParticleクラスの位置情報を保持したメンバ変数を返す。
+  
+\item {\bf 備考}
+
+  FullParticleクラスのメンバ変数posの変数名は変更可能。ただしこのposの
+  データ型とメンバ関数FullParticle::getPosの返値のデータ型が一致してい
+  ない場合の動作は保証しない。
+
+\end{itemize}
+
+\subsubsubsection{copyFromForce}
+
+\begin{screen}
+\begin{verbatim}
+class Force {
+public:
+    PS::F64vec acc;
+    PS::F64    pot;
+};
+class FullParticle {
+public:
+    PS::F64vec acceleration;
+    PS::F64    potential;
+    void copyFromForce(const Force & force) {
+        this->acceleration = force.acc;
+        this->potential    = force.pot;
+    }
+};
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 前提}
+
+  Forceクラスは粒子の相互作用の計算結果を保持するクラス。
+
+\item {\bf 引数}
+
+  force: 入力。const Force \&型。粒子の相互作用の計算結果を保持。
+  
+\item {\bf 返値}
+
+  なし。
+  
+\item {\bf 機能}
+
+  粒子の相互作用の計算結果をFullParticleクラスへ書き戻す。Forceクラス
+  のメンバ変数acc, potがそれぞれFullParticleクラスのメンバ変数
+  acceleration, potentialに対応。
+  
+\item {\bf 備考}
+
+  Forceクラスというクラス名とそのメンバ変数名は変更可能。FullParticle
+  のメンバ変数名は変更可能。メンバ関数FullParticle::copyFromForceの引
+  数名は変更可能。
+
+\end{itemize}
+
+\subsubsection{場合によっては必要なメンバ関数}
+
+\subsubsubsection{概要}
+
+本節では、場合によっては必要なメンバ関数について記述する。相互作用ツリー
+クラスのSEARCH\_MODE型にSEARCH\_MODE\_LONG以外を用いる場合、粒子群クラ
+スのファイル入出力APIを用いる場合、粒子群クラスのAPIである
+ParticleSystem::adjustPositionIntoRootDomainを用いる場合、拡張機能の
+Particle Meshクラスを用いる場合について必要となるメンバ関数を記述する。
+
+\subsubsubsection{相互作用ツリークラスのSEARCH\_MODE型にSEARCH\_MODE\_LONG以外を用いる場合}
+
+\subsubsubsubsection{getRsearch}
+
+\begin{screen}
+\begin{verbatim}
+class FullParticle {
+public:
+    PS::F64 search_radius;
+    PS::F64 getRsearch() const {
+        return this->search_radius;
+    }
+};
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 前提}
+
+  FullParticleクラスのメンバ変数search\_radiusはある１つの粒子の近傍粒
+  子を探す半径の大きさ。このsearch\_radiusのデータ型はPS::F32型または
+  PS::F64型。
+  
+\item {\bf 引数}
+
+  なし
+  
+\item {\bf 返値}
+
+  PS::F32型またはPS::F64型。 FullParticleクラスの近傍粒子を探す半径の
+  大きさを保持したメンバ変数。
+  
+\item {\bf 機能}
+
+  FullParticleクラスの近傍粒子を探す半径の大きさを保持したメンバ変数を
+  返す。
+
+\item {\bf 備考}
+
+  FullParticleクラスのメンバ変数search\_radiusの変数名は変更可能。
+  
+\end{itemize}
+
+\subsubsubsection{粒子群クラスのファイル入出力APIを用いる場合}
+
+粒子群クラスのファイル入出力APIであるreadParticleAscii,
+readParticleBinary, writeParticleAscii, writeParticleBinaryを使用する
+ときにそれぞれreadAscii, readBinary, writeAscii, writeBinaryというメン
+バ関数が必要となる。以下、readAsciiとreadBinaryの規定は同じであり,
+writeAsciiとwriteBinaryの規定も同じである。以下、それぞれの規定につい
+て記述する。
+
+\subsubsubsubsection{readAscii, readBinary}
+
+\begin{screen}
+\begin{verbatim}
+class FullParticle {
+public:
+    PS::S32 id;
+    PS::F64 mass;
+    PS::F64vec pos;
+    void readAscii(FILE *fp) {
+        fscanf(fp, "%d%lf%lf%lf%lf", &this->id, &this->mass,
+               &this->pos[0], &this->pos[1], &this->pos[2]);
+    }
+    void readBinary(FILE *fp) {
+        fscanf(fp, "%d%lf%lf%lf%lf", &this->id, &this->mass,
+               &this->pos[0], &this->pos[1], &this->pos[2]);
+    }
+};
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 前提}
+
+  粒子データの入力ファイルの１列目にはFullParticleクラスのメンバ変数id
+  を表すデータが、２列目にはメンバ変数massを表すデータが、３、４、５列
+  めにはメンバ変数posの第１、２、３要素が、それ以降の列にはデータがな
+  いとする。ファイルの形式はアスキー形式(readAsciiの場合)、バイナリー
+  形式(readBinaryの場合)とする。３次元直交座標系を選択したとする。
+
+\item {\bf 引数}
+
+  fp: FILE *型。粒子データの入力ファイルを指すファイルポインタ。
+  
+\item {\bf 返値}
+
+  なし。
+  
+\item {\bf 機能}
+
+  粒子データの入力ファイルからFullParticleクラスのid、mass、posの情報
+  を読み取る。
+  
+\item {\bf 備考}
+
+  なし。
+  
+\end{itemize}
+
+\subsubsubsubsection{writeAscii, writeBinary}
+
+\begin{screen}
+\begin{verbatim}
+class FullParticle {
+public:
+    PS::S32 id;
+    PS::F64 mass;
+    PS::F64vec pos;
+    void writeAscii(FILE *fp) {
+        fscanf(fp, "%d %lf %lf %lf %lf", this->id, this->mass,
+               this->pos[0], this->pos[1], this->pos[2]);
+    }
+    void writeBinary(FILE *fp) {
+        fscanf(fp, "%d %lf %lf %lf %lf", this->id, this->mass,
+               this->pos[0], this->pos[1], this->pos[2]);
+    }
+};
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 前提}
+
+  粒子データの出力ファイルの１列目にはFullParticleクラスのメンバ変数id
+  を表すデータが、２列目にはメンバ変数massを表すデータが、３、４、５列
+  めにはメンバ変数posの第１、２、３要素が、それ以降の列にはデータがな
+  いとする。ファイルの形式はアスキー形式(writeAsciiの場合)、バイナリー
+  形式(writeBinaryの場合)とする。３次元直交座標系を選択したとする。
+
+\item {\bf 引数}
+
+  fp: FILE *型。粒子データの出力ファイルを指すファイルポインタ。
+  
+\item {\bf 返値}
+
+  なし。
+  
+\item {\bf 機能}
+
+  粒子データの出力ファイルへFullParticleクラスのメンバ変数id、mass、
+  posの情報を書き出す。
+  
+\item {\bf 備考}
+
+  なし。
+  
+\end{itemize}
+
+\subsubsubsection{粒子群クラスのadjustPositionIntoRootDomainを用いる場合}
+
+\subsubsubsubsection{setPos}
+
+\begin{screen}
+\begin{verbatim}
+class FullParticle {
+public:
+    PS::F64vec pos;
+    void setPos(const PS::F64vec pos_new) {
+        this->pos = pos_new;
+    }
+};
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 前提}
+
+  FullParticleクラスのメンバ変数posは１つの粒子の位置情報。このposのデー
+  タ型はPS::F32vecまたはPS::F64vec。
+
+\item {\bf 引数}
+
+  pos\_new: 入力。const PS::F32vecまたはconst PS::F64vec型。FDPS側で修
+  正した粒子の位置情報。
+
+\item {\bf 返値}
+
+  なし。
+  
+\item {\bf 機能}
+
+  FDPSが修正した粒子の位置情報をFullParticleクラスの位置情報に書き込む。
+
+\item {\bf 備考}
+
+  FullParticleクラスのメンバ変数posの変数名は変更可能。メンバ関数
+  FullParticle::setPosの引数名pos\_newは変更可能。posとpos\_newのデー
+  タ型が異なる場合の動作は保証しない。
+
+\end{itemize}
+
+\subsubsubsection{Particle Meshクラスを用いる場合}
+
+Particle Meshクラスを用いる場合には、メンバ関数getChargeParticleMeshと
+copyFromForceParticleMeshを用意する必要がある。以下にそれぞれの規定を
+記述する。
+
+\subsubsubsubsection{getChargeParticleMesh}
+
+\begin{screen}
+\begin{verbatim}
+class FullParticle {
+public:
+    PS::F64 mass;
+    PS::F64 getChargeParticleMesh() const {
+        return this->mass;
+    }
+};
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 前提}
+
+  FullParticleクラスのメンバ変数massは１つの粒子の質量または電荷の情報
+  を持つ変数。データ型はPS::F32またはPS::F64型。
+
+\item {\bf 引数}
+
+  なし。
+
+\item {\bf 返値}
+
+  PS::F32型またはPS::F64型。１つの粒子の質量または電荷の変数を返す。
+  
+\item {\bf 機能}
+
+  １つの粒子の質量または電荷の変数を返す。
+
+\item {\bf 備考}
+
+  FullParticleクラスのメンバ変数massの変数名は変更可能。
+
+\end{itemize}
+
+\subsubsubsubsection{copyFromForceParticleMesh}
+
+\begin{screen}
+\begin{verbatim}
+class FullParticle {
+public:
+    PS::F64vec accelerationFromPM;
+    void copyFromForceParticleMesh(const PS::F32vec & acc_pm) {
+        this->accelerationFromPM = acc_pm;
+    }
+};
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 前提}
+
+  FullParticleクラスのメンバ変数accelerationFromPM\_pmは１つの粒子の
+  Particle Meshによる力の情報を保持する変数。この
+  accelerationFromPM\_pmのデータ型はPS::F32vecまたはPS::F64vec。
+
+\item {\bf 引数}
+
+  acc\_pm: const PS::F32vec型またはconst PS::F64vec型。１つの粒子の
+  Particle Meshによる力の計算結果。
+
+\item {\bf 返値}
+
+  なし。
+  
+\item {\bf 機能}
+
+  １つの粒子のParticle Meshによる力の計算結果をこの粒子のメンバ変数に
+  書き込む。
+  
+\item {\bf 備考}
+
+  FullParticleクラスのメンバ変数acc\_pmの変数名は変更可能。メンバ関数
+  FullParticle::copyFromForceParticleMeshの引数acc\_pmの引数名は変更可
+  能。
+
+\end{itemize}

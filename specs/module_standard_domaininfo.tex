@@ -1,0 +1,327 @@
+本節では、領域クラスについて記述する。このクラスは領域情報の保持や領域
+の分割を行うモジュールである。まずオブジェクトの生成方法を記述し、その
+後APIを記述する。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{オブジェクトの生成}
+
+領域クラスは以下のように宣言されている。
+\begin{lstlisting}[caption=DomainInfo0]
+namespace ParticleSimulator {
+    class DomainInfo;
+}
+namespace PS = ParticleSimulator;
+\end{lstlisting}
+
+領域クラスのオブジェクトの生成は以下のように行う。ここではdinfoという
+オブジェクトを生成している。
+\begin{screen}
+\begin{verbatim}
+PS::DomainInfo dinfo;
+\end{verbatim}
+\end{screen}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{API}
+
+領域クラスには初期設定関連のAPI、領域分割関連のAPIがある。以下、各節に
+分けて記述する。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsection{初期設定}
+
+初期設定関連のAPIの宣言は以下のようになっている。このあと各APIについて
+記述する。
+\begin{lstlisting}[caption=DomainInfo1]
+namespace ParticleSimulator {
+    class DomainInfo{
+    public
+        DomainInfo();
+        void initialize(const F32 coef_ema=1.0);
+        void setNumberOfDomainMultiDimension(const S32 nx,
+                                             const S32 ny,
+                                             const S32 nz=1);
+        void setBoundaryCondition(enum BOUNDARY_CONDITION bc);
+        void setPosRootDomain(const F32vec & low,
+                              const F32vec & high);
+    };
+}
+namespace PS = ParticleSimulator;
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsubsection{コンストラクタ}
+
+\begin{screen}
+\begin{verbatim}
+void PS::DomainInfo::DomainInfo();
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+なし
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+領域クラスのオブジェクトを生成する。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsubsection{initialize}
+
+\begin{screen}
+\begin{verbatim}
+void PS::DomainInfo::initialize(const PS::F32 coef_ema=1.0);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+coef\_ema: 入力。 const PS::F32型。指数移動平均の平滑化係数。デフォルト1.0
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+領域クラスのオブジェクトを初期化する。
+
+指数移動平均の平滑化係数を設定する。この係数の許される値は0から1である。
+大きくなるほど、最新の粒子分布の情報が領域分割に反映されやすい。1の場
+合、最新の粒子分布の情報のみ反映される。１度は呼ぶ必要があるが、２度呼
+ぶと例外が送出される。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsubsection{setNumberOfDomainMultiDimension}
+
+\begin{screen}
+\begin{verbatim}
+void PS::DomainInfo::setNumberOfDomainMultiDimension
+                 (const PS::S32 nx,
+                  const PS::S32 ny,
+                  const PS::S32 nz=1);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+nx: 入力。 const PS::S32型。x軸方向のルートドメインの分割数。
+
+ny: 入力。 const PS::S32型。y軸方向のルートドメインの分割数。
+
+nz: 入力。 const PS::S32型。z軸方向のルートドメインの分割数。デフォル
+ト1。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+ルートドメインの分割する方法を設定する。nx, ny, nzはそれぞれx軸、y軸、
+z軸方向のルートドメインの分割数である。呼ばなければ自動的にnx, ny, nz
+が決まる。呼んだ場合に入力するnx, ny, nzの総積がMPIプロセス数と等しく
+なければ、例外が送出される。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsubsection{setBoundaryCondition}
+
+\begin{screen}
+\begin{verbatim}
+void PS::DomainInfo::setBoundaryCondition
+                 (enum BOUNDARY_CONDITION bc);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+bc: 入力。 列挙型。境界条件。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+境界条件の設定をする。許される入力は、\ref{sec:type_enum}で挙げた列挙
+型のみ(ただしBOUNDARY\_CONDITION\_SHEARING\_BOX,
+BOUNDARY\_CONDITION\_USER\_DEFINEDは未実装)。呼ばない場合は、開放境界
+となる。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsubsection{setPosRootDomain}
+
+\begin{screen}
+\begin{verbatim}
+void PS::DomainInfo::setPosRootDomain
+                 (const PS::F32vec & low,
+                  const PS::F32vec & high);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+low: 入力。 PS::F32vec型。ルートドメインの下限(閉境界)。
+
+high: 入力。 PS::F32vec型。ルートドメインの上限(解境界)。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+ルートドメインの下限と上限を設定する。開放境界条件の場合は呼ぶ必要はな
+い。それ以外の境界条件の場合は、呼ばなくても動作するが、その結果が正し
+いことは保証できない。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsection{領域分割}
+
+領域分割関連のAPIの宣言は以下のようになっている。このあと各APIについて
+記述する。
+\begin{lstlisting}[caption=DomainInfo2]
+namespace ParticleSimulator {
+    class DomainInfo{
+    public:
+        template<class Tpsys>
+        void collectSampleParticle(Tpsys & psys,
+                                   const F32 weight=1.0,
+                                   const bool clear=true);
+        void decomposeDomain();
+        template<class Tpsys>
+        void decomposeDomainAll(Tpsys & psys,
+                                const F32 wgh=1.0);
+    };
+}
+namespace PS = ParticleSimulator;
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsubsection{collectSampleParticle}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tpsys>
+void PS::DomainInfo::collectSampleParticle
+                 (Tpsys & psys,
+                  const PS::F32 weight=1.0,
+                  const bool clear=true);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+psys: 入力。 Tpsys型。領域分割のためのサンプル粒子を提供する粒子群クラ
+ス。
+
+weight: 入力。 const PS::F32型。領域分割のためのサンプル粒子数を決める
+ためのウェイト。デフォルト1.0。
+
+clear: 入力。 bool型。前にサンプルされた粒子情報をクリアするかどうかを
+決定するフラグ。trueでクリアする。デフォルトtrue。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+粒子群クラスのオブジェクトpsysから粒子をサンプルする。weightによってそ
+のMPIプロセスからサンプルする粒子の量を調整する(weightが大きいほどサン
+プル粒子数が多い)。clearによってこれより前にサンプルした粒子の情報を消
+すかどうか決める。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsubsection{decomposeDomain}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tpsys>
+void PS::DomainInfo::decomposeDomain();
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+なし
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+ルートドメインの分割を行う。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsubsubsection{decomposeDomainAll}
+
+\begin{screen}
+\begin{verbatim}
+template<class Tpsys>
+void PS::DomainInfo::decomposeDomainAll
+                 (Tpsys & psys,
+                  const PS::F32 weight=1.0);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item {\bf 引数}
+
+psys: 入力。 Tpsys型。領域分割のためのサンプル粒子を提供する粒子群クラ
+ス。
+
+weight: 入力。 const PS::F32型。領域分割のためのサンプル粒子数を決める
+ためのウェイト。デフォルト1.0。
+
+\item {\bf 返値}
+
+なし
+
+\item {\bf 機能}
+
+粒子群クラスのオブジェクトpsysから粒子をサンプルし、続けてルートドメイ
+ンの分割を行う。PS::DomainInfo::collectSampleParticleと
+PS::DomainInfo::decomposeDomainで行われていることが一度に行われる。
+weightの意味はPS::DomainInfo::collectSampleParticleと同じ。
+
+\end{itemize}
+
+%%\subsubsubsubsubsubsection{getNumberofDomainOneAxis}
+
+%%\subsubsubsubsubsubsection{getDomain}

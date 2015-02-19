@@ -1,0 +1,424 @@
+PS::Vecotr3はx, y, zの2要素を持つ。これらに対する様々なAPIや演算子を定
+義した。それらの宣言を以下に記述する。この節ではこれらについて詳しく記
+述する。
+\begin{lstlisting}[caption=Vector3]
+namespace ParticleSimulator{
+    template <typename T>
+    class Vector3{
+    public:
+        //メンバ変数は以下の二つのみ。
+        T x, y, z;
+
+        //コンストラクタ
+        Vector3() : x(T(0)), y(T(0)), z(T(0)) {}
+        Vector3(const T _x, const T _y, const T _z) : x(_x), y(_y), z(_z) {}
+        Vector3(const T s) : x(s), y(s), z(s) {}
+        Vector3(const Vector3 & src) : x(src.x), y(src.y), z(src.z) {}
+
+        //代入演算子
+        const Vector3 & operator = (const Vector3 & rhs);
+
+        //加減算
+        Vector3 operator + (const Vector3 & rhs) const;
+        const Vector3 & operator += (const Vector3 & rhs);
+        Vector3 operator - (const Vector3 & rhs) const;
+        const Vector3 & operator -= (const Vector3 & rhs);
+
+        //ベクトルスカラ積
+        Vector3 operator * (const T s) const;
+        const Vector3 & operator *= (const T s);
+        friend Vector3 operator * (const T s, const Vector3 & v);
+        Vector3 operator / (const T s) const;
+        const Vector3 & operator /= (const T s);
+
+        //内積
+        T operator * (const Vector3 & rhs) const;
+
+        //外積(返り値はスカラ!!)
+        T operator ^ (const Vector3 & rhs) const;
+
+        //Vector3<U>への型変換
+        template <typename U>
+        operator Vector3<U> () const;
+    };
+}
+\end{lstlisting}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{コンストラクタ}
+\mbox{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+PS::Vector3<T>()
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+なし。
+
+\item{{\bf 機能}}
+
+デフォルトコンストラクタ。メンバx,yは0で初期化される。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+PS::Vector3<T>(const T _x, const T _y)
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt \_x}: 入力。{\tt const T}型。
+
+{\tt \_y}: 入力。{\tt const T}型。
+
+\item{{\bf 機能}}
+
+メンバ{\tt x}、{\tt y}をそれぞれ{\tt \_x}、{\tt \_y}で初期化する。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+PS::Vector3<T>(const T s);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt s}: 入力。{\tt const T}型。
+
+\item{{\bf 機能}}
+
+メンバ{\tt x}、{\tt y}を両方とも{\tt s}の値で初期化する。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+PS::Vector3<T>(const PS::Vector3<T> & src)
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt src}: 入力。{\tt const PS::Vector3<T> \&}型。
+
+\item{{\bf 機能}}
+
+コピーコンストラクタ。{\tt src}で初期化する。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{代入演算子}
+\mbox{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+const PS::Vector3<T> & PS::Vector3<T>::operator = 
+                       (const PS::Vector3<T> & rhs);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const PS::Vector3<T> \&}型。
+
+\item{{\bf 返り値}}
+
+{\tt const PS::Vector3<T> \&}型。{\tt rhs}のx,yの値を自身のメンバx,yに
+代入し自身の参照を返す。代入演算子。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{加減算}
+\mbox{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+PS::Vector3<T> PS::Vector3<T>::operator + 
+               (const PS::Vector3<T> & rhs) const;
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const PS::Vector3<T> \&}型。
+
+\item{{\bf 返り値}}
+
+{\tt PS::Vector3<T> }型。{\tt rhs}のx,yの値と自身のメンバx,yの値の和を
+取った値を返す。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+const PS::Vector3<T> & PS::Vector3<T>::operator += 
+                       (const PS::Vector3<T> & rhs);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const PS::Vector3<T> \&}型。
+
+\item{{\bf 返り値}}
+
+{\tt const PS::Vector3<T> \&}型。{\tt rhs}のx,yの値を自身のメンバx,yに足し、自
+身を返す。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+PS::Vector3<T> PS::Vector3<T>::operator - 
+               (const PS::Vector3<T> & rhs) const;
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const PS::Vector3<T> \&}型。
+
+\item{{\bf 返り値}}
+
+{\tt PS::Vector3<T> }型。{\tt rhs}のx,yの値と自身のメンバx,yの値の差を
+取った値を返す。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+const PS::Vector3<T> & PS::Vector3<T>::operator -= 
+                       (const PS::Vector3<T> & rhs);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const PS::Vector3<T> \&}型。
+
+\item{{\bf 返り値}}
+
+{\tt const PS::Vector3<T> \&}型。自身のメンバx,yから{\tt rhs}のx,yを引
+き自身を返す。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{ベクトルスカラ積}
+\mbox{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+PS::Vector3<T> PS::Vector3<T>::operator * (const T s) const;
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt s}: 入力。{\tt const T}型。
+
+\item{{\bf 返り値}}
+
+{\tt PS::Vector3<T>}型。自身のメンバx,yそれぞれに{\tt s}をかけた値を返
+す。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+const PS::Vector3<T> & PS::Vector3<T>::operator *= (const T s);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const T}型。
+
+\item{{\bf 返り値}}
+
+{\tt const PS::Vector3<T> \&}型。自身のメンバx,yそれぞれに{\tt s}をかけ
+自身を返す。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+PS::Vector3<T> PS::Vector3<T>::operator / (const T s) const;
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt s}: 入力。{\tt const T}型。
+
+\item{{\bf 返り値}}
+
+{\tt PS::Vector3<T>}型。自身のメンバx,yそれぞれを{\tt s}で割った値を返
+す。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+const PS::Vector3<T> & PS::Vector3<T>::operator /= (const T s);
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const T}型。
+
+\item{{\bf 返り値}}
+
+{\tt const PS::Vector3<T> \&}型。自身のメンバx,yそれぞれを{\tt s}で割り
+自身を返す。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{内積、外積}
+\mbox{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+T PS::Vector3<T>::operator * (const PS::Vector3<T> & rhs) const;
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const PS::Vector3<T> \&}型。
+
+\item{{\bf 返り値}}
+
+{\tt T}型。自身と{\tt rhs}の内積を取った値を返す。
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+T PS::Vector3<T>::operator ^ (const PS::Vector3<T> & rhs) const;
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+{\tt rhs}: 入力。{\tt const PS::Vector3<T> \&}型。
+
+\item{{\bf 返り値}}
+
+{\tt T}型。自身と{\tt rhs}の外積を取った値を返す。
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsubsection{{\tt Vector3<U>}への型変換}
+\mbox{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{screen}
+\begin{verbatim}
+template<typename T>
+template <typename U>
+PS::Vector3<T>::operator PS::Vector3<U> () const;
+\end{verbatim}
+\end{screen}
+
+\begin{itemize}
+
+\item{{\bf 引数}}
+
+  なし
+
+\item{{\bf 返り値}}
+
+  {\tt const PS::Vector3<U>}型。
+
+\item{{\bf 機能}}
+
+  {\tt const PS::Vector3<T>}型を{\tt const PS::Vector3<U>}型にキャ
+  ストする。
+
+\end{itemize}
