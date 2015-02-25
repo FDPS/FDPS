@@ -14,7 +14,6 @@ namespace math{
 		return (arg > 0) ? 1.0 : - 1.0;
 	}
 	///////////
-	//ここもうちょっと何とかならんのか。。。
 	template <typename type> inline type power(type base, int exp){
 		return pow(base, exp);
 	}
@@ -47,3 +46,5 @@ namespace math{
 		return (a > b) ? a : b;
 	}
 }
+
+const PS::F64 PI = atan(1.0) * 4.0;

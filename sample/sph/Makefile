@@ -1,36 +1,26 @@
-PS_PATH = -I ../fdps/src/src_parallel/
-#PS_PATH = -I ./header/
+PS_PATH = -I ../../src/
 
-#CPPC = mpiFCCpx
-#FLAGS = -Kfast,openmp
-#FLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL
-#FLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
-#FLAGS += -Xg
-#FLAGS += -Nfjcex
-#FLAGS += -Krestp=all
-#FLAGS = -Kfast,openmp,restp=all
-
-#CPPC = mpicxx-openmpi-gcc49
-CPPC = g++
-FLAGS = -O3 -ffast-math -funroll-loops #-Wall -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wconversion -Wfloat-equal -Wpointer-arith #-Weffc++
-#FLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
-#FLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
-FLAGS += -DPARTICLE_SIMULATOR_ALL_64BIT_PRECISION
-
+CC = g++
+CC = mpicxx
+CFLAGS = -O3 -ffast-math -funroll-loops 
+#CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
+#CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 CPPOBJS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
 CPPHDRS = $(wildcard *.h)
-PROGRAM = a.out
+PROGRAM = sph.out
 
-.PHONY:	clean
+.PHONY:	clean all mpi omp
 
-$(PROGRAM):	$(CPPOBJS) $(CPPHDRS)
-	$(CPPC) $(FLAGS) $(WARNINGS) $(CPPOBJS) -o $(PROGRAM) $(LIBS) $(PS_PATH)
+all:	$(CPPOBJS) $(CPPHDRS)
+	@echo "Linking object files..."
+	@$(CC) $(CFLAGS) $(WARNINGS) $(CPPOBJS) -o $(PROGRAM) $(LIBS) $(PS_PATH)
+	@echo "Link Success! [$(PROGRAM)]"
 
 %.o:	%.cpp $(CPPHDRS)
-	$(CPPC) -c $< $(FLAGS) $(WARNINGS) $(PS_PATH)
-
+	@echo "Bulding $< ..."
+	@$(CC) -c $< $(CFLAGS) $(WARNINGS) $(PS_PATH)
+	@echo "[$< OK]"
 
 clean:
 	-rm *.out *.o
-

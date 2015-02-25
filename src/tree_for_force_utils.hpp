@@ -262,6 +262,7 @@ namespace ParticleSimulator{
                          S32 & lev_max,
                          const S32 n_tot,
                          const S32 n_leaf_limit){
+        std::cerr<<"check 0"<<std::endl;
         tc_array.resizeNoInitialize(N_CHILDREN*2);
         tc_array[0].n_ptcl_ = n_tot;
         tc_array[0].adr_tc_ = N_CHILDREN;
@@ -284,9 +285,15 @@ namespace ParticleSimulator{
             // assign particles to child cells and count # of particles in child cells
             // but loop over parent cells because they have indexes of particles
 #pragma omp parallel for reduction(+: n_cell_new)
+            ///std::cerr<<"check a"<<std::endl;
             for(S32 i=id_cell_left; i<id_cell_right+1; i++){
+                //std::cerr<<"check b"<<std::endl;
+                //std::cerr<<"i="<<i<<std::endl;
+                //std::cerr<<"tc_array[i].n_ptcl_="<<tc_array[i].n_ptcl_<<std::endl;
+                //std::cerr<<"n_leaf_limit="<<n_leaf_limit<<std::endl;
                 const S32 n_ptcl_tmp = tc_array[i].n_ptcl_;
                 if(n_ptcl_tmp <= n_leaf_limit) continue;
+                //std::cerr<<"tc_array[i].adr_ptcl_="<<tc_array[i].adr_ptcl_<<std::endl;
                 const S32 adr_ptcl_tmp = tc_array[i].adr_ptcl_;
                 S32 adr[N_CHILDREN];
                 S32 n_cnt = 0;
@@ -1155,7 +1162,7 @@ namespace ParticleSimulator{
                               pos_box_target, pos_domain, n_leaf_limit);
                      }
                      else{
-			 id_send.reserve( id_send.size()+n_child );
+                         id_send.reserve( id_send.size()+n_child );
                          S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
                          for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
                              // NOTE: need to be concistent with MakeListUsingOuterBoundary()
@@ -1165,7 +1172,7 @@ namespace ParticleSimulator{
                              const F64 dis_sq0 = pos_box_target.getDistanceMinSQ(pos_tmp);
                              const F64 dis_sq1 = pos_domain.getDistanceMinSQ(pos_tmp);
                              if(dis_sq0 <= len_sq && dis_sq1 > len_sq){
-				 id_send.pushBackNoCheck(adr_ptcl_tmp);
+                                 id_send.pushBackNoCheck(adr_ptcl_tmp);
                              }
                          }
                      }

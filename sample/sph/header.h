@@ -9,6 +9,7 @@
 
 #include "param.h"
 #include "mathfunc.h"
+#include "kernel.h"
 #include "class.h"
-
+#include "force.h"
 #include "prototype.h"

@@ -392,20 +392,20 @@ namespace ParticleSimulator{
                                       Tpsys & psys,
                                       DomainInfo & dinfo,
                                       const bool clear_force = true){
-	    calcForceAll(pfunc_ep_ep, psys, dinfo, clear_force); 
-	    for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
+            calcForceAll(pfunc_ep_ep, psys, dinfo, clear_force); 
+            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
         }
 
-	template<class Tfunc_ep_ep, class Tpsys>
+        template<class Tfunc_ep_ep, class Tpsys>
         void calcForceAllAndWriteBackWithCheck(Tfunc_ep_ep pfunc_ep_ep, 
-					       Tpsys & psys,
-					       DomainInfo & dinfo,
-					       const bool clear_force = true){
-	    calcForceAllWithCheck(pfunc_ep_ep, psys, dinfo, clear_force);
-	    for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
+                                               Tpsys & psys,
+                                               DomainInfo & dinfo,
+                                               const bool clear_force = true){
+            calcForceAllWithCheck(pfunc_ep_ep, psys, dinfo, clear_force);
+            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
         }
-	//////////////////
-	// FOR SHORT FORCE
+        //////////////////
+        // FOR SHORT FORCE
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAll(Tfunc_ep_ep pfunc_ep_ep, 
                           Tfunc_ep_sp pfunc_ep_sp,  
