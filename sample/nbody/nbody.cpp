@@ -439,7 +439,7 @@ void WriteNemoAscii(const Tpsys & psys,
     if(PS::Comm::getRank () == 0){
         const PS::S32 STRINGSIZE = 1024;
         char sout[STRINGSIZE];
-        sprintf(sout,"%s/snap%5d.dat", dir_name, snp_id);
+        sprintf(sout,"%s/snap%04d.dat", dir_name, snp_id);
         for(int i=0;i<STRINGSIZE;i++)if(sout[i]==' ')sout[i]='0';
         std::ofstream foutput;
         foutput.open(sout);
@@ -455,39 +455,15 @@ void WriteNemoAscii(const Tpsys & psys,
     delete [] fp;
 }
 
-
-template<class Tpsys>
-void WriteNemoAsciiDistributedFile(const Tpsys & psys,
-                                   const PS::F32 time_sys,
-                                   const PS::S32 snp_id,
-                                   const char * dir_name){
-    const PS::S32 n_loc = psys.getNumberOfParticleLocal();
-    const PS::S32 STRINGSIZE = 1024;
-    char sout[STRINGSIZE];
-    sprintf(sout,"%s/snap%5d.dat", dir_name, snp_id);
-    for(int i=0;i<STRINGSIZE;i++)if(sout[i]==' ')sout[i]='0';
-    std::ofstream foutput;
-    foutput.open(sout);
-    foutput<<std::setprecision(15);
-    foutput<<n_loc<<std::endl;
-    foutput<<"3"<<std::endl;
-    foutput<<time_sys<<std::endl;
-    for(PS::S32 i=0; i<n_loc; i++) foutput<<fp[i].mass<<std::endl;
-    for(PS::S32 i=0; i<n_loc; i++) foutput<<fp[i].pos<<std::endl;
-    for(PS::S32 i=0; i<n_loc; i++) foutput<<fp[i].vel<<std::endl;
-    foutput.close();
-}
-
-
-void MakePlummerModel(const double mass_glb,
-                      const long long int n_glb,
-                      const long long int n_loc,
-                      double *& mass,
-                      PS::F64vec *& pos,
-                      PS::F64vec *& vel,
-                      const double eng = -0.25,
-                      const int seed = 0){
-
+void MakeColdUniformSphere(const double mass_glb,
+                           const long long int n_glb,
+                           const long long int n_loc,
+                           double *& mass,
+                           PS::F64vec *& pos,
+                           PS::F64vec *& vel,
+                           const double eng = -0.25,
+                           const int seed = 0){
+    
     assert(eng < 0.0);
     static const double PI = atan(1.0) * 4.0;
     mass = new double[n_loc];
@@ -501,27 +477,21 @@ void MakePlummerModel(const double mass_glb,
         for(int i=0; i<n_loc; i++){
             mass[i] = mass_glb / n_glb;
             //double m_tmp = PS::MT::genrand_real3();
-            double m_tmp = mt.genrand_res53();
-            double r_tmp = 1.0 / sqrt( pow(m_tmp, (-2.0/3.0)) - 1.0);
-            double phi = 2.0 * PI * mt.genrand_res53();
-            double cth = 2.0 * (mt.genrand_real2() - 0.5);
-            double sth = sqrt(1.0 - cth*cth);
-            pos[i][0] = r_tmp * sth * cos(phi);
-            pos[i][1] = r_tmp * sth * sin(phi);
-            pos[i][2] = r_tmp * cth;
+            const double radius = 3.0;
+            do {
+                pos[i][0] = (2. * mt.genrand_res53() - 1.) * radius;
+                pos[i][1] = (2. * mt.genrand_res53() - 1.) * radius;
+                pos[i][2] = (2. * mt.genrand_res53() - 1.) * radius;
+            }while(pos[i] * pos[i] >= radius * radius);
             while(1){
                 const double v_max = 0.1;
                 const double v_try = mt.genrand_res53();
                 //const double v_crit = v_max * PS::MT::genrand_real3();
                 const double v_crit = v_max * mt.genrand_res53();
                 if(v_crit < v_try * v_try * pow( (1.0 - v_try * v_try), 3.5) ){
-                    const double ve = sqrt(2.0) * pow( (r_tmp*r_tmp + 1.0), -0.25 );
-                    phi = 2.0 * PI * mt.genrand_res53();
-                    cth = 2.0 * (mt.genrand_res53() - 0.5);
-                    sth = sqrt(1.0 - cth*cth);
-                    vel[i][0] = ve * v_try * sth * cos(phi);
-                    vel[i][1] = ve * v_try * sth * sin(phi);
-                    vel[i][2] = ve * v_try * cth;
+                    vel[i][0] = 0.0;
+                    vel[i][1] = 0.0;
+                    vel[i][2] = 0.0;
                     break;
                 }
             }
@@ -543,12 +513,14 @@ void MakePlummerModel(const double mass_glb,
         vel[i] -= cm_vel;
     }
 
+    /*
     const double r_scale = -3.0 * PI * mass_glb * mass_glb / (64.0 * eng);
     const double coef = 1.0 / sqrt(r_scale);
     for(size_t i=0; i<n_loc; i++){
         pos[i] *= r_scale;
         vel[i] *= coef;
     }
+    */
 
 }
 
@@ -572,7 +544,9 @@ void SetParticlesPlummer(Tpsys & psys,
 
     const PS::F64 m_tot = 1.0;
     const PS::F64 eng = -0.25;
-    MakePlummerModel(m_tot, n_glb, n_loc, mass, pos, vel, eng);
+//    MakePlummerModel(m_tot, n_glb, n_loc, mass, pos, vel, eng);
+//    MakePlummerModelLike(m_tot, n_glb, n_loc, mass, pos, vel, eng);
+    MakeColdUniformSphere(m_tot, n_glb, n_loc, mass, pos, vel, eng);
     PS::S32 i_h = n_glb/n_proc*my_rank;
     if( n_glb % n_proc  > my_rank) i_h += my_rank;
     else i_h += n_glb % n_proc;
@@ -625,9 +599,15 @@ void CalcEnergy(const Tpsys & system,
     ekin_loc *= 0.5;
     epot_loc *= 0.5;
     etot_loc = ekin_loc + epot_loc;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     MPI::COMM_WORLD.Allreduce(&etot_loc, &etot, 1, PS::GetDataType<PS::F64>(), MPI::SUM);
     MPI::COMM_WORLD.Allreduce(&epot_loc, &epot, 1, PS::GetDataType<PS::F64>(), MPI::SUM);
     MPI::COMM_WORLD.Allreduce(&ekin_loc, &ekin, 1, PS::GetDataType<PS::F64>(), MPI::SUM);
+#else
+    etot = etot_loc;
+    epot = epot_loc;
+    ekin = ekin_loc;
+#endif
 }
 
 int main(int argc, char *argv[]){
@@ -641,13 +621,11 @@ int main(int argc, char *argv[]){
     PS::F32 time_end = 10.0;
     char sinput[1024];
     char dir_name[1024];
-    long long int n_tot = 16384;
+    long long int n_tot = 1024;
     int c;
+    sprintf(dir_name,"./result");
     while((c=getopt(argc,argv,"i:o:t:T:n:N:h")) != -1){
         switch(c){
-        case 'i':
-            sprintf(sinput,optarg);
-            break;
         case 'o':
             sprintf(dir_name,optarg);
             break;
@@ -668,12 +646,11 @@ int main(int argc, char *argv[]){
             std::cerr<<"n_tot="<<n_tot<<std::endl;
             break;
         case 'h':
-            std::cerr<<"i: input file name (nemo ascii)"<<std::endl;
-            std::cerr<<"o: dir name of output"<<std::endl;
-            std::cerr<<"t: theta (dafult: 0.5)"<<std::endl;
-            std::cerr<<"T: time_end (dafult: 10.0)"<<std::endl;
-            std::cerr<<"n: n_group_limit (dafult: 64.0)"<<std::endl;
-            std::cerr<<"N: n_tot (dafult: 16384)"<<std::endl;
+            std::cerr<<"o: dir name of output (default: ./result)"<<std::endl;
+            std::cerr<<"t: theta (default: 0.5)"<<std::endl;
+            std::cerr<<"T: time_end (default: 10.0)"<<std::endl;
+            std::cerr<<"n: n_group_limit (default: 64.0)"<<std::endl;
+            std::cerr<<"N: n_tot (default: 1024)"<<std::endl;
             return 0;
         }
     }
@@ -754,8 +731,9 @@ int main(int argc, char *argv[]){
             header.time = time_sys;
             header.n_body = system_grav.getNumberOfParticleLocal();
 			char filename[256];
-			sprintf(filename, "%s/%05d.dat", dir_name, snp_id++);
-			system_grav.writeParticleAscii(filename, "%s_%05d_%05d.dat", header);
+			sprintf(filename, "%s/%04d.dat", dir_name, snp_id++);
+//			system_grav.writeParticleAscii(filename, "%s_%05d_%05d.dat", header);
+			system_grav.writeParticleAscii(filename, header);
         }
         timer.restart("WriteNemoAscii");
 	
