@@ -578,15 +578,20 @@ namespace ParticleSimulator{
 
     static inline void Finalize(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        if(Comm::getRank() == 0) {
+            fprintf(stderr, "******** FDPS has successfully finished. ********\n");
+        }
         MPI::Finalize();
+#else
+        fprintf(stderr, "******** FDPS has successfully finished. ********\n");
 #endif
     }
 
     static inline void Abort(const S32 err = -1){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	MPI::COMM_WORLD.Abort(err);
+        MPI::COMM_WORLD.Abort(err);
 #else
-	exit(err);
+        exit(err);
 #endif
     }
 

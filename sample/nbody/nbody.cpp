@@ -1,6 +1,7 @@
 #include<iostream>
 #include<fstream>
 #include<unistd.h>
+#include<sys/stat.h>
 #include<particle_simulator.hpp>
 
 #ifdef USEPHANTOMGRAPE
@@ -730,9 +731,24 @@ int main(int argc, char *argv[]){
             FileHeader header;
             header.time = time_sys;
             header.n_body = system_grav.getNumberOfParticleLocal();
+            struct stat st;
+            if(stat(dir_name, &st) != 0) {
+                PS::S32 rank = PS::Comm::getRank();
+                PS::S32 ret_loc, ret;
+                if(rank == 0)
+                    ret_loc = mkdir(dir_name, 0777);
+                PS::Comm::broadcast(&ret_loc, ret);
+                if(ret == 0) {
+                    if(rank == 0)
+                        fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
+                } else {
+                    fprintf(stderr, "Directory %s fails to be made.\n", dir_name);
+                    PS::Finalize();
+                    exit(0);
+                }
+            }
 			char filename[256];
 			sprintf(filename, "%s/%04d.dat", dir_name, snp_id++);
-//			system_grav.writeParticleAscii(filename, "%s_%05d_%05d.dat", header);
 			system_grav.writeParticleAscii(filename, header);
         }
         timer.restart("WriteNemoAscii");

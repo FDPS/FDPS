@@ -1,5 +1,6 @@
 #define SANITY_CHECK_REALLOCATABLE_ARRAY
 //#define VERBOSE
+#include <sys/stat.h>
 #include "header.h"
 
 int main(int argc, char* argv[]){
@@ -63,6 +64,22 @@ int main(int argc, char* argv[]){
 			header.time = time;
 			header.Nbody = sph_system.getNumberOfParticleGlobal();
 			char filename[256];
+            struct stat st;
+            if(stat("result", &st) != 0) {
+                PS::S32 rank = PS::Comm::getRank();
+                PS::S32 ret_loc, ret;
+                if(rank == 0)
+                    ret_loc = mkdir("result", 0777);
+                PS::Comm::broadcast(&ret_loc, ret);
+                if(ret == 0) {
+                    if(rank == 0)
+                        fprintf(stderr, "Directory \"result\" is successfully made.\n");
+                } else {
+                    fprintf(stderr, "Directory \"result\" fails to be made.\n");
+                    PS::Finalize();
+                    exit(0);
+                }
+            }
 			sprintf(filename, "result/%04d.txt", step);
 			sph_system.writeParticleAscii(filename, header);
 			if(PS::Comm::getRank() == 0){

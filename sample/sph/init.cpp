@@ -44,7 +44,7 @@ void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64 *end_time, bounda
 	}
 	std::cout << "# of ptcls is... " << ptcl.size() << std::endl;
 	/////////
-	//scatter ptcls↲
+	//scatter ptcls
 	/////////↲
 	assert(ptcl.size() % PS::Comm::getNumberOfProc() == 0);
 	const PS::S32 numPtclLocal = ptcl.size() / PS::Comm::getNumberOfProc();
