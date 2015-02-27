@@ -21,6 +21,13 @@ namespace ParticleSimulator{
         >
     class TreeForForce{
 
+    public:
+        F64 length_; // length of a side of the root cell
+        F64vec center_; // new member (not used)
+        F64ort pos_root_cell_;
+
+    private:
+
         F64 Tcomm_tmp_;
 
         S64 n_interaction_;
@@ -36,10 +43,11 @@ namespace ParticleSimulator{
         S32 adr_tc_level_partition_[TREE_LEVEL_LIMIT+2];
         S32 lev_max_;
         F64 theta_;
+/*
         F64 length_; // length of a side of the root cell
         F64vec center_; // new member (not used)
         F64ort pos_root_cell_;
-
+*/
         ReallocatableArray< TreeParticle > tp_buf_, tp_loc_, tp_glb_;
         ReallocatableArray< TreeCell< Tmomloc > > tc_loc_;
         ReallocatableArray< TreeCell< Tmomglb > > tc_glb_;
@@ -272,6 +280,7 @@ namespace ParticleSimulator{
         void setParticleLocalTree(const Tpsys & psys, const bool clear=true);
         void setRootCell(const DomainInfo & dinfo);
         void setRootCell(const F64 l, const F64vec & c=F64vec(0.0));
+        template<class Ttree>  void copyRootCell(const Ttree & tree);
         void mortonSortLocalTreeOnly();
         void linkCellLocalTreeOnly();
         void linkCellGlobalTreeOnly();
@@ -489,7 +498,48 @@ namespace ParticleSimulator{
             tm.restart("write back");
         }
 
-	template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
+
+
+// for debug
+        template<class Tfunc_ep_ep, class Tpsys, class Ttree>
+        void calcForceAllAndWriteBackWithTimer2(Tfunc_ep_ep pfunc_ep_ep, 
+                                                Tpsys & psys,
+                                                DomainInfo & dinfo,
+                                                Timer & tm,
+                                                const Ttree & tree,
+                                                const bool clear_force=true){
+            setParticleLocalTree(psys);
+            tm.restart("setParticleLocalTree");
+            //setRootCell(dinfo);
+            copyRootCell(tree);
+            tm.restart("setcopytree");
+            mortonSortLocalTreeOnly();
+            tm.restart("mortonSortLocalTreeOnly");
+            linkCellLocalTreeOnly();
+            tm.restart("linkCellLocalTreeOnly");
+            calcMomentLocalTreeOnly();
+            tm.restart("calcMomentLocalTreeOnly");
+            exchangeLocalEssentialTree(dinfo);
+            tm.restart("exchangeLocalEssentialTree");
+            setLocalEssentialTreeToGlobalTree();
+            tm.restart("setLocalEssentialTreeToGlobalTree");
+            mortonSortGlobalTreeOnly();
+            tm.restart("mortonSortGlobalTreeOnly");
+            linkCellGlobalTreeOnly();
+            tm.restart("linkCellGlobalTreeOnly");
+            calcMomentGlobalTreeOnly();
+            tm.restart("calcMomentGlobalTreeOnly");
+            makeIPGroup();
+            tm.restart("makeIPGroup");
+            calcForce(pfunc_ep_ep, clear_force);
+            tm.restart("calcForce");
+            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
+            tm.restart("write back");
+        }
+
+
+
+        template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAllWithTimer(Tfunc_ep_ep pfunc_ep_ep, 
                                    Tfunc_ep_sp pfunc_ep_sp,  
                                    Tpsys & psys,
@@ -522,6 +572,8 @@ namespace ParticleSimulator{
             tm.restart("calcForce");
 
         }
+
+
 
 
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
@@ -668,6 +720,7 @@ namespace ParticleSimulator{
     template<class Tforce, class Tepi, class Tepj>
     class TreeForForceShort{
     public:
+
         typedef TreeForForce 
         <SEARCH_MODE_SYMMETRY,
          Tforce, Tepi, Tepj,

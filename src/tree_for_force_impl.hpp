@@ -33,72 +33,72 @@ namespace ParticleSimulator{
         const F64ort outer_boundary_of_my_tree = tc_loc_[0].mom_.vertex_out_;
 #pragma omp parallel
         {
-	    const S32 ith = Comm::getThreadNum();
-	    S32 n_proc_cum = 0;
-	    bool pa[DIMENSION];
-	    dinfo.getPeriodicAxis(pa);
-	    ep_send_buf[ith].clearSize();
+            const S32 ith = Comm::getThreadNum();
+            S32 n_proc_cum = 0;
+            bool pa[DIMENSION];
+            dinfo.getPeriodicAxis(pa);
+            ep_send_buf[ith].clearSize();
 #pragma omp for schedule(dynamic, 4)
-	    for(S32 ib=0; ib<n_proc; ib++){
-		n_send[ib] = n_recv[ib] = 0;
-		shift_image_domain[ith].clearSize();
-		if(dinfo.getBoundaryCondition() == BOUNDARY_CONDITION_OPEN){
-		    shift_image_domain[ith].push_back( (F64vec)(0.0));
-		}
-		else{
-		    CalcNumberAndShiftOfImageDomain
-			(shift_image_domain[ith], 
-			 dinfo.getPosRootDomain().getFullLength(),
-			 outer_boundary_of_my_tree, 
-			 dinfo.getPosDomain(ib), 
-			 pa);
-		}
-		S32 n_ep_offset = ep_send_buf[ith].size();
-		const S32 n_image = shift_image_domain[ith].size();
-		for(S32 ii=0; ii<n_image; ii++){
-		    if(my_rank == ib && ii == 0) continue; // skip self image
-		    F64ort pos_domain = dinfo.getPosDomain(ib).shift(shift_image_domain[ith][ii]);
-		    const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
-		    MakeListUsingOuterBoundary
-			(tc_loc_.getPointer(),  adr_tc_tmp,
-			 ep_org.getPointer(),   ep_send_buf[ith],
-			 pos_domain,            n_leaf_limit_,
-			 -shift_image_domain[ith][ii]);
-		}
-		//n_ep_send_[ib] = ep_send_buf[ith].size() - n_ep_offset;
-		n_send[ib] = ep_send_buf[ith].size() - n_ep_offset;
-		id_proc_send_[ith][n_proc_cum++] = ib;  // new
-	    } // omp for
+            for(S32 ib=0; ib<n_proc; ib++){
+                n_send[ib] = n_recv[ib] = 0;
+                shift_image_domain[ith].clearSize();
+                if(dinfo.getBoundaryCondition() == BOUNDARY_CONDITION_OPEN){
+                    shift_image_domain[ith].push_back( (F64vec)(0.0));
+                }
+                else{
+                    CalcNumberAndShiftOfImageDomain
+                        (shift_image_domain[ith], 
+                         dinfo.getPosRootDomain().getFullLength(),
+                         outer_boundary_of_my_tree, 
+                         dinfo.getPosDomain(ib), 
+                         pa);
+                }
+                S32 n_ep_offset = ep_send_buf[ith].size();
+                const S32 n_image = shift_image_domain[ith].size();
+                for(S32 ii=0; ii<n_image; ii++){
+                    if(my_rank == ib && ii == 0) continue; // skip self image
+                    F64ort pos_domain = dinfo.getPosDomain(ib).shift(shift_image_domain[ith][ii]);
+                    const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
+                    MakeListUsingOuterBoundary
+                        (tc_loc_.getPointer(),  adr_tc_tmp,
+                         ep_org.getPointer(),   ep_send_buf[ith],
+                         pos_domain,            n_leaf_limit_,
+                         -shift_image_domain[ith][ii]);
+                }
+                //n_ep_send_[ib] = ep_send_buf[ith].size() - n_ep_offset;
+                n_send[ib] = ep_send_buf[ith].size() - n_ep_offset;
+                id_proc_send_[ith][n_proc_cum++] = ib;  // new
+            } // omp for
 #pragma omp single
-	    {
-		n_send_disp[0] = 0;
-		for(S32 i=0; i<n_proc; i++){
-		    n_send_disp[i+1] = n_send_disp[i] + n_send[i];
-		}
-		ep_send.resizeNoInitialize(n_send_disp[n_proc]);
-	    }
-	    S32 n_ep_cnt = 0;
-	    for(S32 ib=0; ib<n_proc_cum; ib++){
-		const S32 id = id_proc_send_[ith][ib];
-		const S32 adr_ep_tmp = n_send_disp[id];
-		const S32 n_ep_tmp = n_send[id];
-		for(int ip=0; ip<n_ep_tmp; ip++){
-		    ep_send[adr_ep_tmp+ip] = ep_send_buf[ith][n_ep_cnt++];
-		}
-	    }
-	} // omp parallel scope
-	Comm::allToAll(n_send, 1, n_recv); // TEST
-	n_recv_disp[0] = 0;
-	for(S32 i=0; i<n_proc; i++){
-	    n_recv_disp[i+1] = n_recv_disp[i] + n_recv[i];
-	}
-	ep_recv.resizeNoInitialize( n_recv_disp[n_proc] );
-	Comm::allToAllV(ep_send.getPointer(), n_send, n_send_disp,
-			ep_recv.getPointer(), n_recv, n_recv_disp);
+            {
+                n_send_disp[0] = 0;
+                for(S32 i=0; i<n_proc; i++){
+                    n_send_disp[i+1] = n_send_disp[i] + n_send[i];
+                }
+                ep_send.resizeNoInitialize(n_send_disp[n_proc]);
+            }
+            S32 n_ep_cnt = 0;
+            for(S32 ib=0; ib<n_proc_cum; ib++){
+                const S32 id = id_proc_send_[ith][ib];
+                const S32 adr_ep_tmp = n_send_disp[id];
+                const S32 n_ep_tmp = n_send[id];
+                for(int ip=0; ip<n_ep_tmp; ip++){
+                    ep_send[adr_ep_tmp+ip] = ep_send_buf[ith][n_ep_cnt++];
+                }
+            }
+        } // omp parallel scope
+        Comm::allToAll(n_send, 1, n_recv); // TEST
+        n_recv_disp[0] = 0;
+        for(S32 i=0; i<n_proc; i++){
+            n_recv_disp[i+1] = n_recv_disp[i] + n_recv[i];
+        }
+        ep_recv.resizeNoInitialize( n_recv_disp[n_proc] );
+        Comm::allToAllV(ep_send.getPointer(), n_send, n_send_disp,
+                        ep_recv.getPointer(), n_recv, n_recv_disp);
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     size_t TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>
     ::getMemSizeUsed() const {
 	return tp_buf_.getMemSize() + tp_loc_.getMemSize() + tp_glb_.getMemSize()
@@ -112,22 +112,22 @@ namespace ParticleSimulator{
     }
     
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     initialize(const U64 n_glb_tot,
                const F64 theta,
                const U32 n_leaf_limit,
                const U32 n_group_limit){
-	n_glb_tot_ = n_glb_tot;
-	theta_ = theta;
-	n_leaf_limit_ = n_leaf_limit;
-	n_group_limit_ = n_group_limit;
-	lev_max_ = 0;
-	S32 n_thread = Comm::getNumberOfThread();
-	std::cerr<<"n_thread="<<n_thread<<std::endl;
-	S64 n_proc = Comm::getNumberOfProc();
-	S64 np_ave = (n_glb_tot_/n_proc);
-	epi_org_.reserve( np_ave*4 + 100 );
+        n_glb_tot_ = n_glb_tot;
+        theta_ = theta;
+        n_leaf_limit_ = n_leaf_limit;
+        n_group_limit_ = n_group_limit;
+        lev_max_ = 0;
+        S32 n_thread = Comm::getNumberOfThread();
+        std::cerr<<"n_thread="<<n_thread<<std::endl;
+        S64 n_proc = Comm::getNumberOfProc();
+        S64 np_ave = (n_glb_tot_/n_proc);
+        epi_org_.reserve( np_ave*4 + 100 );
 	epi_sorted_.reserve( epi_org_.capacity() );
 	if(typeid(TSM) == typeid(SEARCH_MODE_LONG) || 
 	   typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) ){
@@ -214,7 +214,7 @@ namespace ParticleSimulator{
     }
     
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     setRootCell(const DomainInfo & dinfo){
         if(dinfo.getBoundaryCondition() == BOUNDARY_CONDITION_OPEN){
@@ -223,16 +223,28 @@ namespace ParticleSimulator{
         else{
             calcCenterAndLengthOfRootCellPeriodicImpl(typename TSM::search_type());
         }
+        //std::cerr<<"pos_root_cell_="<<pos_root_cell_<<std::endl; // debug
+    }
+
+// new function by M.I.
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Ttree>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    copyRootCell(const Ttree & tree){
+        center_ = tree.center_;
+        length_ = tree.length_;
+        pos_root_cell_ = tree.pos_root_cell_;
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     setRootCell(const F64 l, const F64vec & c){
-	center_ = c;
-	length_ = l;
-	pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
-	pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
+        center_ = c;
+        length_ = l;
+        pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
+        pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -268,31 +280,31 @@ namespace ParticleSimulator{
 	     class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentLocalTreeOnly(){
-	calcMomentLocalTreeOnlyImpl(typename TSM::search_type());
+        calcMomentLocalTreeOnlyImpl(typename TSM::search_type());
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
 	     class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentLocalTreeOnlyImpl(TagSearchLong){
-	CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
-		   epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
+        CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
+                   epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
 	     class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentLocalTreeOnlyImpl(TagSearchLongCutoff){
-	CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
-		   epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
+        CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
+                   epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
 	     class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentLocalTreeOnlyImpl(TagSearchShortScatter){
-	CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
-		   epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
+        CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
+                   epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -307,8 +319,8 @@ namespace ParticleSimulator{
 	     class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentLocalTreeOnlyImpl(TagSearchShortSymmetry){
-	CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
-		   epi_sorted_.getPointer(), lev_max_, n_leaf_limit_);
+        CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
+                   epi_sorted_.getPointer(), lev_max_, n_leaf_limit_);
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -691,7 +703,7 @@ namespace ParticleSimulator{
 #else
 		    // original version
 		    //std::cout<<"original version"<<std::endl;
-		    std::cerr<<"id_ptcl_send[ith].size()="<<id_ptcl_send[ith].size()<<std::endl;
+		    //std::cerr<<"id_ptcl_send[ith].size()="<<id_ptcl_send[ith].size()<<std::endl;
 		    id_ptcl_send[ith].clearSize();
 		    MakeListUsingInnerBoundaryForGatherModeNormalMode
 			(tc_loc_.getPointer(),     adr_tc_tmp,
@@ -820,6 +832,7 @@ namespace ParticleSimulator{
                     std::cout<<"epj_recv_buf[j].pos="<<epj_recv_buf[j].pos<<std::endl; 
 */
             }
+        //}
         }
     }
 
@@ -1306,20 +1319,20 @@ namespace ParticleSimulator{
 	     class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     makeIPGroup(){
-	ipg_.clearSize();
-	makeIPGroupImpl(typename TSM::force_type());
+        ipg_.clearSize();
+        makeIPGroupImpl(typename TSM::force_type());
     }
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     makeIPGroupImpl(TagForceLong){
-	MakeIPGroupLong(ipg_, tc_loc_, epi_sorted_, 0, n_group_limit_);
+        MakeIPGroupLong(ipg_, tc_loc_, epi_sorted_, 0, n_group_limit_);
     }
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     makeIPGroupImpl(TagForceShort){
-	MakeIPGroupShort(ipg_, tc_loc_, epi_sorted_, 0, n_group_limit_);
+        MakeIPGroupShort(ipg_, tc_loc_, epi_sorted_, 0, n_group_limit_);
     }
 
     /////////////////////////////
@@ -1390,32 +1403,43 @@ namespace ParticleSimulator{
 	
     }
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     makeInteractionListImpl(TagSearchShortSymmetry, const S32 adr_ipg){
-	const S32 ith = Comm::getThreadNum();
-	const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
-	epj_for_force_[ith].clearSize();
-	MakeListUsingOuterBoundary
-	    (tc_glb_.getPointer(),     tc_glb_[0].adr_tc_,
-	     epj_sorted_.getPointer(), epj_for_force_[ith], 
-	     pos_target_box,   n_leaf_limit_);
+        const S32 ith = Comm::getThreadNum();
+#if 0
+        const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
+        epj_for_force_[ith].clearSize();
+        MakeListUsingOuterBoundary
+            (tc_glb_.getPointer(),     tc_glb_[0].adr_tc_,
+             epj_sorted_.getPointer(), epj_for_force_[ith], 
+             pos_target_box,   n_leaf_limit_);
+#else
+// modified by M.I.
+        const F64ort pos_target_box_out = (ipg_[adr_ipg]).vertex_;
+        const F64ort pos_target_box_in = (ipg_[adr_ipg]).vertex_in;
+        epj_for_force_[ith].clearSize();
+        MakeListUsingOuterBoundaryAndInnerBoundary
+            (tc_glb_.getPointer(),     tc_glb_[0].adr_tc_,
+             epj_sorted_.getPointer(), epj_for_force_[ith], 
+             pos_target_box_out, pos_target_box_in, n_leaf_limit_);
+#endif
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     template<class Tep2>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcCenterAndLengthOfRootCellOpenNoMargenImpl(const Tep2 ep[]){
-	const F64ort min_box  = GetMinBox(ep, n_loc_tot_);
-	//std::cerr<<"n_loc_tot_="<<n_loc_tot_<<std::endl;
-	//std::cerr<<"min_box="<<min_box<<std::endl;
-	center_ = min_box.getCenter();
-	const F64 tmp0 = (min_box.high_ - center_).getMax();
-	const F64 tmp1 = (center_ - min_box.low_).getMax();
-	length_ = std::max(tmp0, tmp1) * 2.0 * 1.001;
-	pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
-	pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
+        const F64ort min_box  = GetMinBox(ep, n_loc_tot_);
+        //std::cerr<<"n_loc_tot_="<<n_loc_tot_<<std::endl;
+        //std::cerr<<"min_box="<<min_box<<std::endl;
+        center_ = min_box.getCenter();
+        const F64 tmp0 = (min_box.high_ - center_).getMax();
+        const F64 tmp1 = (center_ - min_box.low_).getMax();
+        length_ = std::max(tmp0, tmp1) * 2.0 * 1.001;
+        pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
+        pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
     }
     
     template<class TSM, class Tforce, class Tepi, class Tepj,

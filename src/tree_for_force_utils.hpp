@@ -262,7 +262,6 @@ namespace ParticleSimulator{
                          S32 & lev_max,
                          const S32 n_tot,
                          const S32 n_leaf_limit){
-        std::cerr<<"check 0"<<std::endl;
         tc_array.resizeNoInitialize(N_CHILDREN*2);
         tc_array[0].n_ptcl_ = n_tot;
         tc_array[0].adr_tc_ = N_CHILDREN;
@@ -538,7 +537,7 @@ namespace ParticleSimulator{
         const S32 n_tmp = tc_tmp->n_ptcl_;
         if(n_tmp == 0) return;
         else if( tc_tmp->isLeaf(n_grp_limit) ){
-	    ipg_first.increaseSize();
+            ipg_first.increaseSize();
             ipg_first.back().copyFromTC(*tc_tmp);
             return;
         }
@@ -1015,7 +1014,7 @@ namespace ParticleSimulator{
             }
         }
     }
-    
+#if 1
     template<class Ttc, class Tep2, class Tep3>
     inline void MakeListUsingOuterBoundary(const Ttc * tc_first,
                                            const S32 adr_tc,
@@ -1028,7 +1027,7 @@ namespace ParticleSimulator{
         for(S32 i=0; i<N_CHILDREN; i++){
             open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
         }
-         for(S32 i=0; i<N_CHILDREN; i++){
+        for(S32 i=0; i<N_CHILDREN; i++){
             if( (open_bits>>i) & 0x1){
                 const S32 adr_tc_child = adr_tc + i;
                 const Ttc * tc_child = tc_first + adr_tc_child;
@@ -1048,7 +1047,7 @@ namespace ParticleSimulator{
                             const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
                             const F64 dis_sq_tmp = pos_target_box.getDistanceMinSQ(pos_tmp);
                             if(dis_sq_tmp > size_tmp*size_tmp) continue;
-			    ep_list.increaseSize();
+                            ep_list.increaseSize();
                             ep_list.back() = ep_first[adr_ptcl_tmp];
                             const F64vec pos_new = ep_list.back().getPos() + shift;
                             ep_list.back().setPos(pos_new);
@@ -1058,6 +1057,59 @@ namespace ParticleSimulator{
             }
         }
     }
+#endif
+
+    // NEW functions for 
+    template<class Ttc, class Tep2, class Tep3>
+    inline void MakeListUsingOuterBoundaryAndInnerBoundary(const Ttc * tc_first,
+                                                           const S32 adr_tc,
+                                                           const Tep2 * ep_first,
+                                                           ReallocatableArray<Tep3> & ep_list,
+                                                           const F64ort & pos_target_box_out, // position of domain
+                                                           const F64ort & pos_target_box_in, // position of domain
+                                                           const S32 n_leaf_limit,
+                                                           const F64vec & shift = F64vec(0.0) ){
+        U32 open_bits = 0;
+        for(S32 i=0; i<N_CHILDREN; i++){
+            open_bits |= ( (pos_target_box_out.overlapped( tc_first[adr_tc+i].mom_.getVertexIn() ) 
+                            || pos_target_box_in.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) )
+                           << i);
+/*
+            if(Comm::getThreadNum() == 0){
+                std::cerr<<"tc_first[adr_tc+i].mom_.getVertexIn()="<<tc_first[adr_tc+i].mom_.getVertexIn()<<std::endl;
+                std::cerr<<"pos_target_box_in="<<pos_target_box_in<<std::endl;
+            }
+*/
+        }
+        for(S32 i=0; i<N_CHILDREN; i++){
+            if( (open_bits>>i) & 0x1){
+                const S32 adr_tc_child = adr_tc + i;
+                const Ttc * tc_child = tc_first + adr_tc_child;
+                const S32 n_child = tc_child->n_ptcl_;
+                if(n_child == 0) continue;
+                if( !(tc_child->isLeaf(n_leaf_limit)) ){
+                    MakeListUsingOuterBoundaryAndInnerBoundary<Ttc, Tep2, Tep3>
+                        (tc_first, tc_first[adr_tc_child].adr_tc_, ep_first, ep_list,
+                         pos_target_box_out, pos_target_box_in, n_leaf_limit, shift);
+                }
+                else{
+                    S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
+                    ep_list.reserve( ep_list.size()+n_child );
+                    for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
+                        const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
+                        const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
+                        const F64 dis_sq_tmp = pos_target_box_in.getDistanceMinSQ(pos_tmp);
+                        if( pos_target_box_out.notOverlapped(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
+                        ep_list.increaseSize();
+                        ep_list.back() = ep_first[adr_ptcl_tmp];
+                        const F64vec pos_new = ep_list.back().getPos() + shift;
+                        ep_list.back().setPos(pos_new);
+                    }
+                }
+            }
+        }
+    }
+
 
     template<class Ttc, class Tep2, class Tep3>
     inline void MakeListUsingInnerBoundary(const Ttc * tc_first,

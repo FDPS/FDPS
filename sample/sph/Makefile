@@ -10,7 +10,7 @@ CPPOBJS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
 CPPHDRS = $(wildcard *.h)
 PROGRAM = sph.out
 
-.PHONY:	clean all mpi omp
+.PHONY:	clean all
 
 all:	$(CPPOBJS) $(CPPHDRS)
 	@echo "Linking object files..."

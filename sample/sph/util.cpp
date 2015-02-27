@@ -11,7 +11,8 @@ void DisplayInfo(void){
 		std::cout << "||     Framework for Developing     ||" << std::endl;
 		std::cout << "||        Particle Simulator        ||" << std::endl;
 		std::cout << "\\\\==================================//" << std::endl;
-		std::cout << "This is tutorial program of FDPS!" << std::endl;
+		std::cout << "//=====================================" << std::endl;
+		std::cout << "This is a sample program of Smoothed Particle Hydrodynamics on FDPS!" << std::endl;
 		std::cout << "# of proc is   " << PS::Comm::getNumberOfProc() << std::endl;
 		#ifdef _OPENMP
 		std::cout << "# of thread is " << omp_get_num_threads() << std::endl;
@@ -22,4 +23,3 @@ void DisplayInfo(void){
 	}
 	return ;
 }
-

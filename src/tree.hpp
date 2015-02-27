@@ -48,7 +48,7 @@ namespace ParticleSimulator{
         S32 n_ptcl_;
         U32 adr_tc_;
         U32 adr_ptcl_;
-        U32 level_;
+        S32 level_;
         Tmom mom_;
         TreeCell(){
             n_ptcl_ = adr_tc_ = adr_ptcl_ = level_ = 0;
@@ -260,8 +260,6 @@ namespace ParticleSimulator{
         }
     };
 
-
-    //template<int TSM>
     template<class TSM>
     class IPGroup{
     public:
@@ -292,6 +290,8 @@ namespace ParticleSimulator{
                 ip->vertex_ = tc.mom_.vertex_out_;
             }
         };
+#if 0
+// modified by M.I.
         template<class Ttc2, class Tdummy>
         struct CopyFromTCDummy<SEARCH_MODE_SYMMETRY, Ttc2, Tdummy>{
             void operator () (IPGroup * ip, const Ttc2 & tc){
@@ -301,6 +301,7 @@ namespace ParticleSimulator{
                 ip->vertex_ = tc.mom_.vertex_out_;
             }
         };
+#endif
         template<class Ttc2, class Tdummy>
         struct CopyFromTCDummy<SEARCH_MODE_LONG, Ttc2, Tdummy>{
             void operator () (IPGroup * ip, const Ttc2 & tc){
@@ -315,6 +316,29 @@ namespace ParticleSimulator{
                 ip->adr_ptcl_ = tc.adr_ptcl_;
             }
         };
+        // for DEBUG
+        void dump(std::ostream & fout = std::cout){
+            fout<<"n_ptcl_="<<n_ptcl_<<std::endl;
+            fout<<"adr_ptcl_="<<adr_ptcl_<<std::endl;
+            fout<<"vertex_="<<vertex_<<std::endl;
+        }
+    };
+
+    template<>
+    class IPGroup<SEARCH_MODE_SYMMETRY>{
+    public:
+        S32 n_ptcl_;
+        S32 adr_ptcl_;
+        F64ort vertex_;
+        F64ort vertex_in;
+        template<class Ttc> 
+        void copyFromTC(const Ttc & tc){
+            // for SYMMETRY
+            n_ptcl_ = tc.n_ptcl_;
+            adr_ptcl_ = tc.adr_ptcl_;
+            vertex_ = tc.mom_.vertex_out_;
+            vertex_in = tc.mom_.vertex_in_;
+        }
         // for DEBUG
         void dump(std::ostream & fout = std::cout){
             fout<<"n_ptcl_="<<n_ptcl_<<std::endl;

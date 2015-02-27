@@ -686,7 +686,7 @@ namespace ParticleSimulator{
             const F64vec len_root = pos_root.getFullLength();
             const S32 n = ptcl_.size();
 #pragma omp parallel for
-            for(size_t i=0; i<n; i++){
+            for(S32 i=0; i<n; i++){
                 F64vec pos_new = ptcl_[i].getPos() ;
                 if( pos_root.notOverlapped(pos_new) ){
                     while(pos_new.x < pos_root.low_.x){
