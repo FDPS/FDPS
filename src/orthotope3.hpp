@@ -33,9 +33,9 @@ namespace ParticleSimulator{
             high_ = -low_;
         }
 	
-	void init(){
-	    initNegativeVolume();
-	}
+        void init(){
+            initNegativeVolume();
+        }
 	
         Orthotope3 shift( const Vector3<T> & vec) const {
 	    return Orthotope3(low_ + vec, high_ + vec);

@@ -10,10 +10,10 @@ namespace  ParticleSimulator{
 
     template<S32 DIM>
     void SetNumberOfDomainMultiDimension(S32 np[], S32 rank[]){
-	for(S32 i=0; i<DIMENSION_LIMIT; i++){
-	    np[i] = 1;
-	    rank[i] = 1;
-	}
+        for(S32 i=0; i<DIMENSION_LIMIT; i++){
+            np[i] = 1;
+            rank[i] = 1;
+        }
         std::vector<S32> npv;
         npv.resize(DIM);
         S32 np_tmp = Comm::getNumberOfProc();
@@ -150,9 +150,7 @@ namespace  ParticleSimulator{
             if(n_proc != nx*ny*nz){
                 PARTICLE_SIMULATOR_PRINT_ERROR("devided number of domains is not consistent with total processe number");
                 Abort(-1);
-                //throw "PS_ERROR: in setDomain(const S32, const S32, const S32) \n number of domain is not correct";
             }
-            //assert(n_proc == nx*ny*nz);
             n_domain_[0] = nx;
             n_domain_[1] = ny;
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
@@ -166,11 +164,16 @@ namespace  ParticleSimulator{
             setNumberOfDomainMultiDimension(nx, ny, nz);
         }
 
-
+/*
         template<class Tpsys>
         void collectSampleParticle(Tpsys & psys,
-                                   const F32 weight=1.0,
-                                   const bool clear=true) {            
+                                   const F32 weight,
+                                   const bool clear = true) {
+*/
+        template<class Tpsys>
+        void collectSampleParticle(Tpsys & psys,
+                                   const bool clear,
+                                   const F32 weight) {
             if(psys.getFirstCallByDomainInfoCollectSampleParticle()) {
                 F64vec *temp_loc = new F64vec[target_number_of_sample_particle_];
                 for(S32 i = 0; i < number_of_sample_particle_loc_; i++)
@@ -192,11 +195,26 @@ namespace  ParticleSimulator{
             }
             
             S32 number_of_sample_particle = 0;
+
             psys.getSampleParticle(number_of_sample_particle, &pos_sample_loc_[number_of_sample_particle_loc_], weight);
             number_of_sample_particle_loc_ += number_of_sample_particle;
             return;
         }
-        
+
+        template<class Tpsys>
+        void collectSampleParticle(Tpsys & psys,
+                                   const bool clear){
+            const F32 wgh = psys.getNumberOfParticleLocal();
+            collectSampleParticle(psys, clear, wgh);
+        }
+
+        template<class Tpsys>
+        void collectSampleParticle(Tpsys & psys){
+            const F32 wgh = psys.getNumberOfParticleLocal();
+            const bool clear = true;
+            collectSampleParticle(psys, clear, wgh);
+        }
+
         void decomposeDomain() {
             // ****** collect sample particles to process 0. ****** 
             // ****** Here, Gatherv could be used *****************
@@ -319,21 +337,33 @@ namespace  ParticleSimulator{
             pos_domain_[0] = pos_root_domain_;
             
 #endif     // PARTICLE_SIMULATOR_MPI_PARALLEL
-            /*
-              if(Comm::getRank() == 0){
-              std::cout<<"pos_root_domain_="<<pos_root_domain_<<std::endl;
-              for(S32 i=0; i<nproc; i++) std::cout<<"pos_domain_[i]="<<pos_domain_[i]<<std::endl;
-              }
-            */
+#ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
+            PARTICLE_SIMULATOR_PRINT_LINE_INFO();
+            std::cout<<"pos_root_domain_="<<pos_root_domain_<<std::endl;
+            std::cout<<"pos_domain_[Comm::getRank()]="<<pos_domain_[Comm::getRank()]<<std::endl;
+            if(Comm::getRank()==0){
+                for(S32 i=0; i<Comm::getNumberOfProc(); i++){
+                    std::cout<<"pos_domain_["<<i<<"]="<<pos_domain_[i]<<std::endl;
+                }
+            }
+#endif
         }
-        
+
         template<class Tpsys>
         void decomposeDomainAll(Tpsys & psys,
-                                const F32 wgh=1.0) {
-            collectSampleParticle(psys);
+                                const F32 wgh){
+            const bool clear = true;
+            collectSampleParticle(psys, clear, wgh);
             decomposeDomain();
         }
 
+        template<class Tpsys>
+        void decomposeDomainAll(Tpsys & psys){
+            const F32 wgh = psys.getNumberOfParticleLocal();
+            const bool clear = true;
+            collectSampleParticle(psys, clear, wgh);
+            decomposeDomain();
+        }
 
         void getRootDomain(FILE *fp) {
             fprintf(fp, "%+e %+e %+e\n",

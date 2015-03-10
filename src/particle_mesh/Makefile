@@ -1,7 +1,12 @@
-CC = mpicxx-openmpi-gcc49
-CFLAGS = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK #-Wall
+#CC = mpicxx-openmpi-gcc49
+CC = time mpiFCCpx
 
-INCLUDE_FFTW = -I/Users/tanikawa/mylib/fftw-3.3.4/include
+#CFLAGS = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK #-Wall
+CFLAGS = -Kfast,openmp -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_DEBUG_PRINT
+
+#INCLUDE_FFTW = -I/Users/tanikawa/mylib/fftw-3.3.4/include
+INCLUDE_FFTW = -I/home/apps/fftw/3.3/include
+
 FFTW3_IDENTIFIER = FFTW3_PARALLEL
 
 CFLAGS += $(INCLUDE_FFTW)

@@ -10,6 +10,7 @@ namespace ParticleSimulator{
     template<class Tptcl>
     class ParticleSystem{
     private:
+        static const S32 n_smp_ave_ = 30;
         //Tptcl * ptcl_;
         ReallocatableArray<Tptcl> ptcl_;
         ReallocatableArray<Tptcl> ptcl_send_;
@@ -72,7 +73,8 @@ namespace ParticleSimulator{
             first_call_by_setAverageTargetNumberOfSampleParticlePerProcess = true;
             first_call_by_initialize = true;
             first_call_by_DomainInfo_collect_sample_particle = true;
-            n_smp_ptcl_tot_ = 30 * Comm::getNumberOfProc();
+            //n_smp_ptcl_tot_ = 30 * Comm::getNumberOfProc();
+            n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
         }
 	
         void initialize() {
@@ -103,17 +105,17 @@ namespace ParticleSimulator{
         void createParticle(const S32 n_limit, bool clear=true){
             //n_ptcl_limit_ = n_limit;
             //ptcl_ = new Tptcl[n_ptcl_limit_];
-	    ptcl_.reserve(n_limit);
-	    ptcl_.resizeNoInitialize(0);
+            ptcl_.reserve(n_limit);
+            ptcl_.resizeNoInitialize(0);
         }
 
 	
         //void setNumberOfParticleLocal(const S32 n){ n_ptcl_ = n; }
-	void setNumberOfParticleLocal(const S32 n){
-		//15/02/20 Hosono bug(?) fix.
-	    ptcl_.reserve(n*3+1000);
-	    ptcl_.resizeNoInitialize(n);
-	}
+        void setNumberOfParticleLocal(const S32 n){
+            //15/02/20 Hosono bug(?) fix.
+            ptcl_.reserve(n*3+1000);
+            ptcl_.resizeNoInitialize(n);
+        }
         ////////////////
         // 05/01/30 Hosono From
         ////////////////
@@ -155,6 +157,11 @@ namespace ParticleSimulator{
                 MPI::COMM_WORLD.Gatherv(ptcl_.getPointer(), n_ptcl_, GetDataType<Tptcl>(), ptcl, n_ptcl, n_ptcl_displs, GetDataType<Tptcl>(), 0);
                 if(Comm::getRank() == 0){
                     FILE* fp = fopen(filename, "w");
+                    if(fp == NULL){
+                        PARTICLE_SIMULATOR_PRINT_ERROR("can not open output file");
+			std::cerr<<"output file: "<<filename<<std::endl;
+                        Abort(-1);
+                    }
                     header->writeAscii(fp);
                     for(S32 i = 0 ; i < n_tot ; ++ i){
                         ptcl[i].writeAscii(fp);
@@ -179,6 +186,11 @@ namespace ParticleSimulator{
                 char output[256];
                 sprintf(output, format, filename, Comm::getNumberOfProc(), Comm::getRank());
                 FILE* fp = fopen(output, "w");
+                if(fp == NULL){
+                    PARTICLE_SIMULATOR_PRINT_ERROR("can not open output file");
+		    std::cerr<<"output file: "<<output<<std::endl;
+                    Abort(-1);
+                }
                 header->writeAscii(fp);
                 for(S32 i = 0 ; i < ptcl_.size() ; ++ i){
                     ptcl_[i].writeAscii(fp);
@@ -207,6 +219,11 @@ namespace ParticleSimulator{
             if(format == NULL){//Read from single file
                 if(Comm::getRank() == 0){
                     FILE* fp = fopen(filename, "r");
+                    if(fp == NULL){
+                        PARTICLE_SIMULATOR_PRINT_ERROR("can not open input file ");
+			std::cerr<<"filename: "<<filename<<std::endl;
+                        Abort(-1);
+                    }
                     S32 n_ptcl_ = header->readAscii(fp);
                     while('\n' == getc(fp));
                     if(n_ptcl_ < 0){//User does NOT return # of ptcl
@@ -267,6 +284,11 @@ namespace ParticleSimulator{
                 char input[256];
                 sprintf(input, format, filename, Comm::getNumberOfProc(), Comm::getRank());
                 FILE* fp = fopen(input, "r");
+                if(fp == NULL){
+                    PARTICLE_SIMULATOR_PRINT_ERROR("can not open input file");
+		    std::cerr<<"filename: "<<input<<std::endl;
+                    Abort(-1);
+                }
                 S32 n_ptcl_ = header->readAscii(fp);
                 while('\n' == getc(fp));
                 if(n_ptcl_ >= 0){
@@ -418,35 +440,41 @@ namespace ParticleSimulator{
         */
         void getSampleParticle(S32 & number_of_sample_particle,
                                F64vec pos_sample[],
-                               const F32 weight=1.0) {
+                               const F32 weight) {
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-/*
-                S32 nglb = 0;
-                S32 nloc = n_ptcl_;
 
-                MPI::COMM_WORLD.Allreduce(&nloc, &nglb, 1, MPI::INT, MPI::SUM);
-                
-                number_of_sample_particle = (S32)(nloc * n_smp_ptcl_tot_ / (F32)nglb);
-                number_of_sample_particle = (number_of_sample_particle < nloc) ? number_of_sample_particle : nloc;
-*/
+            S64 nloc = (S64)ptcl_.size();
 
-            F32 weight_all = 0.;
-            //S32 nloc = n_ptcl_;
-            S32 nloc = ptcl_.size();
-            //MPI::COMM_WORLD.Allreduce(&weight, &weight_all, 1, MPI::FLOAT, MPI::SUM);
-            MPI::COMM_WORLD.Allreduce(&weight, &weight_all, 1, GetDataType<F32>(), MPI::SUM);
-            number_of_sample_particle = (S32)(weight * n_smp_ptcl_tot_ / weight_all);
+            F32 weight_all = Comm::getSum(weight);
+            number_of_sample_particle = (weight * n_smp_ptcl_tot_) / weight_all;
 #if 1
 // modified to limit # of sample particles by M.I. 
             const F32 coef_limitter = 0.2;
             S64 nglb = Comm::getSum( (S64)nloc );
-            S32 number_of_sample_particle_limit = ((S64)nloc * n_smp_ptcl_tot_) / (nglb * (1.0 + coef_limitter)); // lower limit
-            //std::cerr<<"number_of_sample_particle_limit="<<number_of_sample_particle_limit<<std::endl;
-            //std::cerr<<"number_of_sample_particle="<<number_of_sample_particle<<std::endl;
+            S32 number_of_sample_particle_limit = ((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter)); // lower limit
             number_of_sample_particle = (number_of_sample_particle > number_of_sample_particle_limit) ? number_of_sample_particle : number_of_sample_particle_limit;
 #endif
             number_of_sample_particle = (number_of_sample_particle < nloc) ? number_of_sample_particle : nloc;
+	    /*
+	    if(Comm::getRank() == 0){
+	      std::cout<<"nloc="<<nloc<<std::endl;
+	      std::cout<<"weight="<<weight<<std::endl;
+	      std::cout<<"weight_all="<<weight_all<<std::endl;
+	      std::cout<<"number_of_sample_particle(final)="<<number_of_sample_particle<<std::endl;
+	      std::cout<<std::endl;
+	    }
+	    */
+#ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
+            std::cout<<"weight="<<weight<<" weight_all="<<weight_all<<std::endl;
+            std::cout<<"n_smp_ptcl_tot_="<<n_smp_ptcl_tot_<<std::endl;
+            std::cout<<"nglb="<<nglb<<" nloc="<<nloc<<std::endl;
+            std::cout<<"(weight * n_smp_ptcl_tot_) / weight_all="<<(weight * n_smp_ptcl_tot_) / weight_all<<std::endl;
+            std::cout<<"((S64)nloc * n_smp_ptcl_tot_)="<< ((S64)nloc * n_smp_ptcl_tot_)<<std::endl;
+            std::cout<<"((F32)nglb * (1.0 + coef_limitter))="<<((F32)nglb * (1.0 + coef_limitter))<<std::endl;
+            std::cout<<"((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter))="<<((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter))<<std::endl;
+            std::cout<<"number_of_sample_particle(final)="<<number_of_sample_particle<<std::endl;
+#endif
 
             S32 *record = new S32[number_of_sample_particle];
             for(S32 i = 0; i < number_of_sample_particle; i++) {
@@ -471,13 +499,13 @@ namespace ParticleSimulator{
                 
                 return;
 #endif
-            }
+        }
 
         template<class Tdinfo>
         void exchangeParticle(Tdinfo & dinfo) {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             //const S32 nloc  = n_ptcl_;
-	    const S32 nloc  = ptcl_.size();
+            const S32 nloc  = ptcl_.size();
             const S32 rank  = MPI::COMM_WORLD.Get_rank();
             const S32 nproc = MPI::COMM_WORLD.Get_size();
             const S32 * n_domain = dinfo.getPointerOfNDomain();
@@ -506,12 +534,9 @@ namespace ParticleSimulator{
             // *** count the number of send particles preliminary *
             for(S32 ip = 0; ip < nloc; ip++) {
                 if( dinfo.getPosRootDomain().notOverlapped(ptcl_[ip].getPos()) ){
-                    //std::cerr<<"ptcl_[ip].getPos()="<<ptcl_[ip].getPos()<<std::endl;
-                    //std::cerr<<"dinfo.getPosRootDomain()="<<dinfo.getPosRootDomain()<<std::endl;
-                    //throw"PS_ERROR: position of particle is out of root domain";
-                    PARTICLE_SIMULATOR_PRINT_ERROR("position of particle is out of root domain");
-                    std::cerr<<"ptcl_[ip].getPos()="<<ptcl_[ip].getPos()<<std::endl;
-                    std::cerr<<"dinfo.getPosRootDomain()="<<dinfo.getPosRootDomain()<<std::endl;
+                    PARTICLE_SIMULATOR_PRINT_ERROR("A particle is out of root domain");
+                    std::cerr<<"position of the particle="<<ptcl_[ip].getPos()<<std::endl;
+                    std::cerr<<"position of the root domain="<<dinfo.getPosRootDomain()<<std::endl;
                     Abort(-1);
                 }
                 if(!determineWhetherParticleIsInDomain(ptcl_[ip].getPos(), thisdomain)) {
@@ -636,18 +661,18 @@ namespace ParticleSimulator{
             }
             MPI::Request::Waitall(nsendnode, req_send);
             MPI::Request::Waitall(nrecvnode, req_recv);
-	    //std::cerr<<"check 5"<<std::endl;
+            //std::cerr<<"check 5"<<std::endl;
             // ****************************************************            
             // *** align particles ********************************
-	    /*
-            for(S32 ip = 0; ip < nrecvtot; ip++) {
-                ptcl_[n_ptcl_] = ptcl_recv_[ip];
-                n_ptcl_++;
+            /*
+              for(S32 ip = 0; ip < nrecvtot; ip++) {
+              ptcl_[n_ptcl_] = ptcl_recv_[ip];
+              n_ptcl_++;
             }
 	    */
-	    ptcl_.reserve( ptcl_.size()+nrecvtot );
-	    //ptcl_.dump("dump ptcl");
-	    for(S32 ip = 0; ip < nrecvtot; ip++) {
+            ptcl_.reserve( ptcl_.size()+nrecvtot );
+            //ptcl_.dump("dump ptcl");
+            for(S32 ip = 0; ip < nrecvtot; ip++) {
                 ptcl_.pushBackNoCheck(ptcl_recv_[ip]);
             }
 	    //std::cerr<<"ptcl_.size()="<<ptcl_.size()<<std::endl;
@@ -662,6 +687,13 @@ namespace ParticleSimulator{
             //delete [] ptcl_send_;
             //delete [] ptcl_recv_;
 #endif
+#ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
+            std::cout<<"ptcl_.size()="<<ptcl_.size()<<std::endl;
+            if(ptcl_.size() > 0){
+                std::cout<<"ptcl_[0].getPos()="<<ptcl_[0].getPos()<<std::endl;
+                std::cout<<"ptcl_[0].getRSearch()="<<ptcl_[0].getRSearch()<<std::endl;
+            }
+#endif
         }
 
         // for DEBUG functions
@@ -669,7 +701,7 @@ namespace ParticleSimulator{
         void calcCMDirect(Treal & mass_cm, Tvec & pos_cm){
             mass_cm = 0.0;
             pos_cm = 0.0;
-	    const S32 n_ptcl = ptcl_.size();
+            const S32 n_ptcl = ptcl_.size();
             for(S32 i=0; i<n_ptcl; i++){
                 mass_cm += ptcl_[i].mass;
                 pos_cm += ptcl_[i].mass * ptcl_[i].pos;

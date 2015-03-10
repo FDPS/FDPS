@@ -13,6 +13,9 @@ namespace ParticleSimulator{
         Vector3(const T s) : x(s), y(s), z(s) {}
         Vector3(const Vector3 & src) : x(src.x), y(src.y), z(src.z) {}
 
+        typedef T DataType;
+        static const int DIM = 3;
+
         const Vector3 & operator = (const Vector3 & rhs){
             x = rhs.x;
             y = rhs.y;

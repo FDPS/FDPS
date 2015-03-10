@@ -22,13 +22,18 @@ namespace ParticleSimulator{
     class TreeForForce{
 
     public:
-        F64 length_; // length of a side of the root cell
-        F64vec center_; // new member (not used)
-        F64ort pos_root_cell_;
+        //F64 length_; // length of a side of the root cell
+        //F64vec center_; // new member (not used)
+        //F64ort pos_root_cell_;
 
     private:
-
         F64 Tcomm_tmp_;
+        F64 Tcomm_scatterEP_tmp_;
+        F64 TexLET0_, TexLET1_, TexLET2_, TexLET3_, TexLET4_;
+        S64 n_ep_send_1st_, n_ep_recv_1st_, n_ep_send_2nd_, n_ep_recv_2nd_;
+        F64 wtime_walk_LET_1st_, wtime_walk_LET_2nd_;
+
+        bool is_initialized_;
 
         S64 n_interaction_;
         S32 ni_ave_;
@@ -43,11 +48,11 @@ namespace ParticleSimulator{
         S32 adr_tc_level_partition_[TREE_LEVEL_LIMIT+2];
         S32 lev_max_;
         F64 theta_;
-/*
+
         F64 length_; // length of a side of the root cell
         F64vec center_; // new member (not used)
         F64ort pos_root_cell_;
-*/
+
         ReallocatableArray< TreeParticle > tp_buf_, tp_loc_, tp_glb_;
         ReallocatableArray< TreeCell< Tmomloc > > tc_loc_;
         ReallocatableArray< TreeCell< Tmomglb > > tc_glb_;
@@ -81,6 +86,8 @@ namespace ParticleSimulator{
         ReallocatableArray<Tepj> * epj_for_force_;
         ReallocatableArray<Tspj> * spj_for_force_;
 
+        S32 n_surface_for_comm_;
+
         template<class Tep2, class Tep3>
         inline void scatterEP(S32 n_send[],
                               S32 n_send_disp[],
@@ -102,6 +109,8 @@ namespace ParticleSimulator{
         void exchangeLocalEssentialTreeImpl(TagSearchShortScatter, const DomainInfo & dinfo);
         void exchangeLocalEssentialTreeImpl(TagSearchShortGather, const DomainInfo & dinfo);
         void exchangeLocalEssentialTreeImpl(TagSearchShortSymmetry, const DomainInfo & dinfo);
+        void exchangeLocalEssentialTreeGatherImpl(TagRSearch, const DomainInfo & dinfo);
+        void exchangeLocalEssentialTreeGatherImpl(TagNoRSearch, const DomainInfo & dinfo);
 
         void setLocalEssentialTreeToGlobalTreeImpl(TagForceShort);
         void setLocalEssentialTreeToGlobalTreeImpl(TagForceLong);
@@ -268,14 +277,16 @@ namespace ParticleSimulator{
 	 ReallocatableArray<F64vec> & pos_direct);
 	
     public:
-	// old functin, not used.
-        //void initializeLocalTree(const F64 len_half){}
+
+        TreeForForce() : is_initialized_(false){}
+
         size_t getMemSizeUsed()const;
 	
         void initialize(const U64 n_glb_tot,
                         const F64 theta=0.7,
                         const U32 n_leaf_limit=8,
                         const U32 n_group_limit=64);
+
         template<class Tpsys>
         void setParticleLocalTree(const Tpsys & psys, const bool clear=true);
         void setRootCell(const DomainInfo & dinfo);
@@ -345,6 +356,27 @@ namespace ParticleSimulator{
                         const DomainInfo & dinfo,
                         std::ostream & fout=std::cout);
 
+
+        //////////////////////////////
+        /// MIDDLE LEVEL FUNCTIONS ///
+        //////////////////////////////
+        void makeLocalTree(DomainInfo & dinfo){
+            setRootCell(dinfo);
+	    mortonSortLocalTreeOnly();
+            linkCellLocalTreeOnly();
+        }
+        void makeLocalTree(const DomainInfo & dinfo){
+            calcMomentLocalTreeOnly();
+            exchangeLocalEssentialTree(dinfo);
+            setLocalEssentialTreeToGlobalTree();
+            mortonSortGlobalTreeOnly();
+            linkCellGlobalTreeOnly();
+        }
+        void calcMomentGlobalTree(){
+            calcMomentGlobalTreeOnly();
+            makeIPGroup();
+        }
+
         ////////////////////////////
         /// HIGH LEVEL FUNCTIONS ///
         //////////////////
@@ -370,9 +402,10 @@ namespace ParticleSimulator{
 
         template<class Tfunc_ep_ep, class Tpsys>
         void calcForceAllWithCheck(Tfunc_ep_ep pfunc_ep_ep, 
-				   Tpsys & psys,
-				   DomainInfo & dinfo,
-				   const bool clear_force = true){
+                                   Tpsys & psys,
+                                   DomainInfo & dinfo,
+                                   const bool clear_force = true){
+
             setParticleLocalTree(psys);
             setRootCell(dinfo);
             mortonSortLocalTreeOnly();
@@ -573,9 +606,6 @@ namespace ParticleSimulator{
 
         }
 
-
-
-
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAllAndWriteBack(Tfunc_ep_ep pfunc_ep_ep, 
                                       Tfunc_ep_sp pfunc_ep_sp,  
@@ -632,14 +662,30 @@ namespace ParticleSimulator{
             tm.restart("write back");
         }
 
-	
+
+
+
+
+
         void dump_calc_cost(const double & tcal, std::ostream & fout){
             double speed_per_node = 128.0*1e9; // for K com
             double n_op_per_interaction = 28.0; // use the 3rd orde convergence with potential
             S64 n_interaction_tot = Comm::getSum(n_interaction_);
             fout<<"ni_ave_= "<<ni_ave_<<" nj_ave_= "<<nj_ave_<<" n_interaction_= "<<n_interaction_
                 <<" speed: "<<(double)n_interaction_tot*n_op_per_interaction/tcal*1e-12<<" [Tflops] efficiency= "
-                <<(double)n_interaction_tot*n_op_per_interaction/tcal/(speed_per_node*Comm::getNumberOfProc())<<" Tcomm_tmp_= "<<Tcomm_tmp_<<std::endl;
+                <<(double)n_interaction_tot*n_op_per_interaction/tcal/(speed_per_node*Comm::getNumberOfProc())<<" Tcomm_tmp_= "<<Tcomm_tmp_<<" Tcomm_scatterEP_tmp_= "<<Tcomm_scatterEP_tmp_<<std::endl;
+            fout<<"TexLET0_= "<<TexLET0_<<"   TexLET1_= "<<TexLET1_<<"   TexLET2_= "<<TexLET2_<<"   TexLET3_= "<<TexLET3_<<"   TexLET4_= "<<TexLET4_<<std::endl;
+
+            double max_wtime_walk_LET_1st;
+            int rank_max_wtime_walk_LET_1st;
+            Comm::getMaxValue(wtime_walk_LET_1st_, Comm::getRank(), max_wtime_walk_LET_1st, rank_max_wtime_walk_LET_1st);
+            double max_wtime_walk_LET_2nd;
+            int rank_max_wtime_walk_LET_2nd;
+            Comm::getMaxValue(wtime_walk_LET_2nd_, Comm::getRank(), max_wtime_walk_LET_2nd, rank_max_wtime_walk_LET_2nd);
+            fout<<"wtime_walk_LET_1st_= "<<wtime_walk_LET_1st_<<"   max_wtime_walk_LET_1st= "<<max_wtime_walk_LET_1st<<" (@"<<rank_max_wtime_walk_LET_1st<<")"
+                <<"   wtime_walk_LET_2nd_= "<<wtime_walk_LET_2nd_<<"   max_wtime_walk_LET_2nd= "<<max_wtime_walk_LET_2nd<<" (@"<<rank_max_wtime_walk_LET_2nd<<")"<<std::endl;
+            fout<<"n_ep_send_1st_= "<<n_ep_send_1st_<<"   n_ep_recv_1st_= "<<n_ep_recv_1st_
+                <<"   n_ep_send_2nd_= "<<n_ep_send_2nd_<<"   n_ep_recv_2nd_= "<<n_ep_recv_2nd_<<std::endl;
 
         }
 
