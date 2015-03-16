@@ -80,7 +80,7 @@ int main(int argc, char* argv[]){
                     exit(0);
                 }
             }
-			sprintf(filename, "result/%04d.txt", step);
+			sprintf(filename, "result/%04d.dat", step);
 			sph_system.writeParticleAscii(filename, header);
 			if(PS::Comm::getRank() == 0){
 				std::cout << "//================================" << std::endl;

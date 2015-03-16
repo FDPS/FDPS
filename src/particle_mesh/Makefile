@@ -29,6 +29,7 @@ HDR = gadget_param.h param.h qsort_omp.h treepm_header.h \
 
 libpm.a : $(OBJ) $(HDR)
 	$(AR) rv libpm.a $(OBJ); \
+	ranlib libpm.a; \
 	sh make_header.sh $(FFTW3_IDENTIFIER) > particle_mesh.hpp
 
 pm_parallel.o: pm_parallel.cpp $(HDR)

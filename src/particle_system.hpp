@@ -113,7 +113,7 @@ namespace ParticleSimulator{
         //void setNumberOfParticleLocal(const S32 n){ n_ptcl_ = n; }
         void setNumberOfParticleLocal(const S32 n){
             //15/02/20 Hosono bug(?) fix.
-            ptcl_.reserve(n*3+1000);
+            //ptcl_.reserve(n*3+1000);
             ptcl_.resizeNoInitialize(n);
         }
         ////////////////

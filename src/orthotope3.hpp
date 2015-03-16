@@ -85,8 +85,6 @@ namespace ParticleSimulator{
         unsigned int overlapped(const Orthotope3 & a) const {
             return notOverlapped(a) ^ 0x1;
         }
-
-
 	
 #if 1
 	// new // needed

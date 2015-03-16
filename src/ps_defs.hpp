@@ -12,15 +12,11 @@
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #include"mpi.h"
 #endif
+
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #include<omp.h>
 #endif
 
-namespace ParticleSimulator{
-  //static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1<<31;
-}
-
-//#include"reallocatable_array.hpp"
 #include"vector2.hpp"
 #include"vector3.hpp"
 #include"orthotope2.hpp"
@@ -28,22 +24,15 @@ namespace ParticleSimulator{
 #include"matrix_sym2.hpp"
 #include"matrix_sym3.hpp"
 
-
-template<bool> struct CompileTimeError;
-template<> struct CompileTimeError<true> {};
-#define STATIC_ASSERT(expr, msg) \
-{ CompileTimeError<expr> PS_ERROR_##msg; (void)ERROR_##msg; }
-
-#define PARTICLE_SIMULATOR_STATIC_ASSERT(expr) \
-{ CompileTimeError<expr> ERROR; }
-
 #define PARTICLE_SIMULATOR_PRINT_ERROR(msg) \
     { std::cout<<"PS_ERROR: "<<msg<<" \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl; }
 
 #define PARTICLE_SIMULATOR_PRINT_LINE_INFO() \
     { std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl; }
 
+
 namespace ParticleSimulator{
+
     typedef int S32;
     typedef unsigned int U32;
 #ifdef PARTICLE_SIMULATOR_ALL_64BIT_PRECISION
@@ -104,7 +93,11 @@ namespace ParticleSimulator{
           F32vec( 0.5,  0.5, -0.5), F32vec( 0.5,  0.5,  0.5) };
 #endif
 
-    static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1<<31;
+    ///// A.Tanikawa modified from
+    // In the upper line, the right-hand side is interpreted to be a 32bit-integer.
+//    static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1<<31;
+    static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1ll<<30;
+    ///// A.Tanikawa modified to
 
     enum SEARCH_MODE{
         LONG_NO_CUTOFF,
@@ -610,17 +603,18 @@ namespace ParticleSimulator{
       CompileTimeError<false> PLEASE_COMPILE_USING_MPI;
 #endif //MPI_VERSION
 #endif
-
+	
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #ifndef _OPENMP
-        CompileTimeError<false> OPENMP_FLAG_IMCOMPATIBLE;
+	PS_COMPILE_TIME_ERROR SET_OPENMP_OPTION;
 #endif //_OPENMP
 #else  //PARTICLE_SIMULATOR_THREAD_PARALLEL
 #ifdef _OPENMP
-        CompileTimeError<false> OPENMP_FLAG_IMCOMPATIBLE;
+	PS_COMPILE_TIME_ERROR SET_OPENMP_OPTION;
 #endif //_OPENMP
 #endif //PARTICLE_SIMULATOR_THREAD_PARALLEL
 
+	
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         MPI::Init(argc, argv);
 #endif
@@ -810,8 +804,11 @@ namespace ParticleSimulator{
     }
     struct LessOPForVecX{
         bool operator() (const F64vec & left, const F64vec & right) const {
-            //return (left.x == right.x) ? left.y < right.y : left.x < right.x;
-	    return (left.x == right.x) ? ((left.y == right.y) ? ((left.z == right.z) ? left.z : left.z < right.z) : left.y < right.y ) : left.x < right.x;
+#ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
+	    return (left.x == right.x) ? ((left.y == right.y) ? true : right.y < right.y ) : left.x < right.x;
+#else
+	    return (left.x == right.x) ? ((left.y == right.y) ? ((left.z == right.z) ? true : left.z < right.z) : left.y < right.y ) : left.x < right.x;
+#endif
         }
     };
 
@@ -835,7 +832,7 @@ namespace ParticleSimulator{
     
         template <class T2, T2>
         class Check{};
-    
+/*    
         template <typename T3>
         static One & Func( Check<F64 (T3::*)(void), &T3::getRSearch>* );
         template <typename T3>
@@ -844,7 +841,17 @@ namespace ParticleSimulator{
         static One & Func( Check<F64 (T3::*)(void) const, &T3::getRSearch>* );
         template <typename T3>
         static One & Func( Check<F32 (T3::*)(void) const, &T3::getRSearch>* );
-    
+*/    
+
+        template <typename T3>
+        static One & Func( Check<double (T3::*)(void), &T3::getRSearch>* );
+        template <typename T3>
+        static One & Func( Check<float (T3::*)(void), &T3::getRSearch>* );
+        template <typename T3>
+        static One & Func( Check<double (T3::*)(void) const, &T3::getRSearch>* );
+        template <typename T3>
+        static One & Func( Check<float (T3::*)(void) const, &T3::getRSearch>* );
+
         template <typename T3>
         static Two &  Func(...);
     

@@ -507,7 +507,7 @@ namespace ParticleSimulator{
         if(n_tmp == 0) return;
         else if( tc_tmp->isLeaf(n_grp_limit) ){
             //ipg_first.resizeNoInitialize(ipg_first.size() + 1);
-	    ipg_first.increaseSize();
+            ipg_first.increaseSize();
             ipg_first.back().copyFromTC(*tc_tmp);
             ipg_first.back().vertex_ = GetMinBoxSingleThread(epi_first.data()+(tc_tmp->adr_ptcl_), n_tmp);
             return;
@@ -800,7 +800,8 @@ namespace ParticleSimulator{
                 }
                 else{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    id_ep_send.reserve( id_ep_send.size() + n_child );
+                    //id_ep_send.reserve( id_ep_send.size() + n_child );
+                    id_ep_send.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++){
                         id_ep_send.pushBackNoCheck(adr_ptcl_tmp++);
                     }
@@ -870,7 +871,8 @@ namespace ParticleSimulator{
                 }
                 else{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    ep_send.reserve( ep_send.size()+n_child );
+                    //ep_send.reserve( ep_send.size()+n_child );
+                    ep_send.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++){
                         ep_send.pushBackNoCheck(ep_first[adr_ptcl_tmp++]);
                         const F64vec pos_new = ep_send.back().getPos() + shift;
@@ -921,8 +923,10 @@ namespace ParticleSimulator{
                 }
                 else{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    ep_list.reserve( ep_list.size()+n_child );
-                    sp_list.reserve( sp_list.size()+n_child );
+                    //ep_list.reserve( ep_list.size()+n_child );
+                    //sp_list.reserve( sp_list.size()+n_child );
+                    ep_list.reserveEmptyAreaAtLeast( n_child );
+                    sp_list.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++){
                         if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_) == 0){
                             //ep_list[n_ep] = ep_first[adr_ptcl_tmp++];
@@ -987,8 +991,10 @@ namespace ParticleSimulator{
                 }
                 else{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    ep_list.reserve(ep_list.size()+n_child);
-                    sp_list.reserve(sp_list.size()+n_child);
+                    //ep_list.reserve(ep_list.size()+n_child);
+                    //sp_list.reserve(sp_list.size()+n_child);
+                    ep_list.reserveEmptyAreaAtLeast( n_child );
+                    sp_list.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++){
                         if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_) == 0){
                             ep_list.pushBackNoCheck(ep_first[adr_ptcl_tmp++]);
@@ -1041,7 +1047,8 @@ namespace ParticleSimulator{
                 else{
                     //std::cout<<"CHECK C tc_child->adr_ptcl_="<<tc_child->adr_ptcl_<<std::endl;
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    ep_list.reserve( ep_list.size()+n_child );
+                    //ep_list.reserve( ep_list.size()+n_child );
+                    ep_list.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
                         const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
                         const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
@@ -1098,7 +1105,8 @@ namespace ParticleSimulator{
                 }
                 else{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    ep_list.reserve( ep_list.size()+n_child );
+                    //ep_list.reserve( ep_list.size()+n_child );
+                    ep_list.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
                         const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
                         const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
@@ -1140,7 +1148,8 @@ namespace ParticleSimulator{
                 }
                 else{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    ep_list.reserve( ep_list.size()+n_child );
+                    //ep_list.reserve( ep_list.size()+n_child );
+                    ep_list.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++){
                         ep_list.pushBackNoCheck(ep_first[adr_ptcl_tmp]);
                         const F64vec pos_new = ep_first[adr_ptcl_tmp++].getPos() + shift; // for periodic mode
@@ -1176,7 +1185,8 @@ namespace ParticleSimulator{
                               pos_box_target, n_leaf_limit);
                      }
                      else{
-                         id_send.reserve( id_send.size()+n_child );
+                         //id_send.reserve( id_send.size()+n_child );
+                         id_send.reserveEmptyAreaAtLeast( n_child );
                          S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
                          for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
                              const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
@@ -1215,7 +1225,8 @@ namespace ParticleSimulator{
                          pos_box_target, pos_domain, n_leaf_limit);
                 }
                 else{
-                    id_send.reserve( id_send.size()+n_child );
+                    //id_send.reserve( id_send.size()+n_child );
+                    id_send.reserveEmptyAreaAtLeast( n_child );
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
                     for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
                         // NOTE: need to be concistent with MakeListUsingOuterBoundary()

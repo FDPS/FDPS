@@ -23,7 +23,7 @@ namespace ParticleSimulator{
             shift_image_domain = new ReallocatableArray<F64vec>[n_thread];
             for(S32 i=0; i<n_thread; i++){
 	        //ep_send_buf[i].reserve(1000);
-	        ep_send_buf[i].reserve(n_surface_for_comm_);
+                ep_send_buf[i].reserve(n_surface_for_comm_);
                 shift_image_domain[i].reserve(5*5*5);
             }
             first = false;
@@ -184,7 +184,7 @@ namespace ParticleSimulator{
         const S64 np_ave = (n_glb_tot_ / n_proc);
         std::cerr<<"np_ave="<<np_ave<<std::endl;
 
-        const F64 np_one_dim = pow( (F64)np_ave, 1.0/DIMENSION) + 2;
+        const F64 np_one_dim = pow( ((F64)np_ave)*1.0001, 1.0/DIMENSION) + 4;
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
         n_surface_for_comm_ = (4*np_one_dim)*6;
 #else
@@ -193,41 +193,46 @@ namespace ParticleSimulator{
         std::cerr<<"n_surface_for_comm_="<<n_surface_for_comm_<<std::endl;
         epi_org_.reserve( np_ave*4 + 100 );
         epi_sorted_.reserve( epi_org_.capacity() );
+
+        bool err = false;
+        if(n_leaf_limit_ <= 0){
+            err = true;
+            PARTICLE_SIMULATOR_PRINT_ERROR("The limit number of the particles in the leaf cell must be > 0");
+            std::cout<<"n_leaf_limit_= "<<n_leaf_limit_<<std::endl;
+        }
+        if(n_group_limit_ < n_leaf_limit_){
+            err = true;
+            PARTICLE_SIMULATOR_PRINT_ERROR("The limit number of particles in ip graoups msut be >= that in leaf cells");
+            std::cout<<"n_group_limit_= "<<n_group_limit_<<std::endl;
+            std::cout<<"n_leaf_limit_= "<<n_leaf_limit_<<std::endl;
+        }
         if( typeid(TSM) == typeid(SEARCH_MODE_LONG) || 
             typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) ){
-            bool err = false;
             if(theta_ < 0.0){
                 err = true;
                 //PARTICLE_SIMULATOR_PRINT_ERROR("theta must be >= 0.0");
-		PARTICLE_SIMULATOR_PRINT_ERROR("The opening criterion of the tree must be >= 0.0");
+                PARTICLE_SIMULATOR_PRINT_ERROR("The opening criterion of the tree must be >= 0.0");
                 std::cout<<"theta_= "<<theta_<<std::endl;
             }
-            if(n_leaf_limit_ <= 0){
-                err = true;
-                //PARTICLE_SIMULATOR_PRINT_ERROR("n_leaf_limit_ must be > 0");
-		PARTICLE_SIMULATOR_PRINT_ERROR("The limit number of the particles in the leaf cell must be > 0");
-                std::cout<<"n_leaf_limit_= "<<n_leaf_limit_<<std::endl;
-            }
-            if(n_group_limit_ < n_leaf_limit_){
-                err = true;
-                //PARTICLE_SIMULATOR_PRINT_ERROR("n_group_limit_ must be >= n_leaf_limit_");
-		PARTICLE_SIMULATOR_PRINT_ERROR("The limit number of particles in ip graoups msut be >= that in leaf cells");
-                std::cout<<"n_group_limit_= "<<n_group_limit_<<std::endl;
-                std::cout<<"n_leaf_limit_= "<<n_leaf_limit_<<std::endl;
-            }
-            if(err){
-                std::cout<<"SEARCH_MODE: "<<typeid(TSM).name()<<std::endl;
-                std::cout<<"Force: "<<typeid(Tforce).name()<<std::endl;
-                std::cout<<"EPI: "<<typeid(Tepi).name()<<std::endl;
-                std::cout<<"SPJ: "<<typeid(Tspj).name()<<std::endl;
-                Abort(-1);
-            }
+        }
+        if(err){
+            std::cout<<"SEARCH_MODE: "<<typeid(TSM).name()<<std::endl;
+            std::cout<<"Force: "<<typeid(Tforce).name()<<std::endl;
+            std::cout<<"EPI: "<<typeid(Tepi).name()<<std::endl;
+            std::cout<<"SPJ: "<<typeid(Tspj).name()<<std::endl;
+            ParticleSimulator::Abort(-1);
+        }
+
+        if( typeid(TSM) == typeid(SEARCH_MODE_LONG) || 
+            typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) ){
             if(theta_ > 0.0){
-                S32 tmp = epi_org_.capacity() + 5000 * pow((0.5 / theta_), DIMENSION);
-                epj_org_.reserve( std::min(tmp, n_glb_tot_ + 100) );
-                epj_sorted_.reserve( std::min(tmp, n_glb_tot_ + 100) );
-                spj_org_.reserve( 2000*pow((0.5 / theta_), DIMENSION) + 1000);
-                spj_sorted_.reserve( 2000*pow((0.5 / theta_), DIMENSION) + 1000);
+                const S32 n_tmp = epi_org_.capacity() + 2000 * pow((0.5 / theta_), DIMENSION);
+                const S32 n_new = std::min( std::min(n_tmp, n_glb_tot_+100), 20000);
+                epj_org_.reserve( n_new );
+                epj_sorted_.reserve( n_new );
+                spj_org_.reserve( epj_org_.capacity() );
+                spj_sorted_.reserve( epj_sorted_.capacity() );
+
             }
             else if(theta == 0.0) {
                 epj_org_.reserve(n_glb_tot_ + 100);
@@ -235,7 +240,6 @@ namespace ParticleSimulator{
                 spj_org_.reserve(n_glb_tot_ + 100);
                 spj_sorted_.reserve(n_glb_tot_ + 100);
             }
-
 
             id_ep_send_buf_ = new ReallocatableArray<S32>[n_thread];
             id_sp_send_buf_ = new ReallocatableArray<S32>[n_thread];
@@ -282,18 +286,16 @@ namespace ParticleSimulator{
         tp_loc_.reserve( epi_org_.capacity() );
         tp_glb_.reserve( epj_org_.capacity() );
         tp_buf_.reserve( epj_org_.capacity() );
-        //std::cuout<<"epj_org_.capacity()="<<epj_org_.capacity()<<std::endl;
-        //std::cuout<<"tp_glb_.capacity()="<<tp_glb_.capacity()<<std::endl;
+        std::cout<<"tp_loc_.capacity()="<<tp_loc_.capacity()<<std::endl;
+        std::cout<<"tp_glb_.capacity()="<<tp_glb_.capacity()<<std::endl;
         tc_loc_.reserve( tp_loc_.capacity() / n_leaf_limit_ * N_CHILDREN );
-        //std::cuout<<"tc_loc_.capacity()="<<tc_loc_.capacity()<<std::endl;
+        std::cout<<"tc_loc_.capacity()="<<tc_loc_.capacity()<<std::endl;
         tc_glb_.reserve( tp_glb_.capacity() / n_leaf_limit_ * N_CHILDREN );
-        //std::cuout<<"tc_glb_.capacity()="<<tc_glb_.capacity()<<std::endl;
+        std::cout<<"tc_glb_.capacity()="<<tc_glb_.capacity()<<std::endl;
         ipg_.reserve( std::min(epi_org_.capacity()/n_group_limit_*4, epi_org_.capacity()) );
         id_proc_send_ = new S32*[n_thread];
         for(S32 i=0; i<n_thread; i++) id_proc_send_[i] = new S32[n_proc];
 
-        //epj_send_.reserve(n_proc+1000);
-        //epj_recv_.reserve(n_proc+1000);
         epj_send_.reserve(n_surface_for_comm_);
         epj_recv_.reserve(n_surface_for_comm_);
 
@@ -302,8 +304,8 @@ namespace ParticleSimulator{
         n_ep_send_disp_ = new S32[n_proc+1];
         n_ep_recv_disp_ = new S32[n_proc+1];
 
-	force_org_.reserve(epi_org_.capacity());
-	force_sorted_.reserve(epi_org_.capacity());
+        force_org_.reserve(epi_org_.capacity());
+        force_sorted_.reserve(epi_org_.capacity());
 
     }
 
@@ -581,7 +583,6 @@ namespace ParticleSimulator{
                         epj_recv_.getPointer(), n_ep_recv_, n_ep_recv_disp_);
         Comm::allToAllV(spj_send_.getPointer(), n_sp_send_, n_sp_send_disp_,
                         spj_recv_.getPointer(), n_sp_recv_, n_sp_recv_disp_);
-
         Tcomm_tmp_ = GetWtime() - Tcomm_tmp_;
     }
 
@@ -913,8 +914,8 @@ namespace ParticleSimulator{
                     const F64vec shift = shift_image_box[ii];
                     const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
 #if 1
-                    //use std::set
                     std::set<S32> id;
+                    //std::unordered_set<S32> id;
                     for(S32 ip=ip_disp[ii]; ip<ip_disp[ii+1]; ip++){
                         const F64vec pos_target = ep_x_r_recv[ip].getPos();
                         const F64 len_target = ep_x_r_recv[ip].getRSearch();
@@ -936,12 +937,12 @@ namespace ParticleSimulator{
                                 }
                             }
                         }
-
                         for(S32 i2=0; i2<id_ptcl_send[ith].size(); i2++) id.insert(id_ptcl_send[ith][i2]);
                     }
                     id_ptcl_send[ith].reserveAtLeast( id.size() ); // TODO: fix here! 
                     id_ptcl_send[ith].clearSize();
                     for(std::set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
+                    //for(std::unordered_set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
                         id_ptcl_send[ith].pushBackNoCheck(*itr);
                     }
                     assert( id_ptcl_send[ith].size() == (S32)id.size());
@@ -1233,7 +1234,7 @@ namespace ParticleSimulator{
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_src_2nd = 0;
-            ReallocatableArray<F64ort> pos_image_box(5*5*5);
+            //ReallocatableArray<F64ort> pos_image_box(5*5*5);
             ReallocatableArray<F64vec> shift_image_box(5*5*5);
             ReallocatableArray<S32> ip_disp(3*3*3);
             bool pa[DIMENSION];
@@ -1250,21 +1251,21 @@ namespace ParticleSimulator{
                 const F64vec size_root_domain = pos_root_domain.getFullLength();
                 S32vec id_image_new;
                 S32vec id_image_old = -9999;
-                pos_image_box.clearSize();
+                //pos_image_box.clearSize();
                 shift_image_box.clearSize();
                 ip_disp.clearSize();
                 if(dinfo.getBoundaryCondition() == BOUNDARY_CONDITION_OPEN){
                     shift_image_box.push_back( F64vec(0.0) );
-                    pos_image_box.push_back( F64ort(9999.9, -9999.9) );
+                    //pos_image_box.push_back( F64ort(9999.9, -9999.9) );
                     ip_disp.push_back(i_head);
                     ip_disp.push_back(i_tail);
-
+/*
                     for(S32 ip=i_head; ip<i_tail; ip++){
                         const F64vec pos_target = epj_recv_1st_buf[ip].getPos();
                         const F64 len_target = epj_recv_1st_buf[ip].getRSearch();
                         pos_image_box.back().merge(pos_target, len_target);
                     }
-
+*/
                 }
                 else{
                     for(S32 ip=i_head; ip<i_tail; ip++){
@@ -1277,11 +1278,11 @@ namespace ParticleSimulator{
 #else
                             shift_image_box.push_back(F64vec(id_image_new.x*size_root_domain.x, id_image_new.y*size_root_domain.y, id_image_new.z*size_root_domain.z));
 #endif
-                            pos_image_box.push_back( F64ort(9999.9, -9999.9) );
+                            //pos_image_box.push_back( F64ort(9999.9, -9999.9) );
                             id_image_old = id_image_new;
                         }
-                        const F64 len_target = epj_recv_1st_buf[ip].getRSearch();
-                        pos_image_box.back().merge(pos_target, len_target);
+                        //const F64 len_target = epj_recv_1st_buf[ip].getRSearch();
+                        //pos_image_box.back().merge(pos_target, len_target);
                     }
                     ip_disp.push_back(i_tail);
                 }
@@ -1291,9 +1292,10 @@ namespace ParticleSimulator{
                     const F64vec shift = shift_image_box[ii];
                     const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
                     const F64ort pos_domain = dinfo.getPosDomain(id_proc_tmp).shift(shift);
-#if 0
+#if 1
                     // use std::set
                     std::set<S32> id;
+                    //std::unordered_set<S32> id;
                     for(S32 ip=ip_disp[ii]; ip<ip_disp[ii+1]; ip++){
                         const F64vec pos_target = epj_recv_1st_buf[ip].getPos();
                         const F64 len_target = epj_recv_1st_buf[ip].getRSearch();
@@ -1330,6 +1332,7 @@ namespace ParticleSimulator{
                     id_ptcl_send[ith].reserveAtLeast( id.size() );
                     id_ptcl_send[ith].clearSize();
                     for(std::set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
+                    //for(std::unordered_set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
                         id_ptcl_send[ith].pushBackNoCheck(*itr);
                     }
                     assert( id_ptcl_send[ith].size() == (S32)id.size());
