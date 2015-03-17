@@ -618,6 +618,11 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         MPI::Init(argc, argv);
 #endif
+
+        if(Comm::getRank() == 0) {
+            fprintf(stderr, "******** FDPS has successfully begun. ********\n");
+        }
+
     }
 
     static inline void Finalize(){

@@ -178,11 +178,11 @@ namespace ParticleSimulator{
         n_group_limit_ = n_group_limit;
         lev_max_ = 0;
         const S32 n_thread = Comm::getNumberOfThread();
-        std::cerr<<"n_thread="<<n_thread<<std::endl;
+        //std::cerr<<"n_thread="<<n_thread<<std::endl;
         const S64 n_proc = Comm::getNumberOfProc();
-        std::cerr<<"n_proc="<<n_proc<<std::endl;
+        //std::cerr<<"n_proc="<<n_proc<<std::endl;
         const S64 np_ave = (n_glb_tot_ / n_proc);
-        std::cerr<<"np_ave="<<np_ave<<std::endl;
+        //std::cerr<<"np_ave="<<np_ave<<std::endl;
 
         const F64 np_one_dim = pow( ((F64)np_ave)*1.0001, 1.0/DIMENSION) + 4;
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
@@ -190,7 +190,7 @@ namespace ParticleSimulator{
 #else
         n_surface_for_comm_ = (6*np_one_dim*np_one_dim+8*np_one_dim)*6;
 #endif
-        std::cerr<<"n_surface_for_comm_="<<n_surface_for_comm_<<std::endl;
+        //std::cerr<<"n_surface_for_comm_="<<n_surface_for_comm_<<std::endl;
         epi_org_.reserve( np_ave*4 + 100 );
         epi_sorted_.reserve( epi_org_.capacity() );
 
@@ -262,11 +262,6 @@ namespace ParticleSimulator{
         }
         else{
             // FOR SHORT MODE
-            //std::cout<<"n_glb_tot_="<<n_glb_tot_<<std::endl;
-            //std::cout<<"n_proc="<<n_proc<<std::endl;
-            //std::cout<<"(n_glb_tot_/n_proc)*6 + 100="<<(n_glb_tot_/n_proc)*6 + 100<<std::endl;
-            //epj_org_.reserve((n_glb_tot_/n_proc)*6 + 100);
-            //epj_sorted_.reserve((n_glb_tot_/n_proc)*6 + 100);
             epj_org_.reserve( epi_org_.capacity() + n_surface_for_comm_ );
             epj_sorted_.reserve( epj_org_.capacity() );
             S32 n_thread = Comm::getNumberOfThread();
@@ -286,12 +281,12 @@ namespace ParticleSimulator{
         tp_loc_.reserve( epi_org_.capacity() );
         tp_glb_.reserve( epj_org_.capacity() );
         tp_buf_.reserve( epj_org_.capacity() );
-        std::cout<<"tp_loc_.capacity()="<<tp_loc_.capacity()<<std::endl;
-        std::cout<<"tp_glb_.capacity()="<<tp_glb_.capacity()<<std::endl;
+        //std::cout<<"tp_loc_.capacity()="<<tp_loc_.capacity()<<std::endl;
+        //std::cout<<"tp_glb_.capacity()="<<tp_glb_.capacity()<<std::endl;
         tc_loc_.reserve( tp_loc_.capacity() / n_leaf_limit_ * N_CHILDREN );
-        std::cout<<"tc_loc_.capacity()="<<tc_loc_.capacity()<<std::endl;
+        //std::cout<<"tc_loc_.capacity()="<<tc_loc_.capacity()<<std::endl;
         tc_glb_.reserve( tp_glb_.capacity() / n_leaf_limit_ * N_CHILDREN );
-        std::cout<<"tc_glb_.capacity()="<<tc_glb_.capacity()<<std::endl;
+        //std::cout<<"tc_glb_.capacity()="<<tc_glb_.capacity()<<std::endl;
         ipg_.reserve( std::min(epi_org_.capacity()/n_group_limit_*4, epi_org_.capacity()) );
         id_proc_send_ = new S32*[n_thread];
         for(S32 i=0; i<n_thread; i++) id_proc_send_[i] = new S32[n_proc];

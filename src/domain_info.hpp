@@ -457,9 +457,9 @@ namespace  ParticleSimulator{
         */
         void setPosRootDomain(const F64vec & low, const F64vec & high){
             for(S32 i=0; i<DIMENSION; i++){
-                std::cerr<<"low[i]="<<low[i]<<std::endl;
-                std::cerr<<"high[i]="<<high[i]<<std::endl;
-                std::cerr<<"periodic_axis_[i]="<<periodic_axis_[i]<<std::endl;
+                //std::cerr<<"low[i]="<<low[i]<<std::endl;
+                //std::cerr<<"high[i]="<<high[i]<<std::endl;
+                //std::cerr<<"periodic_axis_[i]="<<periodic_axis_[i]<<std::endl;
                 if( periodic_axis_[i] == false ) continue;
                 if(low[i] < high[i]){
                     pos_root_domain_.low_[i] = low[i];
