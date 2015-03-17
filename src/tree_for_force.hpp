@@ -1,8 +1,15 @@
 
+
 #pragma once
 
+//#define UNORDERED_SET
+
+#ifdef UNORDERED_SET 
+#include<unordered_set>
+#else
 #include<set>
-//#include<unordered_set>
+#endif
+
 #include<sort.hpp>
 #include<tree.hpp>
 

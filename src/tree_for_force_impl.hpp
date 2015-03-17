@@ -914,8 +914,13 @@ namespace ParticleSimulator{
                     const F64vec shift = shift_image_box[ii];
                     const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
 #if 1
+#ifdef UNORDERED_SET 
+                    std::unordered_set<S32> id;
+                    typedef std::unordered_set<S32>::iterator SetItr;
+#else
                     std::set<S32> id;
-                    //std::unordered_set<S32> id;
+                    typedef std::set<S32>::iterator SetItr;
+#endif
                     for(S32 ip=ip_disp[ii]; ip<ip_disp[ii+1]; ip++){
                         const F64vec pos_target = ep_x_r_recv[ip].getPos();
                         const F64 len_target = ep_x_r_recv[ip].getRSearch();
@@ -941,8 +946,9 @@ namespace ParticleSimulator{
                     }
                     id_ptcl_send[ith].reserveAtLeast( id.size() ); // TODO: fix here! 
                     id_ptcl_send[ith].clearSize();
-                    for(std::set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
+                    //for(std::set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
                     //for(std::unordered_set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
+                    for(SetItr itr = id.begin(); itr != id.end(); ++itr){
                         id_ptcl_send[ith].pushBackNoCheck(*itr);
                     }
                     assert( id_ptcl_send[ith].size() == (S32)id.size());
@@ -1294,8 +1300,13 @@ namespace ParticleSimulator{
                     const F64ort pos_domain = dinfo.getPosDomain(id_proc_tmp).shift(shift);
 #if 1
                     // use std::set
+#ifdef UNORDERED_SET 
+                    std::unordered_set<S32> id;
+                    typedef std::unordered_set<S32>::iterator SetItr;
+#else
                     std::set<S32> id;
-                    //std::unordered_set<S32> id;
+                    typedef std::set<S32>::iterator SetItr;
+#endif
                     for(S32 ip=ip_disp[ii]; ip<ip_disp[ii+1]; ip++){
                         const F64vec pos_target = epj_recv_1st_buf[ip].getPos();
                         const F64 len_target = epj_recv_1st_buf[ip].getRSearch();
@@ -1331,8 +1342,9 @@ namespace ParticleSimulator{
                     }
                     id_ptcl_send[ith].reserveAtLeast( id.size() );
                     id_ptcl_send[ith].clearSize();
-                    for(std::set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
+                    //for(std::set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
                     //for(std::unordered_set<S32>::iterator itr = id.begin(); itr != id.end(); ++itr){
+                    for(SetItr itr = id.begin(); itr != id.end(); ++itr){
                         id_ptcl_send[ith].pushBackNoCheck(*itr);
                     }
                     assert( id_ptcl_send[ith].size() == (S32)id.size());

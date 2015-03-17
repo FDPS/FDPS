@@ -64,7 +64,7 @@ namespace ParticleSimulator{
         bool isLeaf(const S32 n_leaf_limit) const {
             return ( n_ptcl_ <= n_leaf_limit || level_ == TREE_LEVEL_LIMIT);
         }
-
+        
         // for DEBUG
         void dump(std::ostream & fout=std::cout) const {
             fout<<"n_ptcl_="<<n_ptcl_<<std::endl;
@@ -72,14 +72,14 @@ namespace ParticleSimulator{
             fout<<"adr_ptcl_="<<adr_ptcl_<<std::endl;
             mom_.dump(fout);
         }
-
+        
         template<class Tep>
         void dumpTree(const Tep * const first_ep_ptr,
                       const TreeCell * const first_tc_ptr,
                       const F32vec & center,
                       const F32 half_length,
                       const S32 n_leaf_limit,
-                       std::ostream & fout=std::cout) const {
+                      std::ostream & fout=std::cout) const {
             fout<<std::endl;
             fout<<"cell info"<<std::endl;
             dump(fout);
@@ -93,18 +93,18 @@ namespace ParticleSimulator{
                     if((child + ic)->n_ptcl_ <= 0) continue;
                     const Tep * ptcl = first_ep_ptr + adr_ptcl_;
                     for(S32 ip=0; ip<n_ptcl_; ip++, ptcl++){
-                    if(!IsInBox(ptcl->getPos(), center, half_length)){
-                        fout<<"out of box(Cell)"<<std::endl;
-                        fout<<"ptcl->getPos()="<<ptcl->getPos()<<std::endl;
-                        fout<<"center="<<center<<std::endl;
-                        fout<<"half_length="<<half_length<<std::endl;
-                    }
-                    else{
-                        fout<<"in box(Cell)"<<std::endl;
-                        fout<<"ptcl->getPos()="<<ptcl->getPos()<<std::endl;
-                        fout<<"center="<<center<<std::endl;
-                        fout<<"half_length="<<half_length<<std::endl;
-                    }
+                        if(!IsInBox(ptcl->getPos(), center, half_length)){
+                            fout<<"out of box(Cell)"<<std::endl;
+                            fout<<"ptcl->getPos()="<<ptcl->getPos()<<std::endl;
+                            fout<<"center="<<center<<std::endl;
+                            fout<<"half_length="<<half_length<<std::endl;
+                        }
+                        else{
+                            fout<<"in box(Cell)"<<std::endl;
+                            fout<<"ptcl->getPos()="<<ptcl->getPos()<<std::endl;
+                            fout<<"center="<<center<<std::endl;
+                            fout<<"half_length="<<half_length<<std::endl;
+                        }
                     }
                     fout<<"octid="<<ic<<std::endl;
                     (child + ic)->dumpTree
@@ -138,7 +138,7 @@ namespace ParticleSimulator{
                 fout<<std::endl;
             }
         }
-
+        
         template<class Tep>
         void checkTree(const Tep * const first_ep_ptr,
                        const TreeCell * const first_tc_ptr,
@@ -149,10 +149,10 @@ namespace ParticleSimulator{
                        S32 & err,
                        std::ostream & fout=std::cout) const {
             if( !(this->isLeaf(n_leaf_limit)) ){
-		//std::cerr<<"adr_tc_="<<adr_tc_<<std::endl;
+                //std::cerr<<"adr_tc_="<<adr_tc_<<std::endl;
                 const TreeCell * child = first_tc_ptr + adr_tc_;
                 for(S32 ic=0; ic<N_CHILDREN; ic++){
-		    //std::cerr<<"(child + ic)->n_ptcl_="<<(child + ic)->n_ptcl_<<std::endl;
+                    //std::cerr<<"(child + ic)->n_ptcl_="<<(child + ic)->n_ptcl_<<std::endl;
                     if((child + ic)->n_ptcl_ <= 0) continue;
                     const Tep * ptcl = first_ep_ptr + adr_ptcl_;
                     for(S32 ip=0; ip<n_ptcl_; ip++, ptcl++){
@@ -166,9 +166,9 @@ namespace ParticleSimulator{
                             err++;
                         }
                     }
-		    //std::cerr<<"ic="<<ic<<std::endl;
-		    //std::cerr<<"SHIFT_CENTER[ic]="<<SHIFT_CENTER[ic]<<std::endl;
-		    //std::cerr<<"center+SHIFT_CENTER[ic]*half_length="<<center+SHIFT_CENTER[ic]*half_length<<std::endl;
+                    //std::cerr<<"ic="<<ic<<std::endl;
+                    //std::cerr<<"SHIFT_CENTER[ic]="<<SHIFT_CENTER[ic]<<std::endl;
+                    //std::cerr<<"center+SHIFT_CENTER[ic]*half_length="<<center+SHIFT_CENTER[ic]*half_length<<std::endl;
                     (child + ic)->checkTree
                         (first_ep_ptr, first_tc_ptr,
                          center+SHIFT_CENTER[ic]*half_length, half_length*0.5,
@@ -190,7 +190,7 @@ namespace ParticleSimulator{
                 }
             }
         }
-
+        
         template<class Tep, class Tsp>
         void checkTreeLongGlobalTree(const Tep * const first_ep_ptr,
                                      const Tsp * const first_sp_ptr,
@@ -210,9 +210,9 @@ namespace ParticleSimulator{
                     for(S32 ip=0; ip<n_ptcl_; ip++, tp_tmp++){
                         F32vec pos_tmp;
                         /*
-                        const U32 adr = tp_tmp->adr_ptcl_;
-                        if( GetMSB(adr) ) pos_tmp = first_sp_ptr[ClearMSB(adr)].getPos();
-                        else pos_tmp = first_ep_ptr[adr].getPos();
+                          const U32 adr = tp_tmp->adr_ptcl_;
+                          if( GetMSB(adr) ) pos_tmp = first_sp_ptr[ClearMSB(adr)].getPos();
+                          else pos_tmp = first_ep_ptr[adr].getPos();
                         */
                         if(GetMSB(tp_tmp->adr_ptcl_)) pos_tmp = first_sp_ptr[adr_ptcl_+ip].getPos();
                         else pos_tmp = first_ep_ptr[adr_ptcl_+ip].getPos();
@@ -230,7 +230,13 @@ namespace ParticleSimulator{
                             //}
                         }
                     }
-                    (child + ic)->checkTreeLongGlobalTree<Tep, Tsp>
+                    /*
+                    (child + ic)->checkTreeLongGlobalTree < Tep, Tsp >
+                        (first_ep_ptr, first_sp_ptr, first_tp_ptr, first_tc_ptr,
+                         center+SHIFT_CENTER[ic]*half_length, half_length*0.5,
+                         n_leaf_limit, tolerance, err, fout);
+                    */
+                    (child + ic)->checkTreeLongGlobalTree
                         (first_ep_ptr, first_sp_ptr, first_tp_ptr, first_tc_ptr,
                          center+SHIFT_CENTER[ic]*half_length, half_length*0.5,
                          n_leaf_limit, tolerance, err, fout);

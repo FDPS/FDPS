@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-mavx -O3 -Wall -ffast-math -funroll-loops
 
-enable_openmp = yes
+#enable_openmp = yes
 
 ifeq ($(enable_openmp), yes)
 CFLAGS += -fopenmp -DENABLE_OPENMP

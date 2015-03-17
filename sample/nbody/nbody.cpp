@@ -3,102 +3,10 @@
 #include<unistd.h>
 #include<sys/stat.h>
 #include<particle_simulator.hpp>
-
-class FileHeader{
-public:
-    PS::S64 n_body;
-    PS::F64 time;
-    PS::S32 readAscii(FILE * fp) {
-		fscanf(fp, "%lf\n", &time);
-		fscanf(fp, "%lld\n", &n_body);
-		return n_body;
-    }
-    void writeAscii(FILE* fp) const {
-	fprintf(fp, "%e\n", time);
-	fprintf(fp, "%lld\n", n_body);
-    }
-};
-
-class FPGrav{
-public:
-    PS::S64    id;
-    PS::F64    mass;
-    PS::F64vec pos;
-    PS::F64vec vel;
-    PS::F64vec acc;
-    PS::F64    pot;    
-
-    static PS::F64 eps;
-
-    PS::F64vec getPos() const {
-        return pos;
-    }
-
-    PS::F64 getCharge() const {
-        return mass;
-    }
-
-    void copyFromFP(const FPGrav & fp){ 
-        mass = fp.mass;
-        pos  = fp.pos;
-    }
-
-    void copyFromForce(const FPGrav & force) {
-        acc = force.acc;
-        pot = force.pot;
-    }
-
-    void clear() {
-        acc = 0.0;
-        pot = 0.0;
-    }
-
-	void writeAscii(FILE* fp) const {
-		fprintf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
-                this->id, this->mass,
-                this->pos.x, this->pos.y, this->pos.z,
-                this->vel.x, this->vel.y, this->vel.z);
-	}
-
-	void readAscii(FILE* fp) {
-		fscanf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
-               &this->id, &this->mass,
-               &this->pos.x, &this->pos.y, &this->pos.z,
-               &this->vel.x, &this->vel.y, &this->vel.z);
-	}
-
-};
-
-PS::F64 FPGrav::eps = 1.0/32.0;
-
-template <class TParticleJ>
-struct CalcGravity{
-    void operator () (const FPGrav * ep_i,
-                      const PS::S32 n_ip,
-                      const TParticleJ * ep_j,
-                      const PS::S32 n_jp,
-                      FPGrav * force) {
-
-        PS::F64 eps2 = FPGrav::eps * FPGrav::eps;
-        for(PS::S32 i = 0; i < n_ip; i++){
-            PS::F64vec xi = ep_i[i].pos;
-            PS::F64vec ai = 0.0;
-            PS::F64 poti = 0.0;
-            for(PS::S32 j = 0; j < n_jp; j++){
-                PS::F64vec rij    = xi - ep_j[j].pos;
-                PS::F64    r3_inv = rij * rij + eps2;
-                PS::F64    r_inv  = 1.0/sqrt(r3_inv);
-                r3_inv  = r_inv * r_inv;
-                r_inv  *= ep_j[j].mass;
-                r3_inv *= r_inv;
-                ai     -= r3_inv * rij;
-                poti   -= r_inv;
-            }
-            force[i].acc += ai;
-            force[i].pot += poti;
-        }
-    }
-};
+#ifdef ENABLE_PHANTOM_GRAPE_X86
+#include <gp5util.h>
+#endif
+#include "user-defined.hpp"
 
 void makeColdUniformSphere(const PS::F64 mass_glb,
                            const PS::S64 n_glb,
@@ -343,6 +251,11 @@ int main(int argc, char *argv[]) {
     system_grav.exchangeParticle(dinfo);
     n_loc = system_grav.getNumberOfParticleLocal();
 
+#ifdef ENABLE_PHANTOM_GRAPE_X86
+    g5_open();
+    g5_set_eps_to_all(FPGrav::eps);
+#endif
+
     PS::TreeForForceLong<FPGrav, FPGrav, FPGrav>::Monopole tree_grav;
     tree_grav.initialize(n_tot, theta, n_leaf_limit, n_group_limit);
     tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>(),
@@ -401,6 +314,10 @@ int main(int argc, char *argv[]) {
 
 	n_loop++;
     }
+
+#ifdef ENABLE_PHANTOM_GRAPE_X86
+    g5_close();
+#endif
 
     PS::Finalize();
     return 0;
