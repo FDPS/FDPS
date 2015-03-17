@@ -8,5 +8,5 @@ We maintain this from subversion-over-github interface.
 We are sorry. FDPS documents are only Japanese version now. FDPS
 documents in English will be coming soon!
 
-FDPSのチュートリアルはdoc/doc_tutorial.pdf、仕様書はdoc/doc_specs.pdf
+FDPSのチュートリアルは [doc/doc_tutorial.pdf](https://github.com/FDPS/FDPS/blob/master/doc/doc_tutorial.pdf?raw=true)、仕様書は[doc/doc_specs.pdf](https://github.com/FDPS/FDPS/blob/master/doc/doc_specs.pdf?raw=true)
 にあります。
