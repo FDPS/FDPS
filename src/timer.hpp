@@ -44,7 +44,7 @@ namespace ParticleSimulator{
                 split_time_[i] = 0.0;
                 func_name_[i][0] = '\0';
             }
-            cnt_ = 0; 
+            cnt_ = 0;
             n_trial_++;
         }
         void start(){ begin_time_ = GetWtime(); }

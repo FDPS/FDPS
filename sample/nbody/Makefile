@@ -1,7 +1,9 @@
 PS_PATH = -I../../src/
 
 CC = g++
+#CC = time CC
 #CC = mpicxx
+#CFLAGS = -O3 -Wall
 CFLAGS = -O3 -ffast-math -funroll-loops #-Wall
 #CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
@@ -14,10 +16,9 @@ CFLAGS  += -DENABLE_PHANTOM_GRAPE_X86
 CLIBS   += -L../../src/phantom_grape_x86/G5/newton/libpg5/ -lpg5
 endif
 
-SRC = nbody.cpp
-PROGRAM = $(SRC:%.cpp=%.out)
+PROGRAM = nbody.out
 
-$(PROGRAM):$(SRC)
+nbody.out:nbody.cpp
 	$(CC) $(MULEXP) $(PS_PATH) $(CFLAGS) -o $@ $< $(CLIBS)
 
 clean:	

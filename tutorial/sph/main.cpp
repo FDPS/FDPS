@@ -1,10 +1,8 @@
-#define SANITY_CHECK_REALLOCATABLE_ARRAY
 //FDPSのヘッダをインクルードする。
 #include <particle_simulator.hpp>
 //コード中で使うヘッダをインクルードする。
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <iostream>
 #include <vector>
 
@@ -66,34 +64,29 @@ class Hydro{
 	}
 };
 
-class RealPtcl{
-	public:
+struct FP{
 	PS::F64 mass;
-	PS::F64vec pos;//POSition
-	PS::F64vec vel;//VELocity
-	PS::F64vec acc;//ACCeleration
-	PS::F64 dens;  //DENSity
-	PS::F64 eng;   //ENerGy
-	PS::F64 pres;  //PRESsure
-	PS::F64 smth;  //SMooTHing length
-	PS::F64 snds;  //SouND Speed
+	PS::F64vec pos;
+	PS::F64vec vel;
+	PS::F64vec acc;
+	PS::F64 dens;
+	PS::F64 eng;
+	PS::F64 pres;
+	PS::F64 smth;
+	PS::F64 snds;
 	PS::F64 eng_dot;
 	PS::F64 dt;
 	PS::S64 id;
-	//half step
 	PS::F64vec vel_half;
 	PS::F64 eng_half;
-	//Copy functions
 	void copyFromForce(const Dens& dens){
 		this->dens = dens.dens;
-		this->smth = dens.smth;
 	}
 	void copyFromForce(const Hydro& force){
 		this->acc     = force.acc;
 		this->eng_dot = force.eng_dot;
 		this->dt      = force.dt;
 	}
-	//Give necessary values to FDPS
 	PS::F64 getCharge() const{
 		return this->mass;
 	}
@@ -113,14 +106,13 @@ class RealPtcl{
 		fscanf(fp, "%ld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", &this->id, &this->mass, &this->pos.x, &this->pos.y, &this->pos.z, &this->vel.x, &this->vel.y, &this->vel.z, &this->dens, &this->eng, &this->pres);
 	}
 	void setPressure(){
-		const PS::F64 hcr = 1.4;//heat capacity ratio
+		const PS::F64 hcr = 1.4;
 		pres = (hcr - 1.0) * dens * eng;
 		snds = sqrt(hcr * pres / dens);
 	}
 };
 
-class EP{
-public:
+struct EP{
 	PS::F64vec pos;
 	PS::F64vec vel;
 	PS::F64    mass;
@@ -128,7 +120,7 @@ public:
 	PS::F64    dens;
 	PS::F64    pres;
 	PS::F64    snds;
-	void copyFromFP(const RealPtcl& rp){
+	void copyFromFP(const FP& rp){
 		this->pos  = rp.pos;
 		this->vel  = rp.vel;
 		this->mass = rp.mass;
@@ -150,8 +142,8 @@ public:
 
 class FileHeader{
 	public:
-	int Nbody;
-	double time;
+	PS::S32 Nbody;
+	PS::F64 time;
 	int readAscii(FILE* fp){
 		fscanf(fp, "%e\n", &time);
 		fscanf(fp, "%d\n", &Nbody);
@@ -180,7 +172,6 @@ class CalcDensity{
 				const PS::F64vec dr = ep_j[j].pos - ep_i[i].pos;
 				dens[i].dens += ep_j[j].mass * W(dr, ep_i[i].smth);
 			}
-			dens[i].smth = SMTH * pow(ep_i[i].mass / dens[i].dens, 1.0/(PS::F64)(Dim));
 		}
 	}
 };
@@ -207,11 +198,11 @@ class CalcHydroForce{
 	}
 };
 
-void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64 *end_time, boundary *box){
+void SetupIC(PS::ParticleSystem<FP>& sph_system, PS::F64 *end_time, boundary *box){
 	/////////
 	//place ptcls
 	/////////
-	std::vector<RealPtcl> ptcl;
+	std::vector<FP> ptcl;
 	const PS::F64 dx = 1.0 / 128.0;
 	box->x = 1.0;
 	box->y = box->z = box->x / 8.0;
@@ -219,7 +210,7 @@ void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64 *end_time, bounda
 	for(PS::F64 x = 0 ; x < box->x * 0.5 ; x += dx){
 		for(PS::F64 y = 0 ; y < box->y ; y += dx){
 			for(PS::F64 z = 0 ; z < box->z ; z += dx){
-				RealPtcl ith;
+				FP ith;
 				ith.pos.x = x;
 				ith.pos.y = y;
 				ith.pos.z = z;
@@ -227,6 +218,7 @@ void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64 *end_time, bounda
 				ith.mass = 0.75;
 				ith.eng  = 2.5;
 				ith.id   = i++;
+				ith.smth = 0.012;
 				ptcl.push_back(ith);
 			}
 		}
@@ -234,7 +226,7 @@ void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64 *end_time, bounda
 	for(PS::F64 x = box->x * 0.5 ; x < box->x * 1.0 ; x += dx * 2.0){
 		for(PS::F64 y = 0 ; y < box->y ; y += dx){
 			for(PS::F64 z = 0 ; z < box->z ; z += dx){
-				RealPtcl ith;
+				FP ith;
 				ith.pos.x = x;
 				ith.pos.y = y;
 				ith.pos.z = z;
@@ -242,6 +234,7 @@ void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64 *end_time, bounda
 				ith.mass = 0.75;
 				ith.eng  = 2.5;
 				ith.id   = i++;
+				ith.smth = 0.012;
 				ptcl.push_back(ith);
 			}
 		}
@@ -264,20 +257,19 @@ void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64 *end_time, bounda
 			sph_system[ii] = ptcl[i];
 		}
 	}
-	/////////
-	*end_time = 0.11;
+	//set the end time
+	*end_time = 0.12;
 	//Fin.
 	std::cout << "setup..." << std::endl;
 }
 
-void Initialize(PS::ParticleSystem<RealPtcl>& sph_system){
+void Initialize(PS::ParticleSystem<FP>& sph_system){
 	for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
-		sph_system[i].smth = SMTH * pow(sph_system[i].mass / sph_system[i].dens, 1.0/(PS::F64)(Dim));
 		sph_system[i].setPressure();
 	}
 }
 
-PS::F64 getTimeStepGlobal(const PS::ParticleSystem<RealPtcl>& sph_system){
+PS::F64 getTimeStepGlobal(const PS::ParticleSystem<FP>& sph_system){
 	PS::F64 dt = 1.0e+30;//set VERY LARGE VALUE
 	for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
 		dt = std::min(dt, sph_system[i].dt);
@@ -285,35 +277,35 @@ PS::F64 getTimeStepGlobal(const PS::ParticleSystem<RealPtcl>& sph_system){
 	return PS::Comm::getMinValue(dt);
 }
 
-void InitialKick(PS::ParticleSystem<RealPtcl>& sph_system, const PS::F64 dt){
+void InitialKick(PS::ParticleSystem<FP>& sph_system, const PS::F64 dt){
 	for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
 		sph_system[i].vel_half = sph_system[i].vel + 0.5 * dt * sph_system[i].acc;
 		sph_system[i].eng_half = sph_system[i].eng + 0.5 * dt * sph_system[i].eng_dot;
 	}
 }
 
-void FullDrift(PS::ParticleSystem<RealPtcl>& sph_system, const PS::F64 dt){
+void FullDrift(PS::ParticleSystem<FP>& sph_system, const PS::F64 dt){
 	//time becomes t + dt;
 	for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
 		sph_system[i].pos += dt * sph_system[i].vel_half;
 	}
 }
 
-void Predict(PS::ParticleSystem<RealPtcl>& sph_system, const PS::F64 dt){
+void Predict(PS::ParticleSystem<FP>& sph_system, const PS::F64 dt){
 	for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
 		sph_system[i].vel += dt * sph_system[i].acc;
 		sph_system[i].eng += dt * sph_system[i].eng_dot;
 	}
 }
 
-void FinalKick(PS::ParticleSystem<RealPtcl>& sph_system, const PS::F64 dt){
+void FinalKick(PS::ParticleSystem<FP>& sph_system, const PS::F64 dt){
 	for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
 		sph_system[i].vel = sph_system[i].vel_half + 0.5 * dt * sph_system[i].acc;
 		sph_system[i].eng = sph_system[i].eng_half + 0.5 * dt * sph_system[i].eng_dot;
 	}
 }
 
-void setPressure(PS::ParticleSystem<RealPtcl>& sph_system){
+void setPressure(PS::ParticleSystem<FP>& sph_system){
 	for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
 		sph_system[i].setPressure();
 	}
@@ -323,7 +315,7 @@ int main(int argc, char* argv[]){
 	//FDPSの初期化
 	PS::Initialize(argc, argv);
 	//FDPSに粒子データを送り込み、初期化。
-	PS::ParticleSystem<RealPtcl> sph_system;
+	PS::ParticleSystem<FP> sph_system;
 	sph_system.initialize();
 	//変数定義
 	PS::F64 dt, end_time;

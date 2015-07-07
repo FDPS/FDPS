@@ -46,7 +46,12 @@ namespace  ParticleSimulator{
         ReallocatableArray(int cap) : size_(0), capacity_(cap), n_expand_(0) {
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+                //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+                std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+#else
+                std::cerr<<"rank=0"<<std::endl;
+#endif
                 std::cerr<<"typeid(T).name():"<<typeid(T).name()<<std::endl;
                 std::cerr<<"capacity_="<<capacity_<<std::endl;
                 std::cerr<<"LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE="<<LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE<<std::endl;
@@ -59,7 +64,12 @@ namespace  ParticleSimulator{
         ReallocatableArray(int cap) : size_(0), capacity_(cap) {
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+                //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+                std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+#else
+                std::cerr<<"rank=0"<<std::endl;
+#endif
                 std::cerr<<"typeid(T).name():"<<typeid(T).name()<<std::endl;
                 std::cerr<<"capacity_="<<capacity_<<std::endl;
                 std::cerr<<"LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE="<<LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE<<std::endl;
@@ -81,7 +91,12 @@ namespace  ParticleSimulator{
                 capacity_ = n;
                 if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                    std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+                    //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+                    std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+#else
+                    std::cerr<<"rank=0"<<std::endl;
+#endif
                     std::cerr<<"typeid(T).name():"<<typeid(T).name()<<std::endl;
                     std::cerr<<"capacity_="<<capacity_<<std::endl;
                     std::cerr<<"LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE="<<LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE<<std::endl;
@@ -121,6 +136,11 @@ namespace  ParticleSimulator{
             assert(i <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
             assert(i >= 0);
             assert(capacity_ > i);
+            if(size_ <= i){
+                std::cerr<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
+                std::cerr<<"i="<<i<<std::endl;
+                std::cerr<<"size_="<<size_<<std::endl;
+            }
             assert(size_ > i);
 #endif
             return data_[i]; 
@@ -164,7 +184,12 @@ namespace  ParticleSimulator{
                 const int new_cap = n * 1.3 + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                    std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+                    //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+                    std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+#else
+                    std::cerr<<"rank=0"<<std::endl;
+#endif
                     std::cerr<<"typeid(T).name():"<<typeid(T).name()<<std::endl;
                     std::cerr<<"capacity_="<<capacity_<<std::endl;
                     std::cerr<<"LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE="<<LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE<<std::endl;
@@ -211,7 +236,12 @@ namespace  ParticleSimulator{
                 const int new_cap = n * 1.3 + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                    std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+                    //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+                    std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+#else
+                    std::cerr<<"rank=0"<<std::endl;
+#endif
                     std::cerr<<"typeid(T).name():"<<typeid(T).name()<<std::endl;
                     std::cerr<<"capacity_="<<capacity_<<std::endl;
                     std::cerr<<"LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE="<<LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE<<std::endl;
@@ -231,7 +261,12 @@ namespace  ParticleSimulator{
                 const int new_cap = n * 1.3 + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                    std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+                    //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+                    std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+#else
+                    std::cerr<<"rank=0"<<std::endl;
+#endif
                     std::cerr<<"typeid(T).name():"<<typeid(T).name()<<std::endl;
                     std::cerr<<"capacity_="<<capacity_<<std::endl;
                     std::cerr<<"LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE="<<LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE<<std::endl;

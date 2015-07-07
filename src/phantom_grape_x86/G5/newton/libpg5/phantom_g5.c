@@ -11,7 +11,7 @@
 #define NUM_PIPE (4)
 
 #ifndef MAXDEV
-#define MAXDEV (24)
+#define MAXDEV (128)
 #endif /* MAXDEV */
 
 static double Eps;
@@ -73,6 +73,7 @@ void g5_set_range(double xmin, double xmax, double mmin)
 
 void g5_set_nMC(int devid, int n)
 {
+    assert(devid < MAXDEV);
   struct Ptcl_Mem *pm = ptcl_mem + devid;
   pm->nbody = n;
 }
@@ -85,6 +86,7 @@ void g5_set_n(int n)
 void g5_set_xiMC(int devid, int ni, double (*xi)[3])
 {
   int i;
+    assert(devid < MAXDEV);
   struct Ptcl_Mem *pm = ptcl_mem + devid;
 
   assert(ni <= NUM_PIPE);
@@ -101,6 +103,7 @@ void g5_set_xiMC0(int devid, int ni, double (*xi)[3],
 		  double *eps2)
 {
   int i;
+    assert(devid < MAXDEV);
   struct Ptcl_Mem *pm = ptcl_mem + devid;
 
   assert(ni <= NUM_PIPE);
@@ -120,6 +123,7 @@ void g5_set_xi(int ni, double (*xi)[3])
 void g5_set_xmjMC(int devid, int adr, int nj, double (*xj)[3], double *mj) 
 {
   int j;
+    assert(devid < MAXDEV);
   struct Ptcl_Mem *pm = ptcl_mem + devid;
 
   for(j=adr;j<adr+nj;j++) {
@@ -140,6 +144,7 @@ void g5_set_xmjMC0(int devid, int adr, int nj, double (*xj)[3],
 		   double *mj, double *epsj2) 
 {
   int j;
+    assert(devid < MAXDEV);
   struct Ptcl_Mem *pm = ptcl_mem + devid;
 
   assert(adr % 2 == 0);
@@ -196,6 +201,7 @@ void g5_set_xmj0(int adr, int nj, double (*xj)[3],
 
 void g5_runMC(int devid) 
 {
+    assert(devid < MAXDEV);
   struct Ptcl_Mem *pm = ptcl_mem + devid;
   void GravityKernel(pIpdata, pFodata, pJpdata, int);
   GravityKernel(&(pm->iptcl), &(pm->fout), pm->jptcl, pm->nbody);
@@ -203,6 +209,7 @@ void g5_runMC(int devid)
 
 void g5_runMC0(int devid) 
 {
+    assert(devid < MAXDEV);
   struct Ptcl_Mem *pm = ptcl_mem + devid;
   void GravityKernel0(pIpdata, pFodata, pJpdata0, int);
   GravityKernel0(&(pm->iptcl), &(pm->fout), pm->jptcl0, pm->nbody);
@@ -215,6 +222,7 @@ void g5_run(void)
 
 void g5_get_forceMC(int devid, int ni, double (*a)[3], double *pot) 
 {
+    assert(devid < MAXDEV);
   assert(ni <= NUM_PIPE);
 
   struct Ptcl_Mem *pm = ptcl_mem + devid;
@@ -248,6 +256,7 @@ void g5_get_force(int ni, double (*a)[3], double *pot)
 void g5_calculate_force_on_xMC(int devid, double (*x)[3], double (*a)[3], 
                                double *p, int ni)
 {
+    assert(devid < MAXDEV);
   int off;
   int np = g5_get_number_of_pipelines();
   for(off=0;off<ni;off+=np) {
@@ -262,6 +271,7 @@ void g5_calculate_force_on_xMC0(int devid, double (*x)[3],
 				double (*a)[3], double *p,
 				int ni, double *eps2)
 {
+    assert(devid < MAXDEV);
   int off;
   int np = g5_get_number_of_pipelines();
   for(off=0;off<ni;off+=np) {

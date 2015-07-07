@@ -1,9 +1,9 @@
 CC = cc -march=core-avx2
 CFLAGS = -O3 -ffast-math -funroll-loops
 
-enable_openmp=yes
-#enable_avx2=yes
-enable_symmetric=yes
+#enable_openmp=yes
+enable_avx2=yes
+#enable_symmetric=yes
 #enable_symmetric=no
 
 ifeq ($(enable_openmp), yes)

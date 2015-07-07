@@ -233,6 +233,11 @@ int main(int argc, char *argv[]) {
     std::cerr << sout_de << std::endl;
     fout_eng.open(sout_de);
 
+    if(PS::Comm::getRank() == 0) {
+        fprintf(stderr, "Number of processes: %d\n", PS::Comm::getNumberOfProc());
+        fprintf(stderr, "Number of threads per process: %d\n", PS::Comm::getNumberOfThread());
+    }
+
     PS::ParticleSystem<FPGrav> system_grav;
     system_grav.initialize();
     PS::S32 n_loc    = 0;
@@ -250,19 +255,19 @@ int main(int argc, char *argv[]) {
     dinfo.decomposeDomain();
     system_grav.exchangeParticle(dinfo);
     n_loc = system_grav.getNumberOfParticleLocal();
-
+    
 #ifdef ENABLE_PHANTOM_GRAPE_X86
     g5_open();
     g5_set_eps_to_all(FPGrav::eps);
 #endif
-
+    
     PS::TreeForForceLong<FPGrav, FPGrav, FPGrav>::Monopole tree_grav;
     tree_grav.initialize(n_tot, theta, n_leaf_limit, n_group_limit);
     tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>(),
                                        CalcGravity<PS::SPJMonopole>(),
                                        system_grav,
                                        dinfo);
-
+    
     PS::F64 Epot0, Ekin0, Etot0, Epot1, Ekin1, Etot1;
     calcEnergy(system_grav, Etot0, Ekin0, Epot0);
     PS::F64 time_diag = 0.0;
@@ -271,50 +276,49 @@ int main(int argc, char *argv[]) {
     PS::S32 id_snap = 0;
     while(time_sys < time_end){
 
-	if( (time_sys >= time_snap) || ( (time_sys + dt) - time_snap ) > (time_snap - time_sys) ){
-	    char filename[256];
-	    sprintf(filename, "%s/%04d.dat", dir_name, id_snap++);
+        if( (time_sys >= time_snap) || ( (time_sys + dt) - time_snap ) > (time_snap - time_sys) ){
+            char filename[256];
+            sprintf(filename, "%s/%04d.dat", dir_name, id_snap++);
             FileHeader header;
             header.time   = time_sys;
             header.n_body = system_grav.getNumberOfParticleGlobal();
-	    system_grav.writeParticleAscii(filename, header);
-	    time_snap += dt_snap;
+            system_grav.writeParticleAscii(filename, header);
+            time_snap += dt_snap;
         }
-	
-	if(PS::Comm::getRank() == 0){
+
+        calcEnergy(system_grav, Etot1, Ekin1, Epot1);
+        
+        if(PS::Comm::getRank() == 0){
             if( (time_sys >= time_diag) || ( (time_sys + dt) - time_diag ) > (time_diag - time_sys) ){
-		fout_eng << time_sys << "   " << (Etot1 - Etot0) / Etot0 << std::endl;
+                fout_eng << time_sys << "   " << (Etot1 - Etot0) / Etot0 << std::endl;
                 fprintf(stderr, "time: %10.7f energy error: %+e\n",
                         time_sys, (Etot1 - Etot0) / Etot0);
-		time_diag += dt_diag;
+                time_diag += dt_diag;
             }            
         }
-	
-	
+        
+        
         kick(system_grav, dt * 0.5);
-	
+        
         time_sys += dt;
         drift(system_grav, dt);
-
+        
         if(n_loop % 4 == 0){
             dinfo.decomposeDomainAll(system_grav);
         }
-	
+        
         system_grav.exchangeParticle(dinfo);
-
+    
         tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>(),
                                            CalcGravity<PS::SPJMonopole>(),
                                            system_grav,
                                            dinfo);
-
+        
         kick(system_grav, dt * 0.5);
-
-        calcEnergy(system_grav, Etot1, Ekin1, Epot1);
-
-
-	n_loop++;
+        
+        n_loop++;
     }
-
+    
 #ifdef ENABLE_PHANTOM_GRAPE_X86
     g5_close();
 #endif

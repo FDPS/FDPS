@@ -24,12 +24,27 @@
 #include"matrix_sym2.hpp"
 #include"matrix_sym3.hpp"
 
+
+
 #define PARTICLE_SIMULATOR_PRINT_ERROR(msg) \
     { std::cout<<"PS_ERROR: "<<msg<<" \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl; }
 
 #define PARTICLE_SIMULATOR_PRINT_LINE_INFO() \
     { std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl; }
 
+namespace ParticleSimulator{
+    static const long long int LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1ll<<30;
+    static inline void Abort(const int err = -1){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        MPI::COMM_WORLD.Abort(err);
+#else
+        exit(err);
+#endif
+    }
+
+}
+
+#include"reallocatable_array.hpp"
 
 namespace ParticleSimulator{
 
@@ -92,24 +107,33 @@ namespace ParticleSimulator{
           F32vec( 0.5, -0.5, -0.5), F32vec( 0.5, -0.5,  0.5),
           F32vec( 0.5,  0.5, -0.5), F32vec( 0.5,  0.5,  0.5) };
 #endif
+    typedef U64 CountT;
+
+    static const F64 LARGE_FLOAT = std::numeric_limits<F32>::max()*0.0625;
+    static const S64 LARGE_INT = std::numeric_limits<S32>::max()*0.0625;
 
     ///// A.Tanikawa modified from
     // In the upper line, the right-hand side is interpreted to be a 32bit-integer.
-//    static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1<<31;
-    static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1ll<<30;
+    // static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1<<31;
+    // static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1ll<<30;
     ///// A.Tanikawa modified to
 
     enum SEARCH_MODE{
         LONG_NO_CUTOFF,
         LONG_CUTOFF,
+        LONG_SCATTER, // new for P^3T
+        LONG_CUTOFF_SCATTER, // new for P^3T + PM
         SHORT_GATHER,
         SHORT_SCATTER,
         SHORT_SYMMETRY,
     };
+
     struct TagForceLong{};
     struct TagForceShort{};
     struct TagSearchLong{};
     struct TagSearchLongCutoff{};
+    struct TagSearchLongScatter{};
+    struct TagSearchLongCutoffScatter{};
     struct TagSearchShortGather{};
     struct TagSearchShortScatter{};
     struct TagSearchShortSymmetry{};
@@ -148,6 +172,25 @@ namespace ParticleSimulator{
             search_type_id = SHORT_SYMMETRY,
         };
     };
+
+    // new TAG for P^3T
+    struct SEARCH_MODE_LONG_SCATTER{
+        typedef TagForceLong force_type;
+        typedef TagSearchLongScatter search_type;
+        enum{
+            search_type_id = LONG_SCATTER,
+        };
+    };
+
+    struct SEARCH_MODE_LONG_CUTOFF_SCATTER{
+        typedef TagForceLong force_type;
+        typedef TagSearchLongCutoffScatter search_type;
+        //typedef TagSearchLongScatter search_type;
+        enum{
+            search_type_id = LONG_CUTOFF_SCATTER,
+        };
+    };
+
 
     template<class T> class ValueTypeReduction;
     template<> class ValueTypeReduction<float>{};
@@ -193,6 +236,7 @@ namespace ParticleSimulator{
     template<> inline MPI::Datatype GetDataType<long long int>(){return MPI::LONG_LONG_INT;}
     template<> inline MPI::Datatype GetDataType<unsigned int>(){return MPI::UNSIGNED;}
     template<> inline MPI::Datatype GetDataType<unsigned long>(){return MPI::UNSIGNED_LONG;}
+    template<> inline MPI::Datatype GetDataType<unsigned long long int>(){return MPI::UNSIGNED_LONG;}
     template<> inline MPI::Datatype GetDataType<float>(){return MPI::FLOAT;}
     template<> inline MPI::Datatype GetDataType<double>(){return MPI::DOUBLE;}
 
@@ -202,6 +246,249 @@ namespace ParticleSimulator{
     template<> inline MPI::Datatype GetDataType<double, int>(){return MPI::DOUBLE_INT;}
 #endif
 
+
+// #if 1
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    template<class T, int DIM_COMM=2>
+    class CommForAllToAll{
+    private:
+        int rank_glb_;
+        int n_proc_glb_;
+        MPI_Comm comm_glb_;
+        int rank_1d_[DIM_COMM];
+        int n_proc_1d_[DIM_COMM];
+        MPI_Comm comm_1d_[DIM_COMM];
+        ReallocatableArray<T> val_send_glb_;
+        int * n_recv_disp_glb_;
+        int * n_send_disp_glb_;
+        int * n_send_glb_;
+        int * n_recv_1d_;
+        int * n_send_1d_;
+        int * n_recv_disp_1d_;
+        int * n_send_disp_1d_;
+
+        template<int DIM>
+        void divideProc(int np[],
+                        int rank[],
+                        const int nproc,
+                        const int myrank){
+            std::vector<int> npv;
+            npv.resize(DIM);
+            int np_tmp = nproc;
+            for(int d=DIM, cid=0; cid<DIM-1; d--, cid++){
+                int tmp = (int)pow(np_tmp+0.000001, (1.0/d)*1.000001 );
+                while(np_tmp%tmp){
+                    tmp--;
+                }
+                npv[cid] = tmp;
+                np_tmp /= npv[cid];
+            }
+            npv[DIM-1] = np_tmp;
+            int rank_tmp = myrank;
+            std::sort(npv.begin(), npv.end(), std::greater<int>());
+            for(int i=DIM-1; i>=0; i--){
+                np[i] = npv[i];
+                rank[i] = rank_tmp % np[i];
+                rank_tmp /= np[i];
+            }
+        }
+
+    public:
+        void dumpRank(){
+            for(int i=0; i<DIM_COMM; i++){
+                int n_tmp = 0;
+                MPI_Comm_size(comm_1d_[i], &n_tmp);
+                std::cout<<"n_proc_1d_["<<i<<"]="<<n_proc_1d_[i]<<" n_tmp="<<n_tmp<<std::endl;
+            }
+            for(int i=0; i<DIM_COMM; i++){
+                int r_tmp = 0;
+                MPI_Comm_rank(comm_1d_[i], &r_tmp);
+                std::cout<<"rank_1d_["<<i<<"]="<<rank_1d_[i]<<" r_tmp="<<r_tmp<<std::endl;
+            }
+        }
+
+        CommForAllToAll(MPI_Comm comm = MPI_COMM_WORLD){
+            comm_glb_ = comm;
+            MPI_Comm_rank(comm_glb_, &rank_glb_);
+            MPI_Comm_size(comm_glb_, &n_proc_glb_);
+            n_recv_disp_glb_ = new int[n_proc_glb_ + 1];
+            n_send_disp_glb_ = new int[n_proc_glb_ + 1];
+            n_send_glb_ = new int[n_proc_glb_];
+            n_recv_1d_ = new int[n_proc_glb_];
+            n_send_1d_ = new int[n_proc_glb_];
+            n_recv_disp_1d_ = new int[n_proc_glb_ + 1];
+            n_send_disp_1d_ = new int[n_proc_glb_ + 1];
+            divideProc<DIM_COMM>(n_proc_1d_, rank_1d_, n_proc_glb_, rank_glb_);
+            int dim_max = -1;
+            for(int i=0; i<DIM_COMM; i++){
+                if(dim_max < n_proc_1d_[i]){
+                    dim_max = n_proc_1d_[i];
+                }
+            }
+            int split_color = 0;
+            int factor = 1;
+            for(int d=0; d<DIM_COMM; d++){
+                split_color += rank_1d_[d] * factor;
+                factor *= dim_max;
+            }
+            for(int d=DIM_COMM-1; d>=0; d--){
+                factor = rank_1d_[d];
+                for(int d0=0; d0<d; d0++){
+                    factor *= dim_max;
+                }
+                MPI_Comm_split(comm_glb_, split_color-factor, rank_glb_, comm_1d_+d);
+            }
+        } // Constructor
+	
+        // alltoall
+        void execute(const ReallocatableArray<T> & val_send,
+                     const int cnt,
+                     ReallocatableArray<T> & val_recv){
+            const int n_recv_tot = cnt * n_proc_glb_;
+            val_recv.resizeNoInitialize( n_recv_tot );
+            val_send_glb_.resizeNoInitialize( n_recv_tot );
+            for(int i=0; i<n_recv_tot; i++){
+                val_recv[i] = val_send[i];
+            }
+            for(int d=DIM_COMM-1; d>=0; d--){
+                const int radix = n_proc_glb_ / n_proc_1d_[d];
+                for(int ib=0; ib<n_proc_glb_; ib++){
+                    const int id_send = cnt * ( (ib % radix) * n_proc_1d_[d] + ib / radix );
+                    const int offset = ib * cnt;
+                    for(int i=0; i<cnt; i++){
+                        val_send_glb_[offset + i] = val_recv[id_send + i];
+                    }
+                }
+                MPI_Alltoall(val_send_glb_.getPointer(), cnt*radix, GetDataType<T>(),
+                             val_recv.getPointer(), cnt*radix, GetDataType<T>(), comm_1d_[d]);
+            }
+        }
+
+        void execute(const T val_send[],
+                     const int cnt,
+                     T val_recv[]){
+            const int n_recv_tot = cnt * n_proc_glb_;
+            val_send_glb_.resizeNoInitialize( n_recv_tot );
+            for(int i=0; i<n_recv_tot; i++){
+                val_recv[i] = val_send[i];
+            }
+            for(int d=DIM_COMM-1; d>=0; d--){
+                const int radix = n_proc_glb_ / n_proc_1d_[d];
+                for(int ib=0; ib<n_proc_glb_; ib++){
+                    const int id_send = cnt * ( (ib % radix) * n_proc_1d_[d] + ib / radix );
+                    const int offset = ib * cnt;
+                    for(int i=0; i<cnt; i++){
+                        val_send_glb_[offset + i] = val_recv[id_send + i];
+                    }
+                }
+                MPI_Alltoall(val_send_glb_.getPointer(), cnt*radix, GetDataType<T>(),
+                             val_recv, cnt*radix, GetDataType<T>(), comm_1d_[d]);
+            }
+        }
+	
+        // alltoallv
+        void executeV(const ReallocatableArray<T> & val_send,
+                      ReallocatableArray<T> & val_recv,
+                      const int n_send[],
+                      int n_recv[]){
+            int cnt = 0;
+            //val_recv.reserveAtLeast( val_send.capacity() );
+            val_recv.reserveAtLeast( val_send.size() );
+            val_recv.clearSize();
+            for(int ib=0; ib<n_proc_glb_; ib++){
+                n_recv[ib] = n_send[ib];
+                for(int ip=0; ip<n_recv[ib]; ip++, cnt++){
+                    val_recv.pushBackNoCheck(val_send[cnt]);
+                }
+            }
+            for(int d=DIM_COMM-1; d>=0; d--){
+                int radix = n_proc_glb_ / n_proc_1d_[d];
+                n_recv_disp_glb_[0] = 0;
+                for(int i=0; i<n_proc_glb_; i++){
+                    n_recv_disp_glb_[i+1] = n_recv_disp_glb_[i] + n_recv[i];
+                }
+                val_send_glb_.reserveAtLeast( val_recv.size() );
+                val_send_glb_.clearSize();
+                for(int ib0=0; ib0<n_proc_glb_; ib0++){
+                    int id_send = (ib0 % radix) * n_proc_1d_[d] + ib0 / radix;
+                    n_send_glb_[ib0] = n_recv[id_send];
+                    int offset = n_recv_disp_glb_[id_send];
+                    //val_send_glb_.reserveEmptyAreaAtLeast(n_send_glb_[ib0]);
+                    for(int ib1=0; ib1<n_send_glb_[ib0]; ib1++){
+                        val_send_glb_.pushBackNoCheck(val_recv[ib1 + offset]);
+                    }
+                }
+                MPI_Alltoall(n_send_glb_, radix, MPI_INT,
+                             n_recv, radix, MPI_INT, comm_1d_[d]);
+                n_send_disp_1d_[0] = n_recv_disp_1d_[0] = 0;
+                for(int ib0=0; ib0<n_proc_1d_[d]; ib0++){
+                    n_send_1d_[ib0] = n_recv_1d_[ib0] = 0;
+                    int offset = ib0 * radix;
+                    for(int ib1=0; ib1<radix; ib1++){
+                        n_send_1d_[ib0] += n_send_glb_[offset + ib1];
+                        n_recv_1d_[ib0] += n_recv[offset + ib1];
+                    }
+                    n_send_disp_1d_[ib0+1] = n_send_disp_1d_[ib0] + n_send_1d_[ib0];
+                    n_recv_disp_1d_[ib0+1] = n_recv_disp_1d_[ib0] + n_recv_1d_[ib0];
+                }
+                val_recv.resizeNoInitialize( n_recv_disp_1d_[n_proc_1d_[d]] );
+                MPI_Alltoallv(val_send_glb_.getPointer(), n_send_1d_, n_send_disp_1d_, GetDataType<T>(),
+                              val_recv.getPointer(), n_recv_1d_, n_recv_disp_1d_, GetDataType<T>(), comm_1d_[d]);
+            }
+        }
+/*
+        void executeV(const ReallocatableArray<T> & val_send,
+                      ReallocatableArray<T> & val_recv,
+                      const int n_send[],
+                      int n_recv[]){
+            int cnt = 0;
+            val_recv.reserveAtLeast( val_send.capacity() );
+            val_recv.clearSize();
+            for(int ib=0; ib<n_proc_glb_; ib++){
+                n_recv[ib] = n_send[ib];
+                for(int ip=0; ip<n_recv[ib]; ip++, cnt++){
+                    val_recv.pushBackNoCheck(val_send[cnt]);
+                }
+            }
+            
+            for(int d=DIM_COMM-1; d>=0; d--){
+                int radix = n_proc_glb_ / n_proc_1d_[d];
+                n_recv_disp_glb_[0] = 0;
+                for(int i=0; i<n_proc_glb_; i++){
+                    n_recv_disp_glb_[i+1] = n_recv_disp_glb_[i] + n_recv[i];
+                }
+                val_send_glb_.clearSize();
+                for(int ib0=0; ib0<n_proc_glb_; ib0++){
+                    int id_send = (ib0 % radix) * n_proc_1d_[d] + ib0 / radix;
+                    n_send_glb_[ib0] = n_recv[id_send];
+                    int offset = n_recv_disp_glb_[id_send];
+                    val_send_glb_.reserveEmptyAreaAtLeast(n_send_glb_[ib0]);
+                    for(int ib1=0; ib1<n_send_glb_[ib0]; ib1++){
+                        val_send_glb_.pushBackNoCheck(val_recv[ib1 + offset]);
+                    }
+                }
+                MPI_Alltoall(n_send_glb_, radix, MPI_INT,
+                             n_recv, radix, MPI_INT, comm_1d_[d]);
+                n_send_disp_1d_[0] = n_recv_disp_1d_[0] = 0;
+                for(int ib0=0; ib0<n_proc_1d_[d]; ib0++){
+                    n_send_1d_[ib0] = n_recv_1d_[ib0] = 0;
+                    int offset = ib0 * radix;
+                    for(int ib1=0; ib1<radix; ib1++){
+                        n_send_1d_[ib0] += n_send_glb_[offset + ib1];
+                        n_recv_1d_[ib0] += n_recv[offset + ib1];
+                    }
+                    n_send_disp_1d_[ib0+1] = n_send_disp_1d_[ib0] + n_send_1d_[ib0];
+                    n_recv_disp_1d_[ib0+1] = n_recv_disp_1d_[ib0] + n_recv_1d_[ib0];
+                }
+                val_recv.resizeNoInitialize( n_recv_disp_1d_[n_proc_1d_[d]] );
+                MPI_Alltoallv(val_send_glb_.getPointer(), n_send_1d_, n_send_disp_1d_, GetDataType<T>(),
+                              val_recv.getPointer(), n_recv_1d_, n_recv_disp_1d_, GetDataType<T>(), comm_1d_[d]);
+            }
+            //n_recv_tot = n_recv_disp_1d_[ n_proc_1d_[0] ];
+        }
+*/
+    }; //CommForAllToAll
+#endif
 
     class Comm{
     private:
@@ -294,6 +581,7 @@ namespace ParticleSimulator{
 	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI::MAXLOC);
 	    f_out = glb.x;
 	    i_out = glb.y;
+        //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
 #else
 	    f_out = f_in;
 	    i_out = i_in;
@@ -362,6 +650,36 @@ namespace ParticleSimulator{
         }
 
         ///////////////////////////
+        // MPI GATHER WRAPPER //
+        template<class T> static inline void gather(const T * val_send,
+                                                       const int n,
+                                                       T * val_recv){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
+            MPI::COMM_WORLD.Gather(val_send, n, GetDataType<T>(),
+				   val_recv, n, GetDataType<T>(), 0);
+#else
+            for(int i=0; i<n; i++)val_recv[i] = val_send[i];
+#endif	    
+        }
+
+        template<class T> static inline void gatherV(const T * val_send,
+						     const int n_send,
+						     T * val_recv,
+						     int * n_recv,
+						     int * n_recv_disp){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
+            MPI::COMM_WORLD.Gatherv(val_send, n_send, GetDataType<T>(),
+				    val_recv, n_recv, n_recv_disp, GetDataType<T>(), 0);
+#else
+            for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
+            n_recv[0] = n_recv_disp[1] = n_send;
+            n_recv_disp[0] = 0;
+#endif
+        }
+
+
+
+        ///////////////////////////
         // MPI ALLGATHER WRAPPER //
         template<class T> static inline void allGather(const T * val_send,
                                                        const int n,
@@ -414,7 +732,40 @@ namespace ParticleSimulator{
 #endif
         }
 	
-    };
+    }; // END OF Comm
+
+
+    static inline void Initialize(int &argc, char **&argv){
+	
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        MPI::Init(argc, argv);
+#endif
+        if(Comm::getRank() == 0) {
+            fprintf(stderr, "******** FDPS has successfully begun. ********\n");
+        }
+
+    }
+
+    static inline void Finalize(){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        if(Comm::getRank() == 0) {
+            //fprintf(stderr, "****************************************************************\n");
+            //fprintf(stderr, "****************************************************************\n");
+            //fprintf(stderr, "****************************************************************\n");
+            //fprintf(stderr, "****************************************************************\n");
+            //fprintf(stderr, "****************************************************************\n");
+            //fprintf(stderr, "****************************************************************\n");
+            //fprintf(stderr, "****************************************************************\n");
+            fprintf(stderr, "******** FDPS has successfully finished. ********\n");
+        }
+        MPI::Finalize();
+#else
+        fprintf(stderr, "******** FDPS has successfully finished. ********\n");
+#endif
+    }
+
+
+
 
     template<> inline float Comm::getMinValue<float>(const float & val){
         return allreduceMin(val);
@@ -531,10 +882,19 @@ namespace ParticleSimulator{
     template<> inline int Comm::getSum(const int & val){
         return allreduceSum(val);
     }
+    template<> inline unsigned int Comm::getSum(const unsigned int & val){
+        return allreduceSum(val);
+    }
     template<> inline long Comm::getSum(const long & val){
         return allreduceSum(val);
     }
+    template<> inline unsigned long Comm::getSum(const unsigned long & val){
+        return allreduceSum(val);
+    }
     template<> inline long long int Comm::getSum(const long long int & val){
+        return allreduceSum(val);
+    }
+    template<> inline unsigned long long int Comm::getSum(const unsigned long long int & val){
         return allreduceSum(val);
     }
     template<> inline Vector3<float> Comm::getSum(const Vector3<float> & val){
@@ -596,53 +956,7 @@ namespace ParticleSimulator{
         allreduceMax(f_in, i_in, f_out, i_out);
     }
 
-    static inline void Initialize(int &argc, char **&argv){
 
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-#ifndef MPI_VERSION
-      CompileTimeError<false> PLEASE_COMPILE_USING_MPI;
-#endif //MPI_VERSION
-#endif
-	
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#ifndef _OPENMP
-	PS_COMPILE_TIME_ERROR SET_OPENMP_OPTION;
-#endif //_OPENMP
-#else  //PARTICLE_SIMULATOR_THREAD_PARALLEL
-#ifdef _OPENMP
-	PS_COMPILE_TIME_ERROR SET_OPENMP_OPTION;
-#endif //_OPENMP
-#endif //PARTICLE_SIMULATOR_THREAD_PARALLEL
-
-	
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        MPI::Init(argc, argv);
-#endif
-
-        if(Comm::getRank() == 0) {
-            fprintf(stderr, "******** FDPS has successfully begun. ********\n");
-        }
-
-    }
-
-    static inline void Finalize(){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        if(Comm::getRank() == 0) {
-            fprintf(stderr, "******** FDPS has successfully finished. ********\n");
-        }
-        MPI::Finalize();
-#else
-        fprintf(stderr, "******** FDPS has successfully finished. ********\n");
-#endif
-    }
-
-    static inline void Abort(const S32 err = -1){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        MPI::COMM_WORLD.Abort(err);
-#else
-        exit(err);
-#endif
-    }
 
     static const S32 N_SMP_PTCL_TOT_PER_PSYS_DEFAULT = 1000000;
 
@@ -817,6 +1131,27 @@ namespace ParticleSimulator{
         }
     };
 
+    struct LessOPX{
+	template<class T> bool operator() (const T & left, const T & right) const {
+	    return left.x < right.x;
+	}
+    };
+    struct LessOPY{
+	template<class T> bool operator() (const T & left, const T & right) const {
+	    return left.y < right.y;
+	}
+    };
+    struct LessOPZ{
+	template<class T> bool operator() (const T & left, const T & right) const {
+	    return left.z < right.z;
+	}
+    };
+    struct LessOPKEY{
+	template<class T> bool operator() (const T & left, const T & right) const {
+	    return left.key_ < right.key_;
+	}
+    };
+
     struct TagRSearch{};
     struct TagNoRSearch{};
 
@@ -863,8 +1198,63 @@ namespace ParticleSimulator{
     public:
         typedef typename HasRSearchInner< sizeof(Func<T>(NULL)) == 1 >::type type;
     };
+
+    class TimeProfile{
+    public:
+        F64 collect_sample_particle;
+        F64 decompose_domain;
+        F64 exchange_particle;
+        F64 set_particle_local_tree;
+        F64 set_particle_global_tree;
+        F64 make_local_tree;
+        F64 make_global_tree;
+        F64 set_root_cell;
+        F64 calc_force;
+        F64 calc_moment_local_tree;
+        F64 calc_moment_global_tree;
+        F64 make_LET_1st;
+        F64 make_LET_2nd;
+        F64 exchange_LET_1st;
+        F64 exchange_LET_2nd;
+        TimeProfile () {
+            collect_sample_particle = decompose_domain = exchange_particle = set_particle_local_tree = set_particle_global_tree = make_local_tree = make_global_tree = set_root_cell
+                = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd 
+                = exchange_LET_1st = exchange_LET_2nd = 0.0;
+        }
+        TimeProfile operator + (const TimeProfile & rhs) const{
+            TimeProfile ret;
+            ret.collect_sample_particle = this->collect_sample_particle + rhs.collect_sample_particle;
+            ret.decompose_domain = this->decompose_domain + rhs.decompose_domain;
+            ret.exchange_particle = this->exchange_particle + rhs.exchange_particle;
+            ret.set_particle_local_tree = this->set_particle_local_tree + rhs.set_particle_local_tree;
+            ret.set_particle_global_tree = this->set_particle_global_tree + rhs.set_particle_global_tree;
+            ret.set_root_cell = this->set_root_cell + rhs.set_root_cell;
+            ret.make_local_tree = this->make_local_tree + rhs.make_local_tree;
+            ret.make_global_tree = this->make_global_tree + rhs.make_global_tree;
+            ret.calc_force = this->calc_force + rhs.calc_force;
+            ret.calc_moment_local_tree = this->calc_moment_local_tree + rhs.calc_moment_local_tree;
+            ret.calc_moment_global_tree = this->calc_moment_global_tree + rhs.calc_moment_global_tree;
+            ret.make_LET_1st = this->make_LET_1st + rhs.make_LET_1st;
+            ret.make_LET_2nd = this->make_LET_2nd + rhs.make_LET_2nd;
+            ret.exchange_LET_1st = this->exchange_LET_1st + rhs.exchange_LET_1st;
+            ret.exchange_LET_2nd = this->exchange_LET_2nd + rhs.exchange_LET_2nd;
+            return ret;
+        }
+        F64 getTotalTime() const {
+            return collect_sample_particle + decompose_domain + exchange_particle + set_particle_local_tree + set_particle_global_tree + make_local_tree + make_global_tree + set_root_cell
+                + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd;
+        }
+        void clear(){
+            collect_sample_particle = decompose_domain = exchange_particle = make_local_tree = make_global_tree = set_particle_local_tree = set_particle_global_tree = set_root_cell
+                = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd = exchange_LET_1st = exchange_LET_2nd = 0.0;
+        }
+
+    };
+
 }
 
-#include"reallocatable_array.hpp"
+//#include"reallocatable_array.hpp"
 
 #include"timer.hpp"
+
+//#include"comm.hpp"

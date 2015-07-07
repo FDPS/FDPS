@@ -10,6 +10,7 @@ namespace ParticleSimulator{
     template<class Tptcl>
     class ParticleSystem{
     private:
+        TimeProfile time_profile_;
         static const S32 n_smp_ave_ = 30;
         //Tptcl * ptcl_;
         ReallocatableArray<Tptcl> ptcl_;
@@ -69,6 +70,12 @@ namespace ParticleSimulator{
 //        S32 whereToGo(const Tvec & pos, const Tdinfo & dinfo);
 
     public:
+        TimeProfile getTimeProfile() const {
+            return time_profile_;
+        }
+        void clearTimeProfile(){
+            time_profile_.clear();
+        }
         ParticleSystem() {
             first_call_by_setAverageTargetNumberOfSampleParticlePerProcess = true;
             first_call_by_initialize = true;
@@ -80,7 +87,7 @@ namespace ParticleSimulator{
         void initialize() {
             assert(first_call_by_initialize);
             first_call_by_initialize = false;
-//            first_call_by_DomainInfo_collect_sample_particle = true;            
+//            first_call_by_DomainInfo_collect_sample_particle = true;
         }
 
         void setAverageTargetNumberOfSampleParticlePerProcess(const S32 &nsampleperprocess) {
@@ -225,7 +232,7 @@ namespace ParticleSimulator{
                         Abort(-1);
                     }
                     S32 n_ptcl_ = header->readAscii(fp);
-                    while('\n' == getc(fp));
+                    //while('\n' == getc(fp));
                     if(n_ptcl_ < 0){//User does NOT return # of ptcl
                         //count # of lines
                         n_ptcl_ = 0;
@@ -290,7 +297,7 @@ namespace ParticleSimulator{
                     Abort(-1);
                 }
                 S32 n_ptcl_ = header->readAscii(fp);
-                while('\n' == getc(fp));
+                //while('\n' == getc(fp));
                 if(n_ptcl_ >= 0){
                     //User returns # of ptcl.
                     this->createParticle(n_ptcl_ << 2);//Magic shift
@@ -448,7 +455,7 @@ namespace ParticleSimulator{
 
             F32 weight_all = Comm::getSum(weight);
             number_of_sample_particle = (weight * n_smp_ptcl_tot_) / weight_all;
-#if 1
+#if 0
 // modified to limit # of sample particles by M.I. 
             const F32 coef_limitter = 0.2;
             S64 nglb = Comm::getSum( (S64)nloc );
@@ -456,23 +463,17 @@ namespace ParticleSimulator{
             number_of_sample_particle = (number_of_sample_particle > number_of_sample_particle_limit) ? number_of_sample_particle : number_of_sample_particle_limit;
 #endif
             number_of_sample_particle = (number_of_sample_particle < nloc) ? number_of_sample_particle : nloc;
-	    /*
-	    if(Comm::getRank() == 0){
-	      std::cout<<"nloc="<<nloc<<std::endl;
-	      std::cout<<"weight="<<weight<<std::endl;
-	      std::cout<<"weight_all="<<weight_all<<std::endl;
-	      std::cout<<"number_of_sample_particle(final)="<<number_of_sample_particle<<std::endl;
-	      std::cout<<std::endl;
-	    }
-	    */
+            //std::cout<<"number_of_sample_particle= "<<number_of_sample_particle<<std::endl;
+            //std::cout<<"weight= "<<weight<<" weight_all= "<<weight_all<<std::endl;
+
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
             std::cout<<"weight="<<weight<<" weight_all="<<weight_all<<std::endl;
             std::cout<<"n_smp_ptcl_tot_="<<n_smp_ptcl_tot_<<std::endl;
-            std::cout<<"nglb="<<nglb<<" nloc="<<nloc<<std::endl;
+            //std::cout<<"nglb="<<nglb<<" nloc="<<nloc<<std::endl;
             std::cout<<"(weight * n_smp_ptcl_tot_) / weight_all="<<(weight * n_smp_ptcl_tot_) / weight_all<<std::endl;
             std::cout<<"((S64)nloc * n_smp_ptcl_tot_)="<< ((S64)nloc * n_smp_ptcl_tot_)<<std::endl;
-            std::cout<<"((F32)nglb * (1.0 + coef_limitter))="<<((F32)nglb * (1.0 + coef_limitter))<<std::endl;
-            std::cout<<"((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter))="<<((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter))<<std::endl;
+            //std::cout<<"((F32)nglb * (1.0 + coef_limitter))="<<((F32)nglb * (1.0 + coef_limitter))<<std::endl;
+            //std::cout<<"((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter))="<<((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter))<<std::endl;
             std::cout<<"number_of_sample_particle(final)="<<number_of_sample_particle<<std::endl;
 #endif
 
@@ -501,8 +502,224 @@ namespace ParticleSimulator{
 #endif
         }
 
+      /*
+        template<class Tdinfo>
+        void exchangeParticleSafeMode(Tdinfo & dinfo) {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            const S32 nloc  = ptcl_.size();
+            const S32 rank  = MPI::COMM_WORLD.Get_rank();
+            const S32 nproc = MPI::COMM_WORLD.Get_size();
+            const S32 * n_domain = dinfo.getPointerOfNDomain();
+
+            const F64ort * pos_domain = dinfo.getPointerOfPosDomain();
+            const F64ort thisdomain = dinfo.getPosDomain(rank);
+
+            S32 *nsend  = new S32[nproc];
+            S32 *nsend_disp  = new S32[nproc+1];
+            S32 *nrecv  = new S32[nproc];
+            S32 *nrecv_disp  = new S32[nproc+1];
+            for(S32 i = 0; i < nproc; i++) {
+                nsend[i] = nsend_disp[i] = nrecv[i] = nrecv_disp[i] = 0;
+            }
+            nsend_disp[nproc] = nrecv_disp[nproc] = 0;
+            //std::cout<<"end of allocation buffer"<<std::endl;
+            // *** count the number of send particles preliminary *
+            for(S32 ip = 0; ip < nloc; ip++) {
+                //std::cout<<"ip="<<ip<<std::endl;
+                //std::cout<<"ptcl_[ip].getPos()="<<ptcl_[ip].getPos()<<std::endl;
+                //std::cout<<"dinfo.getPosRootDomain().notOverlapped(ptcl_[ip].getPos())="<<dinfo.getPosRootDomain().notOverlapped(ptcl_[ip].getPos())<<std::endl;
+                if( dinfo.getPosRootDomain().notOverlapped(ptcl_[ip].getPos()) ){
+                    PARTICLE_SIMULATOR_PRINT_ERROR("A particle is out of root domain");
+                    std::cerr<<"position of the particle="<<ptcl_[ip].getPos()<<std::endl;
+                    std::cerr<<"position of the root domain="<<dinfo.getPosRootDomain()<<std::endl;
+                    Abort(-1);
+                }
+                //std::cout<<"thisdomain="<<thisdomain<<std::endl;
+                //std::cout<<"determineWhetherParticleIsInDomain(ptcl_[ip].getPos(), thisdomain)="<<determineWhetherParticleIsInDomain(ptcl_[ip].getPos(), thisdomain)<<std::endl;
+                if(!determineWhetherParticleIsInDomain(ptcl_[ip].getPos(), thisdomain)) {
+                    S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain);
+                    //std::cout<<"srank="<<srank<<std::endl;
+                    nsend[srank]++;
+                }
+            }
+            //std::cout<<"end of ISIN check"<<std::endl;
+            nsend_disp[0] = 0;
+            for(S32 i = 0; i < nproc; i++) {
+                nsend_disp[i+1] += nsend_disp[i] + nsend[i];
+            }
+            //std::cout<<"nsend_disp[nproc]="<<nsend_disp[nproc]<<std::endl;
+            ptcl_send_.resizeNoInitialize( nsend_disp[nproc] );
+            // ****************************************************
+            // *** align send particles on ptcl_send_ *************
+            for(S32 i = 0; i < nproc; i++) nsend[i] = 0;
+            S32 iloc = 0;
+            for(S32 ip = 0; ip < nloc; ip++) {
+                if(determineWhetherParticleIsInDomain(ptcl_[ip].getPos(), thisdomain)) {
+                    ptcl_[iloc] = ptcl_[ip];
+                    iloc++;
+                } else {
+                    S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain);
+                    S32 jloc = nsend[srank] + nsend_disp[srank];
+                    ptcl_send_[jloc] = ptcl_[ip];
+                    nsend[srank]++;
+                }
+            }
+            //std::cout<<"iloc="<<iloc<<std::endl;
+            ptcl_.resizeNoInitialize(iloc);
+
+            // ****************************************************
+            // *** receive the number of receive particles ********
+            //MPI::COMM_WORLD.Alltoall(nsend, 1, GetDataType<S32>(), nrecv, 1, GetDataType<S32>());
+            Comm::allToAll(nsend, 1, nrecv);
+
+            nrecv_disp[0] = 0;
+            for(S32 i=0; i<nproc; i++){
+                nrecv_disp[i+1] = nrecv_disp[i] + nrecv[i];
+            }
+            //std::cout<<"nrecv_disp[nproc]="<<nrecv_disp[nproc]<<std::endl;
+            ptcl_recv_.resizeNoInitialize( nrecv_disp[nproc] );
+            Comm::allToAllV(ptcl_send_.getPointer(), nsend, nsend_disp,
+                            ptcl_recv_.getPointer(), nrecv, nrecv_disp);
+
+            const S32 nrecv_tot = nrecv_disp[nproc];
+            ptcl_.reserveEmptyAreaAtLeast( nrecv_tot );
+            for(S32 ip = 0; ip < nrecv_tot; ip++) {
+                ptcl_.pushBackNoCheck( ptcl_recv_[ip] );
+            }
+            //std::cout<<"ptcl_.size()="<<ptcl_.size()<<std::endl;
+            // ****************************************************            
+
+            delete [] nsend;
+            delete [] nsend_disp;
+            delete [] nrecv;
+            delete [] nrecv_disp;
+#endif
+        }
+      */
+
+#if 1
+      // new version (with switch)
         template<class Tdinfo>
         void exchangeParticle(Tdinfo & dinfo) {
+            F64 time_offset = GetWtime();
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            const S32 nloc  = ptcl_.size();
+            const S32 rank  = MPI::COMM_WORLD.Get_rank();
+            const S32 nproc = MPI::COMM_WORLD.Get_size();
+            const S32 * n_domain = dinfo.getPointerOfNDomain();
+
+            const F64ort * pos_domain = dinfo.getPointerOfPosDomain();
+            const F64ort thisdomain = dinfo.getPosDomain(rank);
+
+            S32 *nsend  = new S32[nproc];
+            S32 *nsend_disp  = new S32[nproc+1];
+            S32 *nrecv  = new S32[nproc];
+            S32 *nrecv_disp  = new S32[nproc+1];
+            MPI::Request * req_send = new MPI::Request[nproc];
+            MPI::Request * req_recv = new MPI::Request[nproc];
+            for(S32 i = 0; i < nproc; i++) {
+                nsend[i] = nsend_disp[i] = nrecv[i] = nrecv_disp[i] = 0;
+            }
+            nsend_disp[nproc] = nrecv_disp[nproc] = 0;
+            for(S32 ip = 0; ip < nloc; ip++) {
+                if( dinfo.getPosRootDomain().notOverlapped(ptcl_[ip].getPos()) ){
+                    PARTICLE_SIMULATOR_PRINT_ERROR("A particle is out of root domain");
+                    std::cerr<<"position of the particle="<<ptcl_[ip].getPos()<<std::endl;
+                    std::cerr<<"position of the root domain="<<dinfo.getPosRootDomain()<<std::endl;
+                    Abort(-1);
+                }
+                if(!determineWhetherParticleIsInDomain(ptcl_[ip].getPos(), thisdomain)) {
+                    S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain);
+                    nsend[srank]++;
+                }
+            }
+            nsend_disp[0] = 0;
+            for(S32 i = 0; i < nproc; i++) {
+                nsend_disp[i+1] += nsend_disp[i] + nsend[i];
+            }
+            ptcl_send_.resizeNoInitialize( nsend_disp[nproc] );
+            // ****************************************************
+            // *** align send particles on ptcl_send_ *************
+            for(S32 i = 0; i < nproc; i++) nsend[i] = 0;
+            S32 iloc = 0;
+            for(S32 ip = 0; ip < nloc; ip++) {
+                if(determineWhetherParticleIsInDomain(ptcl_[ip].getPos(), thisdomain)) {
+                    ptcl_[iloc] = ptcl_[ip];
+                    iloc++;
+                } else {
+                    S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain);
+                    S32 jloc = nsend[srank] + nsend_disp[srank];
+                    ptcl_send_[jloc] = ptcl_[ip];
+                    nsend[srank]++;
+                }
+            }
+            ptcl_.resizeNoInitialize(iloc);
+
+            // ****************************************************
+            // *** receive the number of receive particles ********
+            Comm::allToAll(nsend, 1, nrecv);
+
+            nrecv_disp[0] = 0;
+            for(S32 i=0; i<nproc; i++){
+                nrecv_disp[i+1] = nrecv_disp[i] + nrecv[i];
+            }
+            ptcl_recv_.resizeNoInitialize( nrecv_disp[nproc] );
+
+            const S32 n_proc_comm_limit = 500;
+            S32 n_proc_send = 0;
+            S32 n_proc_recv = 0;
+            for(S32 i=0; i<nproc; i++){
+                if(nsend[i] > 0) n_proc_send++;
+                if(nrecv[i] > 0) n_proc_recv++;
+            }
+            bool flag_one_to_one_comm = ( n_proc_send < n_proc_comm_limit && n_proc_recv < n_proc_comm_limit) ? true : false;
+
+            if( Comm::synchronizeConditionalBranchAND(flag_one_to_one_comm) ){
+                n_proc_send = n_proc_recv = 0;
+                for(S32 ib = 1; ib < nproc; ib++) {
+                    S32 idsend = (ib + rank) % nproc;
+                    if(nsend[idsend] > 0) {
+                        S32 adrsend = nsend_disp[idsend];                    
+                        S32 tagsend = (rank < idsend) ? rank : idsend;                    
+                        req_send[n_proc_send++] = MPI::COMM_WORLD.Isend(ptcl_send_.getPointer(adrsend), nsend[idsend], GetDataType<Tptcl>(), idsend, tagsend);
+                    }
+                    S32 idrecv = (nproc + rank - ib) % nproc;
+                    if(nrecv[idrecv] > 0) {
+                        S32 adrrecv = nrecv_disp[idrecv];
+                        S32 tagrecv = (rank < idrecv) ? rank : idrecv;
+                        req_recv[n_proc_recv++] = MPI::COMM_WORLD.Irecv(ptcl_recv_.getPointer(adrrecv), nrecv[idrecv], GetDataType<Tptcl>(), idrecv, tagrecv);
+                    }
+                }
+                MPI::Request::Waitall(n_proc_send, req_send);
+                MPI::Request::Waitall(n_proc_recv, req_recv);
+            }
+            else{
+                Comm::allToAllV(ptcl_send_.getPointer(), nsend, nsend_disp,
+                                ptcl_recv_.getPointer(), nrecv, nrecv_disp);
+            }
+
+            const S32 nrecv_tot = nrecv_disp[nproc];
+            ptcl_.reserveEmptyAreaAtLeast( nrecv_tot );
+            for(S32 ip = 0; ip < nrecv_tot; ip++) {
+                ptcl_.pushBackNoCheck( ptcl_recv_[ip] );
+            }
+            //std::cout<<"ptcl_.size()="<<ptcl_.size()<<std::endl;
+            // ****************************************************            
+
+            delete [] nsend;
+            delete [] nsend_disp;
+            delete [] nrecv;
+            delete [] nrecv_disp;
+            delete [] req_send;
+            delete [] req_recv;
+#endif
+            time_profile_.exchange_particle = GetWtime() - time_offset;
+        }
+#else
+
+        template<class Tdinfo>
+        void exchangeParticle(Tdinfo & dinfo) {
+            F64 time_offset = GetWtime();
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             //const S32 nloc  = n_ptcl_;
             const S32 nloc  = ptcl_.size();
@@ -694,7 +911,9 @@ namespace ParticleSimulator{
                 std::cout<<"ptcl_[0].getRSearch()="<<ptcl_[0].getRSearch()<<std::endl;
             }
 #endif
+            time_profile_.exchange_particle = GetWtime() - time_offset;
         }
+#endif
 
         // for DEBUG functions
         template<class Treal, class Tvec>

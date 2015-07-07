@@ -1,5 +1,5 @@
-#define SANITY_CHECK_REALLOCATABLE_ARRAY
-//#define VERBOSE
+//#define SANITY_CHECK_REALLOCATABLE_ARRAY
+
 #include <sys/stat.h>
 #include "header.h"
 
@@ -15,23 +15,35 @@ int main(int argc, char* argv[]){
 	SetupIC(sph_system, &end_time, &box);
 	Initialize(sph_system);
 	//Dom. info
+	printf("Dom info\n");
 	PS::DomainInfo dinfo;
+	printf("init.\n");
 	dinfo.initialize();
+	printf("setBC\n");
 	dinfo.setBoundaryCondition(PS::BOUNDARY_CONDITION_PERIODIC_XYZ);
+	printf("setPRD\n");
 	dinfo.setPosRootDomain(PS::F64vec(0.0, 0.0, 0.0), PS::F64vec(box.x, box.y, box.z));
+	printf("setD\n");
 	dinfo.setDomain(PS::Comm::getNumberOfProc(), 1, 1);
+	printf("decomposeDomain\n");
 	dinfo.decomposeDomain();
+	printf("ex.P\n");
 	sph_system.exchangeParticle(dinfo);
+	printf("TreeFFS\n");
 	{
 		PS::TreeForForceShort<RESULT::Dens, EPI::Dens, EPJ::Dens>::Gather dens_tree;
+		printf("Tree initialize\n");
 		dens_tree.initialize(3 * sph_system.getNumberOfParticleGlobal());
+		printf("Tree calcForceAllAndWriteBack\n");
 		dens_tree.calcForceAllAndWriteBack(CalcDensity(), sph_system, dinfo);
 	}
+	printf("TreeFFS\n");
 	{
 		PS::TreeForForceShort<RESULT::Hydro, EPI::Hydro, EPJ::Hydro>::Symmetry hydr_tree;
 		hydr_tree.initialize(3 * sph_system.getNumberOfParticleGlobal());
 		hydr_tree.calcForceAllAndWriteBack(CalcHydroForce(), sph_system, dinfo);
 	}
+	printf("getDT\n");
 	dt = getTimeStepGlobal(sph_system);
 
 	PS::S32 step = 0;
@@ -92,8 +104,11 @@ int main(int argc, char* argv[]){
 			std::cout << "//================================" << std::endl;
 			std::cout << "time = " << time << std::endl;
 			std::cout << "step = " << step << std::endl;
-			std::cout << "//================================" << std::endl;
 		}
+			CheckConservativeVariables(sph_system);
+		if(PS::Comm::getRank() == 0){
+			std::cout << "//================================" << std::endl;
+        }
 	}
 
 	PS::Finalize();

@@ -271,7 +271,6 @@ namespace ParticleSimulator{
     public:
         S32 n_ptcl_;
         S32 adr_ptcl_;
-        //F32ort vertex_;
         F64ort vertex_;
         template<class Ttc> 
         void copyFromTC(const Ttc & tc){
@@ -361,7 +360,7 @@ namespace ParticleSimulator{
     public:
         F64 getRSearch() const { return r_search;}
         F64vec getPos() const { return pos;}
-	void setPos(const F64vec & pos_in) { pos = pos_in;}
+        void setPos(const F64vec & pos_in) { pos = pos_in;}
         template<class Tep>
         void copyFromEP(const Tep & ep){
             r_search = ep.getRSearch();
@@ -378,6 +377,135 @@ namespace ParticleSimulator{
 
     //////////////
     /// Moment ///
+    // for P^3T
+    class MomentMonopoleScatter{
+    public:
+        F32 mass;
+        F32vec pos;
+        F64ort vertex_out_;
+        F64ort vertex_in_;
+        MomentMonopoleScatter(){
+            mass = 0.0;
+            pos = 0.0;
+            vertex_out_.init();
+            vertex_in_.init();
+        }
+        MomentMonopoleScatter(const F32 m, const F32vec & p){ 
+            mass = m;
+            pos = p;
+        }
+        F64ort getVertexOut() const { return vertex_out_; }
+        F64ort getVertexIn() const { return vertex_in_; }
+        void init(){
+            mass = 0.0;
+            pos = 0.0;
+            vertex_out_.init();
+            vertex_in_.init();
+        }
+        F32vec getPos() const {
+            return pos;
+        }
+        F32 getCharge() const {
+            return mass;
+        }
+        template<class Tepj>
+        void accumulateAtLeaf(const Tepj & epj){
+            this->mass += epj.getCharge();
+            this->pos += epj.getCharge() * epj.getPos();
+            (this->vertex_out_).merge(epj.getPos(), epj.getRSearch());
+            (this->vertex_in_).merge(epj.getPos());
+        }
+        template<class Tepj>
+        void accumulateAtLeaf2(const Tepj & epj){}
+        void set(){
+            pos = pos / mass;
+        }
+        void accumulate(const MomentMonopoleScatter & mom){
+            this->mass += mom.mass;
+            this->pos += mom.mass * mom.pos;
+            (this->vertex_out_).merge(mom.vertex_out_);
+            (this->vertex_in_).merge(mom.vertex_in_);
+        }
+        void accumulate2(const MomentMonopoleScatter & mom){}
+        // for DEBUG 
+        void dump(std::ostream & fout = std::cout) const {
+            fout<<"mass="<<mass<<std::endl;
+            fout<<"pos="<<pos<<std::endl;
+            fout<<"vertex_out.low_="<<vertex_out_.low_<<std::endl;
+            fout<<"vertex_out.high_="<<vertex_out_.high_<<std::endl;
+            fout<<"vertex_in.low_="<<vertex_in_.low_<<std::endl;
+            fout<<"vertex_in.high_="<<vertex_in_.high_<<std::endl;
+        }
+    };
+
+    // for P^3T + PM
+    class MomentMonopoleCutoffScatter{
+    public:
+        F32 mass;
+        F32vec pos;
+        F64ort vertex_out_; // cutoff
+        F64ort vertex_out2_; // search ep
+        F64ort vertex_in_;
+        MomentMonopoleCutoffScatter(){
+            mass = 0.0;
+            pos = 0.0;
+            vertex_out_.init();
+            vertex_out2_.init();
+            vertex_in_.init();
+        }
+        MomentMonopoleCutoffScatter(const F32 m, const F32vec & p){ 
+            mass = m;
+            pos = p;
+        }
+        F64ort getVertexOut() const { return vertex_out_; }
+        F64ort getVertexOut2() const { return vertex_out2_; }
+        F64ort getVertexIn() const { return vertex_in_; }
+        void init(){
+            mass = 0.0;
+            pos = 0.0;
+            vertex_out_.init();
+            vertex_out2_.init();
+            vertex_in_.init();
+        }
+        F32vec getPos() const {
+            return pos;
+        }
+        F32 getCharge() const {
+            return mass;
+        }
+        template<class Tepj>
+        void accumulateAtLeaf(const Tepj & epj){
+            this->mass += epj.getCharge();
+            this->pos += epj.getCharge() * epj.getPos();
+            (this->vertex_out_).merge(epj.getPos(), epj.getRSearch());
+            (this->vertex_out2_).merge(epj.getPos(), epj.getRSearch2());
+            (this->vertex_in_).merge(epj.getPos());
+        }
+        template<class Tepj>
+        void accumulateAtLeaf2(const Tepj & epj){}
+        void set(){
+            pos = pos / mass;
+        }
+        void accumulate(const MomentMonopoleCutoffScatter & mom){
+            this->mass += mom.mass;
+            this->pos += mom.mass * mom.pos;
+            (this->vertex_out_).merge(mom.vertex_out_);
+            (this->vertex_out2_).merge(mom.vertex_out2_);
+            (this->vertex_in_).merge(mom.vertex_in_);
+        }
+        void accumulate2(const MomentMonopoleCutoffScatter & mom){}
+        // for DEBUG 
+        void dump(std::ostream & fout = std::cout) const {
+            fout<<"mass="<<mass<<std::endl;
+            fout<<"pos="<<pos<<std::endl;
+            fout<<"vertex_out.low_="<<vertex_out_.low_<<std::endl;
+            fout<<"vertex_out.high_="<<vertex_out_.high_<<std::endl;
+            fout<<"vertex_in.low_="<<vertex_in_.low_<<std::endl;
+            fout<<"vertex_in.high_="<<vertex_in_.high_<<std::endl;
+        }
+    };
+
+
     class MomentMonopole{
     public:
         F32 mass;
@@ -762,16 +890,12 @@ namespace ParticleSimulator{
     
     class MomentSearchInAndOut{
     public:
-        //F32ort vertex_out_;
-        //F32ort vertex_in_;
         F64ort vertex_out_;
         F64ort vertex_in_;
         void init(){
             vertex_out_.init();
             vertex_in_.init();
         }
-        //F32ort getVertexOut() const { return vertex_out_; }
-        //F32ort getVertexIn() const { return vertex_in_; }
         F64ort getVertexOut() const { return vertex_out_; }
         F64ort getVertexIn() const { return vertex_in_; }
         template<class Tep>
@@ -830,7 +954,8 @@ namespace ParticleSimulator{
     /// SPJ ///
     class SPJMonopole{
     public:
-        void copyFromMoment(const MomentMonopole & mom){
+        template<class Tmom>
+        void copyFromMoment(const Tmom & mom){
             mass = mom.mass;
             pos = mom.pos;
         }
@@ -853,6 +978,64 @@ namespace ParticleSimulator{
         F64 mass;
         F64vec pos;
     };
+
+// the same as SPJMonopole
+        // for P^3T
+    class SPJMonopoleScatter{
+    public:
+        template<class Tmom>
+        void copyFromMoment(const Tmom & mom){
+            mass = mom.mass;
+            pos = mom.pos;
+        }
+        void clear(){
+            mass = 0.0;
+            pos = 0.0;
+        }
+        F64 getCharge() const {
+            return mass;
+        }
+        F64vec getPos() const {
+            return pos;
+        }
+        void setPos(const F64vec & pos_new) {
+            pos = pos_new;
+        }
+        MomentMonopoleScatter convertToMoment() const {
+            return MomentMonopoleScatter(mass, pos);
+        }
+        F64 mass;
+        F64vec pos;
+    };
+
+        // for P^3T + PM
+    class SPJMonopoleCutoffScatter{
+    public:
+        template<class Tmom>
+        void copyFromMoment(const Tmom & mom){
+            mass = mom.mass;
+            pos = mom.pos;
+        }
+        void clear(){
+            mass = 0.0;
+            pos = 0.0;
+        }
+        F64 getCharge() const {
+            return mass;
+        }
+        F64vec getPos() const {
+            return pos;
+        }
+        void setPos(const F64vec & pos_new) {
+            pos = pos_new;
+        }
+        MomentMonopoleCutoffScatter convertToMoment() const {
+            return MomentMonopoleCutoffScatter(mass, pos);
+        }
+        F64 mass;
+        F64vec pos;
+    };
+
 
     class SPJQuadrupole{
     public:

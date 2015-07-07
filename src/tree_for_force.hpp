@@ -1,5 +1,3 @@
-
-
 #pragma once
 
 //#define UNORDERED_SET
@@ -35,21 +33,31 @@ namespace ParticleSimulator{
         //F64ort pos_root_cell_;
 
     private:
-        F64 Tcomm_tmp_;
+
+        TimeProfile time_profile_;
+
+        //CountT n_interaction_ep_ep_local_, n_interaction_ep_ep_global_, n_interaction_ep_sp_local_, n_interaction_ep_sp_global_, n_walk_local_, n_walk_global_;
+        CountT n_interaction_ep_ep_local_, n_interaction_ep_sp_local_, n_walk_local_;
+        //F64 Tcomm_tmp_;
+        F64 wtime_exlet_comm_;
+        F64 wtime_exlet_a2a_;
+        F64 wtime_exlet_a2av_;
         F64 Tcomm_scatterEP_tmp_;
         F64 TexLET0_, TexLET1_, TexLET2_, TexLET3_, TexLET4_;
-        S64 n_ep_send_1st_, n_ep_recv_1st_, n_ep_send_2nd_, n_ep_recv_2nd_;
+        //S64 n_ep_send_1st_, n_ep_recv_1st_, n_ep_send_2nd_, n_ep_recv_2nd_;
         F64 wtime_walk_LET_1st_, wtime_walk_LET_2nd_;
 
         bool is_initialized_;
 
-        S64 n_interaction_;
+        //S64 n_interaction_;
+        S64 n_interaction_ep_ep_;
+        S64 n_interaction_ep_sp_;
         S32 ni_ave_;
         S32 nj_ave_;
 
         RadixSort<U64, 8> rs_;
         S32 n_loc_tot_; // # of all kinds of particles in local process
-        S32 n_glb_tot_; // # of all kinds of particles in all processes
+        S64 n_glb_tot_; // # of all kinds of particles in all processes
         S32 n_leaf_limit_;
         S32 n_group_limit_;
 
@@ -69,6 +77,11 @@ namespace ParticleSimulator{
         ReallocatableArray< Tspj > spj_sorted_, spj_org_;
         ReallocatableArray< IPGroup<TSM> > ipg_;
 	
+        ReallocatableArray<Tepj> epj_send_;
+        ReallocatableArray<Tepj> epj_recv_;
+        ReallocatableArray<Tspj> spj_send_;
+        ReallocatableArray<Tspj> spj_recv_;
+
         S32 * n_ep_send_; // * n_proc
         S32 * n_sp_send_; // * n_proc
         S32 * n_ep_send_disp_; // * n_proc+1
@@ -78,10 +91,10 @@ namespace ParticleSimulator{
         S32 * n_ep_recv_disp_; // * n_proc+1
         S32 * n_sp_recv_disp_; // * n_proc+1
 
-        ReallocatableArray<Tepj> epj_send_;
-        ReallocatableArray<Tepj> epj_recv_;
-        ReallocatableArray<Tspj> spj_send_;
-        ReallocatableArray<Tspj> spj_recv_;
+        S32 * n_ep_sp_send_; // 2 * n_proc: even id is # of EP and odd id is # of SP
+        S32 * n_ep_sp_recv_; // 2 * n_proc: even id is # of EP and odd id is # of SP
+
+
 
         ReallocatableArray<S32> * id_ep_send_buf_;
         ReallocatableArray<S32> * id_sp_send_buf_;
@@ -96,6 +109,66 @@ namespace ParticleSimulator{
 
         S32 n_surface_for_comm_;
 
+
+
+        // new variables for commnuication of LET
+        // for scatterEP
+        ReallocatableArray<Tepj> * ep_send_buf_for_scatter_;
+        ReallocatableArray<F64vec> * shift_image_domain_;
+
+        // for gather mode
+        class EPJWithR{
+            Tepj epj_;
+            F64 r_search_;
+        public:
+            Tepj getEPJ() const { return epj_; }
+            F64vec getPos() const { return epj_.getPos(); }
+            F64 getCharge() const { return epj_.getCharge(); }
+            F64 getRSearch() const { return r_search_; }
+            void copyFromEPJ(const Tepj & epj){ epj_ = epj; }
+            void setRSearch(const F64 r_search){ r_search_ = r_search; }
+            void setPos(const F64vec & pos){ epj_.setPos(pos);}
+        };
+        ReallocatableArray<EPJWithR> epjr_sorted_; // cirectly copied from EPJ + RSearch
+        ReallocatableArray<EPJWithR> epjr_send_;
+        ReallocatableArray<EPJWithR> epjr_recv_;
+        ReallocatableArray<EPJWithR> epjr_recv_1st_buf_;
+        ReallocatableArray<EPJWithR> epjr_recv_2nd_buf_;
+        ReallocatableArray<EPJWithR> * epjr_send_buf_; // for 1st communication
+        ReallocatableArray<EPJWithR> * epjr_send_buf_for_scatter_;
+        ReallocatableArray<EPJWithR> * epjr_recv_1st_sorted_;
+
+
+
+        // for symmeteric mode
+        ReallocatableArray<Tepj> epj_recv_1st_buf_;
+        ReallocatableArray<Tepj> epj_recv_2nd_buf_;
+        ReallocatableArray<Tepj> * epj_send_buf_; // for 1st communication
+        S32 * n_epj_recv_1st_;
+        S32 * n_epj_recv_disp_1st_;
+        S32 * n_epj_recv_2nd_;
+        S32 * n_epj_recv_disp_2nd_;
+        S32 * id_proc_src_;
+        S32 * id_proc_dest_;
+        ReallocatableArray<S32> * id_ptcl_send_;
+        ReallocatableArray<F64vec> * shift_image_box_;
+        ReallocatableArray<S32> * ip_disp_;
+        // new val
+        ReallocatableArray< TreeParticle > * tp_scatter_;
+        ReallocatableArray< TreeCell< Tmomloc > > * tc_recv_1st_;
+        ReallocatableArray<Tepj> * epj_recv_1st_sorted_;
+        S32 ** adr_tc_level_partition_recv_1st_;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        MPI::Request * req_send_;
+        MPI::Request * req_recv_;
+#endif
+
+
+
+        // for neighbour search
+        ReallocatableArray<Tepj> epj_neighbor_;
+
+
         template<class Tep2, class Tep3>
         inline void scatterEP(S32 n_send[],
                               S32 n_send_disp[],
@@ -103,17 +176,32 @@ namespace ParticleSimulator{
                               S32 n_recv_disp[],
                               ReallocatableArray<Tep2> & ep_send,  // send buffer
                               ReallocatableArray<Tep2> & ep_recv,  // recv buffer
+                              ReallocatableArray<Tep2> * ep_end_buf,  // send buffer
                               const ReallocatableArray<Tep3> & ep_org, // original
                               const DomainInfo & dinfo);
+
+        template<class Tep2, class Tep3>
+        inline void scatterEPForGather(S32 n_send[],
+                                       S32 n_send_disp[],
+                                       S32 n_recv[],
+                                       S32 n_recv_disp[],
+                                       ReallocatableArray<Tep2> & ep_send,  // send buffer
+                                       ReallocatableArray<Tep2> & ep_recv,  // recv buffer
+                                       const ReallocatableArray<Tep3> & ep_org, // original
+                                       const DomainInfo & dinfo);
 	
         void calcMomentLocalTreeOnlyImpl(TagSearchLong);
         void calcMomentLocalTreeOnlyImpl(TagSearchLongCutoff);
+        void calcMomentLocalTreeOnlyImpl(TagSearchLongScatter);
+        void calcMomentLocalTreeOnlyImpl(TagSearchLongCutoffScatter);
         void calcMomentLocalTreeOnlyImpl(TagSearchShortScatter);
         void calcMomentLocalTreeOnlyImpl(TagSearchShortGather);
         void calcMomentLocalTreeOnlyImpl(TagSearchShortSymmetry);
 
         void exchangeLocalEssentialTreeImpl(TagSearchLong, const DomainInfo & dinfo);
         void exchangeLocalEssentialTreeImpl(TagSearchLongCutoff, const DomainInfo & dinfo);
+        void exchangeLocalEssentialTreeImpl(TagSearchLongScatter, const DomainInfo & dinfo);
+        void exchangeLocalEssentialTreeImpl(TagSearchLongCutoffScatter, const DomainInfo & dinfo);
         void exchangeLocalEssentialTreeImpl(TagSearchShortScatter, const DomainInfo & dinfo);
         void exchangeLocalEssentialTreeImpl(TagSearchShortGather, const DomainInfo & dinfo);
         void exchangeLocalEssentialTreeImpl(TagSearchShortSymmetry, const DomainInfo & dinfo);
@@ -123,8 +211,10 @@ namespace ParticleSimulator{
         void setLocalEssentialTreeToGlobalTreeImpl(TagForceShort);
         void setLocalEssentialTreeToGlobalTreeImpl(TagForceLong);
 
+// probably, calcMomentGlobalTreeOnlyImpl is classified depending on force_type.
         void calcMomentGlobalTreeOnlyImpl(TagSearchLong);
         void calcMomentGlobalTreeOnlyImpl(TagSearchLongCutoff);
+        void calcMomentGlobalTreeOnlyImpl(TagSearchLongScatter);
         void calcMomentGlobalTreeOnlyImpl(TagSearchShortScatter);
         void calcMomentGlobalTreeOnlyImpl(TagSearchShortGather);
         void calcMomentGlobalTreeOnlyImpl(TagSearchShortSymmetry);
@@ -134,6 +224,7 @@ namespace ParticleSimulator{
 
         void makeInteractionListImpl(TagSearchLong, const S32 adr_ipg);
         void makeInteractionListImpl(TagSearchLongCutoff, const S32 adr_ipg);
+        void makeInteractionListImpl(TagSearchLongScatter, const S32 adr_ipg);
         void makeInteractionListImpl(TagSearchShortScatter, const S32 adr_ipg);
         void makeInteractionListImpl(TagSearchShortGather, const S32 adr_ipg);
         void makeInteractionListImpl(TagSearchShortSymmetry, const S32 adr_ipg); 
@@ -154,9 +245,16 @@ namespace ParticleSimulator{
         void checkCalcMomentGlobalTreeImpl(TagSearchShortSymmetry, const F64 tolerance, std::ostream & fout);
 
 
-	
         ///////////////////////
         ///// for open boundary
+        // for P^3T
+        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchLongScatter){
+            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
+        }
+        // for P^3T
+        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchLongCutoffScatter){
+            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
+        }
         void calcCenterAndLengthOfRootCellOpenImpl(TagSearchShortScatter){
             calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
         }
@@ -177,8 +275,12 @@ namespace ParticleSimulator{
         template<class Tep2>
         void calcCenterAndLengthOfRootCellOpenWithMargenImpl(const Tep2 ep[]);
 
-	/////////////
-	//// PERIODIC
+        /////////////
+        //// PERIODIC
+        // for P^3T
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongCutoffScatter){
+            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer());
+        }
         void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortScatter){
             calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer());
         }
@@ -193,46 +295,46 @@ namespace ParticleSimulator{
         }
         void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLong){}
 
-	template<class Tep2>
+        template<class Tep2>
         void calcCenterAndLengthOfRootCellPeriodicImpl2(const Tep2 ep[]);
 
-	void checkMortonSortGlobalTreeOnlyImpl(TagForceLong, std::ostream & fout);
-	void checkMortonSortGlobalTreeOnlyImpl(TagForceShort, std::ostream & fout);
+        void checkMortonSortGlobalTreeOnlyImpl(TagForceLong, std::ostream & fout);
+        void checkMortonSortGlobalTreeOnlyImpl(TagForceShort, std::ostream & fout);
 
-	void checkMakeInteractionListImpl(TagSearchLong,
+        void checkMakeInteractionListImpl(TagSearchLong,
+                                          const DomainInfo & dinfo,
+                                          const S32 adr_ipg,
+                                          const S32 ith,
+                                          const F64 tolerance,
+                                          std::ostream & fout);
+        void checkMakeInteractionListImpl(TagSearchLongCutoff,
 					  const DomainInfo & dinfo,
 					  const S32 adr_ipg,
 					  const S32 ith,
 					  const F64 tolerance,
 					  std::ostream & fout);
-	void checkMakeInteractionListImpl(TagSearchLongCutoff,
-					  const DomainInfo & dinfo,
-					  const S32 adr_ipg,
-					  const S32 ith,
-					  const F64 tolerance,
-					  std::ostream & fout);
-	void checkMakeInteractionListImpl(TagSearchShortScatter,
-					  const DomainInfo & dinfo,
-					  const S32 adr_ipg,
-					  const S32 ith,
-					  const F64 tolerance,
-					  std::ostream & fout);
-	void checkMakeInteractionListImpl(TagSearchShortGather,
-					  const DomainInfo & dinfo,
-					  const S32 adr_ipg,
-					  const S32 ith,
-					  const F64 tolerance,
-					  std::ostream & fout);
-	void checkMakeInteractionListImpl(TagSearchShortSymmetry,
-					  const DomainInfo & dinfo,
-					  const S32 adr_ipg,
-					  const S32 ith,
-					  const F64 tolerance,
-					  std::ostream & fout);
-	void checkExchangeLocalEssentialTreeImpl(TagForceLong,
+        void checkMakeInteractionListImpl(TagSearchShortScatter,
+                                          const DomainInfo & dinfo,
+                                          const S32 adr_ipg,
+                                          const S32 ith,
+                                          const F64 tolerance,
+                                          std::ostream & fout);
+        void checkMakeInteractionListImpl(TagSearchShortGather,
+                                          const DomainInfo & dinfo,
+                                          const S32 adr_ipg,
+                                          const S32 ith,
+                                          const F64 tolerance,
+                                          std::ostream & fout);
+        void checkMakeInteractionListImpl(TagSearchShortSymmetry,
+                                          const DomainInfo & dinfo,
+                                          const S32 adr_ipg,
+                                          const S32 ith,
+                                          const F64 tolerance,
+                                          std::ostream & fout);
+        void checkExchangeLocalEssentialTreeImpl(TagForceLong,
                                                  const DomainInfo & dinfo,
                                                  const F64 tolerance,
-						 std::ostream & fout);
+                                                 std::ostream & fout);
         void checkExchangeLocalEssentialTreeForLongImpl(TagSearchLong,
                                                         const DomainInfo & dinfo,
                                                         const F64 tolerance, 
@@ -241,55 +343,83 @@ namespace ParticleSimulator{
                                                         const DomainInfo & dinfo,
                                                         const F64 tolerance, 
                                                         std::ostream & fout);
-	void checkExchangeLocalEssentialTreeImpl(TagForceShort,
+        void checkExchangeLocalEssentialTreeImpl(TagForceShort,
                                                  const DomainInfo & dinfo,
                                                  const F64 tolerance,
-						 std::ostream & fout);
-	template<class Tep2>
-	void checkExchangeLocalEssentialTreeForShortImpl
-	(TagSearchShortScatter,
-	 const DomainInfo & dinfo,
-	 const Tep2 ep_tmp[],
-	 const S32 jp_head,
-	 const S32 jp_tail,
-	 const S32 rank_target,
-	 const S32 n_image_per_proc,
-	 const ReallocatableArray<F64vec> & shift_image_domain,
-	 S32 & n_recv_per_proc,
-	 ReallocatableArray<F64vec> & pos_direct);
+                                                 std::ostream & fout);
+        template<class Tep2>
+        void checkExchangeLocalEssentialTreeForShortImpl
+        (TagSearchShortScatter,
+         const DomainInfo & dinfo,
+         const Tep2 ep_tmp[],
+         const S32 jp_head,
+         const S32 jp_tail,
+         const S32 rank_target,
+         const S32 n_image_per_proc,
+         const ReallocatableArray<F64vec> & shift_image_domain,
+         S32 & n_recv_per_proc,
+         ReallocatableArray<F64vec> & pos_direct);
+        
+        template<class Tep2>
+        void checkExchangeLocalEssentialTreeForShortImpl
+        (TagSearchShortGather,
+         const DomainInfo & dinfo,
+         const Tep2 ep_tmp[],
+         const S32 jp_head,
+         const S32 jp_tail,
+         const S32 rank_target,
+         const S32 n_image_per_proc,
+         const ReallocatableArray<F64vec> & shift_image_domain,
+         S32 & n_recv_per_proc,
+         ReallocatableArray<F64vec> & pos_direct);
 	
-	template<class Tep2>
-	void checkExchangeLocalEssentialTreeForShortImpl
-	(TagSearchShortGather,
-	 const DomainInfo & dinfo,
-	 const Tep2 ep_tmp[],
-	 const S32 jp_head,
-	 const S32 jp_tail,
-	 const S32 rank_target,
-	 const S32 n_image_per_proc,
-	 const ReallocatableArray<F64vec> & shift_image_domain,
-	 S32 & n_recv_per_proc,
-	 ReallocatableArray<F64vec> & pos_direct);
-	
-	template<class Tep2>
-	void checkExchangeLocalEssentialTreeForShortImpl
-	(TagSearchShortSymmetry,
-	 const DomainInfo & dinfo,
-	 const Tep2 ep_tmp[],
-	 const S32 jp_head,
-	 const S32 jp_tail,
-	 const S32 rank_target,
-	 const S32 n_image_per_proc,
-	 const ReallocatableArray<F64vec> & shift_image_domain,
-	 S32 & n_recv_per_proc,
-	 ReallocatableArray<F64vec> & pos_direct);
+        template<class Tep2>
+        void checkExchangeLocalEssentialTreeForShortImpl
+        (TagSearchShortSymmetry,
+         const DomainInfo & dinfo,
+         const Tep2 ep_tmp[],
+         const S32 jp_head,
+         const S32 jp_tail,
+         const S32 rank_target,
+         const S32 n_image_per_proc,
+         const ReallocatableArray<F64vec> & shift_image_domain,
+         S32 & n_recv_per_proc,
+         ReallocatableArray<F64vec> & pos_direct);
 	
     public:
+
+        TimeProfile getTimeProfile() const {return time_profile_;}
+        void clearTimeProfile(){time_profile_.clear();}
+        CountT getNumberOfWalkLocal() const { return n_walk_local_; }
+        CountT getNumberOfInteractionEPEPLocal() const { return n_interaction_ep_ep_local_; }
+        CountT getNumberOfInteractionEPSPLocal() const { return n_interaction_ep_sp_local_; }
+        CountT getNumberOfWalkGlobal() const { return Comm::getSum(n_walk_local_); }
+        CountT getNumberOfInteractionEPEPGlobal() const { return Comm::getSum(n_interaction_ep_ep_local_); }
+        CountT getNumberOfInteractionEPSPGlobal() const { return Comm::getSum(n_interaction_ep_sp_local_); }
+        //PS::F64 getFLOPS(const CountT op_ep_ep, const CountT op_ep_sp, const PS::F64 time) const { return }
+        //CountT getNumberOfWalkGlobal() const { return n_walk_global_; }
+        //CountT getNumberOfInteractionEPEPGlobal() const { return n_interaction_ep_ep_global_; }
+        //CountT getNumberOfInteractionEPSPGlobal() const { return n_interaction_ep_sp_global_; }
+        void clearNumberOfInteraction(){
+            //n_interaction_ep_ep_local_ = n_interaction_ep_ep_global_ = n_interaction_ep_sp_local_ = n_interaction_ep_sp_global_ = 0;
+            n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = n_walk_local_ = 0;
+        }
 
         TreeForForce() : is_initialized_(false){}
 
         size_t getMemSizeUsed()const;
 	
+        void setNInteractionEPEP(const S64 n_ep_ep){
+            n_interaction_ep_ep_ = n_ep_ep;
+        }
+        void setNInteractionEPSP(const S64 n_ep_sp){
+            n_interaction_ep_sp_ = n_ep_sp;
+        }
+
+        S64 getNInteractionEPEP() const { return n_interaction_ep_ep_;}
+        S64 getNInteractionEPSP() const { return n_interaction_ep_sp_;}
+
+
         void initialize(const U64 n_glb_tot,
                         const F64 theta=0.7,
                         const U32 n_leaf_limit=8,
@@ -328,15 +458,27 @@ namespace ParticleSimulator{
         void calcForce(Tfunc_ep_ep pfunc_ep_ep,
                        Tfunc_ep_sp pfunc_ep_sp,
                        const bool clear=true);
+
         template<class Tfunc_ep_ep, class Tpsys>
         void calcForceAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
                                    Tpsys & psys,
-                                   const bool clear=true);
+                                   const bool clear=true){
+            calcForce(pfunc_ep_ep, clear);
+            const F64 time_offset = GetWtime();
+            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
+            time_profile_.calc_force += GetWtime() - time_offset;
+        }
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
                                    Tfunc_ep_sp pfunc_ep_sp,
                                    Tpsys & psys,
-                                   const bool clear=true);
+                                   const bool clear=true){
+            calcForce(pfunc_ep_ep, pfunc_ep_sp, clear);
+            const F64 time_offset = GetWtime();
+            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
+            time_profile_.calc_force += GetWtime() - time_offset;
+        }
+
         Tforce getForce(const S32 i) const { return force_org_[i]; }
 
         ///////////////////////
@@ -365,15 +507,25 @@ namespace ParticleSimulator{
                         std::ostream & fout=std::cout);
 
 
+// for neighbour search
+        template<class Tptcl>
+        void getNeighborListOneParticle(Tptcl & ptcl,
+                                        S32 & nnp,
+                                        Tepj * & epj);
+
+
+
+/*
         //////////////////////////////
         /// MIDDLE LEVEL FUNCTIONS ///
         //////////////////////////////
         void makeLocalTree(DomainInfo & dinfo){
             setRootCell(dinfo);
-	    mortonSortLocalTreeOnly();
+            mortonSortLocalTreeOnly();
             linkCellLocalTreeOnly();
         }
-        void makeLocalTree(const DomainInfo & dinfo){
+        //void makeLocalTree(const DomainInfo & dinfo){
+        void makeGlobalTree(const DomainInfo & dinfo){
             calcMomentLocalTreeOnly();
             exchangeLocalEssentialTree(dinfo);
             setLocalEssentialTreeToGlobalTree();
@@ -384,6 +536,7 @@ namespace ParticleSimulator{
             calcMomentGlobalTreeOnly();
             makeIPGroup();
         }
+*/
 
         ////////////////////////////
         /// HIGH LEVEL FUNCTIONS ///
@@ -393,7 +546,7 @@ namespace ParticleSimulator{
         void calcForceAll(Tfunc_ep_ep pfunc_ep_ep, 
                           Tpsys & psys,
                           DomainInfo & dinfo,
-                          const bool clear_force = true){
+                          const bool clear_force=true){
             setParticleLocalTree(psys);
             setRootCell(dinfo);
             mortonSortLocalTreeOnly();
@@ -412,8 +565,7 @@ namespace ParticleSimulator{
         void calcForceAllWithCheck(Tfunc_ep_ep pfunc_ep_ep, 
                                    Tpsys & psys,
                                    DomainInfo & dinfo,
-                                   const bool clear_force = true){
-
+                                   const bool clear_force=true){
             setParticleLocalTree(psys);
             setRootCell(dinfo);
             mortonSortLocalTreeOnly();
@@ -434,7 +586,6 @@ namespace ParticleSimulator{
             makeIPGroup();
             checkMakeIPGroup(); // check  make ipg
             calcForce(pfunc_ep_ep, clear_force);
-            //checkForce( pfunc_ep_ep, pfunc_compare_grav, dinfo); // check calc force
         }
 
         template<class Tfunc_ep_ep, class Tpsys>
@@ -476,143 +627,50 @@ namespace ParticleSimulator{
             calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
         }
 
-	template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
+        template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAllWithCheck(Tfunc_ep_ep pfunc_ep_ep, 
 				   Tfunc_ep_sp pfunc_ep_sp,  
 				   Tpsys & psys,
 				   DomainInfo & dinfo,
-				   const bool clear_force=true){
+				   const bool clear_force,
+				   std::ostream & fout){
+
+            fout<<"setParticleLocalTree"<<std::endl;
             setParticleLocalTree(psys);
+            fout<<"setRootCell"<<std::endl;
             setRootCell(dinfo);
+            fout<<"mortonSortLocalTreeOnly"<<std::endl;
             mortonSortLocalTreeOnly();
-	    checkMortonSortLocalTreeOnly(); // check morton sort
+
+            checkMortonSortLocalTreeOnly(); // check morton sort
+            fout<<"linkCellLocalTreeOnly"<<std::endl;
             linkCellLocalTreeOnly();
-	    checkMakeLocalTree(); // check link cell
+            checkMakeLocalTree(); // check link cell
+            fout<<"calcMomentLocalTreeOnly"<<std::endl;
             calcMomentLocalTreeOnly();
-	    checkCalcMomentLocalTree(); // check calc moment
+            checkCalcMomentLocalTree(); // check calc moment
+            fout<<"exchangeLocalEssentialTree"<<std::endl;
             exchangeLocalEssentialTree(dinfo);
-	    checkExchangeLocalEssentialTree(dinfo); // check ex let
+            checkExchangeLocalEssentialTree(dinfo); // check ex let
+            fout<<"setLocalEssentialTreeToGlobalTree"<<std::endl;
             setLocalEssentialTreeToGlobalTree();
+            fout<<"mortonSortGlobalTreeOnly"<<std::endl;
             mortonSortGlobalTreeOnly();
-	    checkMortonSortGlobalTreeOnly(); // check morton sort 
+            checkMortonSortGlobalTreeOnly(); // check morton sort 
+            fout<<"linkCellGlobalTreeOnly"<<std::endl;
             linkCellGlobalTreeOnly();
-	    checkMakeGlobalTree(); // check link cell
+            checkMakeGlobalTree(); // check link cell
+            fout<<"calcMomentGlobalTreeOnly"<<std::endl;
             calcMomentGlobalTreeOnly();
-	    checkCalcMomentGlobalTree(); // check calc moment 
+            checkCalcMomentGlobalTree(); // check calc moment 
+            fout<<"makeIPGroup"<<std::endl;
             makeIPGroup();
-	    checkMakeIPGroup(); // check  make ipg
+            checkMakeIPGroup(); // check  make ipg
+            fout<<"calcForce"<<std::endl;
             calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
         }
 
 
-        template<class Tfunc_ep_ep, class Tpsys>
-        void calcForceAllAndWriteBackWithTimer(Tfunc_ep_ep pfunc_ep_ep, 
-                                               Tpsys & psys,
-                                               DomainInfo & dinfo,
-                                               Timer & tm,
-                                               const bool clear_force=true){
-            setParticleLocalTree(psys);
-            tm.restart("setParticleLocalTree");
-            setRootCell(dinfo);
-            tm.restart("setRootCell");
-            mortonSortLocalTreeOnly();
-            tm.restart("mortonSortLocalTreeOnly");
-            linkCellLocalTreeOnly();
-            tm.restart("linkCellLocalTreeOnly");
-            calcMomentLocalTreeOnly();
-            tm.restart("calcMomentLocalTreeOnly");
-            exchangeLocalEssentialTree(dinfo);
-            tm.restart("exchangeLocalEssentialTree");
-            setLocalEssentialTreeToGlobalTree();
-            tm.restart("setLocalEssentialTreeToGlobalTree");
-            mortonSortGlobalTreeOnly();
-            tm.restart("mortonSortGlobalTreeOnly");
-            linkCellGlobalTreeOnly();
-            tm.restart("linkCellGlobalTreeOnly");
-            calcMomentGlobalTreeOnly();
-            tm.restart("calcMomentGlobalTreeOnly");
-            makeIPGroup();
-            tm.restart("makeIPGroup");
-            calcForce(pfunc_ep_ep, clear_force);
-            tm.restart("calcForce");
-            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
-            tm.restart("write back");
-        }
-
-
-
-// for debug
-        template<class Tfunc_ep_ep, class Tpsys, class Ttree>
-        void calcForceAllAndWriteBackWithTimer2(Tfunc_ep_ep pfunc_ep_ep, 
-                                                Tpsys & psys,
-                                                DomainInfo & dinfo,
-                                                Timer & tm,
-                                                const Ttree & tree,
-                                                const bool clear_force=true){
-            setParticleLocalTree(psys);
-            tm.restart("setParticleLocalTree");
-            //setRootCell(dinfo);
-            copyRootCell(tree);
-            tm.restart("setcopytree");
-            mortonSortLocalTreeOnly();
-            tm.restart("mortonSortLocalTreeOnly");
-            linkCellLocalTreeOnly();
-            tm.restart("linkCellLocalTreeOnly");
-            calcMomentLocalTreeOnly();
-            tm.restart("calcMomentLocalTreeOnly");
-            exchangeLocalEssentialTree(dinfo);
-            tm.restart("exchangeLocalEssentialTree");
-            setLocalEssentialTreeToGlobalTree();
-            tm.restart("setLocalEssentialTreeToGlobalTree");
-            mortonSortGlobalTreeOnly();
-            tm.restart("mortonSortGlobalTreeOnly");
-            linkCellGlobalTreeOnly();
-            tm.restart("linkCellGlobalTreeOnly");
-            calcMomentGlobalTreeOnly();
-            tm.restart("calcMomentGlobalTreeOnly");
-            makeIPGroup();
-            tm.restart("makeIPGroup");
-            calcForce(pfunc_ep_ep, clear_force);
-            tm.restart("calcForce");
-            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
-            tm.restart("write back");
-        }
-
-
-
-        template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
-        void calcForceAllWithTimer(Tfunc_ep_ep pfunc_ep_ep, 
-                                   Tfunc_ep_sp pfunc_ep_sp,  
-                                   Tpsys & psys,
-                                   DomainInfo & dinfo,
-                                   Timer & tm,
-                                   const bool clear_force=true){
-            setParticleLocalTree(psys);
-	    tm.restart("setParticleLocalTree");
-            setRootCell(dinfo);
-	    tm.restart("setRootCell");
-            mortonSortLocalTreeOnly();
-	    tm.restart("mortonSortLocalTreeOnly");
-            linkCellLocalTreeOnly();
-	    tm.restart("linkCellLocalTreeOnly");
-            calcMomentLocalTreeOnly();
-	    tm.restart("calcMomentLocalTreeOnly");
-            exchangeLocalEssentialTree(dinfo);
-	    tm.restart("exchangeLocalEssentialTree");
-            setLocalEssentialTreeToGlobalTree();
-	    tm.restart("setLocalEssentialTreeToGlobalTree");
-            mortonSortGlobalTreeOnly();
-	    tm.restart("mortonSortGlobalTreeOnly");
-            linkCellGlobalTreeOnly();
-	    tm.restart("linkCellGlobalTreeOnly");
-            calcMomentGlobalTreeOnly();
-	    tm.restart("calcMomentGlobalTreeOnly");
-            makeIPGroup();
-	    tm.restart("makeIPGroup");
-            calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
-            tm.restart("calcForce");
-
-        }
 
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAllAndWriteBack(Tfunc_ep_ep pfunc_ep_ep, 
@@ -620,82 +678,23 @@ namespace ParticleSimulator{
                                       Tpsys & psys,
                                       DomainInfo & dinfo,
                                       const bool clear_force=true){
-	    calcForceAll(pfunc_ep_ep, pfunc_ep_sp, psys, dinfo, clear_force);
-	    for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
+            calcForceAll(pfunc_ep_ep, pfunc_ep_sp, psys, dinfo, clear_force);
+            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
         }
 
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
-        void calcForceAllAndWriteBackWithCheck(Tfunc_ep_ep pfunc_ep_ep, 
+        void calcForceAllAndWriteBackWithCheck(Tfunc_ep_ep pfunc_ep_ep,
 					       Tfunc_ep_sp pfunc_ep_sp,  
 					       Tpsys & psys,
 					       DomainInfo & dinfo,
-					       const bool clear_force=true){
-	    calcForceAll(pfunc_ep_ep, pfunc_ep_sp, psys, dinfo, clear_force);
-	    for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
-        }
-	
-        template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
-        void calcForceAllAndWriteBackWithTimer(Tfunc_ep_ep pfunc_ep_ep, 
-                                               Tfunc_ep_sp pfunc_ep_sp,  
-                                               Tpsys & psys,
-                                               DomainInfo & dinfo,
-                                               Timer & tm,
-                                               const bool clear_force=true){
-            setParticleLocalTree(psys);
-	    tm.restart("setParticleLocalTree");
-            setRootCell(dinfo);
-	    tm.restart("setRootCell");
-            mortonSortLocalTreeOnly();
-	    tm.restart("mortonSortLocalTreeOnly");
-            linkCellLocalTreeOnly();
-	    tm.restart("linkCellLocalTreeOnly");
-            calcMomentLocalTreeOnly();
-	    tm.restart("calcMomentLocalTreeOnly");
-            exchangeLocalEssentialTree(dinfo);
-	    tm.restart("exchangeLocalEssentialTree");
-            setLocalEssentialTreeToGlobalTree();
-	    tm.restart("setLocalEssentialTreeToGlobalTree");
-            mortonSortGlobalTreeOnly();
-	    tm.restart("mortonSortGlobalTreeOnly");
-            linkCellGlobalTreeOnly();
-	    tm.restart("linkCellGlobalTreeOnly");
-            calcMomentGlobalTreeOnly();
-	    tm.restart("calcMomentGlobalTreeOnly");
-            makeIPGroup();
-            tm.restart("makeIPGroup");
-            calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
-            tm.restart("calcForce");
+					       const bool clear_force,
+					       std::ostream & fout=std::cout){
+            calcForceAllWithCheck(pfunc_ep_ep, pfunc_ep_sp, psys, dinfo, clear_force, fout);
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
-
-            tm.restart("write back");
         }
 
 
 
-
-
-
-        void dump_calc_cost(const double & tcal, std::ostream & fout){
-            double speed_per_node = 128.0*1e9; // for K com
-            double n_op_per_interaction = 28.0; // use the 3rd orde convergence with potential
-            S64 n_interaction_tot = Comm::getSum(n_interaction_);
-            fout<<"ni_ave_= "<<ni_ave_<<" nj_ave_= "<<nj_ave_<<" n_interaction_= "<<n_interaction_
-                <<" speed: "<<(double)n_interaction_tot*n_op_per_interaction/tcal*1e-12<<" [Tflops] efficiency= "
-                <<(double)n_interaction_tot*n_op_per_interaction/tcal/(speed_per_node*Comm::getNumberOfProc())<<" Tcomm_tmp_= "<<Tcomm_tmp_<<" Tcomm_scatterEP_tmp_= "<<Tcomm_scatterEP_tmp_<<std::endl;
-            fout<<"TexLET0_= "<<TexLET0_<<"   TexLET1_= "<<TexLET1_<<"   TexLET2_= "<<TexLET2_<<"   TexLET3_= "<<TexLET3_<<"   TexLET4_= "<<TexLET4_<<std::endl;
-
-            double max_wtime_walk_LET_1st;
-            int rank_max_wtime_walk_LET_1st;
-            Comm::getMaxValue(wtime_walk_LET_1st_, Comm::getRank(), max_wtime_walk_LET_1st, rank_max_wtime_walk_LET_1st);
-            double max_wtime_walk_LET_2nd;
-            int rank_max_wtime_walk_LET_2nd;
-            Comm::getMaxValue(wtime_walk_LET_2nd_, Comm::getRank(), max_wtime_walk_LET_2nd, rank_max_wtime_walk_LET_2nd);
-            fout<<"wtime_walk_LET_1st_= "<<wtime_walk_LET_1st_<<"   max_wtime_walk_LET_1st= "<<max_wtime_walk_LET_1st<<" (@"<<rank_max_wtime_walk_LET_1st<<")"
-                <<"   wtime_walk_LET_2nd_= "<<wtime_walk_LET_2nd_<<"   max_wtime_walk_LET_2nd= "<<max_wtime_walk_LET_2nd<<" (@"<<rank_max_wtime_walk_LET_2nd<<")"<<std::endl;
-            fout<<"n_ep_send_1st_= "<<n_ep_send_1st_<<"   n_ep_recv_1st_= "<<n_ep_recv_1st_
-                <<"   n_ep_send_2nd_= "<<n_ep_send_2nd_<<"   n_ep_recv_2nd_= "<<n_ep_recv_2nd_<<std::endl;
-
-        }
 
         template<class Tfunc_ep_ep>
         void calcForceDirect(Tfunc_ep_ep pfunc_ep_ep,
@@ -707,7 +706,6 @@ namespace ParticleSimulator{
         void calcForceDirectAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
                                          const DomainInfo & dinfo,
                                          const bool clear=true);
-
 
     };
 
@@ -723,11 +721,38 @@ namespace ParticleSimulator{
         <SEARCH_MODE_LONG_CUTOFF,
          Tforce, Tepi, Tepj,
          Tmom, Tmom, Tsp> WithCutoff;
+
+        typedef TreeForForce
+        <SEARCH_MODE_LONG_SCATTER,
+         Tforce, Tepi, Tepj,
+         Tmom, Tmom, Tsp> WithScatterSearch; // for P^3T
+
+        typedef TreeForForce
+        <SEARCH_MODE_LONG_CUTOFF_SCATTER,
+         Tforce, Tepi, Tepj,
+         Tmom, Tmom, Tsp> WithCutoffScatterSearch; // for P^3T
     };
 
     template<class Tforce, class Tepi, class Tepj>
     class TreeForForceLong<Tforce, Tepi, Tepj, void, void>{
     public:
+
+        // for P^3T
+        typedef TreeForForce
+        <SEARCH_MODE_LONG_SCATTER,
+         Tforce, Tepi, Tepj,
+         MomentMonopoleScatter,
+         MomentMonopoleScatter,
+         SPJMonopoleScatter> MonopoleWithScatterSearch;
+
+        // for P^3T + PM
+        typedef TreeForForce
+        <SEARCH_MODE_LONG_CUTOFF_SCATTER,
+         Tforce, Tepi, Tepj,
+         MomentMonopoleCutoffScatter,
+         MomentMonopoleCutoffScatter,
+         SPJMonopoleCutoffScatter> MonopoleWithCutoffScatterSearch;
+
         typedef TreeForForce
         <SEARCH_MODE_LONG,
          Tforce, Tepi, Tepj,
@@ -735,7 +760,7 @@ namespace ParticleSimulator{
          MomentMonopole,
          SPJMonopole> Monopole;
 	
-	typedef TreeForForce
+        typedef TreeForForce
         <SEARCH_MODE_LONG_CUTOFF,
          Tforce, Tepi, Tepj,
          MomentMonopoleCutoff,
@@ -800,6 +825,8 @@ namespace ParticleSimulator{
          MomentSearchInAndOut,
          SuperParticleBase> Scatter;
     };
+
+
 }
 #include"tree_for_force_impl.hpp"
 #include"tree_for_force_check_impl.hpp"

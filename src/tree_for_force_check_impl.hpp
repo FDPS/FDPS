@@ -376,7 +376,7 @@ namespace ParticleSimulator{
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     template<class Tep2>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     checkExchangeLocalEssentialTreeForShortImpl
@@ -859,7 +859,7 @@ namespace ParticleSimulator{
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     template<class Tfunc_ep_ep, class Tfunc_compare>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     checkForce(Tfunc_ep_ep pfunc_ep_ep,
