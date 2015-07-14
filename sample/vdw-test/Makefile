@@ -16,6 +16,9 @@ PROGRAM = $(SRC:%.cpp=%.out)
 $(PROGRAM):$(SRC)
 	$(CC) $(MULEXP) $(PS_PATH) $(CFLAGS) -o $@ $<
 
+a.out: test.cpp
+	$(CC) $(MULEXP) $(PS_PATH) $(CFLAGS) test.cpp
+
 clean:
 	rm $(PROGRAM)
 
