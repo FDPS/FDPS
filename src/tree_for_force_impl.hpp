@@ -895,7 +895,7 @@ namespace ParticleSimulator{
 
 
 
-#if 0
+#if 1
     // FOR P^3T
     // original version
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -3025,7 +3025,7 @@ namespace ParticleSimulator{
     }
 
 
-#if 0
+#if 1
     // FOR P^3T
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -3336,10 +3336,10 @@ namespace ParticleSimulator{
         F64 time_offset = GetWtime();
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         force_org_.resizeNoInitialize(n_loc_tot_);
-        const S32 n_ipg = ipg_.size();
+        const S64 n_ipg = ipg_.size();
         n_walk_local_ += n_ipg;
-        S32 ni_tmp = 0;
-        S32 nj_tmp = 0;
+        S64 ni_tmp = 0;
+        S64 nj_tmp = 0;
         S64 n_interaction_ep_ep_tmp = 0;
         if(n_ipg > 0){
 #pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp) 
@@ -3379,10 +3379,10 @@ namespace ParticleSimulator{
         const F64 time_offset = GetWtime();
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         force_org_.resizeNoInitialize(n_loc_tot_);
-        const S32 n_ipg = ipg_.size();
+        const S64 n_ipg = ipg_.size();
         n_walk_local_ += n_ipg;
-        S32 ni_tmp = 0;
-        S32 nj_tmp = 0;
+        S64 ni_tmp = 0;
+        S64 nj_tmp = 0;
         S64 n_interaction_ep_ep_tmp = 0;
         S64 n_interaction_ep_sp_tmp = 0;
         if(n_ipg > 0){
@@ -3458,22 +3458,58 @@ namespace ParticleSimulator{
         delete [] epj_tmp;
     }
 
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tptcl>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getNeighborListOneParticleImpl(TagSearchLongScatter, const Tptcl & ptcl, S32 & nnp){
+        const F64vec pos_target = ptcl.getPos();
+        //const adr = N_CHILDREN;
+        const S32 adr = 0;
+        const S32 size_old = epj_neighbor_.size();
+        SearchNeighborListOneParticleScatter(pos_target,    tc_glb_.getPointer(),       adr, 
+                                             epj_sorted_,   epj_neighbor_, n_leaf_limit_);
+        nnp = epj_neighbor_.size() - size_old;
+    }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tptcl>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    getNeighborListOneParticle(Tptcl & ptcl, S32 & nnp, Tepj * & epj){
-        getNeighborListOneParticleImpl(typename TSM::search_type(), ptcl.getPos());
+    getNeighborListOneParticle(const Tptcl & ptcl, S32 & nnp, Tepj * & epj){
+        const S32 head = epj_neighbor_.size();
+        getNeighborListOneParticleImpl(typename TSM::search_type(), ptcl, nnp);
+        epj = epj_neighbor_.getPointer(head);
     }
 
-/*
+
+#if 0
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
-    template<class Tptcl, class Tvec>
+    template<class Tptcl>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    getNeighborListOneParticleImpl(TagSearchLongScatter, const Tvec & pos){
-
+    getNeighborListOneIPGroupImpl(TagSearchLongScatter, const Tptcl & ptcl, S32 & nnp){
+        const F64vec pos_target = ptcl.getPos();
+        const S32 adr = 0;
+        const S32 size_old = epj_neighbor_.size();
+        SearchNeighborListOneIPGroupScatter(pos_target,    tc_glb_.getPointer(),       adr, 
+                                            epj_sorted_,   epj_neighbor_, n_leaf_limit_);
+        nnp = epj_neighbor_.size() - size_old;
     }
-*/
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tptcl>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getNeighborListOneIPGroup(const PS::S32 iipg, S32 & nip, 
+                              const Tepi * & epi, PS::S32 & nnp, Tepj * & epj){
+        nip = ipg_[iipg].n_ptcl_;
+        const S32 adr = ipg_[iipg].adr_ptcl_;
+        epi = epi_sorted_[adr].getPointer();
+        const S32 head = epj_neighbor_.size();
+        getNeighborListOneIPGroupImpl(typename TSM::search_type(), ptcl, nnp);
+        epj = epj_neighbor_.getPointer(head);
+    }
+#endif
+
 }

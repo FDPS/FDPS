@@ -294,6 +294,7 @@ namespace ParticleSimulator{
             calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer());
         }
         void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLong){}
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongScatter){}
 
         template<class Tep2>
         void calcCenterAndLengthOfRootCellPeriodicImpl2(const Tep2 ep[]);
@@ -509,10 +510,13 @@ namespace ParticleSimulator{
 
 // for neighbour search
         template<class Tptcl>
-        void getNeighborListOneParticle(Tptcl & ptcl,
-                                        S32 & nnp,
-                                        Tepj * & epj);
+        void getNeighborListOneParticle(const Tptcl & ptcl, S32 & nnp, Tepj * & epj);
+        template<class Tptcl>
+        void getNeighborListOneParticleImpl(TagSearchLongScatter, const Tptcl & ptcl, S32 & nnp);
 
+        template<class Tptcl>
+        void getNeighborListOneIPGroup(const S32 iipg,     S32 & nip, 
+                                       const Tepi * & epi, S32 & nnp, Tepj * & epj);
 
 
 /*
@@ -629,11 +633,11 @@ namespace ParticleSimulator{
 
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAllWithCheck(Tfunc_ep_ep pfunc_ep_ep, 
-				   Tfunc_ep_sp pfunc_ep_sp,  
-				   Tpsys & psys,
-				   DomainInfo & dinfo,
-				   const bool clear_force,
-				   std::ostream & fout){
+                                   Tfunc_ep_sp pfunc_ep_sp,  
+                                   Tpsys & psys,
+                                   DomainInfo & dinfo,
+                                   const bool clear_force,
+                                   std::ostream & fout){
 
             fout<<"setParticleLocalTree"<<std::endl;
             setParticleLocalTree(psys);

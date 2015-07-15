@@ -25,7 +25,6 @@
 #include"matrix_sym3.hpp"
 
 
-
 #define PARTICLE_SIMULATOR_PRINT_ERROR(msg) \
     { std::cout<<"PS_ERROR: "<<msg<<" \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl; }
 
@@ -52,8 +51,12 @@ namespace ParticleSimulator{
     typedef unsigned int U32;
 #ifdef PARTICLE_SIMULATOR_ALL_64BIT_PRECISION
     typedef double F32;
+    //typedef long long int S32;
+    //typedef unsigned long long int U32;
 #else
     typedef float F32;
+    //typedef int S32;
+    //typedef unsigned int U32;
 #endif
     typedef long long int S64;
     typedef unsigned long long int U64;
@@ -552,6 +555,7 @@ namespace ParticleSimulator{
 #endif
 	}
 
+/*
 	template<class Tfloat, class Tint>
 	static void allreduceMin(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -569,6 +573,26 @@ namespace ParticleSimulator{
 	    i_out = i_in;
 #endif
 	}
+*/
+	template<class Tfloat>
+	static void allreduceMin(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+	    struct{
+            Tfloat x;
+            int y;
+	    } loc, glb;
+	    loc.x = f_in;
+	    loc.y = i_in;
+	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI::MINLOC);
+	    f_out = glb.x;
+	    i_out = glb.y;
+#else
+	    f_out = f_in;
+	    i_out = i_in;
+#endif
+	}
+
+/*
 	template<class Tfloat, class Tint>
 	static void allreduceMax(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -579,6 +603,25 @@ namespace ParticleSimulator{
 	    loc.x = f_in;
 	    loc.y = i_in;
 	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI::MAXLOC);
+	    f_out = glb.x;
+	    i_out = glb.y;
+        //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
+#else
+	    f_out = f_in;
+	    i_out = i_in;
+#endif
+	}
+*/
+	template<class Tfloat>
+	static void allreduceMax(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+	    struct{
+            Tfloat x;
+            int y;
+	    } loc, glb;
+	    loc.x = f_in;
+	    loc.y = i_in;
+	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI::MAXLOC);
 	    f_out = glb.x;
 	    i_out = glb.y;
         //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
@@ -633,8 +676,10 @@ namespace ParticleSimulator{
         // MPI ALLREDUCE WRAPPER //
         template<class T> static inline T getMinValue(const T & val);
         template<class T> static inline T getMaxValue(const T & val);
-        template<class Tfloat, class Tint> static inline void getMinValue(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out);
-        template<class Tfloat, class Tint> static inline void getMaxValue(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out);
+        //template<class Tfloat, class Tint> static inline void getMinValue(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out);
+        //template<class Tfloat, class Tint> static inline void getMaxValue(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out);
+        template<class Tfloat> static inline void getMinValue(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out);
+        template<class Tfloat> static inline void getMaxValue(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out);
         template<class T> static inline T getSum(const T & val);
 
         ///////////////////////
@@ -652,8 +697,8 @@ namespace ParticleSimulator{
         ///////////////////////////
         // MPI GATHER WRAPPER //
         template<class T> static inline void gather(const T * val_send,
-                                                       const int n,
-                                                       T * val_recv){
+                                                    const int n,
+                                                    T * val_recv){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
             MPI::COMM_WORLD.Gather(val_send, n, GetDataType<T>(),
 				   val_recv, n, GetDataType<T>(), 0);
@@ -663,17 +708,35 @@ namespace ParticleSimulator{
         }
 
         template<class T> static inline void gatherV(const T * val_send,
-						     const int n_send,
-						     T * val_recv,
-						     int * n_recv,
-						     int * n_recv_disp){
+                                                     const int n_send,
+                                                     T * val_recv,
+                                                     const int * n_recv,
+                                                     const int * n_recv_disp){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
             MPI::COMM_WORLD.Gatherv(val_send, n_send, GetDataType<T>(),
-				    val_recv, n_recv, n_recv_disp, GetDataType<T>(), 0);
+                                    val_recv, n_recv, n_recv_disp, GetDataType<T>(), 0);
 #else
             for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
-            n_recv[0] = n_recv_disp[1] = n_send;
-            n_recv_disp[0] = 0;
+            //n_recv[0] = n_recv_disp[1] = n_send; //not needed ?
+            //n_recv_disp[0] = 0; //not needed ?
+#endif
+        }
+
+        ///////////////////////////
+        // MPI SCATTER WRAPPER //
+        template<class T> static inline void scatterV(T * val_send,
+                                                      int * n_send,
+                                                      int * n_send_disp,
+                                                      T * val_recv, // output
+                                                      int n_recv,
+                                                      int root=0){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
+            MPI_Scatterv(val_send, n_send, n_send_disp, GetDataType<T>(),
+                         val_recv, n_recv, GetDataType<T>(), 
+                         root, MPI_COMM_WORLD);
+#else
+            S32 n_proc = Comm::getNumberOfProc();
+            for(int i=0; i<n_send_disp[n_proc]; i++) val_recv[i] = val_send[i];
 #endif
         }
 
@@ -706,6 +769,8 @@ namespace ParticleSimulator{
             n_recv_disp[0] = 0;
 #endif
         }
+
+
 
         ///////////////////////////
         // MPI ALLTOALL WRAPPER //
@@ -934,7 +999,7 @@ namespace ParticleSimulator{
 #endif
     }
 
-
+/*
     template<> inline void Comm::getMinValue<float, int>(const float & f_in, const int & i_in, 
                                                          float & f_out, int & i_out){
         allreduceMin(f_in, i_in, f_out, i_out);
@@ -943,7 +1008,16 @@ namespace ParticleSimulator{
                                                           double & f_out, int & i_out){
         allreduceMin(f_in, i_in, f_out, i_out);
     }
-
+*/
+    template<> inline void Comm::getMinValue<float>(const float & f_in, const int & i_in, 
+                                                    float & f_out, int & i_out){
+        allreduceMin(f_in, i_in, f_out, i_out);
+    }
+    template<> inline void Comm::getMinValue<double>(const double & f_in, const int & i_in, 
+                                                     double & f_out, int & i_out){
+        allreduceMin(f_in, i_in, f_out, i_out);
+    }
+/*
     template<> inline
     void Comm::getMaxValue<float, int>(const float & f_in, const int & i_in, 
                                        float & f_out, int & i_out){
@@ -955,8 +1029,18 @@ namespace ParticleSimulator{
                                         double & f_out, int & i_out){
         allreduceMax(f_in, i_in, f_out, i_out);
     }
+*/
+    template<> inline
+    void Comm::getMaxValue<float>(const float & f_in, const int & i_in, 
+                                  float & f_out, int & i_out){
+        allreduceMax(f_in, i_in, f_out, i_out);
+    }
 
-
+    template<> inline
+    void Comm::getMaxValue<double>(const double & f_in, const int & i_in, 
+                                   double & f_out, int & i_out){
+        allreduceMax(f_in, i_in, f_out, i_out);
+    }
 
     static const S32 N_SMP_PTCL_TOT_PER_PSYS_DEFAULT = 1000000;
 
@@ -1022,6 +1106,18 @@ namespace ParticleSimulator{
         return ret;
     }
 
+/*
+    template<class T>
+    inline T GetMSB(const T val);
+    template<>
+    inline unsigned long long int GetMSB(const unsigned long long int val){
+        return (val>>63) & 0x1;
+    }
+    template<>
+    inline unsigned int GetMSB(const unsigned int val){
+        return (val>>31) & 0x1;
+    }
+*/
 
     template<class T>
     inline T GetMSB(const T val);
@@ -1033,6 +1129,18 @@ namespace ParticleSimulator{
     inline U32 GetMSB(const U32 val){
         return (val>>31) & 0x1;
     }
+/*
+    template<class T>
+    inline T ClearMSB(const T val);
+    template<>
+    inline unsigned long long int ClearMSB(const unsigned long long int val){
+        return val & 0x7fffffffffffffff;
+    }
+    template<>
+    inline unsigned int ClearMSB(const unsigned int val){
+        return val & 0x7fffffff;
+    }
+*/
 
     template<class T>
     inline T ClearMSB(const T val);
@@ -1045,6 +1153,19 @@ namespace ParticleSimulator{
         return val & 0x7fffffff;
     }
 
+/*
+    template<class T>
+    inline T SetMSB(const T val);
+    template<>
+    inline unsigned long long int SetMSB(const unsigned long long int val){
+        return val | 0x8000000000000000;
+    }
+    template<>
+    inline unsigned int SetMSB(const unsigned int val){
+        return val | 0x80000000;
+    }
+*/
+
     template<class T>
     inline T SetMSB(const T val);
     template<>
@@ -1055,6 +1176,7 @@ namespace ParticleSimulator{
     inline U32 SetMSB(const U32 val){
         return val | 0x80000000;
     }
+
 
 
     template<class Tp>

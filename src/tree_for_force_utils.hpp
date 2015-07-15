@@ -1829,43 +1829,81 @@ namespace ParticleSimulator{
         }
     }
 
-#if 0
+#if 1
 // for neighbour search
     template<class Tvec, class Ttc, class Tep>
-    inline void SearchNeibhborListOneParticle(const Tvec & pos_target,
-                                              const Ttc * tc_first,
-                                              const S32 adr_tc,
-                                              const ReallocatableArray<Tep> & ep_first,
-                                              ReallocatableArray<Tep> & ep_list,
-                                              const S32 n_leaf_limit){
-        if( tc_first[adr_tc].isleaf(n_leaf_limit) ){
+    inline void SearchNeighborListOneParticleScatter(const Tvec & pos_target,
+                                                     const Ttc * tc_first,
+                                                     const S32 adr_tc,
+                                                     const ReallocatableArray<Tep> & ep_first,
+                                                     ReallocatableArray<Tep> & ep_list,
+                                                     const S32 n_leaf_limit){
+        if( tc_first[adr_tc].isLeaf(n_leaf_limit) ){
             const S32 n_tmp = tc_first[adr_tc].n_ptcl_;
-            const S32 adr_ptcl_tmp = tc_first[adr_tc].adr_ptcl_;
-            ep_list.reserveEmptyAreaAtLeast(n_tmp);
-            for(S32 ip=0; ip<n_tmp; ip++){
-                ep_list.pushBackNoCheck( ep_first[adr_ptcl_tmp++] );
+            S32 adr_ptcl_tmp = tc_first[adr_tc].adr_ptcl_;
+            //ep_list.reserveEmptyAreaAtLeast(n_tmp);
+            for(S32 ip=0; ip<n_tmp; ip++, adr_ptcl_tmp++){
+                const F64vec dr = ep_first[adr_ptcl_tmp].getPos() - pos_target;
+                const F64 r_search = ep_first[adr_ptcl_tmp].getRSearch();
+                if( dr*dr < r_search*r_search){
+                    //ep_list.pushBackNoCheck( ep_first[adr_ptcl_tmp++] );
+                    ep_list.push_back( ep_first[adr_ptcl_tmp] );
+                }
             }
         }
         else{
+            const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
-                const F64ort vertex_cell = tc_first[adr_tc+i].mom_.getVertexOut();
-                open_bits != vertex_cell.overlapped(pos_target) << i;
+                const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexOut();
+                open_bits |= vertex_cell.overlapped(pos_target) << i;
             }
             for(S32 i=0; i<N_CHILDREN; i++){
-                const S32 adr_tc_child = adr_tc + i;
+                const S32 n_child = tc_first[adr_tc_child+i].n_ptcl_;
                 if( n_child == 0 ) continue;
                 else if( (open_bits >> i) & 0x1 ){
-                    SearchNeibhborListOneParticle(pos_target, 
-                                                  tc_first,
-                                                  adr_tc_child,
-                                                  ep_first,
-                                                  ep_list,
-                                                  n_leaf_limit);
+                    SearchNeighborListOneParticleScatter
+                        (pos_target, tc_first, adr_tc_child+i,
+                         ep_first,   ep_list,  n_leaf_limit);
                 }
             }
         }
     }
 #endif
 
+#if 0
+// for neighbour search
+    template<class Tort, class Ttc, class Tep>
+    inline void SearchNeighborListOneIPGroupScatter(const Tort & pos_box,
+                                                    const Ttc * tc_first,
+                                                    const S32 adr_tc,
+                                                    const ReallocatableArray<Tep> & ep_first,
+                                                    ReallocatableArray<Tep> & ep_list,
+                                                    const S32 n_leaf_limit){
+        if( tc_first[adr_tc].isLeaf(n_leaf_limit) ){
+            const S32 n_tmp = tc_first[adr_tc].n_ptcl_;
+            S32 adr_ptcl_tmp = tc_first[adr_tc].adr_ptcl_;
+            for(S32 ip=0; ip<n_tmp; ip++, adr_ptcl_tmp++){
+                ep_list.push_back( ep_first[adr_ptcl_tmp] );
+            }
+        }
+        else{
+            const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
+            U32 open_bits = 0;
+            for(S32 i=0; i<N_CHILDREN; i++){
+                const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexOut();
+                open_bits |= vertex_cell.overlapped(pos_box) << i;
+            }
+            for(S32 i=0; i<N_CHILDREN; i++){
+                const S32 n_child = tc_first[adr_tc_child+i].n_ptcl_;
+                if( n_child == 0 ) continue;
+                else if( (open_bits >> i) & 0x1 ){
+                    SearchNeighborListOneIPGroupScatter
+                        (pos_box, tc_first, adr_tc_child+i,
+                         ep_first,   ep_list,  n_leaf_limit);
+                }
+            }
+        }
+    }
+#endif
 }

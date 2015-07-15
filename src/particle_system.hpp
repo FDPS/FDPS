@@ -352,16 +352,18 @@ namespace ParticleSimulator{
         S32 getNumberOfParticleLocal() const {return ptcl_.size();}
         ////////////////
         // 05/02/04 Hosono From
+        // 11th jul MI modified
         ////////////////
-        S32 getNumberOfParticleGlobal() const {
+        S64 getNumberOfParticleGlobal() const {
+/*
             #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             //get # of process.
             const S32 n_proc = Comm::getNumberOfProc();
             //get # of ptcls in each process.
-            S32 *n_ptcl = new S32[n_proc];
+            S64 *n_ptcl = new S64[n_proc];
             //Gather # of particles.
-            S32 n_ptcl_ = ptcl_.size();
-            MPI::COMM_WORLD.Allgather(&n_ptcl_, 1, GetDataType<S32>(), n_ptcl, 1, GetDataType<S32>());
+            S64 n_ptcl_ = ptcl_.size();
+            MPI::COMM_WORLD.Allgather(&n_ptcl_, 1, GetDataType<S64>(), n_ptcl, 1, GetDataType<S64>());
             //set displacement
             S32 *n_ptcl_displs = new S32[n_proc+1];
             n_ptcl_displs[0] = 0;
@@ -369,6 +371,13 @@ namespace ParticleSimulator{
                 n_ptcl_displs[i+1] = n_ptcl_displs[i] + n_ptcl[i];
             }
             return n_ptcl_displs[n_proc];
+            #else
+            return ptcl_.size();
+            #endif
+*/
+            #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            const S64 n_ptcl_loc = ptcl_.size();
+            return Comm::getSum(n_ptcl_loc);
             #else
             return ptcl_.size();
             #endif

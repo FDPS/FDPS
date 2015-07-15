@@ -70,9 +70,12 @@ namespace  ParticleSimulator{
         // NEW
         MPI_Comm comm_1d_[DIMENSION_LIMIT];
         MPI_Comm comm_sub_[DIMENSION_LIMIT];
-        S32 rank_1d_[DIMENSION_LIMIT];
-        S32 rank_sub_[DIMENSION_LIMIT];
-        S32 n_proc_sub_[DIMENSION_LIMIT];
+        //S32 rank_1d_[DIMENSION_LIMIT];
+        //S32 rank_sub_[DIMENSION_LIMIT];
+        //S32 n_proc_sub_[DIMENSION_LIMIT];
+        int rank_1d_[DIMENSION_LIMIT];
+        int rank_sub_[DIMENSION_LIMIT];
+        int n_proc_sub_[DIMENSION_LIMIT];
 #endif
 
         void sortCoordinateOfSampleParticle(F64vec pos[],
@@ -146,6 +149,11 @@ namespace  ParticleSimulator{
         }
 
         void initialize(const F32 coef_ema = 1.0){
+            if( coef_ema < 0.0 || coef_ema > 1.0){
+                PARTICLE_SIMULATOR_PRINT_ERROR("The smoothing factor of an exponential moving average is must between 0 and 1.");
+                std::cerr<<"The smoothing factor of an exponential moving average is must between 0 and 1."<<std::endl;
+                Abort(-1);
+            }
             assert(first_call_by_initialize);
             first_call_by_initialize = false;
             pos_sample_tot_ = NULL;
@@ -358,7 +366,7 @@ namespace  ParticleSimulator{
             }
             MPI_Alltoallv(pos_sample_loc_, n_send, n_send_disp, GetDataType<F64vec>(),
                           pos_sample_buf,  n_recv, n_recv_disp, GetDataType<F64vec>(), comm_1d_[0]);
-	    //std::cout<<"rank_glb="<<rank_glb<<" n_recv_disp[n_domain_[0]]="<<n_recv_disp[n_domain_[0]]<<std::endl;
+            //std::cout<<"rank_glb="<<rank_glb<<" n_recv_disp[n_domain_[0]]="<<n_recv_disp[n_domain_[0]]<<std::endl;
 
 	    
             ///////////// allgather particles in Y-Z plane
@@ -368,9 +376,9 @@ namespace  ParticleSimulator{
             for(S32 i=0; i<n_proc_sub_[0]; i++){
                 n_recv_disp[i+1] = n_recv_disp[i] + n_recv[i];
             }
-	    S32 n_par_slab = n_recv_disp[ n_proc_sub_[0] ];
-	    //std::cout<<"rank_glb="<<rank_glb<<" n_par_slab="<<n_par_slab<<std::endl;
-	    MPI_Allgatherv(pos_sample_buf,  n_send_tmp, GetDataType<F64vec>(),
+            S32 n_par_slab = n_recv_disp[ n_proc_sub_[0] ];
+            //std::cout<<"rank_glb="<<rank_glb<<" n_par_slab="<<n_par_slab<<std::endl;
+            MPI_Allgatherv(pos_sample_buf,  n_send_tmp, GetDataType<F64vec>(),
                            pos_sample_tot_, n_recv, n_recv_disp, GetDataType<F64vec>(), comm_sub_[0]);
 	    
             ///////////// sort particles along x direction again
@@ -1029,6 +1037,15 @@ namespace  ParticleSimulator{
         void setPosRootDomain(const F32vec & low, const F32vec & high){
         */
         void setPosRootDomain(const F64vec & low, const F64vec & high){
+            for(S32 k=0; k<DIMENSION; k++){
+                if(low[k] > high[k]){
+                    PARTICLE_SIMULATOR_PRINT_ERROR("The coodinate of the root domain is inconsistent.");
+                    std::cerr<<"The coordinate of the low vertex of the rood domain="<<low<<std::endl;
+                    std::cerr<<"The coordinate of the high vertex of the rood domain="<<high<<std::endl;
+                    Abort(-1);
+                }
+            }
+
             for(S32 i=0; i<DIMENSION; i++){
                 //std::cerr<<"low[i]="<<low[i]<<std::endl;
                 //std::cerr<<"high[i]="<<high[i]<<std::endl;

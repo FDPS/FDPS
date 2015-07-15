@@ -1,7 +1,7 @@
-PS_PATH = -I ../../../src/
+PS_PATH = -I ../../src/
 
-#CC = g++
-CC = mpic++-mpich-gcc49
+CC = g++
+#CC = mpic++-mpich-gcc49
 CFLAGS = -O3 -ffast-math -funroll-loops 
 #CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL

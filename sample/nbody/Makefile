@@ -18,7 +18,7 @@ endif
 
 PROGRAM = nbody.out
 
-nbody.out:nbody.cpp
+nbody.out:nbody.cpp 
 	$(CC) $(MULEXP) $(PS_PATH) $(CFLAGS) -o $@ $< $(CLIBS)
 
 clean:	

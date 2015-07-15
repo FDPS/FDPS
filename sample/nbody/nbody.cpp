@@ -263,11 +263,10 @@ int main(int argc, char *argv[]) {
     
     PS::TreeForForceLong<FPGrav, FPGrav, FPGrav>::Monopole tree_grav;
     tree_grav.initialize(n_tot, theta, n_leaf_limit, n_group_limit);
-    tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>(),
-                                       CalcGravity<PS::SPJMonopole>(),
+    tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>,
+                                       CalcGravity<PS::SPJMonopole>,
                                        system_grav,
                                        dinfo);
-    
     PS::F64 Epot0, Ekin0, Etot0, Epot1, Ekin1, Etot1;
     calcEnergy(system_grav, Etot0, Ekin0, Epot0);
     PS::F64 time_diag = 0.0;
@@ -275,7 +274,6 @@ int main(int argc, char *argv[]) {
     PS::S64 n_loop = 0;
     PS::S32 id_snap = 0;
     while(time_sys < time_end){
-
         if( (time_sys >= time_snap) || ( (time_sys + dt) - time_snap ) > (time_snap - time_sys) ){
             char filename[256];
             sprintf(filename, "%s/%04d.dat", dir_name, id_snap++);
@@ -309,8 +307,8 @@ int main(int argc, char *argv[]) {
         
         system_grav.exchangeParticle(dinfo);
     
-        tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>(),
-                                           CalcGravity<PS::SPJMonopole>(),
+        tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>,
+                                           CalcGravity<PS::SPJMonopole>,
                                            system_grav,
                                            dinfo);
         
