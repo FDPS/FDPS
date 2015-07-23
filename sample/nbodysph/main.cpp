@@ -93,9 +93,9 @@ int main(int argc, char* argv[]){
 			std::cout << "//================================" << std::endl;
 			std::cout << std::scientific << std::setprecision(16) << "time = " << time << ", dt = " << dt << std::endl;
 			std::cout << "step = " << step << std::endl;
-			CheckConservativeVariables(sph_system);
 			std::cout << "//================================" << std::endl;
 		}
+		CheckConservativeVariables(sph_system);
 	}
 
 	PS::Finalize();

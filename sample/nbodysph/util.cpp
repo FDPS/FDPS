@@ -15,7 +15,7 @@ void DisplayInfo(void){
 		std::cout << "This is a sample program of Smoothed Particle Hydrodynamics on FDPS!" << std::endl;
 		std::cout << "# of proc is   " << PS::Comm::getNumberOfProc() << std::endl;
 		#ifdef _OPENMP
-		std::cout << "# of thread is " << omp_get_num_threads() << std::endl;
+		std::cout << "# of thread is " << PS::Comm::getNumberOfThread() << std::endl;
 		#else 
 		std::cout << "No OpenMP Mode... " << std::endl;
 		#endif
