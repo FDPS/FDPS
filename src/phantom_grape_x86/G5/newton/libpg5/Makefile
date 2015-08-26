@@ -1,5 +1,4 @@
 CC=gcc
-#CC=clang
 CFLAGS=-mavx -O3 -Wall -ffast-math -funroll-loops
 
 #enable_openmp = yes

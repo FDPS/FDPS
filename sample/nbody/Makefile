@@ -4,11 +4,11 @@ CC = g++
 #CC = time CC
 #CC = mpicxx
 #CFLAGS = -O3 -Wall
-CFLAGS = -O3 -ffast-math -funroll-loops #-Wall
+CFLAGS = -O3 -ffast-math -funroll-loops -Wall
 #CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
-#use_phantom_grape_x86 = yes
+use_phantom_grape_x86 = yes
 
 ifeq ($(use_phantom_grape_x86),yes)
 PS_PATH += -I../../src/phantom_grape_x86/G5/newton/libpg5/

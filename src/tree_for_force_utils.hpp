@@ -1,5 +1,9 @@
 #define ORIGINAL_SCATTER_MODE
 
+#ifdef __HPC_ACE__
+#include<emmintrin.h>
+#endif
+
 namespace ParticleSimulator{
     inline void CalcNumberAndShiftOfImageDomain
     (ReallocatableArray<F64vec> & shift_image_domain,
@@ -296,6 +300,7 @@ namespace ParticleSimulator{
                     tc_array[adr_tc_tmp].adr_ptcl_ = GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1);
                     tc_array[adr_tc_tmp].level_ = lev_max+1;
                     if(GetMSB(tc_array[adr_tc_tmp].adr_ptcl_)){
+// GetPartitionID returnes -1, if there is no appropriate tree cell.
                         tc_array[adr_tc_tmp].n_ptcl_ = 0;
                         //tc[adr_tc_tmp].adr_tc_ = -1;
                         tc_array[adr_tc_tmp].adr_tc_ = SetMSB( (U32)(0) );
@@ -1142,6 +1147,115 @@ namespace ParticleSimulator{
     
     /////////////////////////////
     /// MAKE INTERACTION LIST ///
+#if 1
+    template<class Ttc, class Ttp, class Tep, class Tsp>
+    void MakeInteractionListLongEPSP(const ReallocatableArray<Ttc> & tc_first,
+                                     const S32 adr_tc,
+                                     const ReallocatableArray<Ttp> & tp_first,
+                                     const ReallocatableArray<Tep> & ep_first,
+                                     ReallocatableArray<Tep> & ep_list,
+                                     const ReallocatableArray<Tsp> & sp_first,
+                                     ReallocatableArray<Tsp> & sp_list,
+                                     const F64ort & pos_target_box,
+                                     const F64 r_crit_sq,
+                                     const S32 n_leaf_limit){
+        U32 open_bits = 0;
+//#ifdef __HPC_ACE__
+#ifdef FAST_WALK_K
+        static const _fjsp_v2r8 ZERO = _fjsp_setzero_v2r8();
+        const F64 x_h = pos_target_box.high_.x;
+        const F64 x_l = pos_target_box.low_.x;
+        const F64 y_h = pos_target_box.high_.y;
+        const F64 y_l = pos_target_box.low_.y;
+        const F64 z_h = pos_target_box.high_.z;
+        const F64 z_l = pos_target_box.low_.z;
+        const F64 cen_x = (x_h + x_l) * 0.5;
+        const F64 cen_y = (y_h + y_l) * 0.5;
+        const F64 cen_z = (z_h + z_l) * 0.5;
+        const F64 len_x = (x_h - x_l) * 0.5;
+        const F64 len_y = (y_h - y_l) * 0.5;
+        const F64 len_z = (z_h - z_l) * 0.5;
+        const _fjsp_v2r8 ix = _fjsp_set_v2r8(cen_x, cen_x);
+        const _fjsp_v2r8 iy = _fjsp_set_v2r8(cen_y, cen_y);
+        const _fjsp_v2r8 iz = _fjsp_set_v2r8(cen_z, cen_z);
+        const _fjsp_v2r8 lx = _fjsp_set_v2r8(len_x, len_x);
+        const _fjsp_v2r8 ly = _fjsp_set_v2r8(len_y, len_y);
+        const _fjsp_v2r8 lz = _fjsp_set_v2r8(len_z, len_z);
+        F64 dr_sq[N_CHILDREN];
+        for(S32 i=0; i<N_CHILDREN/2; i++){
+            const S32 i0 = i*2;
+            const S32 i1 = i*2+1;
+            const F64vec & mom0 = tc_first[adr_tc+i0].mom_.getPos();
+            const F64  mom0_x = mom0.x;
+            const F64  mom0_y = mom0.y;
+            const F64  mom0_z = mom0.z;
+            const F64vec & mom1 = tc_first[adr_tc+i1].mom_.getPos();
+            const F64  mom1_x = mom1.x;
+            const F64  mom1_y = mom1.y;
+            const F64  mom1_z = mom1.z;
+            const _fjsp_v2r8 jx = _fjsp_set_v2r8(mom0_x, mom1_x);
+            _fjsp_v2r8 dx = _fjsp_abs_v2r8( _fjsp_sub_v2r8(ix, jx) );
+            dx = _fjsp_sub_v2r8( dx, lx );
+            dx = _fjsp_and_v2r8( dx, _fjsp_cmplt_v2r8(ZERO, dx) );
+
+            const _fjsp_v2r8 jy = _fjsp_set_v2r8(mom0_y, mom1_y);
+            _fjsp_v2r8 dy = _fjsp_abs_v2r8( _fjsp_sub_v2r8(iy, jy) );
+            dy = _fjsp_sub_v2r8( dy, ly );
+            dy = _fjsp_and_v2r8( dy, _fjsp_cmplt_v2r8(ZERO, dy) );
+
+            const _fjsp_v2r8 jz = _fjsp_set_v2r8(mom0_z, mom1_z);
+            _fjsp_v2r8 dz = _fjsp_abs_v2r8( _fjsp_sub_v2r8(iz, jz) );
+            dz = _fjsp_sub_v2r8( dz, lz );
+            dz = _fjsp_and_v2r8( dz, _fjsp_cmplt_v2r8(ZERO, dz) );
+
+            _fjsp_v2r8 dr_sq_tmp = _fjsp_madd_v2r8(dz, dz,
+                                               _fjsp_madd_v2r8(dy, dy,
+                                                               _fjsp_mul_v2r8(dx, dx)));
+            _fjsp_storeh_v2r8(dr_sq+i0, dr_sq_tmp);
+            _fjsp_storel_v2r8(dr_sq+i1, dr_sq_tmp);
+        }
+        for(S32 i=0; i<N_CHILDREN; i++){
+            open_bits |= (( dr_sq[i] <= r_crit_sq) << i);
+        }
+#else //FAST_WALK_K
+        for(S32 i=0; i<N_CHILDREN; i++){
+            const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
+            open_bits |= ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) << i);
+        }
+#endif //FAST_WALK_K
+        for(S32 i=0; i<N_CHILDREN; i++){
+            const S32 adr_tc_child = adr_tc + i;
+            const Ttc * tc_child = tc_first.getPointer(adr_tc_child);
+            const S32 n_child = tc_child->n_ptcl_;
+            if(n_child == 0) continue;
+            else if( (open_bits>>i) & 0x1 ){
+                if( !(tc_child->isLeaf(n_leaf_limit)) ){
+                    MakeInteractionListLongEPSP<Ttc, Ttp, Tep, Tsp>
+                        (tc_first, tc_first[adr_tc_child].adr_tc_, tp_first, ep_first, 
+                         ep_list,   sp_first, sp_list, 
+                         pos_target_box, r_crit_sq*0.25, n_leaf_limit);
+                }
+                else{
+                    S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
+                    ep_list.reserveEmptyAreaAtLeast( n_child );
+                    sp_list.reserveEmptyAreaAtLeast( n_child );
+                    for(S32 ip=0; ip<n_child; ip++){
+                        if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_) == 0){
+                            ep_list.pushBackNoCheck(ep_first[adr_ptcl_tmp++]);
+                        }
+                        else{
+                            sp_list.pushBackNoCheck(sp_first[adr_ptcl_tmp++]);
+                        }
+                    }
+                }
+            }
+            else{
+                sp_list.increaseSize();
+                sp_list.back().copyFromMoment(tc_child->mom_);
+            }
+        }
+    }
+#else
     template<class Ttc, class Ttp, class Tep, class Tsp>
     void MakeInteractionListLongEPSP(const ReallocatableArray<Ttc> & tc_first,
                                      const S32 adr_tc,
@@ -1194,7 +1308,7 @@ namespace ParticleSimulator{
             }
         }
     }
-
+#endif
     template<class Ttc, class Ttp, class Tep, class Tsp>
     void MakeInteractionListLongScatterEPSP(const ReallocatableArray<Ttc> & tc_first,
                                             const S32 adr_tc,
@@ -1831,13 +1945,16 @@ namespace ParticleSimulator{
 
 #if 1
 // for neighbour search
-    template<class Tvec, class Ttc, class Tep>
+    template<class Tvec, class Ttc, class Ttp, class Tep>
     inline void SearchNeighborListOneParticleScatter(const Tvec & pos_target,
                                                      const Ttc * tc_first,
+                                                     const Ttp * tp_first,
                                                      const S32 adr_tc,
                                                      const ReallocatableArray<Tep> & ep_first,
                                                      ReallocatableArray<Tep> & ep_list,
-                                                     const S32 n_leaf_limit){
+                                                     const S32 n_leaf_limit,
+                                                     bool & error){
+	//static S32 err = 0;
         if( tc_first[adr_tc].isLeaf(n_leaf_limit) ){
             const S32 n_tmp = tc_first[adr_tc].n_ptcl_;
             S32 adr_ptcl_tmp = tc_first[adr_tc].adr_ptcl_;
@@ -1845,9 +1962,30 @@ namespace ParticleSimulator{
             for(S32 ip=0; ip<n_tmp; ip++, adr_ptcl_tmp++){
                 const F64vec dr = ep_first[adr_ptcl_tmp].getPos() - pos_target;
                 const F64 r_search = ep_first[adr_ptcl_tmp].getRSearch();
-                if( dr*dr < r_search*r_search){
+                //if( dr*dr < r_search*r_search){
+                if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_)==0 && dr*dr < r_search*r_search){
                     //ep_list.pushBackNoCheck( ep_first[adr_ptcl_tmp++] );
+		    Tep * adr_old = ep_list.getPointer();
                     ep_list.push_back( ep_first[adr_ptcl_tmp] );
+		    Tep * adr_new = ep_list.getPointer();
+		    if(adr_old != adr_new){
+			error = true;
+			//std::cerr<<"ep_list.size()="<<ep_list.size()<<std::endl;
+		    }
+		    /*
+		    if(adr_old != adr_new){
+			std::cerr<<"adr_new="<<adr_new<<std::endl;
+			std::cerr<<"adr_old="<<adr_old<<std::endl;
+			err++;
+			if(err >= 2){
+			    std::cerr<<"adr_new->id="<<adr_new->id<<std::endl;
+			    std::cerr<<"adr_old->id="<<adr_old->id<<std::endl;
+			}
+		    }
+		    */
+
+
+		    //assert(err < 2);
                 }
             }
         }
@@ -1863,8 +2001,8 @@ namespace ParticleSimulator{
                 if( n_child == 0 ) continue;
                 else if( (open_bits >> i) & 0x1 ){
                     SearchNeighborListOneParticleScatter
-                        (pos_target, tc_first, adr_tc_child+i,
-                         ep_first,   ep_list,  n_leaf_limit);
+                        (pos_target, tc_first, tp_first,    adr_tc_child+i,
+                         ep_first,   ep_list,  n_leaf_limit, error);
                 }
             }
         }

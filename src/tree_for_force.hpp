@@ -166,7 +166,7 @@ namespace ParticleSimulator{
 
 
         // for neighbour search
-        ReallocatableArray<Tepj> epj_neighbor_;
+        //ReallocatableArray<Tepj> * epj_neighbor_;
 
 
         template<class Tep2, class Tep3>
@@ -388,7 +388,8 @@ namespace ParticleSimulator{
          ReallocatableArray<F64vec> & pos_direct);
 	
     public:
-
+        // for neighbour search
+        ReallocatableArray<Tepj> * epj_neighbor_;
         TimeProfile getTimeProfile() const {return time_profile_;}
         void clearTimeProfile(){time_profile_.clear();}
         CountT getNumberOfWalkLocal() const { return n_walk_local_; }
@@ -510,7 +511,8 @@ namespace ParticleSimulator{
 
 // for neighbour search
         template<class Tptcl>
-        void getNeighborListOneParticle(const Tptcl & ptcl, S32 & nnp, Tepj * & epj);
+        //void getNeighborListOneParticle(const Tptcl & ptcl, S32 & nnp, Tepj * & epj);
+        S32 getNeighborListOneParticle(const Tptcl & ptcl, Tepj * & epj);
         template<class Tptcl>
         void getNeighborListOneParticleImpl(TagSearchLongScatter, const Tptcl & ptcl, S32 & nnp);
 
@@ -674,7 +676,23 @@ namespace ParticleSimulator{
             calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
         }
 
-
+        template<class Tfunc_ep_ep, class Tfunc_ep_sp>
+        void calcForceMakingTree(Tfunc_ep_ep pfunc_ep_ep, 
+                                 Tfunc_ep_sp pfunc_ep_sp,  
+                                 DomainInfo & dinfo,
+                                 const bool clear_force=true){
+            setRootCell(dinfo);
+            mortonSortLocalTreeOnly();
+            linkCellLocalTreeOnly();
+            calcMomentLocalTreeOnly();
+            exchangeLocalEssentialTree(dinfo);
+            setLocalEssentialTreeToGlobalTree();
+            mortonSortGlobalTreeOnly();
+            linkCellGlobalTreeOnly();
+            calcMomentGlobalTreeOnly();
+            makeIPGroup();
+            calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
+        }
 
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAllAndWriteBack(Tfunc_ep_ep pfunc_ep_ep, 

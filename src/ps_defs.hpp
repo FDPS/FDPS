@@ -8,6 +8,7 @@
 #include<cassert>
 #include<typeinfo>
 #include<cstdio>
+#include<cstring>
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #include"mpi.h"
@@ -40,13 +41,11 @@ namespace ParticleSimulator{
         exit(err);
 #endif
     }
-
 }
 
 #include"reallocatable_array.hpp"
 
 namespace ParticleSimulator{
-
     typedef int S32;
     typedef unsigned int U32;
 #ifdef PARTICLE_SIMULATOR_ALL_64BIT_PRECISION
@@ -805,28 +804,82 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         MPI::Init(argc, argv);
 #endif
-        if(Comm::getRank() == 0) {
-            fprintf(stderr, "******** FDPS has successfully begun. ********\n");
+
+/*
+        std::cerr<<"argc="<<argc<<std::endl;
+        for(S32 i=0; i<argc; i++){
+            std::cerr<<"argv[i]"<<argv[i]<<std::endl;
+        }
+*/
+        bool monar = false;
+        bool MONAR = false;
+        for(S32 i=0; i<argc; i++){
+            if(strcmp(argv[i], "monar") == 0) monar = true;
+            if(strcmp(argv[i], "MONAR") == 0) MONAR = true;
         }
 
+        if(Comm::getRank() == 0) {
+			std::cerr << "     //==================================\\\\" << std::endl;
+			std::cerr << "     ||                                  ||"   << std::endl;
+			std::cerr << "     || ::::::: ::::::. ::::::. .::::::. ||"   << std::endl;
+			std::cerr << "     || ::      ::    : ::    : ::       ||"   << std::endl;
+			std::cerr << "     || ::::::  ::    : ::::::'  `:::::. ||"   << std::endl;
+			std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
+			std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
+			std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
+			std::cerr << "     ||     Version 1.1 (2015/08)        ||" << std::endl;
+			std::cerr << "     \\\\==================================//" << std::endl;
+			std::cerr << "" << std::endl;
+			std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
+			std::cerr << "       E-mail : fdps-support@mail.jmlab.jp" << std::endl;
+			std::cerr << "       Licence: MIT (see, https://github.com/FDPS/FDPS/blob/master/LICENSE)" << std::endl;
+			std::cerr << "       Note   : Please cite Iwasawa et al. (in prep.)" << std::endl;
+			std::cerr << "" << std::endl;
+			std::cerr << "       Copyright (C) 2015 " << std::endl;
+			std::cerr << "         Masaki Iwasawa, Ataru Tanigawa, Natsuki Hosono," << std::endl;
+			std::cerr << "         Keigo Nitadori, Takayuki Muranushi, Junichiro Makino" << std::endl;
+			std::cerr << "         and many others" << std::endl;
+            if(monar){
+                std::cerr<<"　　 ^__^　 ／￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣"<<std::endl;
+                std::cerr<<"　　( ´∀｀)＜******** FDPS has successfully begun. ********"<<std::endl;
+                std::cerr<<"　　(     ) ＼＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿"<<std::endl;
+                std::cerr<<"　　|  | |"<<std::endl;
+                std::cerr<<"　　(__)_)"<<std::endl;
+            }
+            else if(MONAR){
+                std::cerr<<"        ∧_∧   ／￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣"<<std::endl;
+                std::cerr<<"       (´Д`) <  ******** FDPS has successfully begun. ********"<<std::endl;
+                std::cerr<<"       ／_ /  ＼"<<std::endl;
+                std::cerr<<"      (ぃ９｜  ￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣"<<std::endl;
+                std::cerr<<"      /　　/、"<<std::endl;
+                std::cerr<<"     /　　∧_二つ"<<std::endl;
+                std::cerr<<"     ｜　　＼ "<<std::endl;
+                std::cerr<<"     /　/~＼ ＼"<<std::endl;
+                std::cerr<<"    /　/　　>　)"<<std::endl;
+                std::cerr<<"   ／ ノ　　/ ／"<<std::endl;
+                std::cerr<<"  / ／　　 / /"<<std::endl;
+                std::cerr<<"`/ /　　　( ヽ"<<std::endl;
+                std::cerr<<"(＿)　　　 ＼_)"<<std::endl;
+            }
+            else{
+                fprintf(stderr, "******** FDPS has successfully begun. ********\n");
+            }
+        }
     }
 
     static inline void Finalize(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        if(Comm::getRank() == 0) {
-            //fprintf(stderr, "****************************************************************\n");
-            //fprintf(stderr, "****************************************************************\n");
-            //fprintf(stderr, "****************************************************************\n");
-            //fprintf(stderr, "****************************************************************\n");
-            //fprintf(stderr, "****************************************************************\n");
-            //fprintf(stderr, "****************************************************************\n");
-            //fprintf(stderr, "****************************************************************\n");
-            fprintf(stderr, "******** FDPS has successfully finished. ********\n");
-        }
+
         MPI::Finalize();
-#else
-        fprintf(stderr, "******** FDPS has successfully finished. ********\n");
 #endif
+        bool monar = false;
+        if(Comm::getRank() == 0) {
+            if(monar){
+            }
+            else{
+                fprintf(stderr, "******** FDPS has successfully finished. ********\n");
+            }
+        }
     }
 
 

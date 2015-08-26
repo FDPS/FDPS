@@ -55,7 +55,7 @@
 namespace ParticleSimulator{
     class MT{
     private:
-        enum{ 
+        enum{
             MT_N = 624,
             MT_M = 397,
         };
@@ -218,7 +218,7 @@ namespace ParticleSimulator{
 
     class MTTS{
     private:
-        enum{ 
+        enum{
             MT_N = 624,
             MT_M = 397,
         };

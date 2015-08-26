@@ -5,3 +5,5 @@
 * change the name of the function, makeLocalTree() -> makeGlobalTree()
 * Tune SHORT_GATHER and SHORT_SYMMETRY search.
 * Add new search modes: LONG_SCATTER and LONG_CUTOFF_SCATTER
+* Add new function getNeighborListOneParticle(...)
+* Add new function calcForceMakingTree(...)

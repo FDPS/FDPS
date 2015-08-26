@@ -269,6 +269,13 @@ namespace ParticleSimulator{
         epjr_send_buf_ = new ReallocatableArray<EPJWithR>[n_thread];
         epjr_send_buf_for_scatter_ = new ReallocatableArray<EPJWithR>[n_thread];
         epjr_recv_1st_sorted_ = new ReallocatableArray<EPJWithR>[n_thread];
+        epj_neighbor_ = new ReallocatableArray<Tepj>[n_thread];
+	if(typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER)){
+	    for(S32 ith=0; ith<n_thread; ith++){
+		epj_neighbor_[ith].reserve(5);
+		//epj_neighbor_[ith].reserve(100000);
+	    }
+	}
         if( typeid(TSM) == typeid(SEARCH_MODE_LONG) || 
             typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) || 
             typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER) ){
@@ -427,7 +434,8 @@ namespace ParticleSimulator{
         const F64 time_offset = GetWtime();
         const S32 nloc = psys.getNumberOfParticleLocal();
         if(clear){ n_loc_tot_ = 0;}
-        const S32 offset = 0;
+//        const S32 offset = 0;
+        const S32 offset = n_loc_tot_;
         n_loc_tot_ += nloc;
         epi_org_.resizeNoInitialize(n_loc_tot_);
         epj_org_.resizeNoInitialize(n_loc_tot_);
@@ -2844,6 +2852,10 @@ namespace ParticleSimulator{
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
 #endif
         time_profile_.calc_moment_global_tree += GetWtime() - time_offset;
+	// new 2015 Aug 06
+	for(S32 ith=0; ith<Comm::getNumberOfThread(); ith++){
+	    epj_neighbor_[ith].clearSize();
+	}
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -3464,24 +3476,47 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     getNeighborListOneParticleImpl(TagSearchLongScatter, const Tptcl & ptcl, S32 & nnp){
         const F64vec pos_target = ptcl.getPos();
+        const S32 id_thread = Comm::getThreadNum();
         //const adr = N_CHILDREN;
         const S32 adr = 0;
-        const S32 size_old = epj_neighbor_.size();
+        const S32 size_old = epj_neighbor_[id_thread].size();
+/*
         SearchNeighborListOneParticleScatter(pos_target,    tc_glb_.getPointer(),       adr, 
                                              epj_sorted_,   epj_neighbor_, n_leaf_limit_);
-        nnp = epj_neighbor_.size() - size_old;
+*/
+/*
+        SearchNeighborListOneParticleScatter(pos_target,    tc_glb_.getPointer(),       
+                                             tp_glb_.getPointer(), adr, 
+                                             epj_sorted_,   epj_neighbor_[id_thread], n_leaf_limit_);
+*/
+	bool error = false;
+	SearchNeighborListOneParticleScatter(pos_target,    tc_glb_.getPointer(),       
+                                             tp_glb_.getPointer(), adr, 
+                                             epj_sorted_,   epj_neighbor_[id_thread], n_leaf_limit_,
+					     error);
+	if(error){ nnp = -1; }
+	else{
+	    nnp = epj_neighbor_[id_thread].size() - size_old;
+	}
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tptcl>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    getNeighborListOneParticle(const Tptcl & ptcl, S32 & nnp, Tepj * & epj){
-        const S32 head = epj_neighbor_.size();
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getNeighborListOneParticle(const Tptcl & ptcl, Tepj * & epj){
+        const S32 id_thread = Comm::getThreadNum();
+        const S32 head = epj_neighbor_[id_thread].size();
+	//std::cerr<<"head="<<head<<std::endl;
+        S32 nnp = 0;
         getNeighborListOneParticleImpl(typename TSM::search_type(), ptcl, nnp);
-        epj = epj_neighbor_.getPointer(head);
+        epj = epj_neighbor_[id_thread].getPointer(head);
+	//std::cerr<<"epj="<<epj<<std::endl;
+	if(nnp == -1){
+	    epj_neighbor_[id_thread].clearSize();
+	}
+        return nnp;
     }
-
 
 #if 0
     template<class TSM, class Tforce, class Tepi, class Tepj,

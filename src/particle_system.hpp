@@ -322,8 +322,6 @@ namespace ParticleSimulator{
                     }
                     fclose(fp);
                 }
-                
-
             }
         }
         template <class Theader>
