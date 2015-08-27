@@ -577,9 +577,12 @@ int main(int argc, char *argv[]){
         timer.restart("exchangeParticle");
 
         Tloop = PS::GetWtime();
-	tree_grav.calcForceAllAndWriteBackWithTimer
-            (CalcForceEpEp(),  system_grav, dinfo, timer, true);
-
+	//	tree_grav.calcForceAllAndWriteBackWithTimer
+	//            (CalcForceEpEp(),  system_grav, dinfo, timer, true);
+		tree_grav.calcForceAllAndWriteBack
+	            (CalcForceEpEp(),  system_grav, dinfo);
+	tree_grav.calcForceAllAndWriteBack
+	    (CalcForceEpEp(),  system_grav, dinfo, true);
         Tloop = PS::GetWtime() - Tloop;
 	
 	
@@ -590,7 +593,7 @@ int main(int argc, char *argv[]){
         fout_tcal<<"time_sys= "<<time_sys<<std::endl;
         fout_tcal<<"tree_grav.getMemSizeUsed()= "<<tree_grav.getMemSizeUsed()*1e-9<<" [Gbyte]";
         fout_tcal<<" system_grav.getMemSizeUsed()= "<<system_grav.getMemSizeUsed()*1e-9<<" [Gbyte]"<<std::endl;
-        tree_grav.dump_calc_cost(PS::Comm::getMaxValue(Tloop), fout_tcal);
+	//        tree_grav.dump_calc_cost(PS::Comm::getMaxValue(Tloop), fout_tcal);
         fout_tcal<<"Tloop= "<<Tloop<<" Ttot="<<PS::GetWtime()-Tbegin<<std::endl;
         timer.dump(fout_tcal);
         fout_tcal<<std::endl;
