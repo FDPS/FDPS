@@ -1,7 +1,5 @@
 # FDPS
 
-[![Build Status](https://travis-ci.org/FDPS/FDPS.svg?branch=master)](https://travis-ci.org/FDPS/FDPS)
-
 FDPS is a general-purpose, high-performance library for particle
 simulations.
 
