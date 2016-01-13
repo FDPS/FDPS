@@ -47,6 +47,7 @@ public:
         acc = 0.0;
         pot = 0.0;
     }
+    
 
 	void writeAscii(FILE* fp) const {
 		fprintf(fp, "%lld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", 
@@ -54,7 +55,6 @@ public:
                 this->pos.x, this->pos.y, this->pos.z,
                 this->vel.x, this->vel.y, this->vel.z);
 	}
-
 	void readAscii(FILE* fp) {
 		fscanf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
                &this->id, &this->mass,
