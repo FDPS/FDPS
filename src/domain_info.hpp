@@ -70,9 +70,6 @@ namespace  ParticleSimulator{
         // NEW
         MPI_Comm comm_1d_[DIMENSION_LIMIT];
         MPI_Comm comm_sub_[DIMENSION_LIMIT];
-        //S32 rank_1d_[DIMENSION_LIMIT];
-        //S32 rank_sub_[DIMENSION_LIMIT];
-        //S32 n_proc_sub_[DIMENSION_LIMIT];
         int rank_1d_[DIMENSION_LIMIT];
         int rank_sub_[DIMENSION_LIMIT];
         int n_proc_sub_[DIMENSION_LIMIT];
@@ -190,7 +187,24 @@ namespace  ParticleSimulator{
                 MPI_Comm_split(MPI_COMM_WORLD, rank_sub_[d], rank_glb, comm_1d_+d);
                 MPI_Comm_size(comm_sub_[d], n_proc_sub_+d);
             }
+	    for(S32 d=DIMENSION-1; d>=0; d--){
+		Comm::setRankMultiDim(d, rank_tmp[d]);
+		Comm::setNumberOfProcMultiDim(d, n_domain_[d]);
+	    }
+	    /*
+	    int rank_tmp2 = Comm::getRank();
+	    for(S32 d=DIMENSION-1; d>=0; d--){
+		Comm::setRankMultiDim(d, rank_tmp2%n_domain_[d]);
+		rank_tmp2 /= n_domain_[d];
+	    }
+	    Comm::setNumberOfProcMultiDim(0, n_domain_[0]);
+	    Comm::setNumberOfProcMultiDim(1, ny);
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+	    Comm::setNumberOfProcMultiDim(2, ny);
+#endif //PARTICLE_SIMULATOR_TWO_DIMENSION	    
+	    */
 #endif
+
 
         }
 
@@ -207,6 +221,29 @@ namespace  ParticleSimulator{
 #else
             n_domain_[2] = nz;
 #endif
+	    
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            int rank_glb = Comm::getRank();
+	    // make comunicator
+            for(S32 d=DIMENSION-1; d>=0; d--){
+                rank_1d_[d] = rank_glb % n_domain_[d];
+                rank_glb /= n_domain_[d];
+                MPI_Comm_split(MPI_COMM_WORLD, rank_1d_[d], rank_glb, comm_sub_+d);
+                MPI_Comm_rank(comm_sub_[d], rank_sub_+d);
+                MPI_Comm_split(MPI_COMM_WORLD, rank_sub_[d], rank_glb, comm_1d_+d);
+                MPI_Comm_size(comm_sub_[d], n_proc_sub_+d);
+            }
+	    int rank_tmp = Comm::getRank();
+	    for(S32 d=DIMENSION-1; d>=0; d--){
+		Comm::setRankMultiDim(d, rank_tmp%n_domain_[d]);
+		rank_tmp /= n_domain_[d];
+	    }
+	    Comm::setNumberOfProcMultiDim(0, nx);
+	    Comm::setNumberOfProcMultiDim(1, ny);
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+	    Comm::setNumberOfProcMultiDim(2, ny);
+#endif //PARTICLE_SIMULATOR_TWO_DIMENSION
+#endif //PARTICLE_SIMULATOR_MPI_PARALLEL
         }
 
         void setDomain(const S32 nx, const S32 ny, const S32 nz=1){
@@ -246,7 +283,7 @@ namespace  ParticleSimulator{
             S32 number_of_sample_particle = 0;
             psys.getSampleParticle(number_of_sample_particle, &pos_sample_loc_[number_of_sample_particle_loc_], weight);
             number_of_sample_particle_loc_ += number_of_sample_particle;
-            time_profile_.collect_sample_particle = GetWtime() - time_offset;
+            time_profile_.collect_sample_particle += GetWtime() - time_offset;
             return;
         }
 #else
@@ -279,7 +316,7 @@ namespace  ParticleSimulator{
 
             psys.getSampleParticle(number_of_sample_particle, &pos_sample_loc_[number_of_sample_particle_loc_], weight);
             number_of_sample_particle_loc_ += number_of_sample_particle;
-            time_provile_.collect_sample_particle = GetWtime() - time_offset;
+            time_provile_.collect_sample_particle += GetWtime() - time_offset;
             return;
         }
 #endif
@@ -298,7 +335,88 @@ namespace  ParticleSimulator{
             collectSampleParticle(psys, clear, wgh);
         }
 
-
+#if 0
+	void decomposeDomainHierarchy(){
+	    F64 time_offset = GetWtime();
+#ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
+            pos_domain_[0] = pos_root_domain_;
+#else //PARTICLE_SIMULATOR_MPI_PARALLEL
+	    static bool first = true;
+	    static F64vec * pos_sample_loc_tmp;
+            if(first){
+		pos_sample_loc_tmp = new F64vec[target_number_of_sample_particle_];
+	    }
+	    const S32 nynz = n_domain_[1] * n_domain_[2];
+	    S32 n_smp = number_of_sample_particle_loc_ / nynz;
+	    for(S32 i=0; i<n_smp; i++){
+		pos_sample_loc_tmp[i] = pos_sample_loc_[i*nynz];
+	    }
+#ifdef __HPC_ACE__
+            Comm::allGather(&n_smp, 1, n_smp_array_);
+            n_smp_disp_array_[0] = 0;
+            for(S32 i=0; i<nproc; i++){
+                n_smp_disp_array_[i+1] = n_smp_disp_array_[i] + n_smp_array_[i];
+            }
+            Comm::allGatherV(pos_sample_loc_tmp, n_smp, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
+            number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
+#else //__HPC_ACE__
+            Comm::gather(&n_smp, 1, n_smp_array_);
+            n_smp_disp_array_[0] = 0;
+            for(S32 i=0; i<nproc; i++){
+                n_smp_disp_array_[i+1] = n_smp_disp_array_[i] + n_smp_array_[i];
+            }
+            Comm::gatherV(pos_sample_loc_tmp, n_smp, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
+            number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
+#endif //__HPC_ACE__
+            if(myrank == 0) {
+                S32 * istart = new S32[nproc];
+                S32 * iend   = new S32[nproc];
+                // --- x direction --------------------------
+		std::sort(pos_sample_loc_tmp, pos_sample_loc_tmp+number_of_sample_particle_tot_, LessOPX());
+                for(S32 i = 0; i < nproc; i++) {
+                    istart[i] = ((S64)(i) * (S64)(number_of_sample_particle_tot_)) / (S64)(nproc);
+                    if(i > 0)
+                        iend[i-1] = istart[i] - 1;
+                }
+                iend[nproc-1] = number_of_sample_particle_tot_ - 1;
+                for(S32 ix = 0; ix < n_domain_[0]; ix++) {
+                    S32 ix0 =  ix      * n_domain_[1] * n_domain_[2];
+                    S32 ix1 = (ix + 1) * n_domain_[1] * n_domain_[2];
+		    F64 x0, x1;
+                    calculateBoundaryOfDomain(number_of_sample_particle_tot_, pos_sample_tot_, 0, istart[ix0], iend[ix1-1], x0, x1);
+                    for(S32 i = ix0; i < ix1; i++) {
+                        pos_domain_temp_[i].low_[0]  = x0;
+                        pos_domain_temp_[i].high_[0] = x1;
+                    }
+                }
+		delete [] istart;
+		delete [] iend;
+	    }
+	    n_smp = number_of_sample_particle_loc_ / n_domain_[2];
+            if(rank_sub_[0] == 0) {
+#ifdef __HPC_ACE__
+		Comm::allGather(&n_smp, 1, n_smp_array_);
+		n_smp_disp_array_[0] = 0;
+		for(S32 i=0; i<nproc; i++){
+		    n_smp_disp_array_[i+1] = n_smp_disp_array_[i] + n_smp_array_[i];
+		}
+		Comm::allGatherV(pos_sample_loc_tmp, n_smp, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
+		number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
+#else //__HPC_ACE__
+		Comm::gather(&n_smp, 1, n_smp_array_);
+		n_smp_disp_array_[0] = 0;
+		for(S32 i=0; i<nproc; i++){
+		    n_smp_disp_array_[i+1] = n_smp_disp_array_[i] + n_smp_array_[i];
+		}
+		Comm::gatherV(pos_sample_loc_tmp, n_smp, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
+		number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
+#endif //__HPC_ACE__
+	    }
+#endif //PARTICLE_SIMULATOR_MPI_PARALLEL
+	    time_profile_.decompose_domain = GetWtime() - time_offset;
+	}
+#endif
+	
 
 #if 1 //UNDER_CONSTRUCTION
 // new version multi-dimensional gathering
@@ -322,7 +440,7 @@ namespace  ParticleSimulator{
             static F64 * y_coord;
             static F64ort * pos_domain_temp_buf;
             S32 n_proc_glb = Comm::getNumberOfProc();
-            S32 rank_glb = Comm::getRank();
+            //S32 rank_glb = Comm::getRank();
 
             if(first){
                 n_send = new S32[n_proc_glb];
@@ -521,6 +639,7 @@ namespace  ParticleSimulator{
 	    //if(Comm::getRank() == 0) for(S32 i=0; i<n_domain_[1]+1; i++) std::cout<<"y_coord[i]="<<y_coord[i]<<std::endl;
 
 
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
 	    ////////////////////////////////////
             ///////////// determine z corrdinate
 	    //#pragma omp parallel for
@@ -557,6 +676,7 @@ namespace  ParticleSimulator{
                 pos_domain_temp_buf[iy*n_domain_[2]+iz-1].high_.z = z_coord_tmp;
             }
 	    }
+#endif
 	    for(S32 i=0; i<n_proc_sub_[0]; i++){
             pos_domain_temp_buf[i].low_.x = x_coord[rank_1d_[0]];
             pos_domain_temp_buf[i].high_.x = x_coord[rank_1d_[0]+1];
@@ -605,10 +725,9 @@ namespace  ParticleSimulator{
                 
             }
 	    }
-
-        time_profile_.decompose_domain = GetWtime() - time_offset;
-
+        //time_profile_.decompose_domain += GetWtime() - time_offset;
 #endif // PARTICLE_SIMULATOR_MPI_PARALLEL
+	    time_profile_.decompose_domain = GetWtime() - time_offset;
         }
 #endif // UNDER_CONSTRUCTION
 
@@ -616,8 +735,8 @@ namespace  ParticleSimulator{
         void decomposeDomain() {
             F64 time_offset = GetWtime();
             // ****** collect sample particles to process 0. ****** 
-            S32 nproc  = Comm::getNumberOfProc();
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+	    S32 nproc  = Comm::getNumberOfProc();
             S32 myrank = Comm::getRank();
 /*
             std::cout<<"number_of_sample_particle_loc_= "<<number_of_sample_particle_loc_<<std::endl;
@@ -633,7 +752,7 @@ namespace  ParticleSimulator{
             }
             Comm::allGatherV(pos_sample_loc_, number_of_sample_particle_loc_, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
             number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
-#else
+#else //__HPC_ACE__
             Comm::gather(&number_of_sample_particle_loc_, 1, n_smp_array_);
             n_smp_disp_array_[0] = 0;
             for(S32 i=0; i<nproc; i++){
@@ -641,7 +760,7 @@ namespace  ParticleSimulator{
             }
             Comm::gatherV(pos_sample_loc_, number_of_sample_particle_loc_, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
             number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
-#endif
+#endif //__HPC_ACE__
 /*
             std::cout<<"number_of_sample_particle_tot_= "<<number_of_sample_particle_tot_<<std::endl;
             for(S32 i=0; i<10; i++){
@@ -781,7 +900,7 @@ namespace  ParticleSimulator{
                 }
             }
 #endif
-            time_profile_.decompose_domain = GetWtime() - time_offset;
+            time_profile_.decompose_domain += GetWtime() - time_offset;
         }
 
 
@@ -926,7 +1045,7 @@ namespace  ParticleSimulator{
                 }
             }
 #endif
-            time_profile_.decompose_domain = GetWtime() - time_offset;
+            time_profile_.decompose_domain += GetWtime() - time_offset;
         }
 #endif
 
