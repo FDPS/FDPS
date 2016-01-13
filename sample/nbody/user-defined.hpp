@@ -1,3 +1,4 @@
+#pragma once
 class FileHeader{
 public:
     PS::S64 n_body;
@@ -48,7 +49,7 @@ public:
     }
 
 	void writeAscii(FILE* fp) const {
-		fprintf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
+		fprintf(fp, "%lld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", 
                 this->id, this->mass,
                 this->pos.x, this->pos.y, this->pos.z,
                 this->vel.x, this->vel.y, this->vel.z);
@@ -63,7 +64,6 @@ public:
 
 };
 
-PS::F64 FPGrav::eps = 1.0/32.0;
 
 #ifdef ENABLE_PHANTOM_GRAPE_X86
 
@@ -100,11 +100,7 @@ void CalcGravity(const FPGrav * iptcl,
         xj[j][2] = jptcl[j].pos[2];
         mj[j]    = jptcl[j].mass;
     }
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-    PS::S32 devid = omp_get_thread_num();
-#else
-    PS::S32 devid = 0;
-#endif
+    PS::S32 devid = PS::Comm::getThreadNum();
     g5_set_xmjMC(devid, 0, nj, xj, mj);
     g5_set_nMC(devid, nj);
     g5_calculate_force_on_xMC(devid, xi, ai, pi, ni);
