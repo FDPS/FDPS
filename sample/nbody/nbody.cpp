@@ -156,6 +156,8 @@ void makeOutputDirectory(char * dir_name) {
     }
 }
 
+PS::F64 FPGrav::eps = 1.0/32.0;
+
 int main(int argc, char *argv[]) {
     std::cout<<std::setprecision(15);
     std::cerr<<std::setprecision(15);
