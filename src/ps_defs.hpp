@@ -26,6 +26,8 @@
 #include"matrix_sym3.hpp"
 
 
+
+
 #define PARTICLE_SIMULATOR_PRINT_ERROR(msg) \
     { std::cout<<"PS_ERROR: "<<msg<<" \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl; }
 
@@ -235,7 +237,8 @@ namespace ParticleSimulator{
     }
     template<> inline MPI::Datatype GetDataType<int>(){return MPI::INT;}
     template<> inline MPI::Datatype GetDataType<long>(){return MPI::LONG;}
-    template<> inline MPI::Datatype GetDataType<long long int>(){return MPI::LONG_LONG_INT;}
+    //template<> inline MPI::Datatype GetDataType<long long int>(){return MPI::LONG_LONG_INT;}
+    template<> inline MPI::Datatype GetDataType<long long int>(){return MPI_LONG_LONG_INT;}
     template<> inline MPI::Datatype GetDataType<unsigned int>(){return MPI::UNSIGNED;}
     template<> inline MPI::Datatype GetDataType<unsigned long>(){return MPI::UNSIGNED_LONG;}
     template<> inline MPI::Datatype GetDataType<unsigned long long int>(){return MPI::UNSIGNED_LONG;}
@@ -502,7 +505,8 @@ namespace ParticleSimulator{
             rank_ = 0;
             n_proc_ = 1;
 #endif
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+	    //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
             n_thread_ = omp_get_max_threads();
 #else
             n_thread_ = 1;
@@ -623,21 +627,27 @@ namespace ParticleSimulator{
 	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI::MAXLOC);
 	    f_out = glb.x;
 	    i_out = glb.y;
-        //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
+	    //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
 #else
 	    f_out = f_in;
 	    i_out = i_in;
 #endif
 	}
-
     public:
+	static void setNumberOfProcMultiDim(const S32 id, const S32 n) {
+	    getInstance().n_proc_multi_dim_[id] = n;
+	}
+	static void setRankMultiDim(const S32 id, const S32 r) {
+	    getInstance().rank_multi_dim_[id] = r;
+	}	
         static S32 getRank() { return getInstance().rank_; }
         static S32 getNumberOfProc() { return getInstance().n_proc_; }
         static S32 getRankMultiDim(const S32 id) { return getInstance().rank_multi_dim_[id]; }
         static S32 getNumberOfProcMultiDim(const S32 id) { return getInstance().n_proc_multi_dim_[id]; }
         static S32 getNumberOfThread() { return getInstance().n_thread_; }
         static S32 getThreadNum(){
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+	    //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
             return omp_get_thread_num();
 #else
             return 0;
@@ -811,13 +821,15 @@ namespace ParticleSimulator{
             std::cerr<<"argv[i]"<<argv[i]<<std::endl;
         }
 */
+#ifdef MONAR
         bool monar = false;
         bool MONAR = false;
         for(S32 i=0; i<argc; i++){
             if(strcmp(argv[i], "monar") == 0) monar = true;
             if(strcmp(argv[i], "MONAR") == 0) MONAR = true;
         }
-
+#endif
+	
         if(Comm::getRank() == 0) {
 			std::cerr << "     //==================================\\\\" << std::endl;
 			std::cerr << "     ||                                  ||"   << std::endl;
@@ -836,9 +848,10 @@ namespace ParticleSimulator{
 			std::cerr << "       Note   : Please cite Iwasawa et al. (in prep.)" << std::endl;
 			std::cerr << "" << std::endl;
 			std::cerr << "       Copyright (C) 2015 " << std::endl;
-			std::cerr << "         Masaki Iwasawa, Ataru Tanigawa, Natsuki Hosono," << std::endl;
+			std::cerr << "         Masaki Iwasawa, Ataru Tanikawa, Natsuki Hosono," << std::endl;
 			std::cerr << "         Keigo Nitadori, Takayuki Muranushi, Junichiro Makino" << std::endl;
 			std::cerr << "         and many others" << std::endl;
+#ifdef MONAR
             if(monar){
                 std::cerr<<"　　 ^__^　 ／￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣"<<std::endl;
                 std::cerr<<"　　( ´∀｀)＜******** FDPS has successfully begun. ********"<<std::endl;
@@ -864,6 +877,9 @@ namespace ParticleSimulator{
             else{
                 fprintf(stderr, "******** FDPS has successfully begun. ********\n");
             }
+#else //MONAR
+	    fprintf(stderr, "******** FDPS has successfully begun. ********\n");
+#endif //MONAR
         }
     }
 
@@ -1244,15 +1260,21 @@ namespace ParticleSimulator{
     template<class Tp>
     inline F64ort GetMinBox(const Tp ptcl[], const S32 n){
 	F64ort box_loc;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
+#endif //PARTICLE_SIMULATOR_THREAD_PARALLEL
 	{
 	    F64ort box_loc_tmp;
 	    box_loc_tmp.init();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for nowait
+#endif
 	    for(S32 ip=0; ip<n; ip++){
 		box_loc_tmp.merge(ptcl[ip].getPos());
 	    }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp critical
+#endif
 	    {
 		box_loc.merge(box_loc_tmp);
 	    }
@@ -1269,15 +1291,21 @@ namespace ParticleSimulator{
     template<class Tp>
     inline F64ort GetMinBoxWithMargen(const Tp ptcl[], const S32 n){
         F64ort box_loc;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
+#endif
         {
             F64ort box_loc_tmp;
             box_loc_tmp.init();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for nowait
+#endif
             for(S32 ip=0; ip<n; ip++){
                 box_loc_tmp.merge(ptcl[ip].getPos(), ptcl[ip].getRSearch());
             }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp critical
+#endif
             {
                 box_loc.merge(box_loc_tmp);
             }
@@ -1291,10 +1319,15 @@ namespace ParticleSimulator{
 
     inline F64 GetWtime(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#ifdef PARTICLE_SIMULATOR_BARRIER_FOR_PROFILE
+	Comm::barrier();
+#endif //PARTICLE_SIMULATOR_BARRIER_FOR_PROFILE
         return MPI::Wtime();
+#elif PARTICLE_SIMULATOR_THREAD_PARALLEL
+	return omp_get_wtime();
 #else
-	return clock();
-#endif
+	return clock() / CLOCKS_PER_SEC;
+#endif //PARTICLE_SIMULATOR_MPI_PARALLEL
     }
     struct LessOPForVecX{
         bool operator() (const F64vec & left, const F64vec & right) const {
@@ -1316,11 +1349,13 @@ namespace ParticleSimulator{
 	    return left.y < right.y;
 	}
     };
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
     struct LessOPZ{
 	template<class T> bool operator() (const T & left, const T & right) const {
 	    return left.z < right.z;
 	}
     };
+#endif
     struct LessOPKEY{
 	template<class T> bool operator() (const T & left, const T & right) const {
 	    return left.key_ < right.key_;
@@ -1391,10 +1426,30 @@ namespace ParticleSimulator{
         F64 make_LET_2nd;
         F64 exchange_LET_1st;
         F64 exchange_LET_2nd;
+
+        F64 morton_sort_local_tree;
+        F64 link_cell_local_tree;
+        F64 morton_sort_global_tree;
+        F64 link_cell_global_tree;
+
+        F64 make_local_tree_tot; // make_local_tree + calc_moment_local_tree
+        F64 make_global_tree_tot;
+        F64 exchange_LET_tot; // make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
+
+        F64 calc_force__core__walk_tree;
+
+	F64 calc_force__make_ipgroup;
+	F64 calc_force__core;
+	F64 calc_force__copy_original_order;
+
         TimeProfile () {
             collect_sample_particle = decompose_domain = exchange_particle = set_particle_local_tree = set_particle_global_tree = make_local_tree = make_global_tree = set_root_cell
                 = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd 
                 = exchange_LET_1st = exchange_LET_2nd = 0.0;
+            morton_sort_local_tree = link_cell_local_tree 
+                = morton_sort_global_tree = link_cell_global_tree = 0.0;
+            make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
+	    calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
         }
         TimeProfile operator + (const TimeProfile & rhs) const{
             TimeProfile ret;
@@ -1413,15 +1468,42 @@ namespace ParticleSimulator{
             ret.make_LET_2nd = this->make_LET_2nd + rhs.make_LET_2nd;
             ret.exchange_LET_1st = this->exchange_LET_1st + rhs.exchange_LET_1st;
             ret.exchange_LET_2nd = this->exchange_LET_2nd + rhs.exchange_LET_2nd;
+
+            ret.morton_sort_local_tree = this->morton_sort_local_tree + rhs.morton_sort_local_tree;
+            ret.link_cell_local_tree = this->link_cell_local_tree + rhs.link_cell_local_tree;
+            ret.morton_sort_global_tree = this->morton_sort_global_tree + rhs.morton_sort_global_tree;
+            ret.link_cell_global_tree = this->link_cell_global_tree + rhs.link_cell_global_tree;
+
+            ret.make_local_tree_tot = this->make_local_tree_tot + rhs.make_local_tree_tot;
+            ret.make_global_tree_tot = this->make_global_tree_tot + rhs.make_global_tree_tot;
+            ret.exchange_LET_tot = this->exchange_LET_tot + rhs.exchange_LET_tot;
+
+            ret.calc_force__core__walk_tree = this->calc_force__core__walk_tree + rhs.calc_force__core__walk_tree;
+
+	    ret.calc_force__make_ipgroup = this->calc_force__make_ipgroup + rhs.calc_force__make_ipgroup; 
+	    ret.calc_force__core = this->calc_force__core + rhs.calc_force__core;
+	    ret.calc_force__copy_original_order = this->calc_force__copy_original_order + rhs.calc_force__copy_original_order;
+
             return ret;
         }
         F64 getTotalTime() const {
+	    /*
             return collect_sample_particle + decompose_domain + exchange_particle + set_particle_local_tree + set_particle_global_tree + make_local_tree + make_global_tree + set_root_cell
                 + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd;
+	    */
+            return collect_sample_particle + decompose_domain + exchange_particle + set_particle_local_tree + set_particle_global_tree + make_local_tree + make_global_tree + set_root_cell
+                + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
+                + morton_sort_local_tree + link_cell_local_tree 
+                + morton_sort_global_tree + link_cell_global_tree;
         }
         void clear(){
             collect_sample_particle = decompose_domain = exchange_particle = make_local_tree = make_global_tree = set_particle_local_tree = set_particle_global_tree = set_root_cell
                 = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd = exchange_LET_1st = exchange_LET_2nd = 0.0;
+            morton_sort_local_tree = link_cell_local_tree 
+                = morton_sort_global_tree = link_cell_global_tree = 0.0;
+            make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
+            calc_force__core__walk_tree = 0.0;
+	    calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
         }
 
     };
@@ -1431,5 +1513,6 @@ namespace ParticleSimulator{
 //#include"reallocatable_array.hpp"
 
 #include"timer.hpp"
+//#include"profile.hpp"
 
 //#include"comm.hpp"
