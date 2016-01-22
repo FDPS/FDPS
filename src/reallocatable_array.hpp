@@ -9,6 +9,7 @@ namespace  ParticleSimulator{
         T * data_;
         int size_;
         int capacity_;
+        int capacity_org_;
 #ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
         int n_expand_;
         void increaseNExpand(const int n_input){
@@ -210,7 +211,7 @@ namespace  ParticleSimulator{
         size_t getMemSize() const { return capacity_ * sizeof(T); }
 
         T * getPointer(const int i=0) const { return data_+i; }
-
+	
         void pushBackNoCheck(const T & val){
 #ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
             assert(size_ <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
@@ -276,5 +277,15 @@ namespace  ParticleSimulator{
             }
         }
 
+	void freeMem(){
+	    if(capacity_ > 0){
+		capacity_org_ = capacity_;
+		size_ = capacity_ = 0;
+		delete [] data_;
+	    }
+	    else{
+		capacity_org_ = 0;
+	    }
+	}
     };
 }

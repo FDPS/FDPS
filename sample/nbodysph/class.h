@@ -96,7 +96,7 @@ class RealPtcl{
 	void copyFromForce(const RESULT::Drvt& drvt){
 		this->div_v = drvt.div_v;
 		this->rot_v = drvt.rot_v;
-		this->Bal = abs(drvt.div_v) / (abs(drvt.div_v) + sqrt(drvt.rot_v * drvt.rot_v) + 1.0e-4 * this->snds / this->smth); //Balsala switch
+		this->Bal = fabs(drvt.div_v) / (fabs(drvt.div_v) + sqrt(drvt.rot_v * drvt.rot_v) + 1.0e-4 * this->snds / this->smth); //Balsala switch
 	}
 	void copyFromForce(const RESULT::Hydro& force){
 		this->acc     = force.acc;

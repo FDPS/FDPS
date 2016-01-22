@@ -54,7 +54,6 @@ class CalcHydroForce{
 				v_sig_max = std::max(v_sig_max, v_sig);
 				#if 1 //With Balsara Switch
 				const PS::F64 AV = - 0.5 * v_sig * w_ij / (0.5 * (ith.dens + jth.dens)) * 0.5 * (ith.Bal + jth.Bal);
-				//if(Bal_i > 0.1 && ep_i[i].pos.x < 0.6)std::cout << ep_i[i].pos.x << ", " << Bal_i << std::endl;
 				#else
 				const PS::F64 AV = - 0.5 * v_sig * w_ij / (0.5 * (ith.dens + jth.dens));
 				#endif
@@ -85,34 +84,4 @@ template <class TParticleJ> class CalcGravityForce{
 	}
 };
 
-/*
-void CalcGravEpEp(const ThisRun::EPI::Grav* ep_i, const PS::S32 n_ip, const ThisRun::EPJ::Grav* ep_j, const PS::S32 n_jp, ThisRun::Result::Grav* grav){
-	for(PS::S32 i = 0; i < n_ip ; ++ i){
-		grav[i].clear();
-		for(PS::S32 j = 0; j < n_jp ; ++ j){
-			if(ep_i[i].id == ep_j[j].id) continue;
-			const PS::F64vec dr = ep_i[i].pos - ep_j[j].pos;
-			const PS::F64 dr2 = dr * dr;
-			const PS::F64 dr_inv = 1.0 / sqrt(dr2 + 0.5 * (ep_i[i].getEps2() + ep_j[j].getEps2()));
-			const PS::F64 m_dr3_inv = ep_j[j].mass * math::pow3(dr_inv);
-			grav[i].acc += - m_dr3_inv * dr;
-			grav[i].pot += - ep_j[j].mass * dr_inv;
-		}
-	}
-}
-*/
-/*
-void CalcGravEpSp(const ThisRun::EPI::Grav* ep_i, const PS::S32 n_ip, const ThisRun::SPJ::Grav* ep_j, const PS::S32 n_jp, ThisRun::Result::Grav* grav){
-	for(PS::S32 i = 0; i < n_ip ; ++ i){
-		//grav[i].clear();
-		for(PS::S32 j = 0; j < n_jp ; ++ j){
-			const PS::F64vec dr = ep_i[i].pos - ep_j[j].pos;
-			const PS::F64 dr2 = dr * dr;
-			const PS::F64 dr_inv = 1.0 / sqrt(dr2 + Rtmp * Rtmp * ep_i[i].getEps2());
-			const PS::F64 m_dr3_inv = ep_j[j].mass * math::pow3(dr_inv);
-			grav[i].acc += - Gtmp * m_dr3_inv * dr;
-			grav[i].pot += - Gtmp * ep_j[j].mass * dr_inv;
-		}
-	}
-}
-*/
+

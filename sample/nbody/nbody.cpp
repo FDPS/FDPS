@@ -6,6 +6,10 @@
 #ifdef ENABLE_PHANTOM_GRAPE_X86
 #include <gp5util.h>
 #endif
+#ifdef ENABLE_GPU_CUDA
+#define MULTI_WALK
+#include"force_gpu_cuda.hpp"
+#endif
 #include "user-defined.hpp"
 
 void makeColdUniformSphere(const PS::F64 mass_glb,
@@ -265,10 +269,21 @@ int main(int argc, char *argv[]) {
     
     PS::TreeForForceLong<FPGrav, FPGrav, FPGrav>::Monopole tree_grav;
     tree_grav.initialize(n_tot, theta, n_leaf_limit, n_group_limit);
+#ifdef MULTI_WALK
+    const PS::S32 n_walk_limit = 200;
+    const PS::S32 tag_max = 1;
+    tree_grav.calcForceAllAndWriteBackMultiWalk(DispatchKernelWithSP,
+                                                RetrieveKernel,
+                                                tag_max,
+                                                system_grav,
+                                                dinfo,
+                                                n_walk_limit);
+#else
     tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>,
                                        CalcGravity<PS::SPJMonopole>,
                                        system_grav,
                                        dinfo);
+#endif
     PS::F64 Epot0, Ekin0, Etot0, Epot1, Ekin1, Etot1;
     calcEnergy(system_grav, Etot0, Ekin0, Epot0);
     PS::F64 time_diag = 0.0;
@@ -308,11 +323,20 @@ int main(int argc, char *argv[]) {
         }
         
         system_grav.exchangeParticle(dinfo);
-    
+#ifdef MULTI_WALK
+        tree_grav.calcForceAllAndWriteBackMultiWalk(DispatchKernelWithSP,
+                                                    RetrieveKernel,
+                                                    tag_max,
+                                                    system_grav,
+                                                    dinfo,
+                                                    n_walk_limit,
+                                                    true);
+#else
         tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>,
                                            CalcGravity<PS::SPJMonopole>,
                                            system_grav,
                                            dinfo);
+#endif
         
         kick(system_grav, dt * 0.5);
         

@@ -1,5 +1,5 @@
-///////////////////////////////////////////////
-// implementaion of methods of TreeForForce ///
+////////////////////////////////////////////////
+/// implementaion of methods of TreeForForce ///
 
 namespace ParticleSimulator{
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -25,16 +25,18 @@ namespace ParticleSimulator{
         std::cout<<"outer_boundary_of_my_tree="<<outer_boundary_of_my_tree<<std::endl;
 #endif
         wtime_walk_LET_1st_ = GetWtime();
-
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
+#endif	
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_cum = 0;
             bool pa[DIMENSION];
             dinfo.getPeriodicAxis(pa);
             ep_send_buf[ith].clearSize();
-//#pragma omp for schedule(dynamic, 4)
-#pragma omp for schedule(dynamic, 1)
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    		    
+#pragma omp for schedule(dynamic, 4)
+#endif	    
             for(S32 ib=0; ib<n_proc; ib++){
                 n_send[ib] = n_recv[ib] = 0;
                 shift_image_domain_[ith].clearSize();
@@ -61,7 +63,14 @@ namespace ParticleSimulator{
                     if(my_rank == ib && ii == 0) continue; // skip self image
                     F64ort pos_domain = dinfo.getPosDomain(ib).shift(shift_image_domain_[ith][ii]);
                     const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
-
+#if 0
+                    const S32 adr_root_cell = 0;
+                    MakeListUsingOuterBoundaryIteration
+                        (tc_loc_.getPointer(),  adr_root_cell,
+                         ep_org.getPointer(),   ep_send_buf[ith],
+                         pos_domain,            n_leaf_limit_,
+                         -shift_image_domain_[ith][ii]);
+#else
                     if( !tc_loc_[0].isLeaf(n_leaf_limit_) ){
                         MakeListUsingOuterBoundary
                             (tc_loc_.getPointer(),  adr_tc_tmp,
@@ -83,11 +92,14 @@ namespace ParticleSimulator{
                             ep_send_buf[ith].back().setPos(pos_new);
                         }
                     }
+#endif
                 }
                 n_send[ib] = ep_send_buf[ith].size() - n_ep_offset;
                 id_proc_send_[ith][n_proc_cum++] = ib;  // new
             } // omp for
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp single
+#endif	    
             {
                 n_send_disp[0] = 0;
                 for(S32 i=0; i<n_proc; i++){
@@ -106,7 +118,8 @@ namespace ParticleSimulator{
             }
         } // omp parallel scope
         wtime_walk_LET_1st_ = GetWtime() - wtime_walk_LET_1st_;
-        time_profile_.make_LET_1st = GetWtime() - time_offset;
+        time_profile_.make_LET_1st += GetWtime() - time_offset;
+        //time_profile_.exchange_LET_tot += GetWtime() - time_offset;
         time_offset = GetWtime();
 
         Tcomm_scatterEP_tmp_ = GetWtime();
@@ -128,7 +141,8 @@ namespace ParticleSimulator{
         std::cout<<"ep_send.size()="<<ep_send.size()<<std::endl;
         std::cout<<"ep_recv.size()="<<ep_recv.size()<<std::endl;
 #endif
-        time_profile_.exchange_LET_1st = GetWtime() - time_offset;
+        time_profile_.exchange_LET_1st += GetWtime() - time_offset;
+        //time_profile_.exchange_LET_tot += GetWtime() - time_offset;
     }
 
 
@@ -210,7 +224,7 @@ namespace ParticleSimulator{
 
         Comm::barrier();
         if(Comm::getRank() == 0){
-            std::cout<<"np_ave="<<np_ave<<std::endl;
+            std::cerr<<"np_ave="<<np_ave<<std::endl;
         }
 
         const F64 np_one_dim = pow( ((F64)np_ave)*1.0001, 1.0/DIMENSION) + 4;
@@ -218,10 +232,12 @@ namespace ParticleSimulator{
         n_surface_for_comm_ = (4*np_one_dim)*6;
 #else
         n_surface_for_comm_ = (6*np_one_dim*np_one_dim+8*np_one_dim)*6;
+        //n_surface_for_comm_ = (6*np_one_dim*np_one_dim+8*np_one_dim)*2;
 #endif
-        //std::cerr<<"n_surface_for_comm_="<<n_surface_for_comm_<<std::endl;
-        epi_org_.reserve( np_ave*4 + 100 );
+        epi_org_.reserve( np_ave*3 + 100 );
         epi_sorted_.reserve( epi_org_.capacity() );
+
+
 
         bool err = false;
         if(n_leaf_limit_ <= 0){
@@ -270,23 +286,28 @@ namespace ParticleSimulator{
         epjr_send_buf_for_scatter_ = new ReallocatableArray<EPJWithR>[n_thread];
         epjr_recv_1st_sorted_ = new ReallocatableArray<EPJWithR>[n_thread];
         epj_neighbor_ = new ReallocatableArray<Tepj>[n_thread];
-	if(typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER)){
-	    for(S32 ith=0; ith<n_thread; ith++){
-		epj_neighbor_[ith].reserve(5);
-		//epj_neighbor_[ith].reserve(100000);
-	    }
-	}
+        n_cell_open_ = new CountT[n_thread];
+
+        Comm::barrier();
+        if(Comm::getRank() == 0){
+            std::cerr<<"used mem size for tree(0)="<<this->getMemSizeUsed()*1e-9<<"[GB]"<<std::endl;
+        }
+
+        if(typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER)){
+            for(S32 ith=0; ith<n_thread; ith++){
+                epj_neighbor_[ith].reserve(5);
+            }
+        }
         if( typeid(TSM) == typeid(SEARCH_MODE_LONG) || 
             typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) || 
             typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER) ){
             if(theta_ > 0.0){
-                const S64 n_tmp = epi_org_.capacity() + 2000 * pow((0.5 / theta_), DIMENSION);
+                const S64 n_tmp = epi_org_.capacity() + (S64)2000 * pow((0.5 / theta_), DIMENSION);
                 const S64 n_new = std::min( std::min(n_tmp, n_glb_tot_+(S64)(100)), (S64)(20000) );
                 epj_org_.reserve( n_new );
                 epj_sorted_.reserve( n_new );
                 spj_org_.reserve( epj_org_.capacity() );
                 spj_sorted_.reserve( epj_sorted_.capacity() );
-
             }
             else if(theta == 0.0) {
                 epj_org_.reserve(n_glb_tot_ + 100);
@@ -305,8 +326,8 @@ namespace ParticleSimulator{
             n_sp_send_disp_ = new S32[n_proc+1];
             n_sp_recv_disp_ = new S32[n_proc+1];
             for(S32 i=0; i<n_thread; i++){
-                epj_for_force_[i].reserve(100000);
-                spj_for_force_[i].reserve(100000);
+                epj_for_force_[i].reserve(10000);
+                spj_for_force_[i].reserve(10000);
             }
             n_ep_sp_send_ = new S32[n_proc * 2];
             n_ep_sp_recv_ = new S32[n_proc * 2];
@@ -323,10 +344,10 @@ namespace ParticleSimulator{
                 spj_for_force_[i].reserve(1);
             }
             n_ep_sp_send_ = n_ep_sp_recv_ = NULL;
-            Comm::barrier();
-            if(Comm::getRank() == 0){
-                std::cout<<"used mem size for tree(1)="<<this->getMemSizeUsed()*1e-9<<std::endl;
-            }
+        }
+        Comm::barrier();
+        if(Comm::getRank() == 0){
+            std::cerr<<"used mem size for tree(1)="<<this->getMemSizeUsed()*1e-9<<"[GB]"<<std::endl;
         }
 
         tp_loc_.reserve( epi_org_.capacity() );
@@ -335,6 +356,12 @@ namespace ParticleSimulator{
         tc_loc_.reserve( tp_loc_.capacity() / n_leaf_limit_ * N_CHILDREN );
         tc_glb_.reserve( tp_glb_.capacity() / n_leaf_limit_ * N_CHILDREN );
         ipg_.reserve( std::min(epi_org_.capacity()/n_group_limit_*4, epi_org_.capacity()) );
+
+        Comm::barrier();
+        if(Comm::getRank() == 0){
+            std::cerr<<"used mem size for tree(2)="<<this->getMemSizeUsed()*1e-9<<"[GB]"<<std::endl;
+        }
+
         for(S32 i=0; i<n_thread; i++) id_proc_send_[i] = new S32[n_proc];
         epj_send_.reserve(n_surface_for_comm_);
         epj_recv_.reserve(n_surface_for_comm_);
@@ -349,7 +376,7 @@ namespace ParticleSimulator{
 
         Comm::barrier();
         if(Comm::getRank() == 0){
-            std::cout<<"used mem size for tree="<<this->getMemSizeUsed()<<std::endl;
+            std::cerr<<"used mem size for tree(3)="<<this->getMemSizeUsed()*1e-9<<"[GB]"<<std::endl;
         }
 
         // new variables for commnuication of LET
@@ -417,12 +444,10 @@ namespace ParticleSimulator{
                 epjr_recv_1st_sorted_[i].reserve(n_surface_for_comm_);
             }
         }
-
         Comm::barrier();
         if(Comm::getRank() == 0){
-            std::cout<<"used mem size for tree(0)="<<this->getMemSizeUsed()*1e-9<<std::endl;
+            std::cerr<<"used mem size for tree(3)="<<this->getMemSizeUsed()*1e-9<<"[GB]"<<std::endl;
         }
-
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -440,14 +465,18 @@ namespace ParticleSimulator{
         epi_org_.resizeNoInitialize(n_loc_tot_);
         epj_org_.resizeNoInitialize(n_loc_tot_);
         if(clear){
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp parallel for
+#endif	    
             for(S32 i=0; i<nloc; i++){
                 epi_org_[i].copyFromFP( psys[i] );
                 epj_org_[i].copyFromFP( psys[i] );
             }
         }
         else{
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp parallel for
+#endif	    
             for(S32 i=0; i<nloc; i++){
                 epi_org_[i+offset].copyFromFP( psys[i] );
                 epj_org_[i+offset].copyFromFP( psys[i] );
@@ -503,22 +532,37 @@ namespace ParticleSimulator{
         epi_sorted_.resizeNoInitialize(n_loc_tot_);
         epj_sorted_.resizeNoInitialize(n_loc_tot_);
         MortonKey::initialize( length_ * 0.5, center_);
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
+#endif
         for(S32 i=0; i<n_loc_tot_; i++){
             tp_loc_[i].setFromEP(epj_org_[i], i);
         }
+	//std::cerr<<"start sort"<<std::endl;
+#ifdef USE_STD_SORT
+	std::sort(tp_loc_.getPointer(), tp_loc_.getPointer()+n_loc_tot_, 
+		  [](const TreeParticle & l, const TreeParticle & r )
+		  ->bool{return l.getKey() < r.getKey();} );
+
+#else
         rs_.lsdSort(tp_loc_.getPointer(), tp_buf_.getPointer(), 0, n_loc_tot_-1);
+#endif
+	//std::cerr<<"finish sort"<<std::endl;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
+#endif	
         for(S32 i=0; i<n_loc_tot_; i++){
             const S32 adr = tp_loc_[i].adr_ptcl_;
             epi_sorted_[i] = epi_org_[adr];
             epj_sorted_[i] = epj_org_[adr];
         }
+
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"tp_loc_.size()="<<tp_loc_.size()<<" tp_buf_.size()="<<tp_buf_.size()<<std::endl;
         std::cout<<"epi_sorted_.size()="<<epi_sorted_.size()<<" epj_sorted_.size()="<<epj_sorted_.size()<<std::endl;
 #endif
+        time_profile_.morton_sort_local_tree += GetWtime() - time_offset;
         time_profile_.make_local_tree += GetWtime() - time_offset;
     }
 
@@ -527,12 +571,15 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     linkCellLocalTreeOnly(){
         const F64 time_offset = GetWtime();
+        //std::cerr<<"start link"<<std::endl;
         LinkCell(tc_loc_, adr_tc_level_partition_, tp_loc_.getPointer(), lev_max_, n_loc_tot_, n_leaf_limit_);
+        //std::cerr<<"finish link"<<std::endl;
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"tc_loc_.size()="<<tc_loc_.size()<<std::endl;
         std::cout<<"lev_max_="<<lev_max_<<std::endl;
 #endif
+        time_profile_.link_cell_local_tree += GetWtime() - time_offset;
         time_profile_.make_local_tree += GetWtime() - time_offset;
     }
 
@@ -541,11 +588,14 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentLocalTreeOnly(){
         F64 time_offset = GetWtime();
+        //std::cerr<<"start calc moment"<<std::endl;
         calcMomentLocalTreeOnlyImpl(typename TSM::search_type());
+        //std::cerr<<"finish calc moment"<<std::endl;
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
 #endif
         time_profile_.calc_moment_local_tree += GetWtime() - time_offset;
+        time_profile_.make_local_tree_tot = time_profile_.calc_moment_local_tree + time_profile_.make_local_tree;
     }
 
 
@@ -623,21 +673,27 @@ namespace ParticleSimulator{
         }
 #endif
         exchangeLocalEssentialTreeImpl(typename TSM::search_type(), dinfo);
+        time_profile_.exchange_LET_tot = time_profile_.make_LET_1st + time_profile_.exchange_LET_1st + time_profile_.make_LET_2nd + time_profile_.exchange_LET_2nd;
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"epj_send_.size()="<<epj_send_.size()<<" spj_send_.size()="<<spj_send_.size()<<std::endl;
         std::cout<<"epj_recv_.size()="<<epj_recv_.size()<<" spj_recv_.size()="<<spj_recv_.size()<<std::endl;
 #endif
+
+
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     exchangeLocalEssentialTreeImpl(TagSearchLong, const DomainInfo & dinfo){
+	//std::cerr<<"start ex let"<<std::endl;
         F64 time_offset = GetWtime();
         const S32 n_proc = Comm::getNumberOfProc();
         const S32 my_rank = Comm::getRank();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
+#endif	
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_cum = 0;
@@ -647,7 +703,9 @@ namespace ParticleSimulator{
             id_sp_send_buf_[ith].resizeNoInitialize(0);
             const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
             const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for schedule(dynamic, 4)
+#endif	    
             for(S32 ib=0; ib<n_proc; ib++){
                 n_ep_send_[ib] = n_sp_send_[ib] = n_ep_recv_[ib] = n_sp_recv_[ib] = 0;
                 if(my_rank == ib) continue;
@@ -678,7 +736,9 @@ namespace ParticleSimulator{
                 n_sp_send_[ib] = id_sp_send_buf_[ith].size() - n_sp_cum;
                 id_proc_send_[ith][n_proc_cum++] = ib;
             }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp single
+#endif	    
             {
                 n_ep_send_disp_[0] = n_sp_send_disp_[0] = 0;
                 for(S32 ib=0; ib<n_proc; ib++){
@@ -756,6 +816,12 @@ namespace ParticleSimulator{
         wtime_exlet_comm_ = GetWtime() - wtime_exlet_comm_;
 
         time_profile_.exchange_LET_1st += GetWtime() - time_offset;
+        //std::cerr<<"fhinish ex let"<<std::endl;
+        n_let_ep_send_1st_ += (CountT)epj_send_.size();
+        n_let_ep_recv_1st_ += (CountT)epj_recv_.size();
+        n_let_sp_send_1st_ += (CountT)spj_send_.size();
+        n_let_sp_recv_1st_ += (CountT)spj_recv_.size();
+        //time_profile_.exchange_LET_tot += time_profile_.make_LET_1st + time_profile_.exchange_LET_1st;
     }
 
 
@@ -780,7 +846,9 @@ namespace ParticleSimulator{
             }
             first = false;
         }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
+#endif	
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_cum = 0;
@@ -795,7 +863,9 @@ namespace ParticleSimulator{
             bool periodic_axis[DIMENSION];
             dinfo.getPeriodicAxis(periodic_axis);        
             const F64ort outer_boundary_of_my_tree = tc_loc_[0].mom_.vertex_out_;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for schedule(dynamic, 4)
+#endif	    
             for(S32 i=0; i<n_proc; i++){
                 n_ep_send_[i] = n_sp_send_[i] = n_ep_recv_[i] = n_sp_recv_[i] = 0;
                 shift_image_domain.clearSize();
@@ -850,7 +920,9 @@ namespace ParticleSimulator{
                 n_spj_cum = spj_send_buf[ith].size();
                 id_proc_send_[ith][n_proc_cum++] = i;
             } // end of for loop
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp single
+#endif	    
             {
                 n_ep_send_disp_[0] = n_sp_send_disp_[0] = 0;
                 for(S32 ib=0; ib<n_proc; ib++){
@@ -895,6 +967,11 @@ namespace ParticleSimulator{
 
         time_profile_.exchange_LET_1st += GetWtime() - time_offset;
 
+        n_let_ep_send_1st_ += (CountT)epj_send_.size();
+        n_let_ep_recv_1st_ += (CountT)epj_recv_.size();
+        n_let_sp_send_1st_ += (CountT)spj_send_.size();
+        n_let_sp_recv_1st_ += (CountT)spj_recv_.size();
+        //time_profile_.exchange_LET_tot += time_profile_.make_LET_1st + time_profile_.exchange_LET_1st;
     }
 
 
@@ -913,7 +990,9 @@ namespace ParticleSimulator{
         F64 time_offset = GetWtime();
         const S32 n_proc = Comm::getNumberOfProc();
         const S32 my_rank = Comm::getRank();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
+#endif	
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_cum = 0;
@@ -921,9 +1000,17 @@ namespace ParticleSimulator{
             id_sp_send_buf_[ith].reserve(1000);
             id_ep_send_buf_[ith].resizeNoInitialize(0);
             id_sp_send_buf_[ith].resizeNoInitialize(0);
+//#ifdef DEBUG_1023
+#ifdef PARTICLE_SIMULATOR_EXCHANGE_LET_ALL
+	    /// NEW MUST REMOVED
+	    const F64 r_crit_sq = 1e10;
+#else //PARTICLE_SIMULATOR_EXCHANGE_LET_ALL
             const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
+#endif //PARTICLE_SIMULATOR_EXCHANGE_LET_ALL
             const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for schedule(dynamic, 4)
+#endif
             for(S32 ib=0; ib<n_proc; ib++){
                 n_ep_send_[ib] = n_sp_send_[ib] = n_ep_recv_[ib] = n_sp_recv_[ib] = 0;
                 if(my_rank == ib) continue;
@@ -953,7 +1040,9 @@ namespace ParticleSimulator{
                 n_sp_send_[ib] = id_sp_send_buf_[ith].size() - n_sp_cum;
                 id_proc_send_[ith][n_proc_cum++] = ib;
             }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp single
+#endif
             {
                 n_ep_send_disp_[0] = n_sp_send_disp_[0] = 0;
                 for(S32 ib=0; ib<n_proc; ib++){
@@ -1018,148 +1107,21 @@ namespace ParticleSimulator{
                         spj_recv_.getPointer(), n_sp_recv_, n_sp_recv_disp_);
 #endif //FAST_ALL_TO_ALL_FOR_K
         time_profile_.exchange_LET_1st += GetWtime() - time_offset;
+
+        n_let_ep_send_1st_ += (CountT)epj_send_.size();
+        n_let_ep_recv_1st_ += (CountT)epj_recv_.size();
+        n_let_sp_send_1st_ += (CountT)spj_send_.size();
+        n_let_sp_recv_1st_ += (CountT)spj_recv_.size();
+        //time_profile_.exchange_LET_tot += time_profile_.make_LET_1st + time_profile_.exchange_LET_1st;
     }
 
 #endif
-
-
-
-
-
-
-
-
-#if 0
-    // FOR P^3T + PM
-    template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    exchangeLocalEssentialTreeImpl(TagSearchLongCutoffScatter, const DomainInfo & dinfo){
-        const F64 time_offset = GetWtime();
-        const S32 n_proc = Comm::getNumberOfProc();
-        const S32 my_rank = Comm::getRank();
-#pragma omp parallel
-        {
-            const S32 ith = Comm::getThreadNum();
-            S32 n_proc_cum = 0;
-            id_ep_send_buf_[ith].reserve(1000);
-            id_sp_send_buf_[ith].reserve(1000);
-            shift_image_domain_[ith].reserve(125);
-            id_ep_send_buf_[ith].resizeNoInitialize(0);
-            id_sp_send_buf_[ith].resizeNoInitialize(0);
-            shift_image_domain_[ith].resizeNoInitialize(0);
-            const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
-            const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
-            bool pa[DIMENSION];
-            dinfo.getPeriodicAxis(pa);
-#pragma omp for schedule(dynamic, 4)
-            for(S32 ib=0; ib<n_proc; ib++){
-                n_ep_send_[ib] = n_sp_send_[ib] = n_ep_recv_[ib] = n_sp_recv_[ib] = 0;
-                shift_image_domain_.clearSize();
-                if(dinfo.getBoundaryCondition() == BOUNDARY_CONDITION_OPEN){
-                    shift_image_domain_.push_back( F64vec(0.0) );
-                }
-                else{
-                    CalcNumberAndShiftOfImageDomain
-                        (shift_image_domain_, dinfo.getPosRootDomain().getFullLength(),
-                         outer_boundary_of_my_tree, dinfo.getPosDomain(i), periodic_axis);
-                }
-                S32 n_image = shift_image_domain.size();
-                for(S32 j = 0; j < n_image; j++) {
-                    if(my_rank == i && j == 0) continue;
-                    const F64ort pos_target_domain =dinfo.getPosDomain(i).shift(shift_image_domain[j]);
-                    const F64ort cell_box = pos_root_cell_;
-                    if( !tc_loc_[0].isLeaf(n_leaf_limit_) ){
-                        SearchSendParticleLongCutoffScatter();
-                    }
-                    else{}
-                }
-                n_ep_send_[i] = epj_send_buf[ith].size() - n_epj_cum;
-                n_sp_send_[i] = spj_send_buf[ith].size() - n_spj_cum;
-                n_epj_cum = epj_send_buf[ith].size();
-                n_spj_cum = spj_send_buf[ith].size();
-                id_proc_send_[ith][n_proc_cum++] = i;
-            } // end of for loop
-#pragma omp single
-            {
-                n_ep_send_disp_[0] = n_sp_send_disp_[0] = 0;
-                for(S32 ib=0; ib<n_proc; ib++){
-                    n_ep_send_disp_[ib+1] = n_ep_send_disp_[ib] + n_ep_send_[ib];
-                    n_sp_send_disp_[ib+1] = n_sp_send_disp_[ib] + n_sp_send_[ib];
-                }
-                epj_send_.resizeNoInitialize( n_ep_send_disp_[n_proc] );
-                spj_send_.resizeNoInitialize( n_sp_send_disp_[n_proc] );
-            }
-            S32 n_ep_cnt = 0;
-            S32 n_sp_cnt = 0;
-            for(S32 ib=0; ib<n_proc_cum; ib++){
-                const S32 id = id_proc_send_[ith][ib];
-                S32 adr_ep_tmp = n_ep_send_disp_[id];
-                const S32 n_ep_tmp = n_ep_send_[id];
-                for(int ip=0; ip<n_ep_tmp; ip++){
-                    const S32 id_ep = id_ep_send_buf_[ith][n_ep_cnt++];
-                    epj_send_[adr_ep_tmp++] = epj_sorted_[id_ep];
-                }
-                S32 adr_sp_tmp = n_sp_send_disp_[id];
-                const S32 n_sp_tmp = n_sp_send_[id];
-                for(int ip=0; ip<n_sp_tmp; ip++){
-                    const S32 id_sp = id_sp_send_buf_[ith][n_sp_cnt++];
-                    spj_send_[adr_sp_tmp++].copyFromMoment(tc_loc_[id_sp].mom_);
-                }
-            }
-        } // omp parallel scope
-
-        time_profile_.make_LET_1st += GetWtime() - time_offset;
-        time_offset = GetWtime();
-
-        for(S32 i=0; i<n_proc; i++){
-            n_ep_sp_send_[2*i] = n_ep_send_[i];
-            n_ep_sp_send_[2*i+1] = n_sp_send_[i];
-        }
-#ifdef FAST_ALL_TO_ALL_FOR_K
-        static CommForAllToAll<S32, 2> comm_a2a_2d;
-        comm_a2a_2d.execute(n_ep_sp_send_, 2, n_ep_sp_recv_);
-#else
-        Comm::allToAll(n_ep_sp_send_, 2, n_ep_sp_recv_); // TEST
-#endif //FAST_ALL_TO_ALL_FOR_K
-        for(S32 i=0; i<n_proc; i++){
-            n_ep_recv_[i] = n_ep_sp_recv_[2*i];
-            n_sp_recv_[i] = n_ep_sp_recv_[2*i+1];
-        }
-        n_ep_recv_disp_[0] = n_sp_recv_disp_[0] = 0;
-        for(S32 i=0; i<n_proc; i++){
-            n_ep_recv_disp_[i+1] = n_ep_recv_disp_[i] + n_ep_recv_[i];
-            n_sp_recv_disp_[i+1] = n_sp_recv_disp_[i] + n_sp_recv_[i];
-        }
-        epj_recv_.resizeNoInitialize( n_ep_recv_disp_[n_proc] );
-        spj_recv_.resizeNoInitialize( n_sp_recv_disp_[n_proc] );
-#ifdef FAST_ALL_TO_ALL_FOR_K
-        static CommForAllToAll<Tepj, 2> comm_a2a_epj_2d;
-        static CommForAllToAll<Tspj, 2> comm_a2a_spj_2d;
-        comm_a2a_epj_2d.executeV(epj_send_, epj_recv_, n_ep_send_, n_ep_recv_);
-        comm_a2a_spj_2d.executeV(spj_send_, spj_recv_, n_sp_send_, n_sp_recv_);
-#else
-        Comm::allToAllV(epj_send_.getPointer(), n_ep_send_, n_ep_send_disp_,
-                        epj_recv_.getPointer(), n_ep_recv_, n_ep_recv_disp_);
-        Comm::allToAllV(spj_send_.getPointer(), n_sp_send_, n_sp_send_disp_,
-                        spj_recv_.getPointer(), n_sp_recv_, n_sp_recv_disp_);
-#endif //FAST_ALL_TO_ALL_FOR_K
-        time_profile_.exchange_LET_1st += GetWtime() - time_offset;
-    }
-#endif
-
-
-
-
-
-
-
 
 
 
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     exchangeLocalEssentialTreeImpl(TagSearchShortScatter, const DomainInfo & dinfo){
         scatterEP(n_ep_send_,  n_ep_send_disp_,
@@ -1171,7 +1133,9 @@ namespace ParticleSimulator{
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"epj_send_.size()="<<epj_send_.size()<<" spj_send_.size()="<<spj_send_.size()<<std::endl;
         std::cout<<"epj_recv_.size()="<<epj_recv_.size()<<" spj_recv_.size()="<<spj_recv_.size()<<std::endl;
-#endif	    
+#endif
+        n_let_ep_send_1st_ += (CountT)epj_send_.size();
+        n_let_ep_recv_1st_ += (CountT)epj_recv_.size();
     }
 
 
@@ -1205,7 +1169,7 @@ namespace ParticleSimulator{
 
         const S32 n_proc = Comm::getNumberOfProc();
         const S32 my_rank = Comm::getRank();
-
+        
         S32 n_proc_src_1st = 0;
         S32 n_proc_dest_1st = 0;
 
@@ -1238,8 +1202,8 @@ namespace ParticleSimulator{
         TexLET0_ = GetWtime() - TexLET0_;
         F64 time_offset = GetWtime();
 
-        //n_ep_send_1st_ = epj_send_.size();
-        //n_ep_recv_1st_ = epj_recv_1st_buf_.size();
+        n_let_ep_send_1st_ += (CountT)epjr_send_.size();
+        n_let_ep_recv_1st_ += (CountT)epjr_recv_1st_buf_.size();
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         std::cout<<"STEP 1"<<std::endl;
@@ -1265,8 +1229,9 @@ namespace ParticleSimulator{
             }
         }
         for(S32 i=0; i<n_proc; i++) n_ep_send_[i] = 0;
-
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
+#endif
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_src_2nd = 0;
@@ -1274,7 +1239,9 @@ namespace ParticleSimulator{
             dinfo.getPeriodicAxis(pa);
             epjr_send_buf_[ith].clearSize();
             S32 n_ep_send_cum_old = 0;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for
+#endif
             for(S32 ib=0; ib<n_proc_src_1st; ib++){
                 const S32 id_proc_tmp = id_proc_src_[ib];
                 const S32 i_head = n_epj_recv_disp_1st_[id_proc_tmp];
@@ -1310,11 +1277,9 @@ namespace ParticleSimulator{
                 //////////////////
                 // version 1.1
                 for(S32 ii=0; ii<n_image; ii++){
-                    //std::cout<<"check 0"<<std::endl;
                     const F64vec shift = shift_image_box_[ith][ii];
                     const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
                     const F64ort pos_domain = dinfo.getPosDomain(id_proc_tmp).shift(shift);
-                    //std::cout<<"check 1"<<std::endl;
                     ///////////////
                     // MAKE TREE A
 
@@ -1334,29 +1299,15 @@ namespace ParticleSimulator{
                         epjr_recv_1st_sorted_[ith][ip] = epjr_recv_1st_buf_[adr];
                         tp_scatter_[ith][ip].adr_ptcl_ = ip;
                     }
-                    // OK
-
                     const S32 n_leaf_limit_A = 1;
                     S32 lev_max_A = 0;
-                    //std::cout<<"check A"<<std::endl;
                     LinkCellST(tc_recv_1st_[ith], adr_tc_level_partition_recv_1st_[ith], 
                                tp_scatter_[ith].getPointer(), lev_max_A, ncnt, n_leaf_limit_A);
-                    // OK
-
-                    //std::cout<<"check B"<<std::endl;
-                    //exit(1);
-                    // probably this function is wrong!
 
                     CalcMomentST(adr_tc_level_partition_recv_1st_[ith], tc_recv_1st_[ith].getPointer(), 
                                  epjr_recv_1st_sorted_[ith].getPointer(), lev_max_A, n_leaf_limit_A);
-                    // OK
 
-                    //std::cout<<"check C"<<std::endl;
-                    //exit(1);
                     id_ptcl_send_[ith].clearSize();
-                    // OUT
-                    //std::cout<<"check D"<<std::endl;
-                    //exit(1);
 
                     MakeLETListByDoubleWalk(tc_recv_1st_[ith].getPointer(), tc_loc_.getPointer(), 
                                             epjr_sorted_.getPointer(),    pos_domain, 
@@ -1377,9 +1328,10 @@ namespace ParticleSimulator{
                     id_proc_send_[ith][n_proc_src_2nd++] = id_proc_tmp;
                 }
             } // end of pragma omp for
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp single
+#endif
             {
-		//std::cout<<"CHECK SINGLE"<<std::endl;
                 n_ep_send_disp_[0] = 0;
                 for(S32 i=0; i<n_proc; i++){
                     n_ep_send_disp_[i+1] = n_ep_send_disp_[i] + n_ep_send_[i];
@@ -1498,8 +1450,8 @@ namespace ParticleSimulator{
 
         TexLET3_ = GetWtime() - TexLET3_;
 
-        //n_ep_send_2nd_ = epj_send_.size();
-        //n_ep_recv_2nd_ = epj_recv_2nd_buf_.size();
+        n_let_ep_send_2nd_ += epj_send_.size();
+        n_let_ep_recv_2nd_ += epj_recv_2nd_buf_.size();
 
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
@@ -1518,7 +1470,9 @@ namespace ParticleSimulator{
         // set epj_recv_
         epjr_recv_.resizeNoInitialize(n_epj_recv_disp_1st_[n_proc]+n_epj_recv_disp_2nd_[n_proc]);
         epj_recv_.resizeNoInitialize(n_epj_recv_disp_1st_[n_proc]+n_epj_recv_disp_2nd_[n_proc]);
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
+#endif
         for(S32 i=0; i<n_proc; i++){
             S32 n_cnt = n_ep_recv_disp_[i];
             const S32 j_head_1st = n_epj_recv_disp_1st_[i];
@@ -1542,6 +1496,7 @@ namespace ParticleSimulator{
 
         TexLET4_ = GetWtime() - TexLET4_;
         time_profile_.exchange_LET_2nd += GetWtime() - time_offset;
+        //time_profile_.exchange_LET_tot += time_profile_.make_LET_2nd + time_profile_.exchange_LET_2nd;
     }
 
 #else // gather search
@@ -1619,8 +1574,8 @@ namespace ParticleSimulator{
 
         TexLET0_ = GetWtime() - TexLET0_;
 
-        //n_ep_send_1st_ = ep_x_r_send.size();
-        //n_ep_recv_1st_ = ep_x_r_recv.size();
+        n_let_ep_send_1st_ += (CountT)ep_x_r_send.size();
+        n_let_ep_recv_1st_ += (CountT)ep_x_r_recv.size();
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -1647,7 +1602,9 @@ namespace ParticleSimulator{
             }
         }
         for(S32 i=0; i<n_proc; i++) n_ep_send_[i] = 0;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
+#endif	
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_src_2nd = 0;
@@ -1658,8 +1615,9 @@ namespace ParticleSimulator{
             dinfo.getPeriodicAxis(pa);
             epj_send_buf[ith].clearSize();
             S32 n_ep_send_cum_old = 0;
-//#pragma omp for schedule(dynamic, 4)
-#pragma omp for schedule(dynamic, 1)
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#pragma omp for schedule(dynamic, 4)
+#endif
             for(S32 ib=0; ib<n_proc_src_1st; ib++){
                 const S32 id_proc_tmp = id_proc_src[ib];
                 const S32 i_head = n_ep_recv_disp_1st[id_proc_tmp];
@@ -1802,7 +1760,9 @@ namespace ParticleSimulator{
                     id_proc_send_[ith][n_proc_src_2nd++] = id_proc_tmp;
                 }
             }// end of pragma omp for
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp single
+#endif	    
             {
                 n_ep_send_disp_[0] = 0;
                 for(S32 i=0; i<n_proc; i++){
@@ -1914,6 +1874,9 @@ namespace ParticleSimulator{
 #endif
         TexLET3_ = GetWtime() - TexLET3_;
 
+        n_let_ep_send_2nd_ += (CountT)epj_send_.size();
+        n_let_ep_recv_2nd_ += (CountT)epj_recv_2nd_buf_.size();
+
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
 #endif
@@ -1924,7 +1887,9 @@ namespace ParticleSimulator{
         // 5th STEP
         // set epj_recv_
         epj_recv_.resizeNoInitialize( n_ep_recv_disp_2nd[n_proc] );
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
+#endif	
         for(S32 i=0; i<n_proc; i++){
             S32 n_cnt = n_ep_recv_disp_[i];
             const S32 j_head_2nd = n_ep_recv_disp_2nd[i];
@@ -1944,6 +1909,7 @@ namespace ParticleSimulator{
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     exchangeLocalEssentialTreeImpl(TagSearchShortSymmetry, const DomainInfo & dinfo){
+        //std::cout<<"TagSearchShortSymmetry"<<std::endl;
         const S32 n_proc = Comm::getNumberOfProc();
         const S32 my_rank = Comm::getRank();
         S32 n_proc_src_1st = 0;
@@ -1963,8 +1929,8 @@ namespace ParticleSimulator{
 
         TexLET0_ = GetWtime() - TexLET0_;
 
-        //n_ep_send_1st_ = epj_send_.size();
-        //n_ep_recv_1st_ = epj_recv_1st_buf_.size();
+        n_let_ep_send_1st_ += (CountT)epj_send_.size();
+        n_let_ep_recv_1st_ += (CountT)epj_recv_1st_buf_.size();
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -1987,8 +1953,9 @@ namespace ParticleSimulator{
             }
         }
         for(S32 i=0; i<n_proc; i++) n_ep_send_[i] = 0;
-
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
+#endif	
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_src_2nd = 0;
@@ -1996,7 +1963,9 @@ namespace ParticleSimulator{
             dinfo.getPeriodicAxis(pa);
             epj_send_buf_[ith].clearSize();
             S32 n_ep_send_cum_old = 0;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for
+#endif
             for(S32 ib=0; ib<n_proc_src_1st; ib++){
                 const S32 id_proc_tmp = id_proc_src_[ib];
                 const S32 i_head = n_epj_recv_disp_1st_[id_proc_tmp];
@@ -2032,14 +2001,9 @@ namespace ParticleSimulator{
                 //////////////////
                 // version 1.1
                 for(S32 ii=0; ii<n_image; ii++){
-                    //std::cout<<"check 0"<<std::endl;
                     const F64vec shift = shift_image_box_[ith][ii];
                     const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
                     const F64ort pos_domain = dinfo.getPosDomain(id_proc_tmp).shift(shift);
-                    //std::cout<<"check 1"<<std::endl;
-                    ///////////////
-                    // MAKE TREE A
-
                     S32 ncnt = 0;
                     tp_scatter_[ith].resizeNoInitialize(ip_disp_[ith][ii+1] - ip_disp_[ith][ii]);
                     //std::cout<<"ip_disp[ith][ii+1]="<<ip_disp[ith][ii+1]<<std::endl;
@@ -2056,39 +2020,14 @@ namespace ParticleSimulator{
                         epj_recv_1st_sorted_[ith][ip] = epj_recv_1st_buf_[adr];
                         tp_scatter_[ith][ip].adr_ptcl_ = ip;
                     }
-                    // OK
-
                     const S32 n_leaf_limit_A = 1;
                     S32 lev_max_A = 0;
-                    //std::cout<<"check A"<<std::endl;
                     LinkCellST(tc_recv_1st_[ith], adr_tc_level_partition_recv_1st_[ith], 
                                tp_scatter_[ith].getPointer(), lev_max_A, ncnt, n_leaf_limit_A);
-                    // OK
 
-                    //std::cout<<"check B"<<std::endl;
-                    //exit(1);
-                    // probably this function is wrong!
-                    /*
-                      std::cout<<"1:Comm::getRank()="<<Comm::getRank()<<std::endl;
-                      std::cout<<"1:tc_recv_1st[ith].n_ptcl_="<<tc_recv_1st[ith][0].n_ptcl_<<std::endl;
-                      std::cout<<"1:tc_recv_1st[ith].mom_.getVertexOut()="<<tc_recv_1st[ith][0].mom_.getVertexOut()<<std::endl;
-                      std::cout<<"1:tc_recv_1st[ith].mom_.getVertexIn()="<<tc_recv_1st[ith][0].mom_.getVertexIn()<<std::endl;
-                    */
                     CalcMomentST(adr_tc_level_partition_recv_1st_[ith], tc_recv_1st_[ith].getPointer(), 
                                  epj_recv_1st_sorted_[ith].getPointer(), lev_max_A, n_leaf_limit_A);
-                    // OK
-                    /*
-                      std::cout<<"2:Comm::getRank()="<<Comm::getRank()<<std::endl;
-                      std::cout<<"2:tc_recv_1st[ith].n_ptcl_="<<tc_recv_1st[ith][0].n_ptcl_<<std::endl;
-                      std::cout<<"2:tc_recv_1st[ith].mom_.getVertexOut()="<<tc_recv_1st[ith][0].mom_.getVertexOut()<<std::endl;
-                      std::cout<<"2:tc_recv_1st[ith].mom_.getVertexIn()="<<tc_recv_1st[ith][0].mom_.getVertexIn()<<std::endl;
-                    */
-                    //std::cout<<"check C"<<std::endl;
-                    //exit(1);
                     id_ptcl_send_[ith].clearSize();
-                    // OUT
-                    //std::cout<<"check D"<<std::endl;
-                    //exit(1);
                     
                     MakeLETListByDoubleWalk(tc_recv_1st_[ith].getPointer(), tc_loc_.getPointer(), 
                                             epj_sorted_.getPointer(),    pos_domain, 
@@ -2109,9 +2048,10 @@ namespace ParticleSimulator{
                     id_proc_send_[ith][n_proc_src_2nd++] = id_proc_tmp;
                 }
             } // end of pragma omp for
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp single
+#endif
             {
-		//std::cout<<"CHECK SINGLE"<<std::endl;
                 n_ep_send_disp_[0] = 0;
                 for(S32 i=0; i<n_proc; i++){
                     n_ep_send_disp_[i+1] = n_ep_send_disp_[i] + n_ep_send_[i];
@@ -2222,9 +2162,8 @@ namespace ParticleSimulator{
 
         TexLET3_ = GetWtime() - TexLET3_;
 
-        //n_ep_send_2nd_ = epj_send_.size();
-        //n_ep_recv_2nd_ = epj_recv_2nd_buf_.size();
-
+        n_let_ep_send_2nd_ += (CountT)epj_send_.size();
+        n_let_ep_recv_2nd_ += (CountT)epj_recv_2nd_buf_.size();
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -2237,7 +2176,9 @@ namespace ParticleSimulator{
         // 5th STEP
         // set epj_recv_
         epj_recv_.resizeNoInitialize(n_epj_recv_disp_1st_[n_proc]+n_epj_recv_disp_2nd_[n_proc]);
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
+#endif	
         for(S32 i=0; i<n_proc; i++){
             S32 n_cnt = n_ep_recv_disp_[i];
             const S32 j_head_1st = n_epj_recv_disp_1st_[i];
@@ -2261,6 +2202,7 @@ namespace ParticleSimulator{
 #endif
 
         time_profile_.exchange_LET_2nd += GetWtime() - time_offset;
+        //time_profile_.exchange_LET_tot += time_profile_.make_LET_2nd + time_profile_.exchange_LET_2nd;
     }
 #else
     // original verion
@@ -2329,8 +2271,8 @@ namespace ParticleSimulator{
 
         TexLET0_ = GetWtime() - TexLET0_;
 
-        //n_ep_send_1st_ = epj_send_.size();
-        //n_ep_recv_1st_ = epj_recv_1st_buf.size();
+        n_let_ep_send_1st_ += (CountT)epj_send_.size();
+        n_let_ep_recv_1st_ += (CountT)epj_recv_1st_buf.size();
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -2353,8 +2295,9 @@ namespace ParticleSimulator{
             }
         }
         for(S32 i=0; i<n_proc; i++) n_ep_send_[i] = 0;
-
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
+#endif	
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_src_2nd = 0;
@@ -2365,8 +2308,9 @@ namespace ParticleSimulator{
             dinfo.getPeriodicAxis(pa);
             epj_send_buf[ith].clearSize();
             S32 n_ep_send_cum_old = 0;
-//#pragma omp for schedule(dynamic, 4)
-#pragma omp for schedule(dynamic, 1)
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#pragma omp for schedule(dynamic, 4)
+#endif	    
             for(S32 ib=0; ib<n_proc_src_1st; ib++){
                 const S32 id_proc_tmp = id_proc_src[ib];
                 const S32 i_head = n_ep_recv_disp_1st[id_proc_tmp];
@@ -2530,7 +2474,9 @@ namespace ParticleSimulator{
                     id_proc_send_[ith][n_proc_src_2nd++] = id_proc_tmp;
                 }
             } // end of pragma omp for
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp single
+#endif	    
             {
                 n_ep_send_disp_[0] = 0;
                 for(S32 i=0; i<n_proc; i++){
@@ -2642,8 +2588,8 @@ namespace ParticleSimulator{
 
         TexLET3_ = GetWtime() - TexLET3_;
 
-        //n_ep_send_2nd_ = epj_send_.size();
-        //n_ep_recv_2nd_ = epj_recv_2nd_buf.size();
+        n_let_ep_send_2nd_ += (CountT)epj_send_.size();
+        n_let_ep_recv_2nd_ += (CountT)epj_recv_2nd_buf.size();
 
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
@@ -2657,7 +2603,9 @@ namespace ParticleSimulator{
         // 5th STEP
         // set epj_recv_
         epj_recv_.resizeNoInitialize(n_ep_recv_disp_1st[n_proc]+n_ep_recv_disp_2nd[n_proc]);
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
+#endif	
         for(S32 i=0; i<n_proc; i++){
             S32 n_cnt = n_ep_recv_disp_[i];
             const S32 j_head_1st = n_ep_recv_disp_1st[i];
@@ -2671,9 +2619,7 @@ namespace ParticleSimulator{
                 epj_recv_[n_cnt++] = epj_recv_2nd_buf[j];
             }
         }
-
         TexLET4_ = GetWtime() - TexLET4_;
-
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"n_ep_recv_disp_1st[n_proc]="<<n_ep_recv_disp_1st[n_proc]<<" n_ep_recv_disp_2nd[n_proc]"<<std::endl;
@@ -2710,13 +2656,19 @@ namespace ParticleSimulator{
         this->n_glb_tot_ = this->n_loc_tot_ + n_ep_add;
         this->tp_glb_.resizeNoInitialize( this->n_glb_tot_ );
         this->epj_org_.resizeNoInitialize( this->n_glb_tot_ );
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
+#endif	
         {
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for
+#endif	    
             for(S32 i=0; i<offset; i++){
                 this->tp_glb_[i] = this->tp_loc_[i]; // NOTE: need to keep tp_loc_[]?
             }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for
+#endif	    
             for(S32 i=0; i<n_ep_add; i++){
                 this->epj_org_[offset+i] = this->epj_recv_[i];
                 this->tp_glb_[offset+i].setFromEP(this->epj_recv_[i], offset+i);
@@ -2737,18 +2689,26 @@ namespace ParticleSimulator{
         this->tp_glb_.resizeNoInitialize( this->n_glb_tot_ );
         this->epj_org_.resizeNoInitialize( offset2 );
         this->spj_org_.resizeNoInitialize( this->n_glb_tot_ );
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
+#endif	
         {
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for
+#endif	    
             for(S32 i=0; i<offset; i++){
                 this->tp_glb_[i] = this->tp_loc_[i]; // NOTE: need to keep tp_loc_[]?
             }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for
+#endif	    
             for(S32 i=0; i<n_ep_add; i++){
                 this->epj_org_[offset+i] = this->epj_recv_[i];
                 this->tp_glb_[offset+i].setFromEP(this->epj_recv_[i], offset+i);
             }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for
+#endif	    
             for(S32 i=0; i<n_sp_add; i++){
                 this->spj_org_[offset2+i] = this->spj_recv_[i];
                 this->tp_glb_[offset2+i].setFromSP(this->spj_recv_[i], offset2+i);
@@ -2765,7 +2725,14 @@ namespace ParticleSimulator{
         F64 time_offset = GetWtime();
         tp_glb_.resizeNoInitialize(n_glb_tot_);
         tp_buf_.resizeNoInitialize(n_glb_tot_);
+#ifdef USE_STD_SORT
+	std::sort(tp_glb_.getPointer(), tp_glb_.getPointer()+n_glb_tot_, 
+		  [](const TreeParticle & l, const TreeParticle & r )
+		  ->bool{return l.getKey() < r.getKey();} );
+        //rs_.lsdSort(tp_glb_.getPointer(), tp_buf_.getPointer(), 0, n_glb_tot_-1);
+#else
         rs_.lsdSort(tp_glb_.getPointer(), tp_buf_.getPointer(), 0, n_glb_tot_-1);
+#endif
         epj_sorted_.resizeNoInitialize( n_glb_tot_ );
         //if( typeid(TSM::force_type()) == typeid(TagForceLong) ){
         if( typeid(TSM) == typeid(SEARCH_MODE_LONG)
@@ -2773,52 +2740,38 @@ namespace ParticleSimulator{
             || typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER) 
             || typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF_SCATTER) ){
             spj_sorted_.resizeNoInitialize( spj_org_.size() );
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp parallel for
+#endif	    
             for(S32 i=0; i<n_glb_tot_; i++){
                 const U32 adr = tp_glb_[i].adr_ptcl_;
                 if( GetMSB(adr) == 0){
                     epj_sorted_[i] = epj_org_[adr];
                 }
                 else{
-                    spj_sorted_[i] = spj_org_[ClearMSB(adr)];
-                }
-            }
-        }
-        else{
-#pragma omp parallel for
-            for(S32 i=0; i<n_glb_tot_; i++){
-                const U32 adr = tp_glb_[i].adr_ptcl_;
-                epj_sorted_[i] = epj_org_[adr];
-            }
-        }
-/*
-        if( typeid(TSM) == typeid(SEARCH_MODE_LONG)
-            || typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) ){
-            spj_sorted_.resizeNoInitialize( spj_org_.size() );
-#pragma omp parallel for
-            for(S32 i=0; i<n_glb_tot_; i++){
-                const U32 adr = tp_glb_[i].adr_ptcl_;
-                if( GetMSB(adr) == 0){
+#ifdef DEBUG_1031
                     epj_sorted_[i] = epj_org_[adr];
-                }
-                else{
+#endif
                     spj_sorted_[i] = spj_org_[ClearMSB(adr)];
                 }
             }
         }
         else{
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp parallel for
+#endif	    
             for(S32 i=0; i<n_glb_tot_; i++){
                 const U32 adr = tp_glb_[i].adr_ptcl_;
                 epj_sorted_[i] = epj_org_[adr];
             }
         }
-*/
+
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"tp_glb_.size()="<<tp_glb_.size()<<" tp_buf_.size()="<<tp_buf_.size()<<std::endl;
         std::cout<<"epj_sorted_.size()="<<epj_sorted_.size()<<" spj_sorted_.size()="<<spj_sorted_.size()<<std::endl;
 #endif
+        time_profile_.morton_sort_global_tree += GetWtime() - time_offset;
         time_profile_.make_global_tree += GetWtime() - time_offset;
     }
 
@@ -2836,6 +2789,7 @@ namespace ParticleSimulator{
         std::cout<<"tc_glb_.size()="<<tc_glb_.size()<<std::endl;
         std::cout<<"lev_max_="<<lev_max_<<std::endl;
 #endif
+        time_profile_.link_cell_global_tree += GetWtime() - time_offset;
         time_profile_.make_global_tree += GetWtime() - time_offset;
     }
 
@@ -2852,10 +2806,11 @@ namespace ParticleSimulator{
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
 #endif
         time_profile_.calc_moment_global_tree += GetWtime() - time_offset;
-	// new 2015 Aug 06
-	for(S32 ith=0; ith<Comm::getNumberOfThread(); ith++){
-	    epj_neighbor_[ith].clearSize();
-	}
+        time_profile_.make_global_tree_tot = time_profile_.calc_moment_global_tree + time_profile_.make_global_tree;
+        // new 2015 Aug 06
+        for(S32 ith=0; ith<Comm::getNumberOfThread(); ith++){
+            epj_neighbor_[ith].clearSize();
+        }
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -2929,6 +2884,7 @@ namespace ParticleSimulator{
         std::cout<<"ipg_.size()="<<ipg_.size()<<std::endl;
 #endif
         time_profile_.calc_force += GetWtime() - time_offset;
+	time_profile_.calc_force__make_ipgroup += GetWtime() - time_offset;
     }
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -2938,7 +2894,27 @@ namespace ParticleSimulator{
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"n_group_limit_="<<n_group_limit_<<std::endl;
 #endif
+
+#ifdef PARTICLE_SIMULATOR_GLB_TREE_CELL_AS_IPG_BOX
+        MakeIPGroupLongGLBTreeCellAsIPGBox(ipg_, tc_loc_, tc_glb_, epj_sorted_, 0, 0, n_group_limit_, n_leaf_limit_);
+#else //PARTICLE_SIMULATOR_GLB_TREE_CELL_AS_IPG_BOX
+#if 1   // A
         MakeIPGroupUseGLBTreeLong(ipg_, tc_loc_, tc_glb_, epi_sorted_, 0, 0, n_group_limit_, n_leaf_limit_); // NEW
+#else   // A
+        MakeIPGroupLong(ipg_, tc_loc_, epi_sorted_, 0, n_group_limit_);
+#endif  // A
+
+	const S32 n_ipg = ipg_.size();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for
+#endif	//PARTICLE_SIMULATOR_THREAD_PARALLEL
+	for(S32 i=0; i<n_ipg; i++){
+	    const S32 n = ipg_[i].n_ptcl_;
+	    const S32 adr = ipg_[i].adr_ptcl_;
+	    ipg_[i].vertex_ = GetMinBoxSingleThread(epi_sorted_.getPointer(adr), n);
+	}
+#endif //PARTICLE_SIMULATOR_GLB_TREE_CELL_AS_IPG_BOX
+
     }
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -2947,24 +2923,39 @@ namespace ParticleSimulator{
         MakeIPGroupShort(ipg_, tc_loc_, epi_sorted_, 0, n_group_limit_);
     }
 
+
+
     /////////////////////////////
     /// MAKE INTERACTION LIST ///
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionList(const S32 adr_ipg){
-        makeInteractionListImpl(typename TSM::search_type(), adr_ipg);
+    makeInteractionList(const S32 adr_ipg, const bool clear){
+        makeInteractionListImpl(typename TSM::search_type(), adr_ipg, clear);
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionListImpl(TagSearchLong, const S32 adr_ipg){
+    makeInteractionListImpl(TagSearchLong, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
         const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
+	if(clear){
+	    epj_for_force_[ith].clearSize();
+	    spj_for_force_[ith].clearSize();
+	}
+#if 0
+        const S32 adr_root_cell = 0;
+        const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
+        //const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 4.0;
+        n_cell_open_[ith] += MakeInteractionListLongEPSPIteration
+            (tc_glb_,                adr_root_cell,
+             tp_glb_,                epj_sorted_, 
+             epj_for_force_[ith],    spj_sorted_, 
+             spj_for_force_[ith],    pos_target_box, 
+             r_crit_sq,              n_leaf_limit_);
+#else
         const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
-        epj_for_force_[ith].clearSize();
-        spj_for_force_[ith].clearSize();
         if( !tc_glb_[0].isLeaf(n_leaf_limit_) ){
             MakeInteractionListLongEPSP
                 (tc_glb_, tc_glb_[0].adr_tc_, 
@@ -2990,18 +2981,21 @@ namespace ParticleSimulator{
                 }
             }
         }
+#endif
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionListImpl(TagSearchLongCutoff, const S32 adr_ipg){
+    makeInteractionListImpl(TagSearchLongCutoff, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
         const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
         const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
         const F64 r_cut_sq  = epj_sorted_[0].getRSearch() * epj_sorted_[0].getRSearch();
-        epj_for_force_[ith].clearSize();
-        spj_for_force_[ith].clearSize();
+	if(clear){
+	    epj_for_force_[ith].clearSize();
+	    spj_for_force_[ith].clearSize();
+	}
         const F64ort cell_box = pos_root_cell_;
         if( !tc_glb_[0].isLeaf(n_leaf_limit_) ){
             MakeInteractionListLongCutoffEPSP
@@ -3042,12 +3036,19 @@ namespace ParticleSimulator{
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionListImpl(TagSearchLongScatter, const S32 adr_ipg){
+    makeInteractionListImpl(TagSearchLongScatter, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
         const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
+	//#ifdef DEBUG_1023_2
+#ifdef PARTICLE_SIMULATOR_INTERACTION_LIST_ALL
+        const F64 r_crit_sq = 1e10;
+#else //PARTICLE_SIMULATOR_INTERACTION_LIST_ALL
         const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
-        epj_for_force_[ith].clearSize();
-        spj_for_force_[ith].clearSize();
+#endif //PARTICLE_SIMULATOR_INTERACTION_LIST_ALL
+	if(clear){	
+	    epj_for_force_[ith].clearSize();
+	    spj_for_force_[ith].clearSize();
+	}
         if( !tc_glb_[0].isLeaf(n_leaf_limit_) ){
             MakeInteractionListLongScatterEPSP
                 (tc_glb_, tc_glb_[0].adr_tc_, 
@@ -3080,10 +3081,19 @@ namespace ParticleSimulator{
     template<class TSM, class Tforce, class Tepi, class Tepj,
 	     class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionListImpl(TagSearchShortScatter, const S32 adr_ipg){
+    makeInteractionListImpl(TagSearchShortScatter, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
         const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
-        epj_for_force_[ith].clearSize();
+	if(clear){	
+	    epj_for_force_[ith].clearSize();
+	}
+#if 0
+        const S32 adr_root_cell = 0;
+        n_cell_open_[ith] += MakeListUsingOuterBoundaryIteration
+            (tc_glb_.getPointer(),     adr_root_cell,
+             epj_sorted_.getPointer(), epj_for_force_[ith], 
+             pos_target_box,           n_leaf_limit_);
+#else
         if( !tc_glb_[0].isLeaf(n_leaf_limit_) ){
             MakeListUsingOuterBoundary
                 (tc_glb_.getPointer(),     tc_glb_[0].adr_tc_,
@@ -3110,15 +3120,25 @@ namespace ParticleSimulator{
                 }
             }
         }
+#endif
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionListImpl(TagSearchShortGather, const S32 adr_ipg){
+    makeInteractionListImpl(TagSearchShortGather, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
         const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
-        epj_for_force_[ith].clearSize();
+	if(clear){
+	    epj_for_force_[ith].clearSize();
+	}
+#if 1
+        const S32 adr_root_cell = 0;
+        n_cell_open_[ith] += MakeListUsingInnerBoundaryIteration
+            (tc_glb_.getPointer(),     adr_root_cell,
+             epj_sorted_.getPointer(), epj_for_force_[ith],
+             pos_target_box,           n_leaf_limit_);
+#else
         if( !tc_glb_[0].isLeaf(n_leaf_limit_) ){
             MakeListUsingInnerBoundary
                 (tc_glb_.getPointer(),     tc_glb_[0].adr_tc_,
@@ -3142,31 +3162,33 @@ namespace ParticleSimulator{
                 }
             }
         }
-
+#endif
     }
+
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionListImpl(TagSearchShortSymmetry, const S32 adr_ipg){
+    makeInteractionListImpl(TagSearchShortSymmetry, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
-#if 0
-        const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
-        epj_for_force_[ith].clearSize();
-        if(tc_glb_[0].n_ptcl_ > 0){
-            MakeListUsingOuterBoundary
-                (tc_glb_.getPointer(),     tc_glb_[0].adr_tc_,
-                 epj_sorted_.getPointer(), epj_for_force_[ith], 
-                 pos_target_box,   n_leaf_limit_);
-        }
-#else
         const F64ort pos_target_box_out = (ipg_[adr_ipg]).vertex_;
         const F64ort pos_target_box_in = (ipg_[adr_ipg]).vertex_in;
-        epj_for_force_[ith].clearSize();
+	if(clear){
+	    epj_for_force_[ith].clearSize();
+	}
+#if 1
+        const S32 adr_root_cell = 0;
+        n_cell_open_[ith] += MakeListUsingOuterBoundaryAndInnerBoundaryIteration
+            (tc_glb_.getPointer(),     adr_root_cell,
+             epj_sorted_.getPointer(), epj_for_force_[ith],
+             pos_target_box_out,       pos_target_box_in, 
+             n_leaf_limit_);
+#else
         if( !tc_glb_[0].isLeaf(n_leaf_limit_) ){
             MakeListUsingOuterBoundaryAndInnerBoundary
                 (tc_glb_.getPointer(),     tc_glb_[0].adr_tc_,
-                 epj_sorted_.getPointer(), epj_for_force_[ith], 
-                 pos_target_box_out, pos_target_box_in, n_leaf_limit_);
+                 epj_sorted_.getPointer(), epj_for_force_[ith],
+                 pos_target_box_out,       pos_target_box_in,
+                 n_leaf_limit_);
         }
         else{
             if( pos_target_box_out.overlapped(tc_glb_[0].mom_.getVertexIn()) 
@@ -3179,17 +3201,12 @@ namespace ParticleSimulator{
                     const F64 size_tmp = epj_sorted_[adr_ptcl_tmp].getRSearch();
                     const F64 dis_sq_tmp = pos_target_box_in.getDistanceMinSQ(pos_tmp);
                     if( pos_target_box_out.notOverlapped(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
-                    //ep_list.increaseSize();
-                    //ep_list.back() = ep_first[adr_ptcl_tmp];
-                    //epj_for_force_[ith].push_back( epj_sorted_[adr_ptcl_tmp] );
                     epj_for_force_[ith].pushBackNoCheck( epj_sorted_[adr_ptcl_tmp] );
                     const F64vec pos_new = epj_for_force_[ith].back().getPos();
                     epj_for_force_[ith].back().setPos(pos_new);
                 }
             }
-
         }
-
 #endif
     }
 
@@ -3199,6 +3216,7 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcCenterAndLengthOfRootCellOpenNoMargenImpl(const Tep2 ep[]){
         const F64ort min_box  = GetMinBox(ep, n_loc_tot_);
+        //const F64ort min_box  = GetMinBoxSingleThread(ep, n_loc_tot_);
         //std::cerr<<"n_loc_tot_="<<n_loc_tot_<<std::endl;
         //std::cerr<<"min_box="<<min_box<<std::endl;
         center_ = min_box.getCenter();
@@ -3231,17 +3249,23 @@ namespace ParticleSimulator{
         F64 rsearch_max_loc = std::numeric_limits<F64>::max() * -0.25;
         F64ort box_loc;
         box_loc.initNegativeVolume();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
+#endif	
         {
             F64 rsearch_max_loc_tmp = std::numeric_limits<F64>::max() * -0.25;
             F64ort box_loc_tmp;
             box_loc_tmp.init();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp for nowait
+#endif	    
             for(S32 ip=0; ip<n_loc_tot_; ip++){
                 rsearch_max_loc_tmp = (rsearch_max_loc_tmp > ep[ip].getRSearch()) ? rsearch_max_loc_tmp : ep[ip].getRSearch();
                 box_loc_tmp.merge(ep[ip].getPos());
             }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp critical
+#endif	    
             {
                 rsearch_max_loc = rsearch_max_loc > rsearch_max_loc_tmp ? rsearch_max_loc : rsearch_max_loc_tmp;
                 box_loc.merge(box_loc_tmp);
@@ -3332,7 +3356,9 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     copyForceOriginalOrder(){
         force_org_.resizeNoInitialize(n_loc_tot_);
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
+#endif	
         for(S32 i=0; i<n_loc_tot_; i++){
             const S32 adr = ClearMSB(tp_loc_[i].adr_ptcl_);
             force_org_[adr] = force_sorted_[i];
@@ -3353,8 +3379,12 @@ namespace ParticleSimulator{
         S64 ni_tmp = 0;
         S64 nj_tmp = 0;
         S64 n_interaction_ep_ep_tmp = 0;
+        for(S32 i=0; i<Comm::getNumberOfThread(); i++) n_cell_open_[i] = 0;
+        //PROFILE::Start(profile.calc_force);
         if(n_ipg > 0){
-#pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp) 
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp)
+#endif	    
             for(S32 i=0; i<n_ipg; i++){
                 makeInteractionList(i);
                 ni_tmp += ipg_[i].n_ptcl_;
@@ -3366,11 +3396,13 @@ namespace ParticleSimulator{
             nj_ave_ = nj_tmp / n_ipg;
             n_interaction_ep_ep_ += n_interaction_ep_ep_tmp;
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_tmp;
+            for(S32 i=1; i<Comm::getNumberOfThread(); i++) n_cell_open_[0] += n_cell_open_[i];
         }
         else{
             ni_ave_ = nj_ave_ = n_interaction_ep_ep_ = 0;
             n_walk_local_ = n_interaction_ep_ep_local_ = 0;
         }
+        //PROFILE::Stop(profile.calc_force);
         copyForceOriginalOrder();
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -3380,6 +3412,56 @@ namespace ParticleSimulator{
 #endif
         time_profile_.calc_force += GetWtime() - time_offset;
     }
+
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+	     class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tfunc_ep_ep>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcForceWalkOnly(Tfunc_ep_ep pfunc_ep_ep,
+                      const bool clear){
+        F64 time_offset = GetWtime();
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
+        const S64 n_ipg = ipg_.size();
+        n_walk_local_ += n_ipg;
+        S64 ni_tmp = 0;
+        S64 nj_tmp = 0;
+        S64 n_interaction_ep_ep_tmp = 0;
+        for(S32 i=0; i<Comm::getNumberOfThread(); i++) n_cell_open_[i] = 0;
+        //PROFILE::Start(profile.calc_force);
+        if(n_ipg > 0){
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp)
+#endif	    
+            for(S32 i=0; i<n_ipg; i++){
+                makeInteractionList(i);
+                ni_tmp += ipg_[i].n_ptcl_;
+                nj_tmp += epj_for_force_[Comm::getThreadNum()].size();
+                n_interaction_ep_ep_tmp += ipg_[i].n_ptcl_ * epj_for_force_[Comm::getThreadNum()].size();
+                //calcForceOnly( pfunc_ep_ep, i, clear);
+            }
+            ni_ave_ = ni_tmp / n_ipg;
+            nj_ave_ = nj_tmp / n_ipg;
+            n_interaction_ep_ep_ += n_interaction_ep_ep_tmp;
+            n_interaction_ep_ep_local_ += n_interaction_ep_ep_tmp;
+            for(S32 i=1; i<Comm::getNumberOfThread(); i++) n_cell_open_[0] += n_cell_open_[i];
+        }
+        else{
+            ni_ave_ = nj_ave_ = n_interaction_ep_ep_ = 0;
+            n_walk_local_ = n_interaction_ep_ep_local_ = 0;
+        }
+        //PROFILE::Stop(profile.calc_force);
+        copyForceOriginalOrder();
+#ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
+        PARTICLE_SIMULATOR_PRINT_LINE_INFO();
+        std::cout<<"ipg_.size()="<<ipg_.size()<<std::endl;
+        std::cout<<"force_sorted_.size()="<<force_sorted_.size()<<std::endl;
+        std::cout<<"force_org_.size()="<<force_org_.size()<<std::endl;
+#endif
+        time_profile_.calc_force += GetWtime() - time_offset;
+    }
+
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -3397,8 +3479,12 @@ namespace ParticleSimulator{
         S64 nj_tmp = 0;
         S64 n_interaction_ep_ep_tmp = 0;
         S64 n_interaction_ep_sp_tmp = 0;
+        for(S32 i=0; i<Comm::getNumberOfThread(); i++) n_cell_open_[i] = 0;
+        //PROFILE::Start(profile.calc_force);
         if(n_ipg > 0){
-#pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp, n_interaction_ep_sp_tmp) 
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp, n_interaction_ep_sp_tmp)
+#endif	    
             for(S32 i=0; i<n_ipg; i++){
                 makeInteractionList(i);
                 ni_tmp += ipg_[i].n_ptcl_;
@@ -3414,11 +3500,13 @@ namespace ParticleSimulator{
             n_interaction_ep_sp_ = n_interaction_ep_sp_tmp;
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_tmp;
             n_interaction_ep_sp_local_ += n_interaction_ep_sp_tmp;
+            for(S32 i=1; i<Comm::getNumberOfThread(); i++) n_cell_open_[0] += n_cell_open_[i];
         }
         else{
             ni_ave_ = nj_ave_ = n_interaction_ep_ep_ = n_interaction_ep_sp_ = 0;
             n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = 0;
         }
+        //PROFILE::Stop(profile.calc_force);
         copyForceOriginalOrder();
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
@@ -3429,7 +3517,328 @@ namespace ParticleSimulator{
 #endif
         time_profile_.calc_force += GetWtime() - time_offset;
     }
+
+    //////////////
+    /// for multi walk
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tfunc_dispatch, class Tfunc_retrieve>
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcForceMultiWalk(Tfunc_dispatch pfunc_dispatch,
+                       Tfunc_retrieve pfunc_retrieve,
+                       const S32 tag_max,
+                       const S32 n_walk_limit,
+                       const bool clear){
+        if(tag_max <= 0){
+            PARTICLE_SIMULATOR_PRINT_ERROR("tag_max is illegal. In currente version, tag_max must be 1");
+            Abort(-1);
+        }
+        S32 ret = 0;
+        const F64 time_offset = GetWtime();
+        ret = calcForceMultiWalkImpl(typename TSM::force_type(),
+                                     pfunc_dispatch,
+                                     pfunc_retrieve,
+                                     tag_max,
+                                     n_walk_limit,
+                                     clear);
+        time_profile_.calc_force += GetWtime() - time_offset;
+        return ret;
+    }
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tfunc_dispatch, class Tfunc_retrieve>
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcForceMultiWalkImpl(TagForceLong,
+                           Tfunc_dispatch pfunc_dispatch,
+                           Tfunc_retrieve pfunc_retrieve,
+                           const S32 tag_max,
+                           const S32 n_walk_limit,
+                           const bool clear){
+        const F64 offset_core = GetWtime();
+        static bool first = true;
+        S32 ret = 0;
+        S32 tag = 0;
+        const S32 n_thread = Comm::getNumberOfThread();
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
+        const S32 n_ipg = ipg_.size();
+        n_walk_local_ += n_ipg;
+        const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg%n_walk_limit==0 ? 0 : 1);
+        static std::vector<S32> walk_grp;
+        static std::vector<S32> walk_grp_disp;
+        walk_grp.resize(n_loop_max); // group of walk (walk_grp[i] < n_walk_limit)
+        walk_grp_disp.resize(n_loop_max+1);
+        static S32  * iw2ith;
+        static S32  * iw2cnt;
+        static S32  * n_epi_array;
+        static S32  * n_epi_array_prev;
+        static S32  * n_epj_array;
+        static S32  * n_spj_array;
+        static S32 ** n_epj_disp_thread; // [n_thread][n_walk]
+        static S32 ** n_spj_disp_thread;// [n_thread][n_walk]
+        static Tepi ** epi_array; // array of pointer *[n_walk]
+        static Tepj ** epj_array; // array of pointer *[n_walk]
+        static Tspj ** spj_array; // array of pointer *[n_walk]
+        static Tforce ** force_array; // array of pointer *[n_walk]
+        static Tforce ** force_prev_array; // array of pointer *[n_walk]
+        static S32  * cnt_thread;
+        static S32  * n_ep_cum_thread;
+        static S32  * n_sp_cum_thread;
+        static S64 * n_interaction_ep_ep_array;
+        static S64 * n_interaction_ep_sp_array;
+        if(first){
+            iw2ith = new S32[n_walk_limit];
+            iw2cnt = new S32[n_walk_limit];
+            n_epi_array = new S32[n_walk_limit];
+            n_epi_array_prev = new S32[n_walk_limit];
+            n_epj_array = new S32[n_walk_limit];
+            n_spj_array = new S32[n_walk_limit];
+            n_epj_disp_thread = new S32*[n_thread];
+            n_spj_disp_thread = new S32*[n_thread];
+            epi_array        = new Tepi*[n_walk_limit];
+            epj_array        = new Tepj*[n_walk_limit];
+            spj_array        = new Tspj*[n_walk_limit];
+            force_array      = new Tforce*[n_walk_limit];
+            force_prev_array = new Tforce*[n_walk_limit];
+            for(int i=0; i<n_thread; i++){
+                n_epj_disp_thread[i] = new S32[n_walk_limit];
+                n_spj_disp_thread[i] = new S32[n_walk_limit];
+            }
+            cnt_thread = new S32[n_thread];
+            n_ep_cum_thread = new S32[n_thread];
+            n_sp_cum_thread = new S32[n_thread];
+            n_interaction_ep_ep_array = new S64[n_thread];
+            n_interaction_ep_sp_array = new S64[n_thread];
+            first = false;
+        }
+        walk_grp_disp[0] = 0;
+        for(int wg=0; wg<n_ipg%n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max + 1;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int wg=n_ipg%n_loop_max; wg<n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int i=0; i<n_thread; i++){
+            n_interaction_ep_ep_array[i] = n_interaction_ep_sp_array[i] = 0;
+        }
+        bool first_loop = true;
+        S32 n_walk_prev = 0;
+        if(n_ipg > 0){
+            for(int wg=0; wg<n_loop_max; wg++){
+                const S32 n_walk = walk_grp[wg];
+                const S32 walk_grp_head = walk_grp_disp[wg];
+                for(int i=0; i<n_thread; i++){
+                    n_ep_cum_thread[i] = n_sp_cum_thread[i] = cnt_thread[i] = 0;
+                    n_epj_disp_thread[i][0] = 0;
+                    n_spj_disp_thread[i][0] = 0;
+                    epj_for_force_[i].clearSize();
+                    spj_for_force_[i].clearSize();
+                }
+                const F64 offset_calc_force__core__walk_tree = GetWtime();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for schedule(dynamic, 4) 
+#endif
+                for(int iw=0; iw<n_walk; iw++){
+                    const S32 id_ipg = walk_grp_head + iw;
+                    const S32 first_adr_ip = ipg_[id_ipg].adr_ptcl_; 
+                    const S32 ith = Comm::getThreadNum();
+                    n_epi_array[iw] = ipg_[id_ipg].n_ptcl_;
+                    epi_array[iw]   = epi_sorted_.getPointer(first_adr_ip);
+                    force_array[iw] = force_sorted_.getPointer(first_adr_ip);
+                    makeInteractionList(id_ipg, false);
+                    n_epj_array[iw] = epj_for_force_[ith].size() - n_ep_cum_thread[ith];
+                    n_spj_array[iw] = spj_for_force_[ith].size() - n_sp_cum_thread[ith];
+                    n_ep_cum_thread[ith] = epj_for_force_[ith].size();
+                    n_sp_cum_thread[ith] = spj_for_force_[ith].size();
+                    n_epj_disp_thread[ith][cnt_thread[ith]+1] = n_ep_cum_thread[ith];
+                    n_spj_disp_thread[ith][cnt_thread[ith]+1] = n_sp_cum_thread[ith];
+                    n_interaction_ep_ep_array[ith] += n_epj_array[iw]*n_epi_array[iw];
+                    n_interaction_ep_sp_array[ith] += n_spj_array[iw]*n_epi_array[iw];
+                    iw2ith[iw] = ith;
+                    iw2cnt[iw] = cnt_thread[ith];
+                    cnt_thread[ith]++;
+                }
+                time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+                //std::cout<<"n_walk_limit="<<n_walk_limit<<std::endl;
+                //std::cout<<"n_walk="<<n_walk<<std::endl;
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+                } // retrieve
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    S32 n_sp_head = n_spj_disp_thread[ith][cnt];
+                    epj_array[iw] = epj_for_force_[ith].getPointer(n_ep_head);
+                    spj_array[iw] = spj_for_force_[ith].getPointer(n_sp_head);
+                    //std::cout<<"n_epi_array[iw]="<<n_epi_array[iw]<<" n_epj_array[iw]="<<n_epj_array[iw]<<" n_spj_array[iw]="<<n_spj_array[iw]<<std::endl;
+                }
+                ret += pfunc_dispatch(tag, n_walk, (const Tepi**)epi_array, n_epi_array, (const Tepj**)epj_array, n_epj_array, (const Tspj**)spj_array, n_spj_array);
+                first_loop = false;
+
+                for(int iw=0; iw<n_walk; iw++){
+                    n_epi_array_prev[iw] = n_epi_array[iw];
+                    force_prev_array[iw] = force_array[iw];
+                }
+                n_walk_prev = n_walk;
+            } // end of walk group loop
+            ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+        } // if(n_ipg > 0)
+        else{
+            ni_ave_ = nj_ave_ = n_interaction_ep_ep_ = n_interaction_ep_sp_ = 0;
+            n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = 0;
+        }
+        for(int i=0; i<n_thread; i++){
+            n_interaction_ep_ep_local_ += n_interaction_ep_ep_array[i];
+            n_interaction_ep_sp_local_ += n_interaction_ep_sp_array[i];
+        }
+	time_profile_.calc_force__core += GetWtime() - offset_core;
+        const F64 offset_copy_original_order = GetWtime();
+	copyForceOriginalOrder();
+        time_profile_.calc_force__copy_original_order += GetWtime() - offset_copy_original_order;
+	return ret;
+    }
+
+
+// for short
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tfunc_dispatch, class Tfunc_retrieve>
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcForceMultiWalkImpl(TagForceShort,
+                           Tfunc_dispatch pfunc_dispatch,
+                           Tfunc_retrieve pfunc_retrieve,
+                           const S32 tag_max,
+                           const S32 n_walk_limit,
+                           const bool clear){
+        const F64 offset_core = GetWtime();
+        static bool first = true;
+        S32 ret = 0;
+        S32 tag = 0;
+        const S32 n_thread = Comm::getNumberOfThread();
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
+        const S32 n_ipg = ipg_.size();
+        n_walk_local_ += n_ipg;
+        const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg%n_walk_limit==0 ? 0 : 1);
+        static std::vector<S32> walk_grp;
+        static std::vector<S32> walk_grp_disp;
+        walk_grp.resize(n_loop_max); // group of walk (walk_grp[i] < n_walk_limit)
+        walk_grp_disp.resize(n_loop_max+1);
+        static S32  * iw2ith;
+        static S32  * iw2cnt;
+        static S32  * n_epi_array;
+        static S32  * n_epi_array_prev;
+        static S32  * n_epj_array;
+        static S32 ** n_epj_disp_thread; // [n_thread][n_walk]
+        static Tepi ** epi_array; // array of pointer *[n_walk]
+        static Tepj ** epj_array; // array of pointer *[n_walk]
+        static Tforce ** force_array; // array of pointer *[n_walk]
+        static Tforce ** force_prev_array; // array of pointer *[n_walk]
+        static S32  * cnt_thread;
+        static S32  * n_ep_cum_thread;
+        static S64 * n_interaction_ep_ep_array;
+        if(first){
+            iw2ith = new S32[n_walk_limit];
+            iw2cnt = new S32[n_walk_limit];
+            n_epi_array = new S32[n_walk_limit];
+            n_epi_array_prev = new S32[n_walk_limit];
+            n_epj_array = new S32[n_walk_limit];
+            n_epj_disp_thread = new S32*[n_thread];
+            epi_array        = new Tepi*[n_walk_limit];
+            epj_array        = new Tepj*[n_walk_limit];
+            force_array      = new Tforce*[n_walk_limit];
+            force_prev_array = new Tforce*[n_walk_limit];
+            for(int i=0; i<n_thread; i++){
+                n_epj_disp_thread[i] = new S32[n_walk_limit];
+            }
+            cnt_thread = new S32[n_thread];
+            n_ep_cum_thread = new S32[n_thread];
+            n_interaction_ep_ep_array = new S64[n_thread];
+            first = false;
+        }
+        walk_grp_disp[0] = 0;
+        for(int wg=0; wg<n_ipg%n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max + 1;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int wg=n_ipg%n_loop_max; wg<n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int i=0; i<n_thread; i++){
+            n_interaction_ep_ep_array[i] = 0;
+        }
+        bool first_loop = true;
+        S32 n_walk_prev = 0;
+        if(n_ipg > 0){
+            for(int wg=0; wg<n_loop_max; wg++){
+                const S32 n_walk = walk_grp[wg];
+                const S32 walk_grp_head = walk_grp_disp[wg];
+                for(int i=0; i<n_thread; i++){
+                    n_ep_cum_thread[i] = cnt_thread[i] = 0;
+                    n_epj_disp_thread[i][0] = 0;
+                    epj_for_force_[i].clearSize();
+                }
+                const F64 offset_calc_force__core__walk_tree = GetWtime();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for schedule(dynamic, 4) 
+#endif
+                for(int iw=0; iw<n_walk; iw++){
+                    const S32 id_ipg = walk_grp_head + iw;
+                    const S32 first_adr_ip = ipg_[id_ipg].adr_ptcl_; 
+                    const S32 ith = Comm::getThreadNum();
+                    n_epi_array[iw] = ipg_[id_ipg].n_ptcl_;
+                    epi_array[iw]   = epi_sorted_.getPointer(first_adr_ip);
+                    force_array[iw] = force_sorted_.getPointer(first_adr_ip);
+                    makeInteractionList(id_ipg, false);
+                    n_epj_array[iw] = epj_for_force_[ith].size() - n_ep_cum_thread[ith];
+                    n_ep_cum_thread[ith] = epj_for_force_[ith].size();
+                    n_epj_disp_thread[ith][cnt_thread[ith]+1] = n_ep_cum_thread[ith];
+                    n_interaction_ep_ep_array[ith] += n_epj_array[iw]*n_epi_array[iw];
+                    iw2ith[iw] = ith;
+                    iw2cnt[iw] = cnt_thread[ith];
+                    cnt_thread[ith]++;
+                }
+                time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+                } // retrieve
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    epj_array[iw] = epj_for_force_[ith].getPointer(n_ep_head);
+                }
+                ret += pfunc_dispatch(tag, n_walk, (const Tepi**)epi_array, n_epi_array, (const Tepj**)epj_array, n_epj_array);
+                first_loop = false;
+
+                for(int iw=0; iw<n_walk; iw++){
+                    n_epi_array_prev[iw] = n_epi_array[iw];
+                    force_prev_array[iw] = force_array[iw];
+                }
+                n_walk_prev = n_walk;
+            } // end of walk group loop
+            ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+        } // if(n_ipg > 0)
+        else{
+            ni_ave_ = nj_ave_ = n_interaction_ep_ep_ = n_interaction_ep_sp_ = 0;
+            n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = 0;
+        }
+        for(int i=0; i<n_thread; i++){
+            n_interaction_ep_ep_local_ += n_interaction_ep_ep_array[i];
+        }
+        time_profile_.calc_force__core += GetWtime() - offset_core;
+        const F64 offset_copy_original_order = GetWtime();
+        copyForceOriginalOrder();
+        time_profile_.calc_force__copy_original_order += GetWtime() - offset_copy_original_order;
+        return ret;
+    }
     
+    // return forces in original order
     template<class TSM, class Tforce, class Tepi, class Tepj,
 	     class Tmomloc, class Tmomglb, class Tspj>
     template<class Tfunc_ep_ep>
@@ -3536,8 +3945,8 @@ namespace ParticleSimulator{
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tptcl>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    getNeighborListOneIPGroup(const PS::S32 iipg, S32 & nip, 
-                              const Tepi * & epi, PS::S32 & nnp, Tepj * & epj){
+    getNeighborListOneIPGroup(const S32 iipg, S32 & nip, 
+                              const Tepi * & epi, S32 & nnp, Tepj * & epj){
         nip = ipg_[iipg].n_ptcl_;
         const S32 adr = ipg_[iipg].adr_ptcl_;
         epi = epi_sorted_[adr].getPointer();
@@ -3546,5 +3955,106 @@ namespace ParticleSimulator{
         epj = epj_neighbor_.getPointer(head);
     }
 #endif
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    freeMem(){
+	tp_buf_.freeMem();
+	tp_loc_.freeMem();
+	tp_glb_.freeMem();
+	tc_loc_.freeMem();
+	tc_glb_.freeMem();
+	epi_sorted_.freeMem();
+	epi_org_.freeMem();
+	epj_sorted_.freeMem();
+	epj_org_.freeMem();
+	spj_sorted_.freeMem();
+	spj_org_.freeMem();
+	ipg_.freeMem();
+	epj_send_.freeMem();
+	epj_recv_.freeMem();
+	spj_send_.freeMem();
+	spj_recv_.freeMem();
+	force_sorted_.freeMem();
+	force_org_.freeMem();
+	epjr_sorted_.freeMem();
+	epjr_send_.freeMem();
+	epjr_recv_.freeMem();
+	epjr_recv_1st_buf_.freeMem();
+	epjr_recv_2nd_buf_.freeMem();
+	epj_recv_1st_buf_.freeMem();
+	epj_recv_2nd_buf_.freeMem();
+        const S32 n_thread = Comm::getNumberOfThread();
+	for(S32 i=0; i<n_thread; i++){
+	    id_ep_send_buf_[i].freeMem();
+	    id_sp_send_buf_[i].freeMem();
+	    epj_for_force_[i].freeMem();
+	    spj_for_force_[i].freeMem();
+	    ep_send_buf_for_scatter_[i].freeMem();
+	    shift_image_domain_[i].freeMem();
+	    epjr_send_buf_[i].freeMem();
+	    epjr_send_buf_for_scatter_[i].freeMem();
+	    epjr_recv_1st_sorted_[i].freeMem();
+	    epj_send_buf_[i].freeMem();
+	    id_ptcl_send_[i].freeMem();
+	    shift_image_box_[i].freeMem();
+	    ip_disp_[i].freeMem();
+	    tp_scatter_[i].freeMem();
+	    tc_recv_1st_[i].freeMem();
+	    epj_recv_1st_sorted_[i].freeMem();
+	}
+    }
+
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    clearSizeOfArray(){
+	tp_buf_.clearSize();
+	tp_loc_.clearSize();
+	tp_glb_.clearSize();
+	tc_loc_.clearSize();
+	tc_glb_.clearSize();
+	epi_sorted_.clearSize();
+	epi_org_.clearSize();
+	epj_sorted_.clearSize();
+	epj_org_.clearSize();
+	spj_sorted_.clearSize();
+	spj_org_.clearSize();
+	ipg_.clearSize();
+	epj_send_.clearSize();
+	epj_recv_.clearSize();
+	spj_send_.clearSize();
+	spj_recv_.clearSize();
+	force_sorted_.clearSize();
+	force_org_.clearSize();
+	epjr_sorted_.clearSize();
+	epjr_send_.clearSize();
+	epjr_recv_.clearSize();
+	epjr_recv_1st_buf_.clearSize();
+	epjr_recv_2nd_buf_.clearSize();
+	epj_recv_1st_buf_.clearSize();
+	epj_recv_2nd_buf_.clearSize();
+        const S32 n_thread = Comm::getNumberOfThread();
+	for(S32 i=0; i<n_thread; i++){
+	    id_ep_send_buf_[i].clearSize();
+	    id_sp_send_buf_[i].clearSize();
+	    epj_for_force_[i].clearSize();
+	    spj_for_force_[i].clearSize();
+	    ep_send_buf_for_scatter_[i].clearSize();
+	    shift_image_domain_[i].clearSize();
+	    epjr_send_buf_[i].clearSize();
+	    epjr_send_buf_for_scatter_[i].clearSize();
+	    epjr_recv_1st_sorted_[i].clearSize();
+	    epj_send_buf_[i].clearSize();
+	    id_ptcl_send_[i].clearSize();
+	    shift_image_box_[i].clearSize();
+	    ip_disp_[i].clearSize();
+	    tp_scatter_[i].clearSize();
+	    tc_recv_1st_[i].clearSize();
+	    epj_recv_1st_sorted_[i].clearSize();
+	}
+    }
 
 }

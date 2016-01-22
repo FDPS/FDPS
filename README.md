@@ -3,7 +3,7 @@
 FDPS is a general-purpose, high-performance library for particle
 simulations.
 
-The current version is 1.1. The previous versions are [here](https://github.com/FDPS/FDPS/releases) .
+The current version is 2.0. The previous versions are [here](https://github.com/FDPS/FDPS/releases) .
 
 We maintain this from subversion-over-github interface.
 

@@ -1,7 +1,8 @@
 CC = mpicxx
-#CC = /nfshome/tanikawa/work3/lib/mpich/bin/mpicxx
+#CC := time mpiFCCpx
 
 CFLAGS = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK #-Wall
+#CFLAGS = -O3 -Kfast
 
 #INCLUDE_FFTW = -I/nfshome/tanikawa/work3/mylib/include
 #INCLUDE_FFTW = -I/nfshome/tanikawa/work3/lib/mpich

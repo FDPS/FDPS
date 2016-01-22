@@ -22,14 +22,14 @@ public:
     PS::S64 n_body;
     PS::F64 time;
     PS::S32 readAscii(FILE * fp){
-		fscanf(fp, "%e\n", &time);
-		fscanf(fp, "%d\n", &n_body);
+		fscanf(fp, "%lf\n", &time);
+		fscanf(fp, "%lld\n", &n_body);
 		return n_body;
     }
-	void writeAscii(FILE* fp) const{
-		fprintf(fp, "%e\n", time);
-		fprintf(fp, "%d\n", n_body);
-	}
+    void writeAscii(FILE* fp) const{
+	fprintf(fp, "%e\n", time);
+	fprintf(fp, "%lld\n", n_body);
+    }
 };
 
 
@@ -62,12 +62,12 @@ public:
         pot = force.pot;
     }
 	void writeAscii(FILE* fp) const{
-		fprintf(fp, "%ld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
+		fprintf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
                 this->id, this->mass, this->pos.x, this->pos.y, this->pos.z, this->vel.x, this->vel.y, this->vel.z);
 	}
 
 	void readAscii(FILE* fp){
-		fscanf(fp, "%ld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
+		fscanf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
                &this->id, &this->mass, &this->pos.x, &this->pos.y, &this->pos.z, &this->vel.x, &this->vel.y, &this->vel.z);
 	}
 
@@ -253,7 +253,7 @@ void MakeUniformCube(const double mass_glb,
                            const int seed = 0){
     
     assert(eng < 0.0);
-    static const double PI = atan(1.0) * 4.0;
+    //static const double PI = atan(1.0) * 4.0;
     mass = new double[n_loc];
     pos = new PS::F64vec[n_loc];
     vel = new PS::F64vec[n_loc];
@@ -275,7 +275,7 @@ void MakeUniformCube(const double mass_glb,
     
     mt.init_genrand(PS::Comm::getRank()*PS::Comm::getNumberOfThread()+PS::Comm::getThreadNum());
 
-    double offset = (n_1d -1.0)*0.5;
+    //double offset = (n_1d -1.0)*0.5;
     int ip=0;
     for(int i=0; i<n_1d; i++){
 	for(int j=0; j<n_1d; j++){
@@ -301,14 +301,14 @@ void MakeUniformCube(const double mass_glb,
     PS::F64vec cm_pos = 0.0;
     PS::F64vec cm_vel = 0.0;
     double  cm_mass = 0.0;
-    for(size_t i=0; i<n_loc; i++){
+    for(int i=0; i<n_loc; i++){
         cm_pos += mass[i] * pos[i];
         cm_vel += mass[i] * vel[i];
         cm_mass += mass[i];
     }
     cm_pos /= cm_mass;
     cm_vel /= cm_mass;
-    for(size_t i=0; i<n_loc; i++){
+    for(int i=0; i<n_loc; i++){
         pos[i] -= cm_pos;
         vel[i] -= cm_vel;
     }
@@ -338,7 +338,7 @@ void SetParticlesPlummer(Tpsys & psys,
     PS::S32 i_h = n_glb/n_proc*my_rank;
     if( n_glb % n_proc  > my_rank) i_h += my_rank;
     else i_h += n_glb % n_proc;
-    for(size_t i=0; i<n_loc; i++){
+    for(int i=0; i<n_loc; i++){
         psys[i].mass = mass[i];
         psys[i].pos = pos[i];
         psys[i].vel = vel[i];
@@ -416,7 +416,7 @@ int main(int argc, char *argv[]){
     PS::F64 dt = 1.0/128.0;
     PS::F64 dt_diag = 1.0/16.0;
     PS::F64 boxdh=5;
-    char sinput[1024];
+    //char sinput[1024];
     char dir_name[1024];
     long long int n_tot = 512;
     int c;

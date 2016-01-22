@@ -24,7 +24,7 @@ namespace ParticleSimulator{
     public:
         RadixSort(){
             static const unsigned long int one = 1;
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
             n_thread_ = omp_get_max_threads();
 #else
             n_thread_ = 1;
@@ -55,9 +55,11 @@ namespace ParticleSimulator{
             if((sizeof(T) * 8) % NBIT != 0) n_loop++;
 
             for(int loop=0, shift=0; ; loop++, shift += NBIT){
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL		
 #pragma omp parallel
+#endif		
                 {
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)		    
                     int id_th = omp_get_thread_num();
 #else
                     int id_th = 0;
@@ -65,13 +67,17 @@ namespace ParticleSimulator{
                     for(int ibkt=0; ibkt<n_bucket_; ibkt++){
                         bucket_size_[id_th][ibkt] = 0;
                     }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL		    
 #pragma omp for
+#endif
                     for(int i=0; i<n_tot; i++){
                         T radix = (val[i].getKey() >> shift) & mask_;
                         //T radix = ( gk(val[i]) >> shift) & mask_;
                         bucket_size_[id_th][radix]++;
                     }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp single
+#endif
                     {
                         prefix_sum_[0][0] = 0;
                         for(int j=1; j<n_thread_; j++){
@@ -84,7 +90,9 @@ namespace ParticleSimulator{
                             }
                         }
                     }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL		    
 #pragma omp for
+#endif
                     for(int i=0; i<n_tot; i++){
                         T radix = (val[i].getKey() >> shift) & mask_;
                         //T radix = ( gk(val[i]) >> shift) & mask_;
@@ -99,7 +107,9 @@ namespace ParticleSimulator{
                 val_buf = Ptmp;
             }
             if(n_loop % 2 == 1){
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL		
 #pragma omp parallel for
+#endif
                 for(int i=0; i<n_tot; i++){
                     val[i] = val_buf[i];
                 }

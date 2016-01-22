@@ -5,8 +5,7 @@ void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64 *end_time, bounda
 	//place ptcls
 	/////////
 	std::vector<RealPtcl> ptcl;
-	//const PS::F64 dx = 1.0 / 128.0;
-  const PS::F64 dx = 1.0 / 64.0;
+	const PS::F64 dx = 1.0 / 128.0;
 	box->x = 1.0;
 	box->y = box->z = box->x / 8.0;
 	PS::S32 i = 0;

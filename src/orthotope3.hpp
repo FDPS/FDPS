@@ -15,7 +15,7 @@ namespace ParticleSimulator{
 	
         Orthotope3(const Vector3<T> & _low, const Vector3<T> & _high)
             : low_(_low), high_(_high) {}
-	
+
         Orthotope3(const Orthotope3 & src) : low_(src.low_), high_(src.high_){}
 
         Orthotope3(const Vector3<T> & center, const T length) :
