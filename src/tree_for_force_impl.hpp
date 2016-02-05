@@ -1122,6 +1122,14 @@ namespace ParticleSimulator{
 #endif
 
 
+
+
+
+
+
+
+
+
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -2978,7 +2986,6 @@ namespace ParticleSimulator{
     makeIPGroupImpl(TagForceShort){
         MakeIPGroupShort(ipg_, tc_loc_, epi_sorted_, 0, n_group_limit_);
     }
-
 
 
     /////////////////////////////

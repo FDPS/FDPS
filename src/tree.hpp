@@ -438,6 +438,104 @@ namespace ParticleSimulator{
         }
     };
 
+
+    class MomentQuadrupoleScatter{
+    public:
+        F32 mass;
+        F32vec pos;
+	F32mat quad;
+        F64ort vertex_out_;
+        F64ort vertex_in_;
+        MomentQuadrupoleScatter(){
+            mass = 0.0;
+            pos = 0.0;
+	    quad = 0.0;
+            vertex_out_.init();
+            vertex_in_.init();
+        }
+        MomentQuadrupoleScatter(const F32 m, const F32vec & p, const F32mat & q){ 
+            mass = m;
+            pos = p;
+            quad = q;
+        }
+        F64ort getVertexOut() const { return vertex_out_; }
+        F64ort getVertexIn() const { return vertex_in_; }
+        void init(){
+            mass = 0.0;
+            pos = 0.0;
+            quad = 0.0;
+            vertex_out_.init();
+            vertex_in_.init();
+        }
+        F32vec getPos() const {
+            return pos;
+        }
+        F32 getCharge() const {
+            return mass;
+        }
+        template<class Tepj>
+        void accumulateAtLeaf(const Tepj & epj){
+            this->mass += epj.getCharge();
+            this->pos += epj.getCharge() * epj.getPos();
+            (this->vertex_out_).merge(epj.getPos(), epj.getRSearch());
+            (this->vertex_in_).merge(epj.getPos());
+        }
+        template<class Tepj>
+        void accumulateAtLeaf2(const Tepj & epj){
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+            F64 ctmp = epj.getCharge();
+            F64vec ptmp = epj.getPos() - this->pos;
+            F64 cx = ctmp * ptmp.x;
+            F64 cy = ctmp * ptmp.y;
+            F64 cz = ctmp * ptmp.z;
+            this->quad.xx += cx * ptmp.x;
+            this->quad.yy += cy * ptmp.y;
+            this->quad.zz += cz * ptmp.z;
+            this->quad.xy += cx * ptmp.y;
+            this->quad.xz += cx * ptmp.z;
+            this->quad.yz += cy * ptmp.z;
+#else
+	    // under construction
+#endif
+	}
+        void set(){
+            pos = pos / mass;
+        }
+        void accumulate(const MomentQuadrupoleScatter & mom){
+            this->mass += mom.mass;
+            this->pos += mom.mass * mom.pos;
+            (this->vertex_out_).merge(mom.vertex_out_);
+            (this->vertex_in_).merge(mom.vertex_in_);
+        }
+        void accumulate2(const MomentQuadrupoleScatter & mom){
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+            F64 mtmp = mom.mass;
+            F64vec ptmp = mom.pos - this->pos;
+            F64 cx = mtmp * ptmp.x;
+            F64 cy = mtmp * ptmp.y;
+            F64 cz = mtmp * ptmp.z;
+            this->quad.xx += cx * ptmp.x + mom.quad.xx;
+            this->quad.yy += cy * ptmp.y + mom.quad.yy;
+            this->quad.zz += cz * ptmp.z + mom.quad.zz;
+            this->quad.xy += cx * ptmp.y + mom.quad.xy;
+            this->quad.xz += cx * ptmp.z + mom.quad.xz;
+            this->quad.yz += cy * ptmp.z + mom.quad.yz;
+#else
+	    // under construction
+#endif
+	}
+        // for DEBUG 
+        void dump(std::ostream & fout = std::cout) const {
+            fout<<"mass="<<mass<<std::endl;
+            fout<<"pos="<<pos<<std::endl;
+            fout<<"vertex_out.low_="<<vertex_out_.low_<<std::endl;
+            fout<<"vertex_out.high_="<<vertex_out_.high_<<std::endl;
+            fout<<"vertex_in.low_="<<vertex_in_.low_<<std::endl;
+            fout<<"vertex_in.high_="<<vertex_in_.high_<<std::endl;
+        }
+    };
+
+
     // for P^3T + PM
     class MomentMonopoleCutoffScatter{
     public:
@@ -1004,8 +1102,47 @@ namespace ParticleSimulator{
         MomentMonopoleScatter convertToMoment() const {
             return MomentMonopoleScatter(mass, pos);
         }
+        void dump(std::ostream & fout=std::cout) const {
+	    fout<<"mass="<<mass<<std::endl;
+	    fout<<"pos="<<pos<<std::endl;
+	}
         F64 mass;
         F64vec pos;
+    };
+
+    class SPJQuadrupoleScatter{
+    public:
+        F64 mass;
+        F64vec pos;
+        F64mat quad;
+        F64 getCharge() const {
+            return mass;
+        }
+        F64vec getPos() const {
+            return pos;
+        }
+        void setPos(const F64vec & pos_new) {
+            pos = pos_new;
+        }
+        template<class Tmom>
+        void copyFromMoment(const Tmom & mom){
+            mass = mom.mass;
+            pos = mom.pos;
+            quad = mom.quad;
+        }
+        MomentQuadrupoleScatter convertToMoment() const {
+            return MomentQuadrupoleScatter(mass, pos, quad);
+        }
+        void clear(){
+            mass = 0.0;
+            pos = 0.0;
+	    quad = 0.0;
+        }
+        void dump(std::ostream & fout=std::cout) const {
+	    fout<<"mass="<<mass<<std::endl;
+	    fout<<"pos="<<pos<<std::endl;
+	}
+
     };
 
         // for P^3T + PM

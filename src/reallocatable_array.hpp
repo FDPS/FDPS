@@ -43,8 +43,8 @@ namespace  ParticleSimulator{
 	
     public:
 #ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
-        ReallocatableArray() : data_(NULL), size_(0), capacity_(0), n_expand_(0) {}
-        ReallocatableArray(int cap) : size_(0), capacity_(cap), n_expand_(0) {
+        ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0), n_expand_(0) {}
+        ReallocatableArray(int cap) : size_(0), capacity_(cap), capacity_org_(0), n_expand_(0) {
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
                 //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
@@ -61,8 +61,8 @@ namespace  ParticleSimulator{
             data_ = new T[capacity_];
         }
 #else
-        ReallocatableArray() : data_(NULL), size_(0), capacity_(0) {}
-        ReallocatableArray(int cap) : size_(0), capacity_(cap) {
+        ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0) {}
+        ReallocatableArray(int cap) : size_(0), capacity_(cap), capacity_org_(0)  {
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
                 //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
@@ -287,5 +287,14 @@ namespace  ParticleSimulator{
 		capacity_org_ = 0;
 	    }
 	}
+
+	void reallocMem(){
+	    if(capacity_org_ > 0){
+		capacity_ = capacity_org_;
+		data_ = new T[capacity_];
+		capacity_org_ = 0;
+	    }
+	}
+
     };
 }

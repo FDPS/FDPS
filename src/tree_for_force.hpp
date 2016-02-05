@@ -442,7 +442,20 @@ namespace ParticleSimulator{
         CountT getNumberOfCellOpenLocal() const {return n_cell_open_[0]; }
         CountT getNumberOfCellOpenGlobal() const {return Comm::getSum(n_cell_open_[0]); }
         CountT getNumberOfCellGlobal() const {return tc_glb_.size(); }
-
+/*
+        CountT getNumberOfLETEP1stSendLocal() const {return (CountT)epj_send_.size();}
+        CountT getNumberOfLETEP1stRecvLocal() const {return (CountT)epj_recv_.size();}
+        CountT getNumberOfLETEP1stSendGlobal() const {return Comm::getSum( (CountT)epj_send_.size()); }
+        CountT getNumberOfLETEP1stRecvGlobal() const {return Comm::getSum( (CountT)epj_recv_.size()); }
+        CountT getNumberOfLETSP1stSendLocal() const {return (CountT)spj_send_.size();}
+        CountT getNumberOfLETSP1stRecvLocal() const {return (CountT)spj_recv_.size();}
+        CountT getNumberOfLETSP1stSendGlobal() const {return Comm::getSum( (CountT)spj_send_.size()); }
+        CountT getNumberOfLETSP1stRecvGlobal() const {return Comm::getSum( (CountT)spj_recv_.size()); }
+*/
+        //PS::F64 getFLOPS(const CountT op_ep_ep, const CountT op_ep_sp, const PS::F64 time) const { return }
+        //CountT getNumberOfWalkGlobal() const { return n_walk_global_; }
+        //CountT getNumberOfInteractionEPEPGlobal() const { return n_interaction_ep_ep_global_; }
+        //CountT getNumberOfInteractionEPSPGlobal() const { return n_interaction_ep_sp_global_; }
         void clearNumberOfInteraction(){
             n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = n_walk_local_ = 0;
         }
@@ -472,6 +485,7 @@ namespace ParticleSimulator{
                         const U32 n_leaf_limit=8,
                         const U32 n_group_limit=64);
 
+	void reallocMem();
 	void freeMem();
 	void clearSizeOfArray();
 
@@ -584,6 +598,28 @@ namespace ParticleSimulator{
                                        const Tepi * & epi, S32 & nnp, Tepj * & epj);
 
 
+/*
+        //////////////////////////////
+        /// MIDDLE LEVEL FUNCTIONS ///
+        //////////////////////////////
+        void makeLocalTree(DomainInfo & dinfo){
+            setRootCell(dinfo);
+            mortonSortLocalTreeOnly();
+            linkCellLocalTreeOnly();
+        }
+        //void makeLocalTree(const DomainInfo & dinfo){
+        void makeGlobalTree(const DomainInfo & dinfo){
+            calcMomentLocalTreeOnly();
+            exchangeLocalEssentialTree(dinfo);
+            setLocalEssentialTreeToGlobalTree();
+            mortonSortGlobalTreeOnly();
+            linkCellGlobalTreeOnly();
+        }
+        void calcMomentGlobalTree(){
+            calcMomentGlobalTreeOnly();
+            makeIPGroup();
+        }
+*/
 
         ////////////////////////////
         /// HIGH LEVEL FUNCTIONS ///
@@ -903,6 +939,13 @@ namespace ParticleSimulator{
          MomentMonopoleScatter,
          MomentMonopoleScatter,
          SPJMonopoleScatter> MonopoleWithScatterSearch;
+
+        typedef TreeForForce
+        <SEARCH_MODE_LONG_SCATTER,
+         Tforce, Tepi, Tepj,
+         MomentQuadrupoleScatter,
+         MomentQuadrupoleScatter,
+         SPJQuadrupoleScatter> QuadrupoleWithScatterSearch;
 
         // for P^3T + PM
         typedef TreeForForce
