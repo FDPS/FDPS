@@ -1,0 +1,16 @@
+##############
+## Ver1.1
+* In decomposeDomain(), MPI::Send and MPI::Recv -> MPI::Gather ( only if __HPC_ACE__ is defined, MPI::Gather is used)
+* In exchangeParticle(), MPI::Iend and MPI::Iecv -> If the # of src or dest proc > 500, 
+* change the name of the function, makeLocalTree() -> makeGlobalTree()
+* Tune SHORT_GATHER and SHORT_SYMMETRY search.
+* Add new search modes: LONG_SCATTER and LONG_CUTOFF_SCATTER
+* Add new function getNeighborListOneParticle(...)
+* Add new function calcForceMakingTree(...)
+
+## Ver1.1b
+* bug fix in the function readParticleAscii()
+
+## Ver2.0
+* add functions for multi walk
+* add functions Comm::getRankMultiDim() and Comm::getNumberOfProcMultiDim().
