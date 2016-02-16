@@ -1340,6 +1340,7 @@ void PMForce::commMeshDensity(){
   static int nrecv_slab[MAXNNODE];
   static int sdispls_gix[MAXNNODE];
   static int rdispls_gix[MAXNNODE];
+
   int *gix_send = new int[SIZE_MESH];
   int *dest = new int[SIZE_MESH];
   for( int i=0; i<this_run->nnode; i++){
@@ -1349,7 +1350,6 @@ void PMForce::commMeshDensity(){
   for( int i=0; i<SIZE_MESH; i++){
     gix_send[i] = dest[i] = 0;
   }
-
   for( int i=0; i<l_msize[0]; i++){
     int gix = g_offset[0] + i;
     if( gix < 0)  gix += SIZE_MESH;
@@ -1927,7 +1927,7 @@ void PMForce::commMeshPhi(){
 		 l_msize_all, 3, MPI_INT, this_run->MPI_COMM_INTERNAL);
 
   float *recvbuf = new float[ln_total];
-  int *gix_recv = new int[SIZE_MESH];
+  //int *gix_recv = new int[SIZE_MESH]; // comment out M.I. 2016/02/15
   static int nsend[MAXNNODE];
   static int nrecv[MAXNNODE];
   static int sdispls_sendbuf[MAXNNODE];
@@ -1940,10 +1940,12 @@ void PMForce::commMeshPhi(){
     nsend[i] = nrecv[i] = sdispls_sendbuf[i] = rdispls_sendbuf[i] = 0;
     nsend_slab[i] = nrecv_slab[i] =  sdispls_gix[i] = rdispls_gix[i] = 0;
   }
+  /*
+    comment out M.I. 2016/02/15
   for( int i=0; i<SIZE_MESH; i++){
     gix_recv[i] = 0;
   }
-
+  */
   int nsend_total = 0;
   int nsend_slab_total = 0;
   for( int p=0; p<this_run->nnode; p++){
@@ -2024,6 +2026,12 @@ void PMForce::commMeshPhi(){
     nrecv_total += nrecv[i];
     nrecv_slab_total += nrecv_slab[i];
   }
+
+  // add by M.I. 2016/02/15
+  int *gix_recv = new int[nrecv_slab_total*1.2+1024];
+  for(int i=0; i<nrecv_slab_total; i++){
+      gix_recv[i] = 0;
+  }  
 
   int nscomm_pm_s2l = 0;
   int nrcomm_pm_s2l = 0;
