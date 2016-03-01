@@ -2028,7 +2028,8 @@ void PMForce::commMeshPhi(){
   }
 
   // add by M.I. 2016/02/15
-  int *gix_recv = new int[nrecv_slab_total*1.2+1024];
+  // bug fix by M.I. 2016/03/01
+  int *gix_recv = new int[static_cast<int>(nrecv_slab_total*1.2)+1024];
   for(int i=0; i<nrecv_slab_total; i++){
       gix_recv[i] = 0;
   }  
