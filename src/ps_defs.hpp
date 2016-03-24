@@ -26,6 +26,40 @@
 #include"matrix_sym3.hpp"
 
 
+#define PS_DEBUG_CALL(func) \
+    do {                                              \
+        try{                                          \
+           func;                                      \
+           std::cout << "[FDPS msg] "                 \
+                     << #func << ": "                 \
+                     << getMemSizeUsed() << ", "      \
+                     << Comm::getRank()  << ", "      \
+                     << typeid(TSM).name() << ". "    \
+                     << std::endl;                    \
+        } catch (std::bad_alloc& e) {                 \
+           std::cout << "[FDPS error] "               \
+                     << #func << ": "                 \
+                     << getMemSizeUsed() << ", "      \
+                     << Comm::getRank()  << ", "      \
+                     << typeid(TSM).name() << ". "    \
+                     << std::endl;                    \
+           MPI::COMM_WORLD.Abort(9);                  \
+           std::exit(1);                              \
+        } catch (...) {                               \
+           std::cout << "[FDPS unknown error] "       \
+                     << #func << ": "                 \
+                     << getMemSizeUsed() << ", "      \
+                     << Comm::getRank()  << ", "      \
+                     << typeid(TSM).name() << ". "    \
+                     << std::endl;                    \
+           MPI::COMM_WORLD.Abort(9);                  \
+           std::exit(1);                              \
+        }                                             \
+        MPI::COMM_WORLD.Barrier();                    \
+        if (Comm::getRank() == 0)                     \
+           std::cout << #func                         \
+                     << " passed." << std::endl;      \
+    } while(0);
 
 
 #define PARTICLE_SIMULATOR_PRINT_ERROR(msg) \

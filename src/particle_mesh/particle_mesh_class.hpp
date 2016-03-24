@@ -48,12 +48,14 @@ namespace ParticleSimulator{
             void setParticleParticleMesh(const Tpsys & psys,
                                          const bool clear=true) {
                 if(clear) {
-                    if(particle_ == NULL)
+                    if(particle_ != NULL)
                         delete [] particle_;
                     
                     n_loc_tot_ = psys.getNumberOfParticleLocal();
                     particle_ = new Particle[n_loc_tot_];
                     for(S32 i = 0; i < n_loc_tot_; i++) {
+                        particle_[i].id   = 0;
+                        particle_[i].xvel = 0.0;
                         particle_[i].mass =  psys[i].getChargeParticleMesh();
                         particle_[i].xpos = (psys[i].getPos())[0];
                         particle_[i].ypos = (psys[i].getPos())[1];

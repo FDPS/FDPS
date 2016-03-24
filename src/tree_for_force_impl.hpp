@@ -72,10 +72,19 @@ namespace ParticleSimulator{
                          -shift_image_domain_[ith][ii]);
 #else
                     if( !tc_loc_[0].isLeaf(n_leaf_limit_) ){
+			/*
                         MakeListUsingOuterBoundary
                             (tc_loc_.getPointer(),  adr_tc_tmp,
                              ep_org.getPointer(),   ep_send_buf[ith],
                              pos_domain,            n_leaf_limit_,
+                             -shift_image_domain_[ith][ii]);
+			*/
+			// add M.I. 2016/03/23
+                        MakeListUsingOuterBoundaryWithRootCellCheck
+                            (tc_loc_.getPointer(),  adr_tc_tmp,
+                             ep_org.getPointer(),   ep_send_buf[ith],
+                             pos_domain,            n_leaf_limit_,
+                             pos_root_cell_,
                              -shift_image_domain_[ith][ii]);
                     }
                     else{
@@ -85,7 +94,10 @@ namespace ParticleSimulator{
                             const F64vec pos_tmp = ep_org[adr_tmp].getPos();
                             const F64 size_tmp = ep_org[adr_tmp].getRSearch();
                             const F64 dis_sq_tmp = pos_domain.getDistanceMinSQ(pos_tmp);
+#ifdef ORIGINAL_SCATTER_MODE
                             if(dis_sq_tmp > size_tmp*size_tmp) continue;
+#endif
+                            if( pos_root_cell_.notOverlapped(pos_tmp-shift_image_domain_[ith][ii]) ) continue;  // add M.I. 2016/03/12
                             ep_send_buf[ith].increaseSize();
                             ep_send_buf[ith].back() = ep_org[adr_tmp];
                             const F64vec pos_new = ep_send_buf[ith].back().getPos() - shift_image_domain_[ith][ii];
@@ -887,12 +899,22 @@ namespace ParticleSimulator{
                     const F64ort pos_target_domain = dinfo.getPosDomain(i).shift(shift_image_domain[j]);
                     const F64ort cell_box = pos_root_cell_;
                     if( !tc_loc_[0].isLeaf(n_leaf_limit_) ){
+			/*
                         SearchSendParticleLongCutoff<TreeCell<Tmomloc>, Tepj, Tspj>
                             (tc_loc_,       adr_tc_tmp,
                              epj_sorted_,   epj_send_buf[ith],
                              spj_send_buf[ith],   cell_box,
                              pos_target_domain,   r_crit_sq,
                              r_cut_sq,            n_leaf_limit_,
+                             - shift_image_domain[j]);
+			*/
+                        SearchSendParticleLongCutoffWithRootCellCehck<TreeCell<Tmomloc>, Tepj, Tspj>
+                            (tc_loc_,       adr_tc_tmp,
+                             epj_sorted_,   epj_send_buf[ith],
+                             spj_send_buf[ith],   cell_box,
+                             pos_target_domain,   r_crit_sq,
+                             r_cut_sq,            n_leaf_limit_,
+                             pos_root_cell_,
                              - shift_image_domain[j]);
                     }
                     else{
@@ -904,12 +926,15 @@ namespace ParticleSimulator{
                                 const S32 n_tmp = tc_loc_[0].n_ptcl_;
                                 S32 adr_ptcl_tmp = tc_loc_[0].adr_ptcl_;
                                 for(S32 ip=0; ip<n_tmp; ip++){
+                                    //const F64vec pos_new = epj_send_buf[ith].back().getPos() - shift_image_domain[j];
+                                    if( pos_root_cell_.notOverlapped( epj_sorted_[adr_ptcl_tmp]-shift_image_domain[j] ) ) continue;  // added by M.I. 2016/03/12
                                     epj_send_buf[ith].push_back(epj_sorted_[adr_ptcl_tmp++]);
                                     const F64vec pos_new = epj_send_buf[ith].back().getPos() - shift_image_domain[j];
                                     epj_send_buf[ith].back().setPos(pos_new);
                                 }
                             }
                             else{
+                                if( pos_root_cell_.notOverlapped(tc_loc_[0].mom_.getPos()-shift_image_domain[j]) ) continue; // added by M.I. 2016/03/12
                                 spj_send_buf[ith].increaseSize();
                                 spj_send_buf[ith].back().copyFromMoment(tc_loc_[0].mom_);
                                 const F64vec pos_new = spj_send_buf[ith].back().getPos() - shift_image_domain[j];
@@ -1475,6 +1500,7 @@ namespace ParticleSimulator{
                     for(S32 jp=0; jp<n_ep_per_image; jp++){
                         const S32 id_j = id_ptcl_send_[ith][jp];
                         const F64vec pos_j = epjr_sorted_[id_j].getPos();
+                        if( pos_root_cell_.notOverlapped(pos_j-shift) ) continue; // added by M.I. 2016/03/12			
                         epjr_send_buf_[ith].push_back(epjr_sorted_[id_j]);
                         epjr_send_buf_[ith].back().setPos(pos_j-shift);
                     }
@@ -2226,6 +2252,7 @@ namespace ParticleSimulator{
                     for(S32 jp=0; jp<n_ep_per_image; jp++){
                         const S32 id_j = id_ptcl_send_[ith][jp];
                         const F64vec pos_j = epj_sorted_[id_j].getPos();
+                        if( pos_root_cell_.notOverlapped(pos_j-shift) ) continue; // added by M.I. 2016/03/12						
                         epj_send_buf_[ith].push_back(epj_sorted_[id_j]);
                         epj_send_buf_[ith].back().setPos(pos_j-shift);
                     }

@@ -82,15 +82,16 @@ namespace ParticleSimulator{
             first_call_by_setAverageTargetNumberOfSampleParticlePerProcess = true;
             first_call_by_initialize = true;
             first_call_by_DomainInfo_collect_sample_particle = true;
-            //n_smp_ptcl_tot_ = 30 * Comm::getNumberOfProc();
-            n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
+            //n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
         }
 	
         void initialize() {
             assert(first_call_by_initialize);
             first_call_by_initialize = false;
+	    n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
             n_ptcl_send_ = n_ptcl_recv_ = 0;
-//            first_call_by_DomainInfo_collect_sample_particle = true;
+	    //first_call_by_DomainInfo_collect_sample_particle = true;
+	    //n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
         }
 
         void setAverageTargetNumberOfSampleParticlePerProcess(const S32 &nsampleperprocess) {
