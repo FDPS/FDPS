@@ -2442,11 +2442,11 @@ void PMForce::forceInterpolation(const Particle *particle, float *a){
   for( int i=0; i<3; i++){
     for( int j=0; j<3; j++){
       for( int k=0; k<3; k++){
-	int ii = iw[k][2] + l_msize[2]*( iw[j][1] + l_msize[1]*iw[i][0]);
-	float w = wi[i][0]*wi[j][1]*wi[k][2];
-	ax += mesh_force_local[ii][0]*w;
-	ay += mesh_force_local[ii][1]*w;
-	az += mesh_force_local[ii][2]*w;
+         int ii = iw[k][2] + l_msize[2]*( iw[j][1] + l_msize[1]*iw[i][0]);
+         float w = wi[i][0]*wi[j][1]*wi[k][2];
+         ax += mesh_force_local[ii][0]*w;
+         ay += mesh_force_local[ii][1]*w;
+         az += mesh_force_local[ii][2]*w;
       }
     }
   }
@@ -2458,6 +2458,41 @@ void PMForce::forceInterpolation(const Particle *particle, float *a){
 
 }
 
+void PMForce::potentialInterpolation(const Particle *particle, float *pot){
+
+   float pos[3];
+   getPos2( particle, pos);
+   pos[0] -= g_pos_f[0];
+   pos[1] -= g_pos_f[1];
+   pos[2] -= g_pos_f[2];
+
+   float wi[3][3];
+   int iw[3][3];
+   for(int j=0; j<3; j++){
+     float xt1 = pos[j] * (float)SIZE_MESH;
+     iw[1][j] = (int)(xt1 + 0.5);
+     float dx1 = xt1 - (float)(iw[1][j]);
+     wi[0][j] = 0.5 * (0.5-dx1) * (0.5-dx1);
+     wi[1][j] = 0.75 - dx1*dx1;
+     wi[2][j] = 0.5 * (0.5 + dx1) * (0.5 + dx1);
+     iw[0][j] = iw[1][j] - 1;
+     iw[2][j] = iw[1][j] + 1;
+   }
+
+   float ptnl = 0.0;
+   for(int i=0; i<3; i++){
+      for(int j=0; j<3; j++){
+         for(int k=0; k<3; k++){
+            int ii = iw[k][2] + l_msize[2]*( iw[j][1] + l_msize[1]*iw[i][0]);
+            float w = wi[i][0]*wi[j][1]*wi[k][2];
+            ptnl += mesh_density_local[ii]*w;
+         }
+      }
+   }
+
+   *pot = ptnl;
+
+}
 
 
 void PMForce::outputLog( FILE *outstream){

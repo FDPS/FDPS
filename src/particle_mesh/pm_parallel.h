@@ -186,6 +186,7 @@ class PMForce{
   virtual void calcMeshForce();
   virtual void forceInterpolation(const Particle *particle, float *a);
   virtual void forceInterpolation( const double *_pos, float *a);
+  virtual void potentialInterpolation(const Particle *particle, float *pot);
   virtual void outputLog( FILE *outstream);
   virtual void calcPMMeshForce(const Particle *particle, const int npart);
 

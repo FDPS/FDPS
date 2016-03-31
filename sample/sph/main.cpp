@@ -25,8 +25,8 @@ int main(int argc, char* argv[]){
 	dinfo.setPosRootDomain(PS::F64vec(0.0, 0.0, 0.0), PS::F64vec(box.x, box.y, box.z));
 	printf("setD\n");
 	dinfo.setDomain(PS::Comm::getNumberOfProc(), 1, 1);
-	printf("decomposeDomain\n");
-	dinfo.decomposeDomain();
+	printf("decomposeDomainAll\n");
+	dinfo.decomposeDomainAll(sph_system);
 	printf("ex.P\n");
 	sph_system.exchangeParticle(dinfo);
 	printf("TreeFFS\n");
@@ -52,7 +52,7 @@ int main(int argc, char* argv[]){
 		FullDrift(sph_system, dt);
 		sph_system.adjustPositionIntoRootDomain(dinfo);
 		Predict(sph_system, dt);
-		dinfo.decomposeDomain();
+		dinfo.decomposeDomainAll(sph_system);		
 		sph_system.exchangeParticle(dinfo);
 		{
 			PS::TreeForForceShort<RESULT::Dens, EPI::Dens, EPJ::Dens>::Gather dens_tree;

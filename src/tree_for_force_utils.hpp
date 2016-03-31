@@ -1142,7 +1142,7 @@ namespace ParticleSimulator{
 
 
     template<class Ttc, class Tep, class Tsp>
-    inline void SearchSendParticleLongCutoffWithRootCellCehck
+    inline void SearchSendParticleLongCutoffWithRootCellCheck
     (const ReallocatableArray<Ttc> & tc_first,
      const S32 adr_tc,
      const ReallocatableArray<Tep> & ep_first,
@@ -1153,7 +1153,7 @@ namespace ParticleSimulator{
      const F64 r_crit_sq,
      const F64 r_cut_sq,
      const S32 n_leaf_limit,
-     const F64 pos_root_cell,
+     const F64ort pos_root_cell,
      const F64vec & shift = 0.){
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1177,11 +1177,11 @@ namespace ParticleSimulator{
             else if( (open_bits>>i) & 0x1 ){
                 if( !(tc_child->isLeaf(n_leaf_limit)) ){
                     const F64ort child_cell_box = makeChildCellBox(i, cell_box);
-                    SearchSendParticleLongCutoffWithRootCellCehck<Ttc, Tep, Tsp>
+                    SearchSendParticleLongCutoffWithRootCellCheck<Ttc, Tep, Tsp>
                         (tc_first, tc_first[adr_tc_child].adr_tc_,
                          ep_first, ep_send, sp_send, child_cell_box,
-                         pos_target_domain, r_crit_sq*0.25, r_cut_sq, pos_root_cell, n_leaf_limit,
-                         shift);
+                         pos_target_domain, r_crit_sq*0.25, r_cut_sq, n_leaf_limit,
+                         pos_root_cell, shift);
                 }
                 else{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;

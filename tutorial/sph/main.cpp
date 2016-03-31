@@ -330,7 +330,7 @@ int main(int argc, char* argv[]){
 	dinfo.setBoundaryCondition(PS::BOUNDARY_CONDITION_PERIODIC_XYZ);
 	dinfo.setPosRootDomain(PS::F64vec(0.0, 0.0, 0.0), PS::F64vec(box.x, box.y, box.z));
 	//領域分割をする
-	dinfo.decomposeDomain();
+	dinfo.decomposeDomainAll(sph_system);
 	//粒子を交換する
 	sph_system.exchangeParticle(dinfo);
 	//密度計算用Treeと相互作用計算用Treeの生成、初期化。
@@ -355,8 +355,9 @@ int main(int argc, char* argv[]){
 		sph_system.adjustPositionIntoRootDomain(dinfo);
 		//Leap frog: Predict
 		Predict(sph_system, dt);
+		dinfo.collectSampleParticle(sph_system);
 		//領域情報の更新
-		dinfo.decomposeDomain();
+		dinfo.decomposeDomainAll(sph_system);
 		//粒子を交換する
 		sph_system.exchangeParticle(dinfo);
 		//密度/圧力/加速度の計算

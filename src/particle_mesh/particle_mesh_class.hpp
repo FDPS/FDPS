@@ -102,6 +102,16 @@ namespace ParticleSimulator{
                 return apm;
             }
 
+            F32 getPotential(F32vec pos) {
+               F32 pot = 0.0;
+               Particle p;
+               p.xpos = pos[0];
+               p.ypos = pos[1];
+               p.zpos = pos[2];
+               pm_->potentialInterpolation(&p, &pot);
+               return pot;
+            }
+
             template<class Tpsys,
                      class Tdinfo>
             //            void calcForceAllAndWriteBack(const Tpsys & psys,

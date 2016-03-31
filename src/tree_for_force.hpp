@@ -40,6 +40,8 @@ namespace ParticleSimulator{
         CountT n_let_ep_send_1st_, n_let_ep_recv_1st_, n_let_sp_send_1st_, n_let_sp_recv_1st_,
             n_let_ep_send_2nd_, n_let_ep_recv_2nd_;
         CountT * n_cell_open_;
+        CountT n_proc_send_exchange_LET_1st__icomm_sp_, n_proc_recv_exchange_LET_1st__icomm_sp_, 
+            n_proc_send_exchange_LET_1st__icomm_ep_, n_proc_recv_exchange_LET_1st__icomm_ep_; 
 
         //F64 Tcomm_tmp_;
         F64 wtime_exlet_comm_;
@@ -442,6 +444,12 @@ namespace ParticleSimulator{
         CountT getNumberOfCellOpenLocal() const {return n_cell_open_[0]; }
         CountT getNumberOfCellOpenGlobal() const {return Comm::getSum(n_cell_open_[0]); }
         CountT getNumberOfCellGlobal() const {return tc_glb_.size(); }
+
+        CountT getNumberOfProcSendLET1stICommSP() const {return n_proc_send_exchange_LET_1st__icomm_sp_;}
+        CountT getNumberOfProcRecvLET1stICommSP() const {return n_proc_recv_exchange_LET_1st__icomm_sp_;}
+        CountT getNumberOfProcSendLET1stICommEP() const {return n_proc_send_exchange_LET_1st__icomm_ep_;}
+        CountT getNumberOfProcRecvLET1stICommEP() const {return n_proc_recv_exchange_LET_1st__icomm_ep_;}
+
 /*
         CountT getNumberOfLETEP1stSendLocal() const {return (CountT)epj_send_.size();}
         CountT getNumberOfLETEP1stRecvLocal() const {return (CountT)epj_recv_.size();}
@@ -485,9 +493,9 @@ namespace ParticleSimulator{
                         const U32 n_leaf_limit=8,
                         const U32 n_group_limit=64);
 
-	void reallocMem();
-	void freeMem();
-	void clearSizeOfArray();
+        void reallocMem();
+        void freeMem();
+        void clearSizeOfArray();
 
         template<class Tpsys>
         void setParticleLocalTree(const Tpsys & psys, const bool clear=true);

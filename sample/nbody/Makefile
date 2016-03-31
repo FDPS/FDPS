@@ -1,9 +1,9 @@
 PS_PATH = ../../src/
 INC = -I$(PS_PATH)
 
-#CC = time g++
+CC = time g++
 #CC = time CC
-CC = mpicxx
+#CC = mpicxx
 CFLAGS = -O3
 #CFLAGS += -Wall
 #CFLAGS += -ffast-math

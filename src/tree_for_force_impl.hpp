@@ -899,7 +899,7 @@ namespace ParticleSimulator{
                     const F64ort pos_target_domain = dinfo.getPosDomain(i).shift(shift_image_domain[j]);
                     const F64ort cell_box = pos_root_cell_;
                     if( !tc_loc_[0].isLeaf(n_leaf_limit_) ){
-			/*
+/*
                         SearchSendParticleLongCutoff<TreeCell<Tmomloc>, Tepj, Tspj>
                             (tc_loc_,       adr_tc_tmp,
                              epj_sorted_,   epj_send_buf[ith],
@@ -907,8 +907,10 @@ namespace ParticleSimulator{
                              pos_target_domain,   r_crit_sq,
                              r_cut_sq,            n_leaf_limit_,
                              - shift_image_domain[j]);
-			*/
-                        SearchSendParticleLongCutoffWithRootCellCehck<TreeCell<Tmomloc>, Tepj, Tspj>
+*/
+
+                        SearchSendParticleLongCutoffWithRootCellCheck
+                            <TreeCell<Tmomloc>, Tepj, Tspj>
                             (tc_loc_,       adr_tc_tmp,
                              epj_sorted_,   epj_send_buf[ith],
                              spj_send_buf[ith],   cell_box,
@@ -916,6 +918,7 @@ namespace ParticleSimulator{
                              r_cut_sq,            n_leaf_limit_,
                              pos_root_cell_,
                              - shift_image_domain[j]);
+
                     }
                     else{
                         const F64 dis_sq_cut = pos_target_domain.getDistanceMinSQ(cell_box);
@@ -927,7 +930,7 @@ namespace ParticleSimulator{
                                 S32 adr_ptcl_tmp = tc_loc_[0].adr_ptcl_;
                                 for(S32 ip=0; ip<n_tmp; ip++){
                                     //const F64vec pos_new = epj_send_buf[ith].back().getPos() - shift_image_domain[j];
-                                    if( pos_root_cell_.notOverlapped( epj_sorted_[adr_ptcl_tmp]-shift_image_domain[j] ) ) continue;  // added by M.I. 2016/03/12
+                                    if( pos_root_cell_.notOverlapped( epj_sorted_[adr_ptcl_tmp].getPos()-shift_image_domain[j] ) ) continue;  // added by M.I. 2016/03/12
                                     epj_send_buf[ith].push_back(epj_sorted_[adr_ptcl_tmp++]);
                                     const F64vec pos_new = epj_send_buf[ith].back().getPos() - shift_image_domain[j];
                                     epj_send_buf[ith].back().setPos(pos_new);

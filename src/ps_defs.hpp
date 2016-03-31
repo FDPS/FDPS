@@ -1472,18 +1472,46 @@ namespace ParticleSimulator{
 
         F64 calc_force__core__walk_tree;
 
-	F64 calc_force__make_ipgroup;
-	F64 calc_force__core;
-	F64 calc_force__copy_original_order;
+        F64 calc_force__make_ipgroup;
+        F64 calc_force__core;
+        F64 calc_force__copy_original_order;
+
+        F64 exchange_particle__find_particle;
+        F64 exchange_particle__exchange_particle;
+
+        F64 decompose_domain__sort_particle_1st;
+        F64 decompose_domain__sort_particle_2nd;
+        F64 decompose_domain__sort_particle_3rd;
+        F64 decompose_domain__gather_particle;
+
+        F64 decompose_domain__setup;
+        F64 decompose_domain__determine_coord_1st;
+        F64 decompose_domain__migrae_particle_1st;
+        F64 decompose_domain__determine_coord_2nd;
+        F64 decompose_domain__determine_coord_3rd;
+        F64 decompose_domain__exchange_pos_domain;
+
+        F64 exchange_LET_1st__a2a_n;
+        F64 exchange_LET_1st__icomm_sp;
+        F64 exchange_LET_1st__a2a_sp;
+        F64 exchange_LET_1st__icomm_ep;
+        F64 exchange_LET_1st__a2a_ep;
 
         TimeProfile () {
             collect_sample_particle = decompose_domain = exchange_particle = set_particle_local_tree = set_particle_global_tree = make_local_tree = make_global_tree = set_root_cell
                 = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd 
                 = exchange_LET_1st = exchange_LET_2nd = 0.0;
-            morton_sort_local_tree = link_cell_local_tree 
+            morton_sort_local_tree = link_cell_local_tree
                 = morton_sort_global_tree = link_cell_global_tree = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
-	    calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
+            calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
+
+            exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
+
+            decompose_domain__sort_particle_1st = decompose_domain__sort_particle_2nd = decompose_domain__sort_particle_3rd = decompose_domain__gather_particle = 0.0;
+            decompose_domain__setup = decompose_domain__determine_coord_1st = decompose_domain__migrae_particle_1st = decompose_domain__determine_coord_2nd 
+                = decompose_domain__determine_coord_3rd = decompose_domain__exchange_pos_domain = 0.0;
+            exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ep = exchange_LET_1st__icomm_sp = exchange_LET_1st__a2a_ep = 0.0;
         }
         TimeProfile operator + (const TimeProfile & rhs) const{
             TimeProfile ret;
@@ -1514,9 +1542,31 @@ namespace ParticleSimulator{
 
             ret.calc_force__core__walk_tree = this->calc_force__core__walk_tree + rhs.calc_force__core__walk_tree;
 
-	    ret.calc_force__make_ipgroup = this->calc_force__make_ipgroup + rhs.calc_force__make_ipgroup; 
-	    ret.calc_force__core = this->calc_force__core + rhs.calc_force__core;
-	    ret.calc_force__copy_original_order = this->calc_force__copy_original_order + rhs.calc_force__copy_original_order;
+            ret.calc_force__make_ipgroup = this->calc_force__make_ipgroup + rhs.calc_force__make_ipgroup;
+            ret.calc_force__core = this->calc_force__core + rhs.calc_force__core;
+            ret.calc_force__copy_original_order = this->calc_force__copy_original_order + rhs.calc_force__copy_original_order;
+
+            ret.exchange_particle__find_particle     = this->exchange_particle__find_particle     + rhs.exchange_particle__find_particle;  
+            ret.exchange_particle__exchange_particle = this->exchange_particle__exchange_particle + rhs.exchange_particle__exchange_particle;
+
+
+            ret.decompose_domain__sort_particle_1st = this->decompose_domain__sort_particle_1st + rhs.decompose_domain__sort_particle_1st;
+            ret.decompose_domain__sort_particle_2nd = this->decompose_domain__sort_particle_2nd + rhs.decompose_domain__sort_particle_2nd;
+            ret.decompose_domain__sort_particle_3rd = this->decompose_domain__sort_particle_3rd + rhs.decompose_domain__sort_particle_3rd;
+            ret.decompose_domain__gather_particle = this->decompose_domain__gather_particle + rhs.decompose_domain__gather_particle;
+
+            ret.decompose_domain__setup = this->decompose_domain__setup + rhs.decompose_domain__setup;
+            ret.decompose_domain__determine_coord_1st = this->decompose_domain__determine_coord_1st + rhs.decompose_domain__determine_coord_1st;
+            ret.decompose_domain__migrae_particle_1st = this->decompose_domain__migrae_particle_1st + rhs.decompose_domain__migrae_particle_1st;
+            ret.decompose_domain__determine_coord_2nd = this->decompose_domain__determine_coord_2nd + rhs.decompose_domain__determine_coord_2nd;
+            ret.decompose_domain__determine_coord_3rd = this->decompose_domain__determine_coord_3rd + rhs.decompose_domain__determine_coord_3rd;
+            ret.decompose_domain__exchange_pos_domain = this->decompose_domain__exchange_pos_domain + rhs.decompose_domain__exchange_pos_domain;
+
+            ret.exchange_LET_1st__a2a_n    = this->exchange_LET_1st__a2a_n    + rhs.exchange_LET_1st__a2a_n;
+            ret.exchange_LET_1st__icomm_ep   = this->exchange_LET_1st__icomm_ep   + rhs.exchange_LET_1st__icomm_ep;
+            ret.exchange_LET_1st__a2a_sp   = this->exchange_LET_1st__a2a_sp   + rhs.exchange_LET_1st__a2a_sp;
+            ret.exchange_LET_1st__icomm_sp = this->exchange_LET_1st__icomm_sp + rhs.exchange_LET_1st__icomm_sp;
+            ret.exchange_LET_1st__a2a_ep   = this->exchange_LET_1st__a2a_ep   + rhs.exchange_LET_1st__a2a_ep;
 
             return ret;
         }
@@ -1537,9 +1587,15 @@ namespace ParticleSimulator{
                 = morton_sort_global_tree = link_cell_global_tree = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
             calc_force__core__walk_tree = 0.0;
-	    calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
-        }
+            calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
+            exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
 
+
+            decompose_domain__sort_particle_1st = decompose_domain__sort_particle_2nd = decompose_domain__sort_particle_3rd = decompose_domain__gather_particle = 0.0;
+            decompose_domain__setup = decompose_domain__determine_coord_1st = decompose_domain__migrae_particle_1st = decompose_domain__determine_coord_2nd 
+                = decompose_domain__determine_coord_3rd = decompose_domain__exchange_pos_domain = 0.0;
+            exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ep = exchange_LET_1st__icomm_sp = exchange_LET_1st__a2a_ep = 0.0;
+        }
     };
 
 }

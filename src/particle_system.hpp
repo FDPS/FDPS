@@ -743,6 +743,8 @@ namespace ParticleSimulator{
 
 #if 1
       // new version (with switch)
+      // for search, use tree with level 3(x, y, z) 
+      // must be consistend with geometry of domains.
         template<class Tdinfo>
         void exchangeParticle(Tdinfo & dinfo) {
             F64 time_offset = GetWtime();
@@ -765,6 +767,7 @@ namespace ParticleSimulator{
                 nsend[i] = nsend_disp[i] = nrecv[i] = nrecv_disp[i] = 0;
             }
             nsend_disp[nproc] = nrecv_disp[nproc] = 0;
+            F64 time_offset_inner = GetWtime();
             for(S32 ip = 0; ip < nloc; ip++) {
                 if( dinfo.getPosRootDomain().notOverlapped(ptcl_[ip].getPos()) ){
                     PARTICLE_SIMULATOR_PRINT_ERROR("A particle is out of root domain");
@@ -777,6 +780,8 @@ namespace ParticleSimulator{
                     nsend[srank]++;
                 }
             }
+
+
             nsend_disp[0] = 0;
             for(S32 i = 0; i < nproc; i++) {
                 nsend_disp[i+1] += nsend_disp[i] + nsend[i];
@@ -798,9 +803,11 @@ namespace ParticleSimulator{
                 }
             }
             ptcl_.resizeNoInitialize(iloc);
+            time_profile_.exchange_particle__find_particle = GetWtime() - time_offset_inner;
 
             // ****************************************************
             // *** receive the number of receive particles ********
+            time_offset_inner = GetWtime();
             Comm::allToAll(nsend, 1, nrecv);
 
             nrecv_disp[0] = 0;
@@ -847,11 +854,10 @@ namespace ParticleSimulator{
             for(S32 ip = 0; ip < nrecv_tot; ip++) {
                 ptcl_.pushBackNoCheck( ptcl_recv_[ip] );
             }
-            //std::cout<<"ptcl_.size()="<<ptcl_.size()<<std::endl;
             // **************************************************** 
-
             n_ptcl_send_ += nsend_disp[nproc];
             n_ptcl_recv_ += nrecv_disp[nproc];
+            time_profile_.exchange_particle__exchange_particle = GetWtime() - time_offset_inner;
 
             delete [] nsend;
             delete [] nsend_disp;
