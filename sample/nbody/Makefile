@@ -13,7 +13,7 @@ CFLAGS = -O3
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 #use_phantom_grape_x86 = yes
-#use_gpu_cuda = yes
+use_gpu_cuda = yes
 
 all:nbody.out
 
