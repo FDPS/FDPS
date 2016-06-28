@@ -1,3 +1,3 @@
 #pragma once
 
-#define SIZE_OF_MESH        (16)
+#define SIZE_OF_MESH (16)

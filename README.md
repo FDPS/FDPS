@@ -8,7 +8,7 @@ The current version is 2.0. The previous versions are [here](https://github.com/
 We maintain this from subversion-over-github interface.
 
 If you have some questions, please do not hesitate to contact us. Our
-e-mail address is `fdps-support@mail.jmlab.jp` .
+e-mail address is fdps-support@mail.jmlab.jp .
 
 Tutorial of FDPS is here
 [doc/doc_tutorial_e.pdf](https://github.com/FDPS/FDPS/blob/master/doc/doc_tutorial_e.pdf?raw=true)

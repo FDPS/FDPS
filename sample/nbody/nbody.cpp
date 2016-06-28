@@ -196,15 +196,15 @@ int main(int argc, char *argv[]) {
             dt = atof(optarg);
             std::cerr << "time_step = " << dt << std::endl;
             break;
-	case 'd':
+        case 'd':
             dt_diag = atof(optarg);
             std::cerr << "dt_diag = " << dt_diag << std::endl;
             break;
-	case 'D':
+        case 'D':
             dt_snap = atof(optarg);
             std::cerr << "dt_snap = " << dt_snap << std::endl;
             break;
-	case 'l':
+        case 'l':
             n_leaf_limit = atoi(optarg);
             std::cerr << "n_leaf_limit = " << n_leaf_limit << std::endl;
             break;

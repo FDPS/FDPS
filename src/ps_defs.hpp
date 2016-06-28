@@ -873,18 +873,18 @@ namespace ParticleSimulator{
 			std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
 			std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
 			std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-			std::cerr << "     ||     Version 2.0 (2016/01)        ||" << std::endl;
+			std::cerr << "     ||     Version 2.0 (2016/06)        ||" << std::endl;
 			std::cerr << "     \\\\==================================//" << std::endl;
 			std::cerr << "" << std::endl;
 			std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
 			std::cerr << "       E-mail : fdps-support@mail.jmlab.jp" << std::endl;
 			std::cerr << "       Licence: MIT (see, https://github.com/FDPS/FDPS/blob/master/LICENSE)" << std::endl;
-			std::cerr << "       Note   : Please cite Iwasawa et al. (in prep.)" << std::endl;
+			std::cerr << "       Note   : Please cite Iwasawa et al. (in press.)" << std::endl;
 			std::cerr << "" << std::endl;
 			std::cerr << "       Copyright (C) 2015 " << std::endl;
 			std::cerr << "         Masaki Iwasawa, Ataru Tanikawa, Natsuki Hosono," << std::endl;
-			std::cerr << "         Keigo Nitadori, Takayuki Muranushi, Junichiro Makino" << std::endl;
-			std::cerr << "         and many others" << std::endl;
+			std::cerr << "         Keigo Nitadori, Takayuki Muranushi, Daisuke Namekata" << std::endl;
+			std::cerr << "         Junichiro Makino and many others" << std::endl;
 #ifdef MONAR
             if(monar){
                 std::cerr<<"　　 ^__^　 ／￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣"<<std::endl;
@@ -1363,6 +1363,19 @@ namespace ParticleSimulator{
 	return clock() / CLOCKS_PER_SEC;
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
     }
+
+
+    inline F64 GetWtimeNoBarrier(){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        return MPI::Wtime();
+#elif PARTICLE_SIMULATOR_THREAD_PARALLEL
+	return omp_get_wtime();
+#else
+	return clock() / CLOCKS_PER_SEC;
+#endif //PARTICLE_SIMULATOR_MPI_PARALLEL
+    }
+
+
     struct LessOPForVecX{
         bool operator() (const F64vec & left, const F64vec & right) const {
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION

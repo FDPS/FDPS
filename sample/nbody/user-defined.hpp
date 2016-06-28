@@ -4,13 +4,13 @@ public:
     PS::S64 n_body;
     PS::F64 time;
     PS::S32 readAscii(FILE * fp) {
-		fscanf(fp, "%lf\n", &time);
-		fscanf(fp, "%lld\n", &n_body);
-		return n_body;
+        fscanf(fp, "%lf\n", &time);
+        fscanf(fp, "%lld\n", &n_body);
+        return n_body;
     }
     void writeAscii(FILE* fp) const {
-	fprintf(fp, "%e\n", time);
-	fprintf(fp, "%lld\n", n_body);
+        fprintf(fp, "%e\n", time);
+        fprintf(fp, "%lld\n", n_body);
     }
 };
 
@@ -48,19 +48,19 @@ public:
         pot = 0.0;
     }
 
-	void writeAscii(FILE* fp) const {
-		fprintf(fp, "%lld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", 
+    void writeAscii(FILE* fp) const {
+        fprintf(fp, "%lld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", 
                 this->id, this->mass,
                 this->pos.x, this->pos.y, this->pos.z,
                 this->vel.x, this->vel.y, this->vel.z);
-	}
+    }
 
-	void readAscii(FILE* fp) {
-		fscanf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
+    void readAscii(FILE* fp) {
+        fscanf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
                &this->id, &this->mass,
                &this->pos.x, &this->pos.y, &this->pos.z,
                &this->vel.x, &this->vel.y, &this->vel.z);
-	}
+        }
 
 };
 
@@ -95,7 +95,7 @@ void CalcGravity(const FPGrav * iptcl,
         xj[j][1] = jptcl[j].getPos()[1];
         xj[j][2] = jptcl[j].getPos()[2];
         mj[j]    = jptcl[j].getCharge();
-	xj[j][0] = jptcl[j].pos[0];
+        xj[j][0] = jptcl[j].pos[0];
         xj[j][1] = jptcl[j].pos[1];
         xj[j][2] = jptcl[j].pos[2];
         mj[j]    = jptcl[j].mass;
@@ -105,7 +105,7 @@ void CalcGravity(const FPGrav * iptcl,
     g5_set_nMC(devid, nj);
     g5_calculate_force_on_xMC(devid, xi, ai, pi, ni);
     for(PS::S32 i = 0; i < ni; i++) {
-	force[i].acc[0] += ai[i][0];
+        force[i].acc[0] += ai[i][0];
         force[i].acc[1] += ai[i][1];
         force[i].acc[2] += ai[i][2];
         force[i].pot    -= pi[i];

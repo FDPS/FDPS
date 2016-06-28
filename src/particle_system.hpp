@@ -803,7 +803,8 @@ namespace ParticleSimulator{
                 }
             }
             ptcl_.resizeNoInitialize(iloc);
-            time_profile_.exchange_particle__find_particle = GetWtime() - time_offset_inner;
+            //time_profile_.exchange_particle__find_particle = GetWtime() - time_offset_inner;
+            time_profile_.exchange_particle__find_particle += GetWtime() - time_offset_inner;
 
             // ****************************************************
             // *** receive the number of receive particles ********
@@ -857,7 +858,8 @@ namespace ParticleSimulator{
             // **************************************************** 
             n_ptcl_send_ += nsend_disp[nproc];
             n_ptcl_recv_ += nrecv_disp[nproc];
-            time_profile_.exchange_particle__exchange_particle = GetWtime() - time_offset_inner;
+            //time_profile_.exchange_particle__exchange_particle = GetWtime() - time_offset_inner;
+            time_profile_.exchange_particle__exchange_particle += GetWtime() - time_offset_inner;
 
             delete [] nsend;
             delete [] nsend_disp;
@@ -869,7 +871,8 @@ namespace ParticleSimulator{
             n_ptcl_send_ = 0;
             n_ptcl_recv_ = 0;
 #endif
-            time_profile_.exchange_particle = GetWtime() - time_offset;
+            //time_profile_.exchange_particle = GetWtime() - time_offset;
+            time_profile_.exchange_particle += GetWtime() - time_offset;
         }
 #else
 
@@ -1067,7 +1070,8 @@ namespace ParticleSimulator{
                 std::cout<<"ptcl_[0].getRSearch()="<<ptcl_[0].getRSearch()<<std::endl;
             }
 #endif
-            time_profile_.exchange_particle = GetWtime() - time_offset;
+            //time_profile_.exchange_particle = GetWtime() - time_offset;
+            time_profile_.exchange_particle += GetWtime() - time_offset;
         }
 #endif
 
@@ -1145,9 +1149,9 @@ namespace ParticleSimulator{
         CountT getNumberOfParticleRecvLocal() const { return (CountT)n_ptcl_recv_; }
         CountT getNumberOfParticleSendGlobal() const { return Comm::getSum((CountT)n_ptcl_send_); }
         CountT getNumberOfParticleRecvGlobal() const { return Comm::getSum((CountT)n_ptcl_recv_); }
-	void clearCounterAll(){
-	    n_ptcl_send_ = n_ptcl_recv_ = 0;
+        void clearCounterAll(){
+            n_ptcl_send_ = n_ptcl_recv_ = 0;
             time_profile_.clear();
-	}
+        }
     };
 }

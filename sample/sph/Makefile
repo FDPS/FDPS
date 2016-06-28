@@ -1,12 +1,10 @@
 PS_PATH = -I ../../src/
 
-CC = g++
-#CC = mpicxx
-CFLAGS = -O3
-CFLAGS += -ffast-math
-CFLAGS += -funroll-loops
-#CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
-#CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+#CC = g++
+CC = mpicxx
+CFLAGS = -O3 -ffast-math -funroll-loops 
+CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
+CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 CPPOBJS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
 CPPHDRS = $(wildcard *.h)

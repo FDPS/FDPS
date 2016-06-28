@@ -1232,7 +1232,7 @@ void PMForce::commMeshDensity(){
     nsend_slab[dest[i]] ++;
   }
   My_MPI_Barrier( MPI_COMM_COLUMN);
-  fprintf_verbose( stderr, "#start comm\n");
+  //fprintf_verbose(stderr, "#start comm\n");
   this_run->t.pm_make_comm_density += getTime(&nowtime);
 
   MPI_Alltoall( nsend, 1, MPI_INT, nrecv, 1, MPI_INT, MPI_COMM_COLUMN);
@@ -1275,7 +1275,7 @@ void PMForce::commMeshDensity(){
 		 l_msize_all, 3, MPI_INT, MPI_COMM_COLUMN);
   My_MPI_Barrier( MPI_COMM_COLUMN);
   this_run->t.pm_density_comm += getTime(&nowtime);
-  fprintf_verbose( stderr, "#end comm\n");
+  //fprintf_verbose( stderr, "#end comm\n");
 
   for( int p=0; p<nnode_reduce; p++){
     if( nrecv[p] == 0)  continue;
@@ -1342,14 +1342,23 @@ void PMForce::commMeshDensity(){
   static int rdispls_gix[MAXNNODE];
 
   int *gix_send = new int[SIZE_MESH];
+#if 0
+  // original 
   int *dest = new int[SIZE_MESH];
-  for( int i=0; i<this_run->nnode; i++){
-    nsend[i] = nrecv[i] = sdispls_sendbuf[i] = rdispls_sendbuf[i] = 0;
-    nsend_slab[i] = nrecv_slab[i] =  sdispls_gix[i] = rdispls_gix[i] = 0;
-  }
   for( int i=0; i<SIZE_MESH; i++){
     gix_send[i] = dest[i] = 0;
   }
+#else
+  // modified by M.I. 2016 6/7
+  const int size_dest = static_cast<int>(l_msize[0]*1.2)+1024;
+  int *dest = new int[size_dest];
+  for( int i=0; i<SIZE_MESH; i++) gix_send[i] = 0;
+  for( int i=0; i<size_dest; i++) dest[i] = 0;
+#endif
+  for( int i=0; i<this_run->nnode; i++){
+    nsend[i] = nrecv[i] = sdispls_sendbuf[i] = rdispls_sendbuf[i] = 0;
+    nsend_slab[i] = nrecv_slab[i] =  sdispls_gix[i] = rdispls_gix[i] = 0;
+  }  
   for( int i=0; i<l_msize[0]; i++){
     int gix = g_offset[0] + i;
     if( gix < 0)  gix += SIZE_MESH;
@@ -1397,7 +1406,7 @@ void PMForce::commMeshDensity(){
   My_MPI_Barrier( this_run->MPI_COMM_INTERNAL);
   this_run->t.pm_make_comm_density += getTime(&nowtime);
 
-  fprintf_verbose( stderr, "#start comm\n");
+  //fprintf_verbose( stderr, "#start comm\n");
   MPI_Alltoall( nsend, 1, MPI_INT, nrecv, 1, MPI_INT, this_run->MPI_COMM_INTERNAL);
   MPI_Alltoall( nsend_slab, 1, MPI_INT, nrecv_slab, 1, MPI_INT, this_run->MPI_COMM_INTERNAL);
   int nrecv_total = nrecv[0];
@@ -1437,7 +1446,7 @@ void PMForce::commMeshDensity(){
   MPI_Allgather( l_msize, 3, MPI_INT, 
 		 l_msize_all, 3, MPI_INT, this_run->MPI_COMM_INTERNAL);
   My_MPI_Barrier( this_run->MPI_COMM_INTERNAL);
-  fprintf_verbose( stderr, "#end comm\n");
+  //fprintf_verbose( stderr, "#end comm\n");
   this_run->t.pm_density_comm += getTime(&nowtime);
 
   for( int p=0; p<this_run->nnode; p++){
@@ -1530,7 +1539,7 @@ void PMForce::commMeshDensity3D(){
   for( int i=0; i<ln_total; i++)  nsend[dest[i]] ++;
 
   My_MPI_Barrier( MPI_COMM_COLUMN);
-  fprintf_verbose( stderr, "#start comm\n");
+  //fprintf_verbose( stderr, "#start comm\n");
   this_run->t.pm_make_comm_density += getTime(&nowtime);
 
   MPI_Alltoall( nsend, 1, MPI_INT, nrecv, 1, MPI_INT, MPI_COMM_COLUMN);
@@ -1569,7 +1578,7 @@ void PMForce::commMeshDensity3D(){
                  MPI_COMM_COLUMN);
   My_MPI_Barrier( MPI_COMM_COLUMN);
   this_run->t.pm_density_comm += getTime(&nowtime);
-  fprintf_verbose( stderr, "#end comm\n");
+  //fprintf_verbose( stderr, "#end comm\n");
 
   for( int i=0; i<nrecv_total; i++){
     int im = recvbuf_subbox_dest[i];
@@ -1849,10 +1858,10 @@ void PMForce::commMeshPhi(){
   My_MPI_Barrier( MPI_COMM_COLUMN);
   this_run->t.pm_make_comm_phi += getTime(&nowtime);
 
-  fprintf_verbose( stderr, "#start comm0\n");
+  //fprintf_verbose( stderr, "#start comm0\n");
   MPI_Alltoall( nsend, 1, MPI_INT, nrecv, 1, MPI_INT, MPI_COMM_COLUMN);
   MPI_Alltoall( nsend_slab, 1, MPI_INT, nrecv_slab, 1, MPI_INT, MPI_COMM_COLUMN);
-  fprintf_verbose( stderr, "#end comm0\n");
+  //fprintf_verbose( stderr, "#end comm0\n");
 
   int nrecv_total = nrecv[0];
   int nrecv_slab_total = nrecv_slab[0];
@@ -1878,7 +1887,7 @@ void PMForce::commMeshPhi(){
   this_run->nsend_pm_s2l = nsend_pm_s2l;
   this_run->nrecv_pm_s2l = nrecv_pm_s2l;
 
-  fprintf_verbose( stderr, "#start comm\n");
+  //fprintf_verbose( stderr, "#start comm\n");
   MPI_Alltoallv( sendbuf, nsend, sdispls_sendbuf, MPI_FLOAT,
                  recvbuf, nrecv, rdispls_sendbuf, MPI_FLOAT,
                  MPI_COMM_COLUMN);
@@ -1887,7 +1896,7 @@ void PMForce::commMeshPhi(){
                  MPI_COMM_COLUMN);
   My_MPI_Barrier( MPI_COMM_COLUMN);
   this_run->t.pm_phi_comm += getTime(&nowtime);
-  fprintf_verbose( stderr, "#end comm\n");
+  //fprintf_verbose( stderr, "#end comm\n");
 
 #pragma omp parallel for CHUNK_PM
   for( int p=0; p<nnode_reduce; p++){
@@ -2013,7 +2022,7 @@ void PMForce::commMeshPhi(){
   }
   My_MPI_Barrier( this_run->MPI_COMM_INTERNAL);
   this_run->t.pm_make_comm_phi += getTime(&nowtime);
-  fprintf_verbose( stderr, "#start comm\n");
+  //fprintf_verbose( stderr, "#start comm\n");
 
   MPI_Alltoall( nsend, 1, MPI_INT, nrecv, 1, MPI_INT, this_run->MPI_COMM_INTERNAL);
   MPI_Alltoall( nsend_slab, 1, MPI_INT, nrecv_slab, 1, MPI_INT, this_run->MPI_COMM_INTERNAL);
@@ -2058,7 +2067,7 @@ void PMForce::commMeshPhi(){
                  this_run->MPI_COMM_INTERNAL);
   My_MPI_Barrier( this_run->MPI_COMM_INTERNAL);
   this_run->t.pm_phi_comm += getTime(&nowtime);
-  fprintf_verbose( stderr, "#end comm\n");
+  //fprintf_verbose( stderr, "#end comm\n");
 
 #pragma omp parallel for CHUNK_PM
   for( int p=0; p<this_run->nnode; p++){
@@ -2313,11 +2322,11 @@ void PMForce::commMeshPhi3D(){
   this_run->t.pm_make_comm_phi += getTime(&nowtime);
 
   My_MPI_Barrier( MPI_COMM_COLUMN);
-  fprintf_verbose( stderr, "#start comm\n");
+  //fprintf_verbose( stderr, "#start comm\n");
   My_MPI_Barrier( MPI_COMM_COLUMN);
   MPI_Alltoall( nsend, 1, MPI_INT, nrecv, 1, MPI_INT, MPI_COMM_COLUMN);
   My_MPI_Barrier( MPI_COMM_COLUMN);
-  fprintf_verbose( stderr, "#start comm0\n");
+  //fprintf_verbose( stderr, "#start comm0\n");
   My_MPI_Barrier( MPI_COMM_COLUMN);
   int nrecv_total = nrecv[0];
   rdispls_sendbuf[0] = 0;
@@ -2344,7 +2353,7 @@ void PMForce::commMeshPhi3D(){
   this_run->nrecv_pm_s2l = nrecv_pm_s2l;
 
   My_MPI_Barrier( MPI_COMM_COLUMN);
-  fprintf_verbose( stderr, "#end comm0\n");
+  //fprintf_verbose( stderr, "#end comm0\n");
   My_MPI_Barrier( MPI_COMM_COLUMN);
   MPI_Alltoallv( sendbuf, nsend, sdispls_sendbuf, MPI_FLOAT,
                  recvbuf, nrecv, rdispls_sendbuf, MPI_FLOAT,
@@ -2354,7 +2363,7 @@ void PMForce::commMeshPhi3D(){
                  MPI_COMM_COLUMN);
   My_MPI_Barrier( MPI_COMM_COLUMN);
   this_run->t.pm_phi_comm += getTime(&nowtime);
-  fprintf_verbose( stderr, "#end comm\n");
+  //fprintf_verbose( stderr, "#end comm\n");
 
 #pragma omp parallel for
   for( int i=0; i<nrecv_total; i++){
@@ -2520,70 +2529,71 @@ void PMForce::outputLog( FILE *outstream){
 
 void PMForce::calcPMMeshForce(const Particle *particle, const int npart){
 
-  static int first_flag = 0;
-  double nowtime = 0.0;
-  getTime(&nowtime);
-  initLocal();
+   static int first_flag = 0;
+   double nowtime = 0.0;
+   getTime(&nowtime);
+   initLocal();
 
-  fprintf_verbose( stderr, "#PM setLocalMeshDensity start\n");
-    setLocalMeshDensity( particle, npart);
-  this_run->t.pm_density_assignment = getTime(&nowtime);
+   //fprintf_verbose( stderr, "#PM setLocalMeshDensity start\n");
+   setLocalMeshDensity( particle, npart);
+   this_run->t.pm_density_assignment = getTime(&nowtime);
 
-  fprintf_verbose( stderr, "#PM commMeshDensity start\n");
+   //fprintf_verbose( stderr, "#PM commMeshDensity start\n");
 #ifdef FFT3D
-    commMeshDensity3D();
+   commMeshDensity3D();
 #else
-    commMeshDensity();
+   commMeshDensity();
 #endif
 
-  getTime(&nowtime);
+   getTime(&nowtime);
 
-  fprintf_verbose( stderr, "#PM fftForward start\n");
-  fftForward();
-  this_run->t.pm_fft_forward = getTime(&nowtime);
+   //fprintf_verbose( stderr, "#PM fftForward start\n");
+   fftForward();
+   this_run->t.pm_fft_forward = getTime(&nowtime);
 
 
-  fprintf_verbose( stderr, "#PM calcMeshPhi start\n");
-  calcMeshPhi();
-  this_run->t.pm_density_phi = getTime(&nowtime);
+   //fprintf_verbose( stderr, "#PM calcMeshPhi start\n");
+   calcMeshPhi();
+   this_run->t.pm_density_phi = getTime(&nowtime);
 
-  fprintf_verbose( stderr, "#PM fftBackward start\n");
-  fftBackward();
-  this_run->t.pm_fft_backward = getTime(&nowtime);
+   //fprintf_verbose( stderr, "#PM fftBackward start\n");
+   fftBackward();
+   this_run->t.pm_fft_backward = getTime(&nowtime);
 
-  fprintf_verbose( stderr, "#PM commMeshPhi start\n");
-  if( this_run->nnode != 1){
+   //fprintf_verbose( stderr, "#PM commMeshPhi start\n");
+   if (this_run->nnode != 1){
 #ifdef FFT3D
-    commMeshPhi3D();
+      commMeshPhi3D();
 #else
-    commMeshPhi();
+      commMeshPhi();
 #endif
-  }
+   }
 
-  fprintf_verbose( stderr, "#PM calcMeshForce start\n");
-  getTime(&nowtime);
-  calcMeshForce();
-  this_run->t.pm_mesh_force = getTime(&nowtime);
+   //fprintf_verbose( stderr, "#PM calcMeshForce start\n");
+   getTime(&nowtime);
+   calcMeshForce();
+   this_run->t.pm_mesh_force = getTime(&nowtime);
 
-  if( PMLOG_ON == 1){
-    FILE *fout = my_fopen( PMLOG, "a+");
-    if( first_flag == 0){
-      if( this_run->inode == 0){
-	fprintf( fout, "node, g_pos[0,1,2], msize[0,1,2], memsize_local[Mbyte], memsize_slab, recvmemsize, sendmemsize\n");
+   if (PMLOG_ON == 1){
+      FILE *fout = my_fopen( PMLOG, "a+");
+      if (first_flag == 0){
+         if (this_run->inode == 0){
+            fprintf(fout, "node, g_pos[0,1,2], msize[0,1,2], memsize_local[Mbyte], memsize_slab, recvmemsize, sendmemsize\n");
+         }
+         sprintf(cbuf,"%d\t%d\t%d\t%d\t%d\n",
+                 local_nx, local_x_start,
+                 local_ny_after_transpose,
+                 local_y_start_after_transpose,
+                 total_local_size);
+         mp_print(cbuf, this_run->MPI_COMM_INTERNAL, fout);
+         first_flag = 1;
       }
-      sprintf( cbuf, "%d\t%d\t%d\t%d\t%d\n",
-	       local_nx, local_x_start,
-	       local_ny_after_transpose,
-	       local_y_start_after_transpose, total_local_size);
-      mp_print( cbuf, this_run->MPI_COMM_INTERNAL, fout);
-      first_flag = 1;
-    }
-    outputLog(fout);
-    fclose(fout);
-  }
+      outputLog(fout);
+      fclose(fout);
+   }
 
 }
 
 
-    } // namespace ParticleMesh
-}     // namespace ParticleSimulator
+    } // END of namespace ParticleMesh
+} // END of namespace ParticleSimulator

@@ -1,0 +1,27 @@
+set term post eps color
+set output "cosmo.eps"
+
+set si ra 1
+set size 0.6
+unset border
+
+set xrange [0:1]
+set format x ""
+unset xtics
+
+set yrange [0:1]
+set format y ""
+unset ytics
+
+unset key
+
+set pm3d
+set pm3d map
+set ticslevel 0
+set cbrange[0:2]
+set palette defined (0 "black", 1 "light-blue", 2 "white")
+unset colorbox
+
+#set label 1 "z=60" at 0.1, 0.1 left textcolor rgb "#ffffff" font ",10" front
+
+spl "../result/test_128_santa_7/map_2d_7" u 1:2:(log10(($3+1))) with pm3d

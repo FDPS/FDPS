@@ -2,6 +2,7 @@
 
 void DisplayInfo(void){
 	if(PS::Comm::getRank() == 0){
+#if 0
 		std::cout << "//==================================\\\\" << std::endl;
 		std::cout << "||                                  ||" << std::endl;
 		std::cout << "|| ::::::: ::::::. ::::::. .::::::. ||" << std::endl;
@@ -12,6 +13,7 @@ void DisplayInfo(void){
 		std::cout << "||        Particle Simulator        ||" << std::endl;
 		std::cout << "\\\\==================================//" << std::endl;
 		std::cout << "//=====================================" << std::endl;
+#endif
 		std::cout << "This is a sample program of Smoothed Particle Hydrodynamics on FDPS!" << std::endl;
 		std::cout << "# of proc is   " << PS::Comm::getNumberOfProc() << std::endl;
 		#ifdef _OPENMP

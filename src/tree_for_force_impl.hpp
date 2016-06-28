@@ -72,14 +72,14 @@ namespace ParticleSimulator{
                          -shift_image_domain_[ith][ii]);
 #else
                     if( !tc_loc_[0].isLeaf(n_leaf_limit_) ){
-			/*
-                        MakeListUsingOuterBoundary
-                            (tc_loc_.getPointer(),  adr_tc_tmp,
-                             ep_org.getPointer(),   ep_send_buf[ith],
-                             pos_domain,            n_leaf_limit_,
-                             -shift_image_domain_[ith][ii]);
-			*/
-			// add M.I. 2016/03/23
+                        /*
+                          MakeListUsingOuterBoundary
+                          (tc_loc_.getPointer(),  adr_tc_tmp,
+                          ep_org.getPointer(),   ep_send_buf[ith],
+                          pos_domain,            n_leaf_limit_,
+                          -shift_image_domain_[ith][ii]);
+                        */
+                        // add M.I. 2016/03/23
                         MakeListUsingOuterBoundaryWithRootCellCheck
                             (tc_loc_.getPointer(),  adr_tc_tmp,
                              ep_org.getPointer(),   ep_send_buf[ith],
@@ -229,7 +229,7 @@ namespace ParticleSimulator{
         n_interaction_ep_ep_ = n_interaction_ep_sp_ = 0;
         wtime_exlet_comm_ = wtime_exlet_a2a_ = wtime_exlet_a2av_ = 0.0;
         wtime_walk_LET_1st_ = wtime_walk_LET_2nd_ = 0.0;
-        TexLET0_ = TexLET1_ = TexLET2_ = TexLET3_ = TexLET4_ = 0.0;
+        //TexLET0_ = TexLET1_ = TexLET2_ = TexLET3_ = TexLET4_ = 0.0;
         //n_ep_send_1st_ = n_ep_recv_1st_ = n_ep_send_2nd_ = n_ep_recv_2nd_ = 0;
 
         ni_ave_ = nj_ave_ = 0;
@@ -695,15 +695,12 @@ namespace ParticleSimulator{
         std::cout<<"epj_send_.size()="<<epj_send_.size()<<" spj_send_.size()="<<spj_send_.size()<<std::endl;
         std::cout<<"epj_recv_.size()="<<epj_recv_.size()<<" spj_recv_.size()="<<spj_recv_.size()<<std::endl;
 #endif
-
-
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     exchangeLocalEssentialTreeImpl(TagSearchLong, const DomainInfo & dinfo){
-	//std::cerr<<"start ex let"<<std::endl;
         F64 time_offset = GetWtime();
         const S32 n_proc = Comm::getNumberOfProc();
         const S32 my_rank = Comm::getRank();
@@ -828,16 +825,12 @@ namespace ParticleSimulator{
                         spj_recv_.getPointer(), n_sp_recv_, n_sp_recv_disp_);
 #endif //FAST_ALL_TO_ALL_FOR_K
         wtime_exlet_a2av_ = GetWtime() - wtime_exlet_a2av_;
-        //Tcomm_tmp_ = GetWtime() - Tcomm_tmp_;
         wtime_exlet_comm_ = GetWtime() - wtime_exlet_comm_;
-
         time_profile_.exchange_LET_1st += GetWtime() - time_offset;
-        //std::cerr<<"fhinish ex let"<<std::endl;
         n_let_ep_send_1st_ += (CountT)epj_send_.size();
         n_let_ep_recv_1st_ += (CountT)epj_recv_.size();
         n_let_sp_send_1st_ += (CountT)spj_send_.size();
         n_let_sp_recv_1st_ += (CountT)spj_recv_.size();
-        //time_profile_.exchange_LET_tot += time_profile_.make_LET_1st + time_profile_.exchange_LET_1st;
     }
 
 
@@ -1012,7 +1005,6 @@ namespace ParticleSimulator{
 
 
 
-#if 1
     // FOR P^3T
     // original version
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -1110,12 +1102,16 @@ namespace ParticleSimulator{
             n_ep_sp_send_[2*i] = n_ep_send_[i];
             n_ep_sp_send_[2*i+1] = n_sp_send_[i];
         }
+
+        F64 wtime_offset_tmp = GetWtime();
 #ifdef FAST_ALL_TO_ALL_FOR_K
         static CommForAllToAll<S32, 2> comm_a2a_2d;
         comm_a2a_2d.execute(n_ep_sp_send_, 2, n_ep_sp_recv_);
 #else
         Comm::allToAll(n_ep_sp_send_, 2, n_ep_sp_recv_); // TEST
 #endif //FAST_ALL_TO_ALL_FOR_K
+        time_profile_.exchange_LET_1st__a2a_n += GetWtime() - wtime_offset_tmp;
+
         for(S32 i=0; i<n_proc; i++){
             n_ep_recv_[i] = n_ep_sp_recv_[2*i];
             n_sp_recv_[i] = n_ep_sp_recv_[2*i+1];
@@ -1127,18 +1123,32 @@ namespace ParticleSimulator{
         }
         epj_recv_.resizeNoInitialize( n_ep_recv_disp_[n_proc] );
         spj_recv_.resizeNoInitialize( n_sp_recv_disp_[n_proc] );
+
+
 #ifdef FAST_ALL_TO_ALL_FOR_K
         static CommForAllToAll<Tepj, 2> comm_a2a_epj_2d;
         static CommForAllToAll<Tspj, 2> comm_a2a_spj_2d;
+
+        wtime_offset_tmp = GetWtime();
         comm_a2a_epj_2d.executeV(epj_send_, epj_recv_, n_ep_send_, n_ep_recv_);
+        time_profile_.exchange_LET_1st__a2a_ep += GetWtime() - wtime_offset_tmp;
+
+        wtime_offset_tmp = GetWtime();
         comm_a2a_spj_2d.executeV(spj_send_, spj_recv_, n_sp_send_, n_sp_recv_);
+        time_profile_.exchange_LET_1st__a2a_sp += GetWtime() - wtime_offset_tmp;
 #else
+        wtime_offset_tmp = GetWtime();
         Comm::allToAllV(epj_send_.getPointer(), n_ep_send_, n_ep_send_disp_,
                         epj_recv_.getPointer(), n_ep_recv_, n_ep_recv_disp_);
+        time_profile_.exchange_LET_1st__a2a_ep += GetWtime() - wtime_offset_tmp;
+
+        wtime_offset_tmp = GetWtime();
         Comm::allToAllV(spj_send_.getPointer(), n_sp_send_, n_sp_send_disp_,
                         spj_recv_.getPointer(), n_sp_recv_, n_sp_recv_disp_);
+        time_profile_.exchange_LET_1st__a2a_sp += GetWtime() - wtime_offset_tmp;
 #endif //FAST_ALL_TO_ALL_FOR_K
         time_profile_.exchange_LET_1st += GetWtime() - time_offset;
+
 
         n_let_ep_send_1st_ += (CountT)epj_send_.size();
         n_let_ep_recv_1st_ += (CountT)epj_recv_.size();
@@ -1147,7 +1157,6 @@ namespace ParticleSimulator{
         //time_profile_.exchange_LET_tot += time_profile_.make_LET_1st + time_profile_.exchange_LET_1st;
     }
 
-#endif
 
 
 
@@ -1342,7 +1351,7 @@ namespace ParticleSimulator{
         S32 n_proc_src_1st = 0;
         S32 n_proc_dest_1st = 0;
 
-        TexLET0_ = GetWtime();
+        //TexLET0_ = GetWtime();
 
         epjr_sorted_.resizeNoInitialize(epj_sorted_.size());
         for(S32 i=0; i<epj_sorted_.size(); i++){
@@ -1368,7 +1377,7 @@ namespace ParticleSimulator{
                   epjr_send_buf_for_scatter_,
                   epjr_sorted_, dinfo);
         assert(epjr_recv_1st_buf_.size() == n_epj_recv_disp_1st_[n_proc]);
-        TexLET0_ = GetWtime() - TexLET0_;
+        //TexLET0_ = GetWtime() - TexLET0_;
         F64 time_offset = GetWtime();
 
         n_let_ep_send_1st_ += (CountT)epjr_send_.size();
@@ -1379,7 +1388,7 @@ namespace ParticleSimulator{
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"epj_recv_1st_buf_.size()="<<epj_recv_1st_buf_.size()<<" epj_send_size()="<<epj_send_.size()<<std::endl;
 #endif
-        TexLET1_ = GetWtime();
+        //TexLET1_ = GetWtime();
 
 
 
@@ -1535,8 +1544,8 @@ namespace ParticleSimulator{
                 }
             }
         }// omp parallel scope
-        TexLET1_ = GetWtime() - TexLET1_;
-        wtime_walk_LET_2nd_ = TexLET1_;
+        //TexLET1_ = GetWtime() - TexLET1_;
+        //wtime_walk_LET_2nd_ = TexLET1_;
         time_profile_.make_LET_2nd += GetWtime() - time_offset;
         time_offset = GetWtime();
 
@@ -1547,7 +1556,7 @@ namespace ParticleSimulator{
 #endif
 
 
-        TexLET2_ = GetWtime();
+        //TexLET2_ = GetWtime();
 
         /////////////////////
         // 3rd STEP
@@ -1583,7 +1592,7 @@ namespace ParticleSimulator{
         }
         n_ep_recv_disp_[n_proc] = n_epj_recv_disp_1st_[n_proc] + n_epj_recv_disp_2nd_[n_proc];
 
-        TexLET2_ = GetWtime() - TexLET2_;
+        //TexLET2_ = GetWtime() - TexLET2_;
 	
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
@@ -1593,7 +1602,7 @@ namespace ParticleSimulator{
 #endif
 
 
-        TexLET3_ = GetWtime();
+        //TexLET3_ = GetWtime();
 
 
         /////////////////////
@@ -1635,7 +1644,7 @@ namespace ParticleSimulator{
 #endif
 
 
-        TexLET3_ = GetWtime() - TexLET3_;
+        //TexLET3_ = GetWtime() - TexLET3_;
 
         n_let_ep_send_2nd_ += epj_send_.size();
         n_let_ep_recv_2nd_ += epj_recv_2nd_buf_.size();
@@ -1649,7 +1658,7 @@ namespace ParticleSimulator{
 
 
 
-        TexLET4_ = GetWtime();
+        //TexLET4_ = GetWtime();
 
 
         /////////////////////
@@ -1681,7 +1690,7 @@ namespace ParticleSimulator{
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
 #endif
 
-        TexLET4_ = GetWtime() - TexLET4_;
+        //TexLET4_ = GetWtime() - TexLET4_;
         time_profile_.exchange_LET_2nd += GetWtime() - time_offset;
         //time_profile_.exchange_LET_tot += time_profile_.make_LET_2nd + time_profile_.exchange_LET_2nd;
     }
@@ -1748,7 +1757,7 @@ namespace ParticleSimulator{
         // GATHER
         // NORMAL VERSION
 
-        TexLET0_ = GetWtime();
+        //TexLET0_ = GetWtime();
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -1759,7 +1768,7 @@ namespace ParticleSimulator{
                            epi_sorted_, dinfo);
         assert(ep_x_r_recv.size() == n_ep_recv_disp_1st[n_proc]);
 
-        TexLET0_ = GetWtime() - TexLET0_;
+        //TexLET0_ = GetWtime() - TexLET0_;
 
         n_let_ep_send_1st_ += (CountT)ep_x_r_send.size();
         n_let_ep_recv_1st_ += (CountT)ep_x_r_recv.size();
@@ -1770,7 +1779,7 @@ namespace ParticleSimulator{
                  <<" ep_x_r_recv.size()="<<ep_x_r_recv.size()<<std::endl;
 #endif
 
-        TexLET1_ = GetWtime();
+        //TexLET1_ = GetWtime();
 
         ////////////
         // 2nd step (send j particles)
@@ -1968,7 +1977,7 @@ namespace ParticleSimulator{
             }
         }// omp parallel scope
 
-        TexLET1_ = GetWtime() - TexLET1_;
+        //TexLET1_ = GetWtime() - TexLET1_;
         wtime_walk_LET_2nd_ = TexLET1_;
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
@@ -1976,7 +1985,7 @@ namespace ParticleSimulator{
         std::cout<<"epj_send_.size()="<<epj_send_.size()<<std::endl;
 #endif
 
-        TexLET2_ = GetWtime();
+        //TexLET2_ = GetWtime();
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL 
         /////////////////////
@@ -2011,14 +2020,14 @@ namespace ParticleSimulator{
         }
         n_ep_recv_disp_[n_proc] = n_ep_recv_disp_2nd[n_proc];
 
-        TexLET2_ = GetWtime() - TexLET2_;
+        //TexLET2_ = GetWtime() - TexLET2_;
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"n_ep_recv_disp_[n_proc]="<<n_ep_recv_disp_[n_proc]<<std::endl;
 #endif
 
-        TexLET3_ = GetWtime();
+        //TexLET3_ = GetWtime();
 
         /////////////////////
         // 4th STEP
@@ -2059,7 +2068,7 @@ namespace ParticleSimulator{
             epj_recv_buf[adr_recv++] = epj_send_[adr_send++];
         }
 #endif
-        TexLET3_ = GetWtime() - TexLET3_;
+        //TexLET3_ = GetWtime() - TexLET3_;
 
         n_let_ep_send_2nd_ += (CountT)epj_send_.size();
         n_let_ep_recv_2nd_ += (CountT)epj_recv_2nd_buf_.size();
@@ -2068,7 +2077,7 @@ namespace ParticleSimulator{
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
 #endif
 
-        TexLET4_ = GetWtime();
+        //TexLET4_ = GetWtime();
 
         /////////////////////
         // 5th STEP
@@ -2085,7 +2094,7 @@ namespace ParticleSimulator{
                 epj_recv_[n_cnt++] = epj_recv_buf[j];
             }
         }
-        TexLET4_ = GetWtime() - TexLET4_;
+        //TexLET4_ = GetWtime() - TexLET4_;
     }
 #endif // gather search
 
@@ -2101,7 +2110,7 @@ namespace ParticleSimulator{
         const S32 my_rank = Comm::getRank();
         S32 n_proc_src_1st = 0;
         S32 n_proc_dest_1st = 0;
-        TexLET0_ = GetWtime();
+        //TexLET0_ = GetWtime();
         ////////////
         // 1st STEP (send j particles)
         // SYMMETRY 
@@ -2114,7 +2123,7 @@ namespace ParticleSimulator{
         F64 time_offset = GetWtime();
         assert(epj_recv_1st_buf_.size() == n_epj_recv_disp_1st_[n_proc]);
 
-        TexLET0_ = GetWtime() - TexLET0_;
+        //TexLET0_ = GetWtime() - TexLET0_;
 
         n_let_ep_send_1st_ += (CountT)epj_send_.size();
         n_let_ep_recv_1st_ += (CountT)epj_recv_1st_buf_.size();
@@ -2124,7 +2133,7 @@ namespace ParticleSimulator{
         std::cout<<"epj_recv_1st_buf_.size()="<<epj_recv_1st_buf_.size()<<" epj_send_size()="<<epj_send_.size()<<std::endl;
 #endif
 
-        TexLET1_ = GetWtime();
+        //TexLET1_ = GetWtime();
 
         ////////////
         // 2nd step (send j particles)
@@ -2287,8 +2296,9 @@ namespace ParticleSimulator{
                 }
             }
         }// omp parallel scope
-        TexLET1_ = GetWtime() - TexLET1_;
-        wtime_walk_LET_2nd_ = TexLET1_;
+        //TexLET1_ = GetWtime() - TexLET1_;
+        //wtime_walk_LET_2nd_ = TexLET1_;
+
         time_profile_.make_LET_2nd += GetWtime() - time_offset;
         time_offset = GetWtime();
 
@@ -2297,7 +2307,7 @@ namespace ParticleSimulator{
         std::cout<<"epj_send_.size()="<<epj_send_.size()<<std::endl;
 #endif
 
-        TexLET2_ = GetWtime();
+        //TexLET2_ = GetWtime();
 
         /////////////////////
         // 3rd STEP
@@ -2332,7 +2342,7 @@ namespace ParticleSimulator{
         }
         n_ep_recv_disp_[n_proc] = n_epj_recv_disp_1st_[n_proc] + n_epj_recv_disp_2nd_[n_proc];
 
-        TexLET2_ = GetWtime() - TexLET2_;
+        //TexLET2_ = GetWtime() - TexLET2_;
 	
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
@@ -2340,7 +2350,7 @@ namespace ParticleSimulator{
         std::cout<<"n_ep_recv_disp_[n_proc]="<<n_ep_recv_disp_[n_proc]<<std::endl;
 #endif
 
-        TexLET3_ = GetWtime();
+        //TexLET3_ = GetWtime();
 
         /////////////////////
         // 4th STEP
@@ -2379,7 +2389,7 @@ namespace ParticleSimulator{
         }
 #endif
 
-        TexLET3_ = GetWtime() - TexLET3_;
+        //TexLET3_ = GetWtime() - TexLET3_;
 
         n_let_ep_send_2nd_ += (CountT)epj_send_.size();
         n_let_ep_recv_2nd_ += (CountT)epj_recv_2nd_buf_.size();
@@ -2389,7 +2399,7 @@ namespace ParticleSimulator{
         std::cout<<"epj_recv_2nd_buf_.size()="<<epj_recv_2nd_buf_.size()<<std::endl;
 #endif
 
-        TexLET4_ = GetWtime();
+        //TexLET4_ = GetWtime();
 
         /////////////////////
         // 5th STEP
@@ -2412,7 +2422,7 @@ namespace ParticleSimulator{
             }
         }
 
-        TexLET4_ = GetWtime() - TexLET4_;
+        //TexLET4_ = GetWtime() - TexLET4_;
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -2475,7 +2485,7 @@ namespace ParticleSimulator{
         S32 n_proc_src_1st = 0;
         S32 n_proc_dest_1st = 0;
 
-        TexLET0_ = GetWtime();
+        //TexLET0_ = GetWtime();
 
         ////////////
         // 1st STEP (send j particles)
@@ -2488,7 +2498,7 @@ namespace ParticleSimulator{
                   epj_sorted_, dinfo);
         assert(epj_recv_1st_buf.size() == n_ep_recv_disp_1st[n_proc]);
 
-        TexLET0_ = GetWtime() - TexLET0_;
+        //TexLET0_ = GetWtime() - TexLET0_;
 
         n_let_ep_send_1st_ += (CountT)epj_send_.size();
         n_let_ep_recv_1st_ += (CountT)epj_recv_1st_buf.size();
@@ -2498,7 +2508,7 @@ namespace ParticleSimulator{
         std::cout<<"epj_recv_1st_buf.size()="<<epj_recv_1st_buf.size()<<" epj_send_size()="<<epj_send_.size()<<std::endl;
 #endif
 
-        TexLET1_ = GetWtime();
+        //TexLET1_ = GetWtime();
 
         ////////////
         // 2nd step (send j particles)
@@ -2714,16 +2724,16 @@ namespace ParticleSimulator{
             }
         }// omp parallel scope
 
-        TexLET1_ = GetWtime() - TexLET1_;
+        //TexLET1_ = GetWtime() - TexLET1_;
 
-        wtime_walk_LET_2nd_ = TexLET1_;
+        //wtime_walk_LET_2nd_ = TexLET1_;
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"epj_send_.size()="<<epj_send_.size()<<std::endl;
 #endif
 
-        TexLET2_ = GetWtime();
+        //TexLET2_ = GetWtime();
 
         /////////////////////
         // 3rd STEP
@@ -2758,7 +2768,7 @@ namespace ParticleSimulator{
         }
         n_ep_recv_disp_[n_proc] = n_ep_recv_disp_1st[n_proc] + n_ep_recv_disp_2nd[n_proc];
 
-        TexLET2_ = GetWtime() - TexLET2_;
+        //TexLET2_ = GetWtime() - TexLET2_;
 	
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
@@ -2766,7 +2776,7 @@ namespace ParticleSimulator{
         std::cout<<"n_ep_recv_disp_[n_proc]="<<n_ep_recv_disp_[n_proc]<<std::endl;
 #endif
 
-        TexLET3_ = GetWtime();
+        //TexLET3_ = GetWtime();
 
         /////////////////////
         // 4th STEP
@@ -2805,7 +2815,7 @@ namespace ParticleSimulator{
         }
 #endif
 
-        TexLET3_ = GetWtime() - TexLET3_;
+        //TexLET3_ = GetWtime() - TexLET3_;
 
         n_let_ep_send_2nd_ += (CountT)epj_send_.size();
         n_let_ep_recv_2nd_ += (CountT)epj_recv_2nd_buf.size();
@@ -2816,7 +2826,7 @@ namespace ParticleSimulator{
         std::cout<<"epj_recv_2nd_buf.size()="<<epj_recv_2nd_buf.size()<<std::endl;
 #endif
 
-        TexLET4_ = GetWtime();
+        //TexLET4_ = GetWtime();
 
         /////////////////////
         // 5th STEP
@@ -2838,7 +2848,8 @@ namespace ParticleSimulator{
                 epj_recv_[n_cnt++] = epj_recv_2nd_buf[j];
             }
         }
-        TexLET4_ = GetWtime() - TexLET4_;
+        //TexLET4_ = GetWtime() - TexLET4_;
+
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"n_ep_recv_disp_1st[n_proc]="<<n_ep_recv_disp_1st[n_proc]<<" n_ep_recv_disp_2nd[n_proc]"<<std::endl;
@@ -4117,7 +4128,7 @@ namespace ParticleSimulator{
                     const DomainInfo & dinfo,
                     const bool clear){
         if(clear){
-            for(S32 i=0; i<n_loc_tot_; i++)force[i].clear();
+            for(S32 i=0; i<n_loc_tot_; i++) force[i].clear();
         }
         Tepj * epj_tmp;
         S32 n_epj_tmp;

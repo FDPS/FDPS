@@ -48,7 +48,7 @@ namespace ParticleSimulator{
         F64 wtime_exlet_a2a_;
         F64 wtime_exlet_a2av_;
         F64 Tcomm_scatterEP_tmp_;
-        F64 TexLET0_, TexLET1_, TexLET2_, TexLET3_, TexLET4_;
+        //F64 TexLET0_, TexLET1_, TexLET2_, TexLET3_, TexLET4_;
         //S64 n_ep_send_1st_, n_ep_recv_1st_, n_ep_send_2nd_, n_ep_recv_2nd_;
         F64 wtime_walk_LET_1st_, wtime_walk_LET_2nd_;
 
@@ -470,7 +470,8 @@ namespace ParticleSimulator{
         void clearCounterAll(){
             n_let_ep_send_1st_ = n_let_ep_recv_1st_ = n_let_sp_send_1st_ = n_let_sp_recv_1st_  = n_let_ep_send_2nd_ = n_let_ep_recv_2nd_ =  0;
             clearNumberOfInteraction();
-            time_profile_.clear();
+	    clearTimeProfile();
+            //time_profile_.clear();
         }
 
         TreeForForce() : is_initialized_(false){}
