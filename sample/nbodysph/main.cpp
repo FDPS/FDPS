@@ -43,7 +43,7 @@ int main(int argc, char* argv[]){
 	Initialize(sph_system);
 	//Dom. info
 	dinfo.setDomain(PS::Comm::getNumberOfProc(), 1, 1);
-	dinfo.decomposeDomain();
+	dinfo.decomposeDomainAll(sph_system);
 	sph_system.exchangeParticle(dinfo);
 	//plant tree
 	PS::TreeForForceShort<RESULT::Dens , EPI::Dens , EPJ::Dens >::Gather   dens_tree;
@@ -64,7 +64,6 @@ int main(int argc, char* argv[]){
 	}
 	drvt_tree.calcForceAllAndWriteBack(CalcDerivative(), sph_system, dinfo);
 	hydr_tree.calcForceAllAndWriteBack(CalcHydroForce(), sph_system, dinfo);
-	//grav_tree.calcForceAllAndWriteBack(CalcGravityForce(), sph_system, dinfo);
 	grav_tree.calcForceAllAndWriteBack(CalcGravityForce<EPJ::Grav>(), CalcGravityForce<PS::SPJMonopole>(), sph_system, dinfo);
 
 	dt = getTimeStepGlobal(sph_system);
@@ -78,7 +77,7 @@ int main(int argc, char* argv[]){
 		FullDrift(sph_system, dt);
 		sph_system.adjustPositionIntoRootDomain(dinfo);
 		Predict(sph_system, dt);
-		dinfo.decomposeDomain();
+		dinfo.decomposeDomainAll(sph_system);
 		sph_system.exchangeParticle(dinfo);
 		for(int loop = 0 ; loop <= 2 ; ++ loop){
 			dens_tree.calcForceAllAndWriteBack(CalcDensity()   , sph_system, dinfo);
@@ -86,11 +85,8 @@ int main(int argc, char* argv[]){
 		for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
 			sph_system[i].setPressure();
 		}
-		//std::cout << "push enter..." << std::endl;
-		//getchar();
 		drvt_tree.calcForceAllAndWriteBack(CalcDerivative(), sph_system, dinfo);
 		hydr_tree.calcForceAllAndWriteBack(CalcHydroForce(), sph_system, dinfo);
-		//grav_tree.calcForceAllAndWriteBack(CalcGravityForce(), sph_system, dinfo);
 		grav_tree.calcForceAllAndWriteBack(CalcGravityForce<EPJ::Grav>(), CalcGravityForce<PS::SPJMonopole>(), sph_system, dinfo);
 
 		dt = getTimeStepGlobal(sph_system);

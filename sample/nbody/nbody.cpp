@@ -234,14 +234,14 @@ int main(int argc, char *argv[]) {
     makeOutputDirectory(dir_name);
 
     std::ofstream fout_eng;
-    char sout_de[1024];
-    sprintf(sout_de, "%s/t-de.dat", dir_name);
-    std::cerr << sout_de << std::endl;
-    fout_eng.open(sout_de);
 
     if(PS::Comm::getRank() == 0) {
-        fprintf(stderr, "Number of processes: %d\n", PS::Comm::getNumberOfProc());
-        fprintf(stderr, "Number of threads per process: %d\n", PS::Comm::getNumberOfThread());
+        char sout_de[1024];
+	sprintf(sout_de, "%s/t-de.dat", dir_name);
+        fout_eng.open(sout_de);
+        fprintf(stdout, "This is a sample program of N-body simulation on FDPS!\n");
+        fprintf(stdout, "Number of processes: %d\n", PS::Comm::getNumberOfProc());
+        fprintf(stdout, "Number of threads per process: %d\n", PS::Comm::getNumberOfThread());
     }
 
     PS::ParticleSystem<FPGrav> system_grav;
@@ -257,8 +257,7 @@ int main(int argc, char *argv[]) {
     const PS::F32 coef_ema = 0.3;
     PS::DomainInfo dinfo;
     dinfo.initialize(coef_ema);
-    dinfo.collectSampleParticle(system_grav);
-    dinfo.decomposeDomain();
+    dinfo.decomposeDomainAll(system_grav);
     system_grav.exchangeParticle(dinfo);
     n_loc = system_grav.getNumberOfParticleLocal();
     
@@ -306,7 +305,7 @@ int main(int argc, char *argv[]) {
         if(PS::Comm::getRank() == 0){
             if( (time_sys >= time_diag) || ( (time_sys + dt) - time_diag ) > (time_diag - time_sys) ){
                 fout_eng << time_sys << "   " << (Etot1 - Etot0) / Etot0 << std::endl;
-                fprintf(stderr, "time: %10.7f energy error: %+e\n",
+                fprintf(stdout, "time: %10.7f energy error: %+e\n",
                         time_sys, (Etot1 - Etot0) / Etot0);
                 time_diag += dt_diag;
             }            
