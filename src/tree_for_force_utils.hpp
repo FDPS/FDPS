@@ -2356,7 +2356,6 @@ namespace ParticleSimulator{
          const F64ort & pos_target_box, // position of domain
          const S32 n_leaf_limit,
          const F64vec & shift = F64vec(0.0) ){
-        asm("# MakeListUsingInnerBoundaryIteration");
         CountT n_cell_open = 0;
         //static __thread Stack<S32, 1000> adr_tc_stack;
 	Stack<S32> adr_tc_stack;
