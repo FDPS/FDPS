@@ -1,6 +1,8 @@
 #pragma once
 
 #include<iostream>
+#include<functional>
+#include<algorithm>
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #include<mpi.h>
