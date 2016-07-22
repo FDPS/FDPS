@@ -9,11 +9,13 @@
 namespace  ParticleSimulator{
 
     template<S32 DIM>
-    void SetNumberOfDomainMultiDimension(S32 np[], S32 rank[]){
+    void SetNumberOfDomainMultiDimension(S32 np[], S32 rank[DIM]){
         for(S32 i=0; i<DIMENSION_LIMIT; i++){
             np[i] = 1;
-            rank[i] = 1;
         }
+		for(S32 i = 0; i<DIM; i++) {
+			rank[i] = 1;
+		}
         std::vector<S32> npv;
         npv.resize(DIM);
         S32 np_tmp = Comm::getNumberOfProc();
