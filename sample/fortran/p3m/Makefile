@@ -4,7 +4,7 @@
 # Variables that must be specified by users
 # (i) Variables related to FDPS
 FDPS_LOC = ../../../
-FDPS_INC = -I$(FDPS_LOC)/src 
+FDPS_INC = -I$(FDPS_LOC)/src -I$(FDPS_LOC)/src/particle_mesh
 FDPS_LIB = -L$(FDPS_LOC)/src/particle_mesh -lpm
 FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
 FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
@@ -26,6 +26,9 @@ MPI_LIB  = -L$(MPI_LOC)/lib -lmpi -lmpi_f77 -lmpi_f90
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
 CXXFLAGS = -O3 -ffast-math -funroll-loops $(FFTW_INC) $(FDPS_INC)
 LDFLAGS = -lgfortran $(MPI_LIB) $(FFTW_LIB) $(FDPS_LIB)
+# Activate PM module
+FCFLAGS  += -DPARTICLE_SIMULATOR_USE_PM_MODULE
+CXXFLAGS += -DPARTICLE_SIMULATOR_USE_PM_MODULE
 # OpenMP options
 #FCFLAGS  += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 #CXXFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
