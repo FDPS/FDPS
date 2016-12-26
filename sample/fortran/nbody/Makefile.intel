@@ -58,8 +58,11 @@ OBJ			= $(OBJ_FTN) $(OBJ_CXX)
 VPATH = $(FDPS_FTN_MOD_DIR)
 TARGET = nbody.out
 
-$(TARGET): $(OBJ)
+$(TARGET): $(OBJ) result
 	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
+
+result:
+	mkdir result
 
 $(SRC_CXX) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
 	$(FDPS_FTN_IF_GENERATOR) $(SRC_USER_DEFINED_TYPE) --output ./ 
@@ -78,3 +81,4 @@ clean:
 distclean: clean
 	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp
 	rm -f *__genmod.f90
+	rm -rf result

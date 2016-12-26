@@ -59,6 +59,7 @@ VPATH = $(FDPS_FTN_MOD_DIR)
 TARGET = sph.out
 
 $(TARGET): $(OBJ)
+	mkdir -p result
 	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
 
 $(SRC_CXX) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
@@ -78,3 +79,4 @@ clean:
 distclean: clean
 	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp 
 	rm -f *__genmod.f90
+	rm -rf result
