@@ -4,6 +4,62 @@
 #include<emmintrin.h>
 #endif
 
+#ifdef FAST_WALK_AVX2
+#include<immintrin.h>
+
+/*
+extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm256_undefined_ps (void)
+{
+  __m256 __Y = __Y;
+  return __Y;
+}
+*/
+
+/*
+static inline void transpose_4ymm(__m256 &v0, __m256 &v1, __m256 &v2, __m256 &v3){
+    // transpose from
+    // [ |w4|z4|y4|x4||w0|z0|y0|x0|, |w5|z5|y5|x5||w1|z1|y1|x1|, |w6|z6|y6|x6||w2|z2|y2|x2|, |w7|z7|y7|x7||w3|z3|y3|x3| ]
+    // to
+    // [ |x7|x6|x5|x4||x3|x2|x1|x0|, |y7|y6|y5|y4||y3|y2|y1|y0|, |z7|z6|z5|z4||z3|z2|z1|z0|, |w7|w6|w5|w4||w3|w2|w1|w0| ] 
+
+    const __m256 y2y0x2x0 = _mm256_unpacklo_ps(v0, v2);
+    const __m256 w2w0z2z0 = _mm256_unpackhi_ps(v0, v2);
+    const __m256 y3y1x3x1 = _mm256_unpacklo_ps(v1, v3);
+    const __m256 w3w1z3z1 = _mm256_unpackhi_ps(v1, v3);
+    const __m256 xxxx = _mm256_unpacklo_ps(y2y0x2x0, y3y1x3x1);
+    const __m256 yyyy = _mm256_unpackhi_ps(y2y0x2x0, y3y1x3x1);
+    const __m256 zzzz = _mm256_unpacklo_ps(w2w0z2z0, w3w1z3z1);
+    const __m256 wwww = _mm256_unpackhi_ps(w2w0z2z0, w3w1z3z1);
+
+    //const v8sf y2y0x2x0 = __builtin_ia32_unpcklps256(v0, v2);
+    //const v8sf w2w0z2z0 = __builtin_ia32_unpckhps256(v0, v2);
+    //const v8sf y3y1x3x1 = __builtin_ia32_unpcklps256(v1, v3);
+    //const v8sf w3w1z3z1 = __builtin_ia32_unpckhps256(v1, v3);
+    //const v8sf xxxx = __builtin_ia32_unpcklps256(y2y0x2x0, y3y1x3x1);
+    //const v8sf yyyy = __builtin_ia32_unpckhps256(y2y0x2x0, y3y1x3x1);
+    //const v8sf zzzz = __builtin_ia32_unpcklps256(w2w0z2z0, w3w1z3z1);
+    //const v8sf wwww = __builtin_ia32_unpckhps256(w2w0z2z0, w3w1z3z1);
+
+    v0 = xxxx;
+    v1 = yyyy;
+    v2 = zzzz;
+    v3 = wwww;
+}
+*/
+/*
+static inline __m256 _mm256_set_m128_forgcc(__m128 hi, __m128 lo){
+    __m256 ret = {};
+    //__m256 ret = _mm256_undefined_ps();
+    //__m256 ret = ret;
+    ret = _mm256_insertf128_ps(ret, lo, 0);
+    ret = _mm256_insertf128_ps(ret, hi, 1);
+    return ret;
+}
+*/
+
+#endif
+
 #include"stack.hpp"
 
 namespace ParticleSimulator{
@@ -14,7 +70,7 @@ namespace ParticleSimulator{
      const F64ort & pos_target_domain,
      const bool periodic_axis[]){
         shift_image_domain.clearSize();
-        if(pos_my_domain.overlapped(pos_target_domain)){
+        if(pos_my_domain.contained(pos_target_domain)){
             shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
         }
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
@@ -29,7 +85,7 @@ namespace ParticleSimulator{
                     if( (std::abs(ix) !=lev_x || periodic_axis[0] == false) && (std::abs(iy) != lev_y  || periodic_axis[1] == false)) continue;
                     const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y);
                     const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
-                    if(pos_my_domain.overlapped(pos_image_tmp)){
+                    if(pos_my_domain.contained(pos_image_tmp)){
                         shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
                         n_image_per_level++;
                     }
@@ -52,7 +108,7 @@ namespace ParticleSimulator{
                         if( (std::abs(ix) !=lev_x || periodic_axis[0] == false) && (std::abs(iy) != lev_y  || periodic_axis[1] == false) && (std::abs(iz) != lev_z || periodic_axis[2] == false) ) continue;
                         const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y, iz*size_root_domain.z);
                         const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
-                        if(pos_my_domain.overlapped(pos_image_tmp)){
+                        if(pos_my_domain.contained(pos_image_tmp)){
                             shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
                             n_image_per_level++;
                         }
@@ -68,7 +124,7 @@ namespace ParticleSimulator{
     inline S32vec CalcIDOfImageDomain(const F64ort & pos_root_domain,
                                       const F64vec & pos_target,
                                       const bool periodic_axis[]){
-        if( pos_root_domain.overlapped(pos_target) ){
+        if( pos_root_domain.contained(pos_target) ){
             return S32vec(0.0);
         }
         const F64vec size_root_domain = pos_root_domain.getFullLength();
@@ -83,7 +139,7 @@ namespace ParticleSimulator{
                     if( (std::abs(ix) !=lev_x || periodic_axis[0] == false) 
                         && (std::abs(iy) != lev_y  || periodic_axis[1] == false) ) continue;
                     const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y);
-                    if( pos_root_domain.overlapped(pos_target + shift_tmp) ){
+                    if( pos_root_domain.contained(pos_target + shift_tmp) ){
                         return S32vec(-ix, -iy);
                     }
                 }
@@ -104,7 +160,7 @@ namespace ParticleSimulator{
                             && (std::abs(iy) != lev_y  || periodic_axis[1] == false) 
                             && (std::abs(iz) != lev_z || periodic_axis[2] == false) ) continue;
                         const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y, iz*size_root_domain.z);
-                        if( pos_root_domain.overlapped(pos_target + shift_tmp) ){
+                        if( pos_root_domain.contained(pos_target + shift_tmp) ){
                             return S32vec(-ix, -iy, -iz);
                         }
                     }
@@ -979,7 +1035,7 @@ namespace ParticleSimulator{
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
             open_bits |= ( ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
-                             || (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut())) ) 
+                             || (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut())) ) 
                            << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1032,7 +1088,7 @@ namespace ParticleSimulator{
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
             open_bits |= ( ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
-                             || (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut())) ) 
+                             || (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut())) ) 
                            << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1100,7 +1156,7 @@ namespace ParticleSimulator{
             open_bits |= ( (pos_target_domain.getDistanceMinSQ(child_cell_box) <= r_cut_sq) << (i + N_CHILDREN) ); // using cutoff criterion
 #else
             // cell_box is not neede
-            open_bits |= (pos_target_domain.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            open_bits |= (pos_target_domain.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
 #endif
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1165,7 +1221,7 @@ namespace ParticleSimulator{
             open_bits |= ( (pos_target_domain.getDistanceMinSQ(child_cell_box) <= r_cut_sq) << (i + N_CHILDREN) ); // using cutoff criterion
 #else
             // cell_box is not neede
-            open_bits |= (pos_target_domain.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            open_bits |= (pos_target_domain.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
 #endif
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1276,7 +1332,97 @@ namespace ParticleSimulator{
         for(S32 i=0; i<N_CHILDREN; i++){
             open_bits |= (( dr_sq[i] <= r_crit_sq) << i);
         }
+#elif FAST_WALK_AVX2
+        __asm__("#tree walk calc distance");
+        // single precision
+        const __m256 r_crit_sq_v = _mm256_set1_ps((float)r_crit_sq);
+        const __m256d half = _mm256_set1_pd(0.5);
+        const __m256 mask_abs = (__m256)_mm256_set1_epi32(0x7fffffff);
+        const __m256 zero = _mm256_set1_ps(0.0f);
+
+        const __m256d high = _mm256_loadu_pd(&pos_target_box.high_.x);
+        const __m256d low  = _mm256_loadu_pd(&pos_target_box.low_.x);
+        const __m256d cen_d = _mm256_mul_pd(_mm256_add_pd(high, low), half);
+        const __m256d len_d = _mm256_mul_pd(_mm256_sub_pd(high, low), half);
+
+        const __m128 cen = _mm256_cvtpd_ps(cen_d);
+        const __m128 len = _mm256_cvtpd_ps(len_d);
+
+        const __m256 cen2 = _mm256_set_m128_forgcc(cen, cen);
+        const __m256 len2 = _mm256_set_m128_forgcc(len, len);
+
+        const __m256 cx = _mm256_shuffle_ps(cen2, cen2, 0x00);
+        const __m256 cy = _mm256_shuffle_ps(cen2, cen2, 0x55);
+        const __m256 cz = _mm256_shuffle_ps(cen2, cen2, 0xaa);
+
+        const __m256 lx = _mm256_shuffle_ps(len2, len2, 0x00);
+        const __m256 ly = _mm256_shuffle_ps(len2, len2, 0x55);
+        const __m256 lz = _mm256_shuffle_ps(len2, len2, 0xaa);
+
+        const F32vec & mom0 = tc_first[adr_tc+0].mom_.getPos();
+        const F32vec & mom1 = tc_first[adr_tc+1].mom_.getPos();
+        const F32vec & mom2 = tc_first[adr_tc+2].mom_.getPos();
+        const F32vec & mom3 = tc_first[adr_tc+3].mom_.getPos();
+        const F32vec & mom4 = tc_first[adr_tc+4].mom_.getPos();
+        const F32vec & mom5 = tc_first[adr_tc+5].mom_.getPos();
+        const F32vec & mom6 = tc_first[adr_tc+6].mom_.getPos();
+        const F32vec & mom7 = tc_first[adr_tc+7].mom_.getPos();
+
+        __m256 jx = _mm256_set_m128_forgcc(_mm_loadu_ps(&mom4.x), 
+                                           _mm_loadu_ps(&mom0.x));
+        __m256 jy = _mm256_set_m128_forgcc(_mm_loadu_ps(&mom5.x), 
+                                           _mm_loadu_ps(&mom1.x));
+        __m256 jz = _mm256_set_m128_forgcc(_mm_loadu_ps(&mom6.x), 
+                                           _mm_loadu_ps(&mom2.x));
+        __m256 jw = _mm256_set_m128_forgcc(_mm_loadu_ps(&mom7.x), 
+                                           _mm_loadu_ps(&mom3.x));
+
+        transpose_4ymm(jx, jy, jz, jw);
+
+        __m256 dx = _mm256_and_ps(mask_abs, (cx - jx));
+        dx = dx - lx;
+        dx = _mm256_max_ps(dx, zero);
+        //__m256 dy = _mm256_andnot_ps(minus_zero, (cy - jy));
+        __m256 dy = _mm256_and_ps(mask_abs, (cy - jy));
+        dy = dy - ly;
+        dy = _mm256_max_ps(dy, zero);
+        //__m256 dz = _mm256_andnot_ps(minus_zero, (cz - jz));
+        __m256 dz = _mm256_and_ps(mask_abs, (cz - jz));
+        dz = dz - lz;
+        dz = _mm256_max_ps(dz, zero);
+        __m256 rsq = _mm256_fmadd_ps(dz, dz, _mm256_fmadd_ps(dy, dy, (dx*dx)));
+
+        open_bits = _mm256_movemask_ps(_mm256_cmp_ps(rsq, r_crit_sq_v, 0x02));
 #else //FAST_WALK_K
+        /*
+        const F64 x_h = pos_target_box.high_.x;
+        const F64 x_l = pos_target_box.low_.x;
+        const F64 y_h = pos_target_box.high_.y;
+        const F64 y_l = pos_target_box.low_.y;
+        const F64 z_h = pos_target_box.high_.z;
+        const F64 z_l = pos_target_box.low_.z;
+        const F64 ix = (x_h + x_l) * 0.5;
+        const F64 iy = (y_h + y_l) * 0.5;
+        const F64 iz = (z_h + z_l) * 0.5;
+        const F64 lx = (x_h - x_l) * 0.5;
+        const F64 ly = (y_h - y_l) * 0.5;
+        const F64 lz = (z_h - z_l) * 0.5;
+        for(S32 i=0; i<N_CHILDREN; i++){
+            const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
+            F64 dx = fabs(ix - pos_tmp.x);
+            dx = dx - lx;
+            dx = (dx > 0.0) ? dx : 0.0;
+            F64 dy = fabs(iy - pos_tmp.y);
+            dy = dy - ly;
+            dy = (dy > 0.0) ? dy : 0.0;
+            F64 dz = fabs(iz - pos_tmp.z);
+            dz = dz - lz;
+            dz = (dz > 0.0) ? dz : 0.0;
+            F64 rsq = dx*dx + dy*dy + dz*dz;
+            open_bits |= (( rsq <= r_crit_sq) << i);
+        }
+        */
+        // original hozon
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
             open_bits |= ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) << i);
@@ -1286,10 +1432,15 @@ namespace ParticleSimulator{
             const S32 adr_tc_child = adr_tc + i;
             const Ttc * tc_child = tc_first.getPointer(adr_tc_child);
             const S32 n_child = tc_child->n_ptcl_;
-            if(n_child == 0) continue;
+            __asm__("#tree walk  before branch");
+            if(n_child == 0){
+                __asm__("#tree walk  n_child == 0");
+                continue;
+            }
             else if( (open_bits>>i) & 0x1 ){
+                __asm__("#tree walk  cell open");
                 if( !(tc_child->isLeaf(n_leaf_limit)) ){
-		    //#ifdef DEBUG_1028_2
+                    __asm__("#tree walk cell is not leaf");
 #ifdef PARTICLE_SIMULATOR_INTERACTION_LIST_ALL
                     MakeInteractionListLongEPSP<Ttc, Ttp, Tep, Tsp>
                         (tc_first, tc_first[adr_tc_child].adr_tc_, tp_first, ep_first, 
@@ -1303,22 +1454,55 @@ namespace ParticleSimulator{
 #endif
                 }
                 else{
+                    __asm__("#tree walk cell is leaf");
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
                     ep_list.reserveEmptyAreaAtLeast( n_child );
                     sp_list.reserveEmptyAreaAtLeast( n_child );
+#if 0
+                    S32 iloc = ep_list.size();
+                    // debug
+                    for(S32 ip=0; ip<n_child; ip++){
+                        ep_list[iloc].mass = ep_first[adr_ptcl_tmp].mass;
+                        ep_list[iloc++].pos = ep_first[adr_ptcl_tmp++].pos;
+                    }
+                    ep_list.resizeNoInitialize(iloc);
+#else
+		    /*
                     for(S32 ip=0; ip<n_child; ip++){
                         if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_) == 0){
-                            ep_list.pushBackNoCheck(ep_first[adr_ptcl_tmp++]);
+                            Tep ep_tmp = ep_first[adr_ptcl_tmp++];
+                            ep_list.pushBackNoCheck(ep_tmp);
                         }
                         else{
-                            sp_list.pushBackNoCheck(sp_first[adr_ptcl_tmp++]);
+                            Tsp sp_tmp = sp_first[adr_ptcl_tmp++];
+                            sp_list.pushBackNoCheck(sp_tmp);
                         }
                     }
+		    */
+
+                    for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
+                        U32 msb = GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_);                        
+                        Tep ep_tmp = ep_first[adr_ptcl_tmp];
+                        Tsp sp_tmp = sp_first[adr_ptcl_tmp];
+                        ep_list.pushBackNoCheck(ep_tmp);
+                        ep_list.resizeNoInitialize(ep_list.size()-msb);
+                        sp_list.pushBackNoCheck(sp_tmp);
+                        sp_list.resizeNoInitialize(sp_list.size()-(msb^0x1));
+                    }
+#endif
                 }
             }
             else{
+                __asm__("#tree walk substitute SP");
+#if 0
+                // debug
+                ep_list.increaseSize();
+                ep_list.back().mass = tc_child->mom_.mass;
+                ep_list.back().pos = tc_child->mom_.pos;
+#else
                 sp_list.increaseSize();
                 sp_list.back().copyFromMoment(tc_child->mom_);
+#endif
             }
         }
     }
@@ -1460,7 +1644,7 @@ namespace ParticleSimulator{
             //open_bits |= ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) << i);
             open_bits |= ( 
                 ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
-                  || ( pos_target_box.overlapped(box_tmp) ) )
+                  || ( pos_target_box.contained(box_tmp) ) )
                 << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1530,7 +1714,7 @@ namespace ParticleSimulator{
 	    // In this case, SPJ must have r_cutoff
 	    // becuase vertex_out of global tree depends on r_cutoff of SPJ.
 	    // It is not easy to tell r_cutoff to SPJ defined by users.
-	    open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+	    open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
 #endif
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1585,7 +1769,7 @@ namespace ParticleSimulator{
                                            const F64vec & shift = F64vec(0.0) ){
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             if( (open_bits>>i) & 0x1){
@@ -1630,7 +1814,7 @@ namespace ParticleSimulator{
      const F64vec & shift = F64vec(0.0) ){
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             if( (open_bits>>i) & 0x1){
@@ -1653,7 +1837,7 @@ namespace ParticleSimulator{
                         const F64 dis_sq_tmp = pos_target_box.getDistanceMinSQ(pos_tmp);
                         if(dis_sq_tmp > size_tmp*size_tmp) continue;
 #endif
-                        if( pos_root_cell.notOverlapped(pos_tmp+shift) ) continue;  // add M.I. 2016/03/12
+                        if( pos_root_cell.notContained(pos_tmp+shift) ) continue;  // add M.I. 2016/03/12
                         ep_list.increaseSize();
                         ep_list.back() = ep_first[adr_ptcl_tmp];
                         const F64vec pos_new = ep_list.back().getPos() + shift;
@@ -1673,7 +1857,7 @@ namespace ParticleSimulator{
                                                            const F64ort & pos_target_box_in, // position of domain
                                                            const S32 n_leaf_limit,
                                                            const F64vec & shift = F64vec(0.0) ){
-        asm("# MakeListUsingOuterBoundaryAndInnerBoundary");
+        //asm("# MakeListUsingOuterBoundaryAndInnerBoundary");
 #ifdef FAST_WALK_K
         static const _fjsp_v2r8 ONE = _fjsp_set_v2r8(1.0, 1.0);
         F64 open_mask[N_CHILDREN];
@@ -1772,8 +1956,8 @@ namespace ParticleSimulator{
 #else //FAST_WALK_K
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= ( (pos_target_box_out.overlapped( tc_first[adr_tc+i].mom_.getVertexIn() ) 
-                            || pos_target_box_in.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) )
+            open_bits |= ( (pos_target_box_out.contained( tc_first[adr_tc+i].mom_.getVertexIn() ) 
+                            || pos_target_box_in.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) )
                            << i);
         }
 #endif //FAST_WALK_K
@@ -1807,7 +1991,7 @@ namespace ParticleSimulator{
                         const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
                         const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
                         const F64 dis_sq_tmp = pos_target_box_in.getDistanceMinSQ(pos_tmp);
-                        if( pos_target_box_out.notOverlapped(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
+                        if( pos_target_box_out.notContained(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
                         ep_list.increaseSize();
                         ep_list.back() = ep_first[adr_ptcl_tmp];
                         const F64vec pos_new = ep_list.back().getPos() + shift;
@@ -1828,7 +2012,7 @@ namespace ParticleSimulator{
                                            const S32 n_leaf_limit,
                                            const F64vec & shift = F64vec(0.0) ){
 
-        asm("# MakeListUsingInnerBoundary");
+        //asm("# MakeListUsingInnerBoundary");
 #ifdef FAST_WALK_K
         static const _fjsp_v2r8 ONE = _fjsp_set_v2r8(1.0, 1.0);
         F64 open_mask[N_CHILDREN];
@@ -1882,7 +2066,7 @@ namespace ParticleSimulator{
 #else //FAST_WALK_K
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexIn() ) << i);
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexIn() ) << i);
         }
 #endif //FAST_WALK_K
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1924,7 +2108,7 @@ namespace ParticleSimulator{
         if(is_overlapped) return;
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= (tc_first[adr_tc+i].mom_.getVertexOut().overlapped(pos_box) << i);
+            open_bits |= (tc_first[adr_tc+i].mom_.getVertexOut().contained(pos_box) << i);
         }
 
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1957,7 +2141,7 @@ namespace ParticleSimulator{
             IsOverlappedUsingOuterBoundaryOfTreeImpl(tc_first, adr_tc, pos_box, n_leaf_limit, is_overlapped);
         }
         else{
-            is_overlapped = tc_first->mom_.getVertexOut().overlapped(pos_box);
+            is_overlapped = tc_first->mom_.getVertexOut().contained(pos_box);
         }
         return is_overlapped;
     }
@@ -1975,18 +2159,18 @@ namespace ParticleSimulator{
         const U32 ONE = 1;
         //asm("# MakeLETListByDoubleWalkImpl");
         for(S32 i=0; i<N_CHILDREN; i++){
-            if( tc_first_B[adr_tc_B+i].mom_.getVertexOut().overlapped(pos_domain) 
+            if( tc_first_B[adr_tc_B+i].mom_.getVertexOut().contained(pos_domain) 
                 || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B[adr_tc_B+i].mom_.getVertexIn(), n_leaf_limit_A)){
                 open_bits |= ONE << i;
             }
 /*
-            open_bits |= (tc_first_B[adr_tc_B+i].mom_.getVertexOut().overlapped(pos_domain) << i);
+            open_bits |= (tc_first_B[adr_tc_B+i].mom_.getVertexOut().contained(pos_domain) << i);
             if( (~(open_bits>>i)) & 0x1 ){
                 open_bits |= IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B[adr_tc_B+i].mom_.getVertexIn(), n_leaf_limit_A) << i;
                 //open_bits |= IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B[adr_tc_B+i].mom_.getVertexOut(), n_leaf_limit_A) << i;
-                //open_bits |= tc_first_A->mom_.getVertexOut().overlapped(tc_first_B[adr_tc_B+i].mom_.getVertexIn()) << i; // out
-                //open_bits |= tc_first_A->mom_.getVertexOut().overlapped(tc_first_B[adr_tc_B+i].mom_.getVertexOut()) << i; // OK
-                //open_bits |= tc_first_B[adr_tc_B+i].mom_.getVertexIn().overlapped(tc_first_A->mom_.getVertexOut()) << i; // out
+                //open_bits |= tc_first_A->mom_.getVertexOut().contained(tc_first_B[adr_tc_B+i].mom_.getVertexIn()) << i; // out
+                //open_bits |= tc_first_A->mom_.getVertexOut().contained(tc_first_B[adr_tc_B+i].mom_.getVertexOut()) << i; // OK
+                //open_bits |= tc_first_B[adr_tc_B+i].mom_.getVertexIn().contained(tc_first_A->mom_.getVertexOut()) << i; // out
             }
 */
         }
@@ -2016,12 +2200,12 @@ namespace ParticleSimulator{
                             continue;
                         }
 #else
-                        if( pos_domain.overlapped(tc_first_B[adr_tc_child].mom_.getVertexOut()) ){
+                        if( pos_domain.contained(tc_first_B[adr_tc_child].mom_.getVertexOut()) ){
                             //std::cerr<<"new version"<<std::endl;
                             continue;
                         }
 #endif
-                        //if( pos_domain.overlapped(tc_first_B[adr_tc_child].mom_.getVertexOut()) ) continue;
+                        //if( pos_domain.contained(tc_first_B[adr_tc_child].mom_.getVertexOut()) ) continue;
                         id_ptcl_send.push_back(adr_ptcl_tmp);
                         //std::cerr<<"set ptcl"<<std::endl;
                     }
@@ -2045,7 +2229,7 @@ namespace ParticleSimulator{
                                         id_ptcl_send);
         }
         else{
-            if( tc_first_B->mom_.getVertexOut().overlapped(pos_domain) || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B->mom_.getVertexIn(), n_leaf_limit_A)){
+            if( tc_first_B->mom_.getVertexOut().contained(pos_domain) || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B->mom_.getVertexIn(), n_leaf_limit_A)){
                 S32 adr_ptcl_tmp = tc_first_B->adr_ptcl_;
                 const S32 n_child = tc_first_B->n_ptcl_;
                 for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
@@ -2056,7 +2240,7 @@ namespace ParticleSimulator{
                     const F64 dis_sq = pos_domain.getDistanceMinSQ(pos_tmp);
                     if(dis_sq <= len_sq) continue;
 #else
-                    if( tc_first_B->mom_.getVertexOut().overlapped(pos_domain) ) return;
+                    if( tc_first_B->mom_.getVertexOut().contained(pos_domain) ) return;
 #endif
                     id_ptcl_send.push_back(adr_ptcl_tmp);
                 }
@@ -2113,7 +2297,7 @@ namespace ParticleSimulator{
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
                 const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexOut();
-                open_bits |= vertex_cell.overlapped(pos_target) << i;
+                open_bits |= vertex_cell.contained(pos_target) << i;
             }
             for(S32 i=0; i<N_CHILDREN; i++){
                 const S32 n_child = tc_first[adr_tc_child+i].n_ptcl_;
@@ -2143,9 +2327,31 @@ namespace ParticleSimulator{
             for(S32 ip=0; ip<n_tmp; ip++, adr_ptcl_tmp++){
                 const F64vec dr = ep_first[adr_ptcl_tmp].getPos() - pos_target;
                 const F64 r_search = ep_first[adr_ptcl_tmp].getRSearch();
-                if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_)==0 && dr*dr < r_search*r_search){
-                    //ep_list.pushBackNoCheck( ep_first[adr_ptcl_tmp] );
+#if 0 // debug
+		if(Comm::getRank() == 0 && pos_target.x > 0.931 && pos_target.x < 0.932){
+		    std::cerr<<"pos_target="<<pos_target<<std::endl;
+		    std::cerr<<"dr="<<dr<<" dr*dr="<<dr*dr<<std::endl;
+		    std::cerr<<"r_search="<<r_search<<" r_search*r_search="<<r_search*r_search<<std::endl;
+		    std::cerr<<"GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_)="<<GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_)<<std::endl;
+		    std::cerr<<"dr*dr <= r_search*r_search="<< ((dr*dr) <= (r_search*r_search)) <<std::endl;
+		}
+                if( dr*dr <= r_search*r_search){
+#else // original
+                if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_)==0 && dr*dr <= r_search*r_search){
+#endif
+#if 0 // debug
+		    if(Comm::getRank() == 0 && pos_target.x > 0.931 && pos_target.x < 0.932){
+			std::cerr<<"regist ep_list"<<std::endl;
+			std::cerr<<"0: ep_list.size()="<<ep_list.size()<<std::endl;
+		    }
+#endif
 		    ep_list.push_back( ep_first[adr_ptcl_tmp] );
+#if 0 // debug
+		    if(Comm::getRank() == 0 && pos_target.x > 0.931 && pos_target.x < 0.932){
+			std::cerr<<"1:ep_list.size()="<<ep_list.size()<<std::endl;
+		    }
+#endif
+
                 }
             }
         }
@@ -2154,8 +2360,17 @@ namespace ParticleSimulator{
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
                 const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexOut();
-                open_bits |= vertex_cell.overlapped(pos_target) << i;
+                //open_bits |= vertex_cell.contained(pos_target) << i;
+		open_bits |= vertex_cell.overlapped(pos_target) << i;
             }
+#if 0 // debug
+	    /*
+	    if(Comm::getRank() == 0 && pos_target.x > 0.931 && pos_target.x < 0.932){
+		std::cerr<<"open_bits="<<open_bits<<std::endl;
+	    }
+	    */
+	    open_bits = 255;
+#endif
             for(S32 i=0; i<N_CHILDREN; i++){
                 const S32 n_child = tc_first[adr_tc_child+i].n_ptcl_;
                 if( n_child == 0 ) continue;
@@ -2166,9 +2381,95 @@ namespace ParticleSimulator{
                 }
             }
         }
+	    /*
+        if(Comm::getRank() == 0 && pos_target.x > 0.6701 && pos_target.x < 0.6702){
+	    std::cerr<<"&ep_list="<<&ep_list<<std::endl;
+	    std::cerr<<"2:ep_list.size()="<<ep_list.size()<<std::endl;
+	}
+	    */
     }
 #endif
 
+    template<class Tvec, class Ttc, class Ttp, class Tep>
+    inline void SearchNeighborListOneParticleGather(const Tvec & pos_target,
+						    const F64  & r_search_sq,
+						    const Ttc * tc_first,
+						    const Ttp * tp_first,
+						    const S32 adr_tc,
+						    const ReallocatableArray<Tep> & ep_first,
+						    ReallocatableArray<Tep> & ep_list,
+						    const S32 n_leaf_limit){
+        if( tc_first[adr_tc].isLeaf(n_leaf_limit) ){
+            const S32 n_tmp = tc_first[adr_tc].n_ptcl_;
+            S32 adr_ptcl_tmp = tc_first[adr_tc].adr_ptcl_;
+            for(S32 ip=0; ip<n_tmp; ip++, adr_ptcl_tmp++){
+                const F64vec dr = ep_first[adr_ptcl_tmp].getPos() - pos_target;
+                if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_)==0 && dr*dr <= r_search_sq){
+		    ep_list.push_back( ep_first[adr_ptcl_tmp] );
+                }
+            }
+        }
+        else{
+            const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
+            U32 open_bits = 0;
+            for(S32 i=0; i<N_CHILDREN; i++){
+                const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexIn();
+		open_bits |= (vertex_cell.getDistanceMinSQ(pos_target) <= r_search_sq)<< i;
+            }
+            for(S32 i=0; i<N_CHILDREN; i++){
+                const S32 n_child = tc_first[adr_tc_child+i].n_ptcl_;
+                if( n_child == 0 ) continue;
+                else if( (open_bits >> i) & 0x1 ){
+                    SearchNeighborListOneParticleGather
+                        (pos_target, r_search_sq, tc_first, tp_first,    adr_tc_child+i,
+                         ep_first,   ep_list,     n_leaf_limit);
+                }
+            }
+        }
+    }
+
+
+    template<class Tvec, class Ttc, class Ttp, class Tep>
+    inline void SearchNeighborListOneParticleSymmetry(const Tvec & pos_target,
+						      const F64  & r_search_i_sq,
+						      const Ttc * tc_first,
+						      const Ttp * tp_first,
+						      const S32 adr_tc,
+						      const ReallocatableArray<Tep> & ep_first,
+						      ReallocatableArray<Tep> & ep_list,
+						      const S32 n_leaf_limit){
+        if( tc_first[adr_tc].isLeaf(n_leaf_limit) ){
+            const S32 n_tmp = tc_first[adr_tc].n_ptcl_;
+            S32 adr_ptcl_tmp = tc_first[adr_tc].adr_ptcl_;
+            for(S32 ip=0; ip<n_tmp; ip++, adr_ptcl_tmp++){
+		const F64 r_search_j_sq = ep_first[adr_ptcl_tmp].getRSearch()*ep_first[adr_ptcl_tmp].getRSearch();
+		const F64 r_search_sq =  (r_search_i_sq > r_search_j_sq) ?  r_search_i_sq : r_search_j_sq;
+                const F64vec dr = ep_first[adr_ptcl_tmp].getPos() - pos_target;
+                if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_)==0 && dr*dr <= r_search_sq){
+		    ep_list.push_back( ep_first[adr_ptcl_tmp] );
+                }
+            }
+        }
+        else{
+            const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
+            U32 open_bits = 0;
+            for(S32 i=0; i<N_CHILDREN; i++){
+                const F64ort vertex_cell_in  = tc_first[adr_tc_child+i].mom_.getVertexIn();
+		const F64ort vertex_cell_out = tc_first[adr_tc_child+i].mom_.getVertexOut();
+		open_bits |= ( (vertex_cell_in.getDistanceMinSQ(pos_target) <= r_search_i_sq) || vertex_cell_out.overlapped(pos_target))<< i;
+            }
+            for(S32 i=0; i<N_CHILDREN; i++){
+                const S32 n_child = tc_first[adr_tc_child+i].n_ptcl_;
+                if( n_child == 0 ) continue;
+                else if( (open_bits >> i) & 0x1 ){
+                    SearchNeighborListOneParticleSymmetry
+                        (pos_target, r_search_i_sq, tc_first, tp_first,    adr_tc_child+i,
+                         ep_first,   ep_list,     n_leaf_limit);
+                }
+            }
+        }
+    }    
+	
 #if 0
 // for neighbour search
     template<class Tort, class Ttc, class Tep>
@@ -2190,7 +2491,7 @@ namespace ParticleSimulator{
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
                 const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexOut();
-                open_bits |= vertex_cell.overlapped(pos_box) << i;
+                open_bits |= vertex_cell.contained(pos_box) << i;
             }
             for(S32 i=0; i<N_CHILDREN; i++){
                 const S32 n_child = tc_first[adr_tc_child+i].n_ptcl_;
@@ -2232,7 +2533,7 @@ namespace ParticleSimulator{
                 const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
                 const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
                 const F64 dis_sq_tmp = pos_target_box_in.getDistanceMinSQ(pos_tmp);
-                if( pos_target_box_out.notOverlapped(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
+                if( pos_target_box_out.notContained(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
                 ep_list.increaseSize();
                 ep_list.back() = ep_first[adr_ptcl_tmp];
                 const F64vec pos_new = ep_list.back().getPos() + shift;
@@ -2251,8 +2552,8 @@ namespace ParticleSimulator{
             S32 adr_tc_curr = adr_tc_stack.pop();
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
-                open_bits |= ( (pos_target_box_out.overlapped( tc_first[adr_tc_curr+i].mom_.getVertexIn() ) 
-                                || pos_target_box_in.overlapped( tc_first[adr_tc_curr+i].mom_.getVertexOut() ) )
+                open_bits |= ( (pos_target_box_out.contained( tc_first[adr_tc_curr+i].mom_.getVertexIn() ) 
+                                || pos_target_box_in.contained( tc_first[adr_tc_curr+i].mom_.getVertexOut() ) )
                                << i);
             }
             for(S32 i=0; i<N_CHILDREN; i++){
@@ -2277,7 +2578,7 @@ namespace ParticleSimulator{
                             const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
                             const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
                             const F64 dis_sq_tmp = pos_target_box_in.getDistanceMinSQ(pos_tmp);
-                            if( pos_target_box_out.notOverlapped(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
+                            if( pos_target_box_out.notContained(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
                             ep_list.increaseSize();
                             ep_list.back() = ep_first[adr_ptcl_tmp];
                             const F64vec pos_new = ep_list.back().getPos() + shift;
@@ -2324,7 +2625,7 @@ namespace ParticleSimulator{
                     const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
                     const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
                     const F64 dis_sq_tmp = pos_target_box_in.getDistanceMinSQ(pos_tmp);
-                    if( pos_target_box_out.notOverlapped(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
+                    if( pos_target_box_out.notContained(pos_tmp) && dis_sq_tmp > size_tmp*size_tmp) continue;
                     ep_list.increaseSize();
                     ep_list.back() = ep_first[adr_ptcl_tmp];
                     const F64vec pos_new = ep_list.back().getPos() + shift;
@@ -2336,8 +2637,8 @@ namespace ParticleSimulator{
                 // not leaf
                 S32 adr_tc_child = tc_first[adr_tc_curr].adr_tc_;
                 for(S32 i=0; i<N_CHILDREN; i++, adr_tc_child++){
-                    if( pos_target_box_out.overlapped(tc_first[adr_tc_child].mom_.getVertexIn()) 
-                        || pos_target_box_in.overlapped(tc_first[adr_tc_child].mom_.getVertexOut()) ){
+                    if( pos_target_box_out.contained(tc_first[adr_tc_child].mom_.getVertexIn()) 
+                        || pos_target_box_in.contained(tc_first[adr_tc_child].mom_.getVertexOut()) ){
                         adr_tc_stack.push(adr_tc_child);
                     }
                 }
@@ -2356,7 +2657,7 @@ namespace ParticleSimulator{
          const F64ort & pos_target_box, // position of domain
          const S32 n_leaf_limit,
          const F64vec & shift = F64vec(0.0) ){
-        asm("# MakeListUsingInnerBoundaryIteration");
+        //asm("# MakeListUsingInnerBoundaryIteration");
         CountT n_cell_open = 0;
         //static __thread Stack<S32, 1000> adr_tc_stack;
 	Stack<S32> adr_tc_stack;
@@ -2378,7 +2679,7 @@ namespace ParticleSimulator{
             else{
                 S32 adr_tc_child = tc_first[adr_tc_curr].adr_tc_;
                 for(S32 i=0; i<N_CHILDREN; i++, adr_tc_child++){
-                    if( pos_target_box.overlapped( tc_first[adr_tc_child].mom_.getVertexIn()) ){
+                    if( pos_target_box.contained( tc_first[adr_tc_child].mom_.getVertexIn()) ){
                         adr_tc_stack.push(adr_tc_child);
                     }
                 }
@@ -2425,7 +2726,7 @@ namespace ParticleSimulator{
             else{
                 S32 adr_tc_child = tc_first[adr_tc_curr].adr_tc_;
                 for(S32 i=0; i<N_CHILDREN; i++, adr_tc_child++){
-                    if( pos_target_box.overlapped( tc_first[adr_tc_child].mom_.getVertexOut()) ){
+                    if( pos_target_box.contained( tc_first[adr_tc_child].mom_.getVertexOut()) ){
                         adr_tc_stack.push(adr_tc_child);
                     }
                 }

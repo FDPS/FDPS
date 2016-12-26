@@ -30,7 +30,11 @@ namespace  ParticleSimulator{
         }
 #endif
 
+#ifdef __GNUC__
+        void __attribute__((always_inline)) ReallocInner(const int new_cap){
+#else
         void ReallocInner(const int new_cap){
+#endif
             capacity_ = new_cap;
             T * new_data = new T[capacity_];
             T * old_data = data_;
@@ -167,8 +171,11 @@ namespace  ParticleSimulator{
             resizeNoInitialize(size_new);
             data_[size_-1] = val;
         }
-
-        void resizeNoInitialize(const int n){
+#ifdef __GNUC__
+        void __attribute__((always_inline)) resizeNoInitialize (const int n){
+#else
+        void resizeNoInitialize (const int n){
+#endif
 #ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
             if(n > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 dumpImpl();
@@ -227,6 +234,7 @@ namespace  ParticleSimulator{
         void clearSize() {size_ = 0;}
 
         void increaseSize(){ resizeNoInitialize(size_+1); }
+        void decreaseSize(){ resizeNoInitialize(size_-1); } // no check
 
         void reserveAtLeast(const int n){
             if( n >= capacity_){
@@ -251,8 +259,11 @@ namespace  ParticleSimulator{
                 ReallocInner(new_cap);
             }
         }
-
-        void reserveEmptyAreaAtLeast(const int n_add){
+#ifdef __GNUC__
+        void __attribute__((always_inline)) reserveEmptyAreaAtLeast (const int n_add){
+#else
+        void reserveEmptyAreaAtLeast (const int n_add){
+#endif
             const int n = n_add + size_;
             if( n >= capacity_){
 #ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
@@ -277,24 +288,24 @@ namespace  ParticleSimulator{
             }
         }
 
-	void freeMem(){
-	    if(capacity_ > 0){
-		capacity_org_ = capacity_;
-		size_ = capacity_ = 0;
-		delete [] data_;
-	    }
-	    else{
-		capacity_org_ = 0;
-	    }
-	}
+        void freeMem(){
+            if(capacity_ > 0){
+                capacity_org_ = capacity_;
+                size_ = capacity_ = 0;
+                delete [] data_;
+            }
+            else{
+                capacity_org_ = 0;
+            }
+        }
 
-	void reallocMem(){
-	    if(capacity_org_ > 0){
-		capacity_ = capacity_org_;
-		data_ = new T[capacity_];
-		capacity_org_ = 0;
-	    }
-	}
-
+        void reallocMem(){
+            if(capacity_org_ > 0){
+                capacity_ = capacity_org_;
+                data_ = new T[capacity_];
+                capacity_org_ = 0;
+            }
+        }
     };
 }
+

@@ -2,6 +2,7 @@
 
 #include<cmath>
 #include<vector>
+#include<functional>
 #include<algorithm>
 #include<exception>
 #include<stdexcept>
@@ -24,6 +25,7 @@
 #include"orthotope3.hpp"
 #include"matrix_sym2.hpp"
 #include"matrix_sym3.hpp"
+#include"matrix2.hpp"
 
 
 #define PS_DEBUG_CALL(func) \
@@ -275,7 +277,8 @@ namespace ParticleSimulator{
     template<> inline MPI::Datatype GetDataType<long long int>(){return MPI_LONG_LONG_INT;}
     template<> inline MPI::Datatype GetDataType<unsigned int>(){return MPI::UNSIGNED;}
     template<> inline MPI::Datatype GetDataType<unsigned long>(){return MPI::UNSIGNED_LONG;}
-    template<> inline MPI::Datatype GetDataType<unsigned long long int>(){return MPI::UNSIGNED_LONG;}
+    //template<> inline MPI::Datatype GetDataType<unsigned long long int>(){return MPI::UNSIGNED_LONG;}
+    template<> inline MPI::Datatype GetDataType<unsigned long long int>(){return MPI::UNSIGNED_LONG_LONG;}
     template<> inline MPI::Datatype GetDataType<float>(){return MPI::FLOAT;}
     template<> inline MPI::Datatype GetDataType<double>(){return MPI::DOUBLE;}
 
@@ -887,17 +890,17 @@ namespace ParticleSimulator{
 			std::cerr << "         Junichiro Makino and many others" << std::endl;
 #ifdef MONAR
             if(monar){
-                std::cerr<<"　　 ^__^　 ／￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣"<<std::endl;
+                std::cerr<<"　　 ^__^　 ／‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"<<std::endl;
                 std::cerr<<"　　( ´∀｀)＜******** FDPS has successfully begun. ********"<<std::endl;
                 std::cerr<<"　　(     ) ＼＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿"<<std::endl;
                 std::cerr<<"　　|  | |"<<std::endl;
                 std::cerr<<"　　(__)_)"<<std::endl;
             }
             else if(MONAR){
-                std::cerr<<"        ∧_∧   ／￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣"<<std::endl;
+                std::cerr<<"        ∧_∧   ／‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"<<std::endl;
                 std::cerr<<"       (´Д`) <  ******** FDPS has successfully begun. ********"<<std::endl;
                 std::cerr<<"       ／_ /  ＼"<<std::endl;
-                std::cerr<<"      (ぃ９｜  ￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣"<<std::endl;
+                std::cerr<<"      (ぃ９｜  ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"<<std::endl;
                 std::cerr<<"      /　　/、"<<std::endl;
                 std::cerr<<"     /　　∧_二つ"<<std::endl;
                 std::cerr<<"     ｜　　＼ "<<std::endl;
@@ -947,11 +950,18 @@ namespace ParticleSimulator{
     template<> inline long Comm::getMinValue<long>(const long & val){
         return allreduceMin(val);
     }
+    template<> inline long long Comm::getMinValue<long long>(const long long & val){
+        return allreduceMin(val);
+    }
+    template<> inline unsigned long long Comm::getMinValue<unsigned long long>(const unsigned long long & val){
+        return allreduceMin(val);
+    }    
     template<> inline
     Vector2<float> Comm::getMinValue< Vector2<float> >(const Vector2<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<float> ret;
-        MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 2, MPI::FLOAT, MPI::MIN);
+        //MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 2, MPI::FLOAT, MPI::MIN);
+	MPI::COMM_WORLD.Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI::FLOAT, MPI::MIN);
         return ret;
 #else
         return val;
@@ -960,7 +970,8 @@ namespace ParticleSimulator{
     template<> inline Vector2<double> Comm::getMinValue< Vector2<double> >(const Vector2<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<double> ret;
-        MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 2, MPI::DOUBLE, MPI::MIN);
+        //MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 2, MPI::DOUBLE, MPI::MIN);
+	MPI::COMM_WORLD.Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI::DOUBLE, MPI::MIN);
         return ret;
 #else
         return val;
@@ -970,7 +981,8 @@ namespace ParticleSimulator{
     Vector3<float> Comm::getMinValue< Vector3<float> >(const Vector3<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<float> ret;
-        MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 3, MPI::FLOAT, MPI::MIN);
+        //MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 3, MPI::FLOAT, MPI::MIN);
+	MPI::COMM_WORLD.Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI::FLOAT, MPI::MIN);
         return ret;
 #else
         return val;
@@ -980,7 +992,8 @@ namespace ParticleSimulator{
     Vector3<double> Comm::getMinValue< Vector3<double> >(const Vector3<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<double> ret;
-        MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 3, MPI::DOUBLE, MPI::MIN);
+        //MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 3, MPI::DOUBLE, MPI::MIN);
+	MPI::COMM_WORLD.Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI::DOUBLE, MPI::MIN);
         return ret;
 #else
         return val;
@@ -999,12 +1012,18 @@ namespace ParticleSimulator{
     template<> inline long Comm::getMaxValue<long>(const long & val){
         return allreduceMax(val);
     }
-
+    template<> inline long long Comm::getMaxValue<long long>(const long long & val){
+        return allreduceMax(val);
+    }
+    template<> inline unsigned long long Comm::getMaxValue<unsigned long long>(const unsigned long long & val){
+        return allreduceMax(val);
+    }    
     template<> inline
     Vector2<float> Comm::getMaxValue< Vector2<float> >(const Vector2<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<float> ret;
-        MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 2, MPI::FLOAT, MPI::MAX);
+        //MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 2, MPI::FLOAT, MPI::MAX);
+	MPI::COMM_WORLD.Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI::FLOAT, MPI::MAX);
         return ret;
 #else
         return val;
@@ -1014,7 +1033,8 @@ namespace ParticleSimulator{
     Vector2<double> Comm::getMaxValue< Vector2<double> >(const Vector2<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<double> ret;
-        MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 2, MPI::DOUBLE, MPI::MAX);
+        //MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 2, MPI::DOUBLE, MPI::MAX);
+	MPI::COMM_WORLD.Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI::DOUBLE, MPI::MAX);	
         return ret;
 #else
         return val;
@@ -1024,7 +1044,8 @@ namespace ParticleSimulator{
     Vector3<float> Comm::getMaxValue< Vector3<float> >(const Vector3<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<float> ret;
-        MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 3, MPI::FLOAT, MPI::MAX);
+        //MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 3, MPI::FLOAT, MPI::MAX);
+	MPI::COMM_WORLD.Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI::FLOAT, MPI::MAX);
         return ret;
 #else
         return val;
@@ -1034,7 +1055,8 @@ namespace ParticleSimulator{
     Vector3<double> Comm::getMaxValue< Vector3<double> >(const Vector3<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<double> ret;
-        MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 3, MPI::DOUBLE, MPI::MAX);
+        //MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 3, MPI::DOUBLE, MPI::MAX);
+	MPI::COMM_WORLD.Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI::DOUBLE, MPI::MAX);
         return ret;
 #else
         return val;
@@ -1352,12 +1374,13 @@ namespace ParticleSimulator{
     }
 
     inline F64 GetWtime(){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
 #ifdef PARTICLE_SIMULATOR_BARRIER_FOR_PROFILE
 	Comm::barrier();
 #endif //PARTICLE_SIMULATOR_BARRIER_FOR_PROFILE
         return MPI::Wtime();
-#elif PARTICLE_SIMULATOR_THREAD_PARALLEL
+#elif defined(PARTICLE_SIMULATOR_THREAD_PARALLEL)
+        //PARTICLE_SIMULATOR_THREAD_PARALLEL
 	return omp_get_wtime();
 #else
 	return clock() / CLOCKS_PER_SEC;
@@ -1366,12 +1389,12 @@ namespace ParticleSimulator{
 
 
     inline F64 GetWtimeNoBarrier(){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
         return MPI::Wtime();
-#elif PARTICLE_SIMULATOR_THREAD_PARALLEL
-	return omp_get_wtime();
+#elif defined(PARTICLE_SIMULATOR_THREAD_PARALLEL)
+        return omp_get_wtime();
 #else
-	return clock() / CLOCKS_PER_SEC;
+        return clock() / CLOCKS_PER_SEC;
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
     }
 
@@ -1613,9 +1636,6 @@ namespace ParticleSimulator{
 
 }
 
-//#include"reallocatable_array.hpp"
+#include"util.hpp"
 
 #include"timer.hpp"
-//#include"profile.hpp"
-
-//#include"comm.hpp"

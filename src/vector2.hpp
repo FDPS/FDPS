@@ -14,6 +14,8 @@ namespace ParticleSimulator{
         Vector2(const T s) : x(s), y(s) {}
         Vector2(const Vector2 & src) : x(src.x), y(src.y) {}
 
+        static const int DIM = 2;
+	
         const Vector2 & operator = (const Vector2 & rhs){
             x = rhs.x;
             y = rhs.y;
@@ -112,13 +114,58 @@ namespace ParticleSimulator{
             return c;
         }
 
+#if 0
         const T & operator[](const int i) const {
+#ifdef PARTICLE_SIMULATOR_VECTOR_RANGE_CHECK
+	    if(i >= DIM || i < 0){
+		std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
+		std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+		MPI::COMM_WORLD.Abort(-1);
+#else
+		exit(-1);
+#endif		
+	    }
+#endif
             return (&x)[i];
         }
 
         T & operator[](const int i){
+#ifdef PARTICLE_SIMULATOR_VECTOR_RANGE_CHECK
+	    if(i >= DIM || i < 0){
+		std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
+		std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+		MPI::COMM_WORLD.Abort(-1);
+#else
+		exit(-1);
+#endif		
+	    }	    
+#endif	    
             return (&x)[i];
         }
+#else
+        const T & operator[](const int i) const {
+			if(0==i) return x;
+			if(1==i) return y;
+			std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
+			std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
+#  ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+			MPI::COMM_WORLD.Abort(-1);
+#  endif		
+			exit(-1);
+		}
+        T & operator[](const int i){
+			if(0==i) return x;
+			if(1==i) return y;
+			std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
+			std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
+#  ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+			MPI::COMM_WORLD.Abort(-1);
+#  endif		
+			exit(-1);
+		}
+#endif
 
 	T getDistanceSQ(const Vector2 & u) const {
             T dx = x - u.x;

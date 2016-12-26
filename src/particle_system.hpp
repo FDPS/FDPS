@@ -14,34 +14,25 @@ namespace ParticleSimulator{
         CountT n_ptcl_recv_;
         TimeProfile time_profile_;
         static const S32 n_smp_ave_ = 30;
-        //Tptcl * ptcl_;
         ReallocatableArray<Tptcl> ptcl_;
+	ReallocatableArray<S32> idx_remove_ptcl_; // add 2016/09/14
         ReallocatableArray<Tptcl> ptcl_send_;
         ReallocatableArray<Tptcl> ptcl_recv_;
-        //S32 n_ptcl_limit_;
-        //S32 n_ptcl_;
         S32 n_smp_ptcl_tot_;
         bool first_call_by_initialize;
         bool first_call_by_setAverageTargetNumberOfSampleParticlePerProcess;
         bool first_call_by_DomainInfo_collect_sample_particle;
-        /* AT_DEBUG
-        inline bool determineWhetherParticleIsInDomain(const F32vec & pos,
-                                                       const F32ort & domain) {
-        */
         inline bool determineWhetherParticleIsInDomain(const F64vec & pos,
                                                        const F64ort & domain) {
             bool ret = true;
-            for(S32 k = 0; k < DIMENSION; k++)
-                ret *= (domain.low_[k] <= pos[k]) * (pos[k] < domain.high_[k]);
+	    ret *= (domain.low_.x <= pos.x) * (pos.x < domain.high_.x);
+	    ret *= (domain.low_.y <= pos.y) * (pos.y < domain.high_.y);
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+	    ret *= (domain.low_.z <= pos.z) * (pos.z < domain.high_.z);
+#endif
+            //for(S32 k = 0; k < DIMENSION; k++) ret *= (domain.low_[k] <= pos[k]) * (pos[k] < domain.high_[k]);
             return ret;
         }
-
-        /* AT_DEBUG
-        S32 searchWhichDomainParticleGoTo(const F32vec & pos,
-                                          const S32 n_domain [],
-                                          const F32ort domain []) {
-        */
-
 
         S32 searchWhichDomainParticleGoTo(const F64vec & pos,
                                           const S32 n_domain [],
@@ -49,20 +40,20 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
             S32 idomain = 0;
             const S32 ny = n_domain[1];
-            while(domain[idomain].high_[0] <= pos[0])
+            while(domain[idomain].high_.x <= pos.x)
                 idomain += ny;
-            while(domain[idomain].high_[1] <= pos[1])
+            while(domain[idomain].high_.y <= pos.y)
                 idomain++;
             return idomain;
 #else
             S32 idomain = 0;
             const S32 nynz = n_domain[1] * n_domain[2];
-            while(domain[idomain].high_[0] <= pos[0])
+            while(domain[idomain].high_.x <= pos.x)
                 idomain += nynz;
             const S32 nz   = n_domain[2];
-            while(domain[idomain].high_[1] <= pos[1])
+            while(domain[idomain].high_.y <= pos.y)
                 idomain += nz;
-            while(domain[idomain].high_[2] <= pos[2])
+            while(domain[idomain].high_.z <= pos.z)
                 idomain++;            
             return idomain;
 #endif
@@ -135,107 +126,35 @@ namespace ParticleSimulator{
         struct DummyHeader{
             void writeAscii(FILE* fp) const{
             }
-            int readAscii (FILE* fp){
+            S32 readAscii (FILE* fp){
                 return -1;
             }
             void writeBinary(FILE* fp) const{
             }
-            int readBinary (FILE* fp){
+            S32 readBinary (FILE* fp){
                 return -1;
             }
         };
-        template <class Theader>
-        void writeParticleAsciiImpl(const char * const filename, const char * const format, const Theader * const header){
-            if(format == NULL){
-                #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                //declare local # of ptcl.
-                const S32 n_ptcl_ = ptcl_.size();
-                //get # of process.
-                const S32 n_proc = Comm::getNumberOfProc();
-                //get # of ptcls in each process.
-                S32 *n_ptcl = new S32[n_proc];
-                //Gather # of particles.
-                MPI::COMM_WORLD.Allgather(&n_ptcl_, 1, GetDataType<S32>(), n_ptcl, 1, GetDataType<S32>());
-                //set displacement
-                S32 *n_ptcl_displs = new S32[n_proc+1];
-                n_ptcl_displs[0] = 0;
-                for(S32 i = 0 ; i < n_proc ; ++ i){
-                    n_ptcl_displs[i+1] = n_ptcl_displs[i] + n_ptcl[i];
-                }
-                const S32 n_tot = n_ptcl_displs[n_proc];
-                Tptcl *ptcl = new Tptcl[n_tot];
-                //gather data
-                MPI::COMM_WORLD.Gatherv(ptcl_.getPointer(), n_ptcl_, GetDataType<Tptcl>(), ptcl, n_ptcl, n_ptcl_displs, GetDataType<Tptcl>(), 0);
-                if(Comm::getRank() == 0){
-                    FILE* fp = fopen(filename, "w");
-                    if(fp == NULL){
-                        PARTICLE_SIMULATOR_PRINT_ERROR("can not open output file");
-                        std::cerr<<"output file: "<<filename<<std::endl;
-                        Abort(-1);
-                    }
-                    header->writeAscii(fp);
-                    for(S32 i = 0 ; i < n_tot ; ++ i){
-                        ptcl[i].writeAscii(fp);
-                    }
-                    fclose(fp);
-                }
-                delete [] n_ptcl;
-                delete [] n_ptcl_displs;
-                delete [] ptcl; 
-                #else
-                const S32 n_tot = ptcl_.size();
-                if(Comm::getRank() == 0){
-                    FILE* fp = fopen(filename, "w");
-                    header->writeAscii(fp);
-                    for(S32 i = 0 ; i < n_tot ; ++ i){
-                        ptcl_[i].writeAscii(fp);
-                    }
-                    fclose(fp);
-                }
-                #endif
-            }else{
-                char output[256];
-                sprintf(output, format, filename, Comm::getNumberOfProc(), Comm::getRank());
-                FILE* fp = fopen(output, "w");
-                if(fp == NULL){
-                    PARTICLE_SIMULATOR_PRINT_ERROR("can not open output file");
-		    std::cerr<<"output file: "<<output<<std::endl;
-                    Abort(-1);
-                }
-                header->writeAscii(fp);
-                for(S32 i = 0 ; i < ptcl_.size() ; ++ i){
-                    ptcl_[i].writeAscii(fp);
-                }
-                fclose(fp);
-            }
-        }
-        //write
-        template <class Theader>
-        void writeParticleAscii(const char * const filename, const char * const format, const Theader& header){
-            writeParticleAsciiImpl(filename, format, &header);
-        }
-        template <class Theader>
-        void writeParticleAscii(const char * const filename, const Theader& header){
-            writeParticleAsciiImpl(filename, NULL, &header);
-        }
-        void writeParticleAscii(const char * const filename, const char * format){
-            writeParticleAsciiImpl<DummyHeader>(filename, format, NULL);
-        }
-        void writeParticleAscii(const char * const filename){
-            writeParticleAsciiImpl<DummyHeader>(filename, NULL, NULL);
-        }
+        //2016_11_03 modified IO functions to handle multiple file formats
         //read
         template <class Theader>
-        void readParticleAsciiImpl(const char * const filename, const char * const format, Theader * const header){
+        void readParticleImpl(const char * const filename,
+                              const char * const format,
+                              Theader * const header,
+                              void (Tptcl::*pFuncPtcl)(FILE*),
+                              S32 (Theader::*pFuncHead)(FILE*),
+                              const char * open_format){
+
             if(format == NULL){//Read from single file
                 if(Comm::getRank() == 0){
-                    FILE* fp = fopen(filename, "r");
+                    FILE* fp = fopen(filename, open_format);
                     if(fp == NULL){
                         PARTICLE_SIMULATOR_PRINT_ERROR("can not open input file ");
                         std::cerr<<"filename: "<<filename<<std::endl;
                         Abort(-1);
                     }
-                    S32 n_ptcl_ = header->readAscii(fp);
+                    //S32 n_ptcl_ = header->readAscii(fp);
+                    S32 n_ptcl_ = (header->*pFuncHead)(fp);
                     while('\n' == getc(fp));
                     fseek(fp, -1, SEEK_CUR);
                     if(n_ptcl_ < 0){//User does NOT return # of ptcl
@@ -245,7 +164,8 @@ namespace ParticleSimulator{
                         for(int c ; (c = getc(fp)) != EOF ; n_ptcl_ += '\n' == c ? 1 : 0){}
                         fclose(fp);
                         fp = fopen(filename, "r");
-                        header->readAscii(fp);
+                        //header->readAscii(fp);
+                        (header->*pFuncHead)(fp);
                         while('\n' == getc(fp));
 			fseek(fp, -1, SEEK_CUR);
                     }
@@ -264,14 +184,16 @@ namespace ParticleSimulator{
                     this->createParticle(n_ptcl_ << 2);//Magic shift
                     ptcl_.resizeNoInitialize(n_ptcl_);
                     for(int i = 0 ; i < n_ptcl_ ; ++ i){
-                        ptcl_[i].readAscii(fp);
+                        //ptcl_[i].readAscii(fp);
+                        (ptcl_[i].*pFuncPtcl)(fp);
                     }
                     //Read remaining data to buffer and send them to appropriate process.
                     #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
                     for(S32 rank = 1 ; rank < n_proc ; ++ rank){
                         Tptcl * buffer = new Tptcl[n_ptcl[rank]];
                         for(int i = 0 ; i < n_ptcl[rank] ; ++ i){
-                            buffer[i].readAscii(fp);
+                            //buffer[i].readAscii(fp);
+                            (buffer[i].*pFuncPtcl)(fp);
                         }
                         MPI::COMM_WORLD.Send(buffer, n_ptcl[rank], GetDataType<Tptcl>(), rank, 0);
                         delete [] buffer;
@@ -302,7 +224,8 @@ namespace ParticleSimulator{
                     std::cerr<<"filename: "<<input<<std::endl;
                     Abort(-1);
                 }
-                S32 n_ptcl_ = header->readAscii(fp);
+                //S32 n_ptcl_ = header->readAscii(fp);
+                S32 n_ptcl_ = (header->*pFuncHead)(fp);
                 while('\n' == getc(fp));
                 fseek(fp, -1, SEEK_CUR);
                 if(n_ptcl_ >= 0){
@@ -310,7 +233,8 @@ namespace ParticleSimulator{
                     this->createParticle(n_ptcl_ << 2);//Magic shift
                     ptcl_.resizeNoInitialize(n_ptcl_);
                     for(S32 i = 0 ; i < n_ptcl_ ; ++ i){
-                        ptcl_[i].readAscii(fp);
+                        //ptcl_[i].readAscii(fp);
+                        (ptcl_[i].*pFuncPtcl)(fp);
                     }
                     fclose(fp);
                 }else{//User does NOT return # of ptcl
@@ -320,45 +244,90 @@ namespace ParticleSimulator{
                     fclose(fp);
                     //
                     FILE* fp = fopen(input, "r");
-                    header->readAscii(fp);
+                    //header->readAscii(fp);
+                    (header->*pFuncHead)(fp);
                     while('\n' == getc(fp));
 		    fseek(fp, -1, SEEK_CUR);
                     this->createParticle(n_ptcl_ << 2);//Magic shift
                     ptcl_.resizeNoInitialize(n_ptcl_);
                     for(S32 i = 0 ; i < ptcl_.size() ; ++ i){
-                        ptcl_[i].readAscii(fp);
+                        //ptcl_[i].readAscii(fp);
+                        (ptcl_[i].*pFuncPtcl)(fp);
                     }
                     fclose(fp);
                 }
             }
         }
+
         template <class Theader>
         void readParticleAscii(const char * const filename, const char * const format, Theader& header){
-            readParticleAsciiImpl(filename, format, &header);
+            readParticleImpl(filename, format, &header, &Tptcl::readAscii, &Theader::readAscii, "r");
         }
         template <class Theader>
         void readParticleAscii(const char * const filename, Theader& header){
-            readParticleAsciiImpl(filename, NULL, &header);
+            readParticleImpl(filename, NULL, &header, &Tptcl::readAscii, &Theader::readAscii, "r");
         }
         void readParticleAscii(const char * const filename, const char * const format){
-            readParticleAsciiImpl<DummyHeader>(filename, format, NULL);
+            readParticleImpl<DummyHeader>(filename, format, NULL, &Tptcl::readAscii, &DummyHeader::readAscii, "r");
         }
         void readParticleAscii(const char * const filename){
-            readParticleAsciiImpl<DummyHeader>(filename, NULL, NULL);
+            readParticleImpl<DummyHeader>(filename, NULL, NULL, &Tptcl::readAscii, &DummyHeader::readAscii, "r");
         }
-        ////////////////
-        // 05/01/30 Hosono To
-        ////////////////
 
-	//////////////////
-	/// I/O function for binary format
-	/// write
         template <class Theader>
-        void writeParticleBinaryImpl(const char * const filename,
-				     const char * const format,
-				     const Theader * const header){
+        void readParticleAscii(const char * const filename, const char * const format, Theader& header, void (Tptcl::*pFunc)(FILE*)){
+            readParticleImpl(filename, format, &header, pFunc, &Theader::readAscii, "r");
+        }
+        template <class Theader>
+        void readParticleAscii(const char * const filename, Theader& header, void (Tptcl::*pFunc)(FILE*)){
+            readParticleImpl(filename, NULL, &header, pFunc, &Theader::readAscii, "r");
+        }
+        void readParticleAscii(const char * const filename, const char * const format, void (Tptcl::*pFunc)(FILE*)){
+            readParticleImpl<DummyHeader>(filename, format, NULL, pFunc, &DummyHeader::readAscii, "r");
+        }
+        void readParticleAscii(const char * const filename, void (Tptcl::*pFunc)(FILE*)){
+            readParticleImpl<DummyHeader>(filename, NULL, NULL, pFunc, &DummyHeader::readAscii, "r");
+        }
+
+        template <class Theader>
+        void readParticleBinary(const char * const filename, const char * const format, Theader& header){
+            readParticleImpl(filename, format, &header, &Tptcl::readBinary, &Theader::readBinary, "rb");
+        }
+        template <class Theader>
+        void readParticleBinary(const char * const filename, Theader& header){
+            readParticleImpl(filename, NULL, &header, &Tptcl::readBinary, &Theader::readBinary, "rb");
+        }
+        void readParticleBinary(const char * const filename, const char * const format){
+            readParticleImpl<DummyHeader>(filename, format, NULL, &Tptcl::readBinary, &DummyHeader::readBinary, "rb");
+        }
+        void readParticleBinary(const char * const filename){
+            readParticleImpl<DummyHeader>(filename, NULL, NULL, &Tptcl::readBinary, &DummyHeader::readBinary, "rb");
+        }
+        
+        template <class Theader>
+        void readParticleBinary(const char * const filename, const char * const format, Theader& header, void (Tptcl::*pFunc)(FILE*)){
+            readParticleImpl(filename, format, &header, pFunc, &Theader::readBinary, "rb");
+        }
+        template <class Theader>
+        void readParticleBinary(const char * const filename, Theader& header, void (Tptcl::*pFunc)(FILE*)){
+            readParticleImpl(filename, NULL, &header, pFunc, &Theader::readBinary, "rb");
+        }
+        void readParticleBinary(const char * const filename, const char * const format, void (Tptcl::*pFunc)(FILE*)){
+            readParticleImpl<DummyHeader>(filename, format, NULL, pFunc, &DummyHeader::readBinary, "rb");
+        }
+        void readParticleBinary(const char * const filename, void (Tptcl::*pFunc)(FILE*)){
+            readParticleImpl<DummyHeader>(filename, NULL, NULL, pFunc, &DummyHeader::readBinary, "rb");
+        }
+
+        template <class Theader>
+        void writeParticleImpl(const char * const filename,
+                               const char * const format,
+                               const Theader * const header,
+                               void (Tptcl::*pFuncPtcl)(FILE*)const,
+                               void (Theader::*pFuncHead)(FILE*)const,
+                               const char * open_format){                        
             if(format == NULL){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+                #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
                 //declare local # of ptcl.
                 const S32 n_ptcl_ = ptcl_.size();
                 //get # of process.
@@ -378,198 +347,118 @@ namespace ParticleSimulator{
                 //gather data
                 MPI::COMM_WORLD.Gatherv(ptcl_.getPointer(), n_ptcl_, GetDataType<Tptcl>(), ptcl, n_ptcl, n_ptcl_displs, GetDataType<Tptcl>(), 0);
                 if(Comm::getRank() == 0){
-                    FILE* fp = fopen(filename, "wb");
+                    FILE* fp = fopen(filename, open_format);
                     if(fp == NULL){
                         PARTICLE_SIMULATOR_PRINT_ERROR("can not open output file");
-			std::cerr<<"output file: "<<filename<<std::endl;
+                        std::cerr<<"output file: "<<filename<<std::endl;
                         Abort(-1);
                     }
-                    header->writeBinary(fp);
+                    //header->writeAscii(fp);
+                    (header->*pFuncHead)(fp);
                     for(S32 i = 0 ; i < n_tot ; ++ i){
-                        ptcl[i].writeBinary(fp);
+                        //ptcl[i].writeAscii(fp);
+                        (ptcl[i].*pFuncPtcl)(fp);
                     }
                     fclose(fp);
                 }
                 delete [] n_ptcl;
                 delete [] n_ptcl_displs;
                 delete [] ptcl; 
-#else
+                #else
                 const S32 n_tot = ptcl_.size();
                 if(Comm::getRank() == 0){
-                    FILE* fp = fopen(filename, "wb");
-                    header->writeBinary(fp);
+                    FILE* fp = fopen(filename, open_format);
+                    //header->writeAscii(fp);
+                    (header->*pFuncHead)(fp);
                     for(S32 i = 0 ; i < n_tot ; ++ i){
-                        ptcl_[i].writeBinary(fp);
+                        //ptcl_[i].writeAscii(fp);
+                        (ptcl_[i].*pFuncPtcl)(fp);
                     }
                     fclose(fp);
                 }
-#endif
+                #endif
             }else{
                 char output[256];
                 sprintf(output, format, filename, Comm::getNumberOfProc(), Comm::getRank());
-                FILE* fp = fopen(output, "wb");
+                FILE* fp = fopen(output, open_format);
                 if(fp == NULL){
                     PARTICLE_SIMULATOR_PRINT_ERROR("can not open output file");
 		    std::cerr<<"output file: "<<output<<std::endl;
                     Abort(-1);
                 }
-                header->writeBinary(fp);
+                //header->writeAscii(fp);
+                (header->*pFuncHead)(fp);
                 for(S32 i = 0 ; i < ptcl_.size() ; ++ i){
-                    ptcl_[i].writeBinary(fp);
+                    //ptcl_[i].writeAscii(fp);
+                    (ptcl_[i].*pFuncPtcl)(fp);
                 }
                 fclose(fp);
             }
         }
         //write
         template <class Theader>
-        void writeParticleBinary(const char * const filename, const char * const format, const Theader & header){
-            writeParticleBinaryImpl(filename, format, &header);
+        void writeParticleAscii(const char * const filename, const char * const format, const Theader& header){
+            writeParticleImpl(filename, format, &header, &Tptcl::writeAscii, &Theader::writeAscii, "w");
+        }
+        template <class Theader>
+        void writeParticleAscii(const char * const filename, const Theader& header){
+            writeParticleImpl(filename, NULL, &header, &Tptcl::writeAscii, &Theader::writeAscii, "w");
+        }
+        void writeParticleAscii(const char * const filename, const char * format){
+            writeParticleImpl<DummyHeader>(filename, format, NULL, &Tptcl::writeAscii, &DummyHeader::writeAscii, "w");
+        }
+        void writeParticleAscii(const char * const filename){
+            writeParticleImpl<DummyHeader>(filename, NULL, NULL, &Tptcl::writeAscii, &DummyHeader::writeAscii, "w");
+        }
+
+        template <class Theader>
+        void writeParticleAscii(const char * const filename, const char * const format, const Theader& header, void (Tptcl::*pFunc)(FILE*)const){
+            writeParticleImpl(filename, format, &header, pFunc, &Theader::writeAscii, "w");
+        }
+        template <class Theader>
+        void writeParticleAscii(const char * const filename, const Theader& header, void (Tptcl::*pFunc)(FILE*)const){
+            writeParticleImpl(filename, NULL, &header, pFunc, &Theader::writeAscii, "w");
+        }
+        void writeParticleAscii(const char * const filename, const char * format, void (Tptcl::*pFunc)(FILE*)const){
+            writeParticleImpl<DummyHeader>(filename, format, NULL, pFunc, &DummyHeader::writeAscii, "w");
+        }
+        void writeParticleAscii(const char * const filename, void (Tptcl::*pFunc)(FILE*)const){
+            writeParticleImpl<DummyHeader>(filename, NULL, NULL, pFunc, &DummyHeader::writeAscii, "w");
+        }
+
+
+        template <class Theader>
+        void writeParticleBinary(const char * const filename, const char * const format, const Theader& header){
+            writeParticleImpl(filename, format, &header, &Tptcl::writeBinary, &Theader::writeBinary, "wb");
         }
         template <class Theader>
         void writeParticleBinary(const char * const filename, const Theader& header){
-            writeParticleBinaryImpl(filename, NULL, &header);
+            writeParticleImpl(filename, NULL, &header, &Tptcl::writeBinary, &Theader::writeBinary, "wb");
         }
         void writeParticleBinary(const char * const filename, const char * format){
-            writeParticleBinaryImpl<DummyHeader>(filename, format, NULL);
+            writeParticleImpl<DummyHeader>(filename, format, NULL, &Tptcl::writeBinary, &DummyHeader::writeBinary, "wb");
         }
         void writeParticleBinary(const char * const filename){
-            writeParticleBinaryImpl<DummyHeader>(filename, NULL, NULL);
-        }
-	
-	//read
-        template <class Theader>
-        void readParticleBinaryImpl(const char * const filename, const char * const format, Theader * const header){
-            if(format == NULL){//Read from single file
-                if(Comm::getRank() == 0){
-                    FILE* fp = fopen(filename, "rb");
-                    if(fp == NULL){
-                        PARTICLE_SIMULATOR_PRINT_ERROR("can not open input file ");
-			std::cerr<<"filename: "<<filename<<std::endl;
-                        Abort(-1);
-                    }
-                    S32 n_ptcl_ = header->readBinary(fp);
-                    //while('\n' == getc(fp));
-                    if(n_ptcl_ < 0){//User does NOT return # of ptcl
-                        //count # of lines
-                        n_ptcl_ = 0;
-			Tptcl ptcl_tmp;
-			ptcl_tmp.readBinary(fp);
-			long size_ptcl = ftell(fp);
-			//std::cerr<<"ftell0(fp)="<<ftell(fp)<<std::endl;
-			fseek(fp, 0, SEEK_END);
-			n_ptcl_ = ftell(fp) / size_ptcl;
-			//std::cerr<<"n_ptcl_="<<n_ptcl_<<std::endl;
-			fclose(fp);
-                        fp = fopen(filename, "rb");
-			//std::cerr<<"ftell(fp)="<<ftell(fp)<<std::endl;
-                    }
-                    //Inform the # of ptcl for each process.
-                    const S32 n_proc = Comm::getNumberOfProc();
-                    S32 *n_ptcl = new S32[n_proc];
-                    for(S32 i = 0 ; i < n_proc ; ++ i){
-                        n_ptcl[i] = n_ptcl_ / n_proc;
-                    }
-                    n_ptcl[0] += n_ptcl_ % n_proc;
-                    #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                    MPI::COMM_WORLD.Scatter(n_ptcl, 1, GetDataType<S32>(), &n_ptcl_, 1, GetDataType<S32>(), 0);
-                    #endif
-                    //allocate ptcl.
-                    //First of all, Rank 0 reads its own particle.
-                    this->createParticle(n_ptcl_ << 2);//Magic shift
-                    ptcl_.resizeNoInitialize(n_ptcl_);
-                    for(int i = 0 ; i < n_ptcl_ ; ++ i){
-                        ptcl_[i].readBinary(fp);
-                    }
-                    //Read remaining data to buffer and send them to appropriate process.
-                    #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                    for(S32 rank = 1 ; rank < n_proc ; ++ rank){
-                        Tptcl * buffer = new Tptcl[n_ptcl[rank]];
-                        for(int i = 0 ; i < n_ptcl[rank] ; ++ i){
-                            buffer[i].readBinary(fp);
-                        }
-                        MPI::COMM_WORLD.Send(buffer, n_ptcl[rank], GetDataType<Tptcl>(), rank, 0);
-                        delete [] buffer;
-                    }
-                    #endif
-                    //End.
-                    delete [] n_ptcl;
-                    fclose(fp);
-                }else{
-                    #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                    //Receive the # of ptcl from Rank 0
-                    S32 n_ptcl_loc;
-                    S32 *n_ptcl = new S32[Comm::getNumberOfProc()];
-                    MPI::COMM_WORLD.Scatter(n_ptcl, 1, GetDataType<S32>(), &n_ptcl_loc, 1, GetDataType<S32>(), 0);
-                    delete [] n_ptcl;
-                    //allocate ptcl.
-                    this->createParticle(n_ptcl_loc << 2);//Magic shift
-                    ptcl_.resizeNoInitialize(n_ptcl_loc);
-                    MPI::COMM_WORLD.Recv(ptcl_.getPointer(), ptcl_.size(), GetDataType<Tptcl>(), 0, 0);
-                    #endif
-                }
-            }else{//Read from multiple file
-                char input[256];
-                sprintf(input, format, filename, Comm::getNumberOfProc(), Comm::getRank());
-                FILE* fp = fopen(input, "rb");
-                if(fp == NULL){
-                    PARTICLE_SIMULATOR_PRINT_ERROR("can not open input file");
-		    std::cerr<<"filename: "<<input<<std::endl;
-                    Abort(-1);
-                }
-                S32 n_ptcl_ = header->readBinary(fp);
-                //while('\n' == getc(fp));
-                if(n_ptcl_ >= 0){
-                    //User returns # of ptcl.
-                    this->createParticle(n_ptcl_ << 2);//Magic shift
-                    ptcl_.resizeNoInitialize(n_ptcl_);
-                    for(S32 i = 0 ; i < n_ptcl_ ; ++ i){
-                        ptcl_[i].readBinary(fp);
-                    }
-                    fclose(fp);
-                }else{//User does NOT return # of ptcl
-                    //count # of lines
-		    n_ptcl_ = 0;
-		    /*
-
-                    for(int c ; (c = getc(fp)) != EOF ; n_ptcl_ += c == '\n' ? 1 : 0){}
-                    fclose(fp);
-                    //
-                    FILE* fp = fopen(input, "rb");
-                    header->readBinary(fp);
-                    while('\n' == getc(fp));
-		    */
-		    Tptcl ptcl_tmp;
-		    ptcl_tmp.readBinary(fp);
-		    long size_ptcl = ftell(fp);
-		    fseek(fp, 0, SEEK_END);
-		    n_ptcl_ = ftell(fp) / size_ptcl;
-		    fclose(fp);
-		    fp = fopen(filename, "rb");
-		    
-                    this->createParticle(n_ptcl_ << 2);//Magic shift
-                    ptcl_.resizeNoInitialize(n_ptcl_);
-                    for(S32 i = 0 ; i < ptcl_.size() ; ++ i){
-                        ptcl_[i].readBinary(fp);
-                    }
-                    fclose(fp);
-                }
-            }
-        }
-        template <class Theader>
-        void readParticleBinary(const char * const filename, const char * const format, Theader& header){
-            readParticleBinaryImpl(filename, format, &header);
-        }
-        template <class Theader>
-        void readParticleBinary(const char * const filename, Theader& header){
-            readParticleBinaryImpl(filename, NULL, &header);
-        }
-        void readParticleBinary(const char * const filename, const char * const format){
-            readParticleBinaryImpl<DummyHeader>(filename, format, NULL);
-        }
-        void readParticleBinary(const char * const filename){
-            readParticleBinaryImpl<DummyHeader>(filename, NULL, NULL);
+            writeParticleImpl<DummyHeader>(filename, NULL, NULL, &Tptcl::writeBinary, &DummyHeader::writeBinary, "wb");
         }
 
+        template <class Theader>
+        void writeParticleBinary(const char * const filename, const char * const format, const Theader& header, void (Tptcl::*pFunc)(FILE*)const){
+            writeParticleImpl(filename, format, &header, pFunc, &Theader::writeBinary, "wb");
+        }
+        template <class Theader>
+        void writeParticleBinary(const char * const filename, const Theader& header, void (Tptcl::*pFunc)(FILE*)const){
+            writeParticleImpl(filename, NULL, &header, pFunc, &Theader::writeBinary, "wb");
+        }
+        void writeParticleBinary(const char * const filename, const char * format, void (Tptcl::*pFunc)(FILE*)const){
+            writeParticleImpl<DummyHeader>(filename, format, NULL, pFunc, &Tptcl::writeBinary, &DummyHeader::writeBinary, "wb");
+        }
+        void writeParticleBinary(const char * const filename, void (Tptcl::*pFunc)(FILE*)const){
+            writeParticleImpl<DummyHeader>(filename, NULL, NULL, pFunc, &Tptcl::writeBinary, &DummyHeader::writeBinary, "wb");
+        }
+        
+
+        
 	
         Tptcl & operator [] (const S32 id) {return ptcl_[id];}
         const Tptcl & operator [] (const S32 id) const {return ptcl_[id];}
@@ -629,33 +518,6 @@ namespace ParticleSimulator{
             return hl_max_loc;
 #endif
         }
-
-/*
-        F32ort getParticleDomain() {
-            F32ort domain;
-            
-            S32 ndim = DIMENSION;
-            S32 nloc = n_ptcl_;
-            
-            for(S32 k = 0; k < ndim; k++) {
-                domain.low_[k]  = ptcl_[0].getPos[k];
-                domain.high_[k] = ptcl_[0].getPos[k];
-            }
-            
-            for(S32 i = 0; i < nloc; i++) {
-                for(S32 k = 0; k < ndim; k++) {
-                    F32 pos = ptcl_[i].getPos[k];
-                    if(pos < domain.low_[k])
-                        domain.low_[k]  = pos;
-                    if(pos > domain.high_[k])
-                        domain.high_[k] = pos;
-                }
-            }
-
-            return domain;
-            
-        }
-*/
 
 // *******************************************************************        
 // ************** This can be replaced with MT method. ***************
@@ -781,7 +643,6 @@ namespace ParticleSimulator{
                 }
             }
 
-
             nsend_disp[0] = 0;
             for(S32 i = 0; i < nproc; i++) {
                 nsend_disp[i+1] += nsend_disp[i] + nsend[i];
@@ -858,7 +719,6 @@ namespace ParticleSimulator{
             // **************************************************** 
             n_ptcl_send_ += nsend_disp[nproc];
             n_ptcl_recv_ += nrecv_disp[nproc];
-            //time_profile_.exchange_particle__exchange_particle = GetWtime() - time_offset_inner;
             time_profile_.exchange_particle__exchange_particle += GetWtime() - time_offset_inner;
 
             delete [] nsend;
@@ -871,7 +731,6 @@ namespace ParticleSimulator{
             n_ptcl_send_ = 0;
             n_ptcl_recv_ = 0;
 #endif
-            //time_profile_.exchange_particle = GetWtime() - time_offset;
             time_profile_.exchange_particle += GetWtime() - time_offset;
         }
 #else
@@ -1101,7 +960,7 @@ namespace ParticleSimulator{
 #endif
             for(S32 i=0; i<n; i++){
                 F64vec pos_new = ptcl_[i].getPos() ;
-                if( pos_root.notOverlapped(pos_new) ){
+                //if( pos_root.notOverlapped(pos_new) ){
                     while(pos_new.x < pos_root.low_.x){
                         pos_new.x += len_root.x;
                     }
@@ -1131,7 +990,7 @@ namespace ParticleSimulator{
                         pos_new.z = pos_root.low_.z;
                     }
 #endif
-                }
+                    //}
                 ptcl_[i].setPos(pos_new);
             }
         }
@@ -1153,5 +1012,47 @@ namespace ParticleSimulator{
             n_ptcl_send_ = n_ptcl_recv_ = 0;
             time_profile_.clear();
         }
+
+	//////////
+	// add and remove particles
+	void addOneParticle(const Tptcl & fp){
+	    ptcl_.push_back(fp);
+	}
+	void removeParticle(const S32 * idx, const S32 n_remove){
+	    idx_remove_ptcl_.resizeNoInitialize(n_remove);
+	    for(S32 i=0; i<n_remove; i++){
+		idx_remove_ptcl_[i] = idx[i];
+	    }
+	    std::sort(idx_remove_ptcl_.getPointer(), idx_remove_ptcl_.getPointer(n_remove));
+	    S32 * ptr_end = std::unique(idx_remove_ptcl_.getPointer(), idx_remove_ptcl_.getPointer(n_remove));
+	    const S32 n_remove_tmp = ptr_end - idx_remove_ptcl_.getPointer();
+	    const S32 n_prev = ptcl_.size();
+	    S32 i_loc = n_prev-1;
+	    for(S32 i=n_remove_tmp-1; i>=0; i--){
+		std::swap(ptcl_[idx_remove_ptcl_[i]], ptcl_[i_loc]);
+		i_loc--;
+	    }
+	    ptcl_.resizeNoInitialize(i_loc+1);
+	    /*
+	    // original
+	    const S32 n_prev = ptcl_.size();
+	    flag_remove.resizeNoInitialize(n_prev);
+	    for(S32 i=0; i<n_prev; i++){
+		flag_remove[i] = false;
+	    }
+	    for(S32 i=0; i<n_remove; i++){
+		S32 idx_tmp = idx[i];
+		flag_remove[idx_tmp] = true;
+	    }
+	    S32 i_loc = n_prev-1;
+	    for(S32 i=n_prev-1; i>=0; i--){
+		if(flag_remove[i] == true){
+		    std::swap(ptcl_[i], ptcl_[i_loc]);
+		    i_loc--;
+		}
+	    }
+	    ptcl_.resizeNoInitialize(i_loc+1);
+	    */
+	}
     };
 }

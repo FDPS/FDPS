@@ -62,6 +62,7 @@ namespace ParticleSimulator{
             this->low_.y = ( this->low_.y <= vec.y - size) ? this->low_.y : vec.y - size;
         }
 
+#if 0
 	/*
         unsigned int notOverlapped(const Orthotope2 & a) const {
             return (a.high_.x < low_.x) || (high_.x <= a.low_.x)
@@ -95,7 +96,48 @@ namespace ParticleSimulator{
 	unsigned int contains(const Orthotope2 & a){
 	    return notContains(a) ^ 0x1;
 	}
+#endif
+
+        unsigned int notContained(const Vector2<T> & pos) const {
+            return (pos.x < low_.x) || (high_.x <= pos.x)
+                || (pos.y < low_.y) || (high_.y <= pos.y);
+        }
+        unsigned int contained(const Vector2<T> & pos) const {
+            return notContained(pos) ^ 0x1;
+        }
+
+
+        unsigned int notContained(const Orthotope2 & a) const {
+            const Vector2<T> a_high = a.high_;
+            const Vector2<T> a_low = a.low_;
+            const Vector2<T> b_high = this->high_;
+            const Vector2<T> b_low = this->low_;
+
+            return (a_high.x < b_low.x) || (b_high.x < a_low.x)
+                || (a_high.y < b_low.y) || (b_high.y < a_low.y);
+        }
 	
+	unsigned int contained(const Orthotope2 & a) const {
+	    return notContained(a) ^ 0x1;
+	}
+
+        unsigned int notOverlapped(const Vector2<T> & pos) const {
+            return (pos.x < low_.x) || (high_.x < pos.x)
+                || (pos.y < low_.y) || (high_.y < pos.y);
+        }
+        unsigned int overlapped(const Vector2<T> & pos) const {
+            return notOverlapped(pos) ^ 0x1;
+        }
+
+        unsigned int notOverlapped(const Orthotope2 & a) const {
+            return (a.low_.x < low_.x) || (high_.x < a.high_.x)
+                || (a.low_.y < low_.y) || (high_.y < a.high_.y);
+        }
+	
+        unsigned int overlapped(const Orthotope2 & a) const {
+            return notOverlapped(a) ^ 0x1;
+        }
+
         const Vector2<T> getCenter() const {
             return (high_ + low_) * T(0.5);
         }

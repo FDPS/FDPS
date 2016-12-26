@@ -594,8 +594,19 @@ namespace ParticleSimulator{
                         const DomainInfo & dinfo,
                         std::ostream & fout=std::cout);
 
-
-// for neighbour search
+	////////////
+	// for neighbour search APIs
+	template<class Tptcl>
+	S32 getNeighborListOneParticle(const Tptcl & ptcl, Tepj * & epj);
+	template<class Tptcl>
+	S32 getNeighborListOneParticleImpl(TagSearchShortScatter, const Tptcl & ptcl, Tepj * & epj);
+	template<class Tptcl>
+	S32 getNeighborListOneParticleImpl(TagSearchShortGather, const Tptcl & ptcl, Tepj * & epj);
+	template<class Tptcl>
+	S32 getNeighborListOneParticleImpl(TagSearchShortSymmetry, const Tptcl & ptcl, Tepj * & epj);
+	template<class Tptcl>
+	S32 getNeighborListOneParticleImpl(TagSearchLongScatter, const Tptcl & ptcl, Tepj * & epj);
+	/*
         template<class Tptcl>
         //void getNeighborListOneParticle(const Tptcl & ptcl, S32 & nnp, Tepj * & epj);
         S32 getNeighborListOneParticle(const Tptcl & ptcl, Tepj * & epj);
@@ -605,6 +616,7 @@ namespace ParticleSimulator{
         template<class Tptcl>
         void getNeighborListOneIPGroup(const S32 iipg,     S32 & nip, 
                                        const Tepi * & epi, S32 & nnp, Tepj * & epj);
+	*/
 
 
 /*
@@ -940,7 +952,6 @@ namespace ParticleSimulator{
     template<class Tforce, class Tepi, class Tepj>
     class TreeForForceLong<Tforce, Tepi, Tepj, void, void>{
     public:
-
         // for P^3T
         typedef TreeForForce
         <SEARCH_MODE_LONG_SCATTER,

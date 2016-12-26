@@ -37,7 +37,7 @@ namespace ParticleSimulator{
             return MatrixSym3( xx + rhs.xx, yy + rhs.yy, zz + rhs.zz,
                                xy + rhs.xy, xz + rhs.xz, yz + rhs.yz);
         }
-        const MatrixSym3 & operator += (const MatrixSym3 & rhs) const {
+        const MatrixSym3 & operator += (const MatrixSym3 & rhs) {
             (*this) = (*this) + rhs;
             return (*this);
         }
@@ -45,7 +45,7 @@ namespace ParticleSimulator{
             return MatrixSym3( xx - rhs.xx, yy - rhs.yy, zz - rhs.zz,
                                xy - rhs.xy, xz - rhs.xz, yz - rhs.yz);
         }
-        const MatrixSym3 & operator -= (const MatrixSym3 & rhs) const {
+        const MatrixSym3 & operator -= (const MatrixSym3 & rhs) {
             (*this) = (*this) - rhs;
             return (*this);
         }

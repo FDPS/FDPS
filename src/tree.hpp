@@ -443,7 +443,7 @@ namespace ParticleSimulator{
     public:
         F32 mass;
         F32vec pos;
-	F32mat quad;
+        F32mat quad;
         F64ort vertex_out_;
         F64ort vertex_in_;
         MomentQuadrupoleScatter(){
@@ -1054,17 +1054,19 @@ namespace ParticleSimulator{
     public:
         template<class Tmom>
         void copyFromMoment(const Tmom & mom){
-            mass = mom.mass;
-            pos = mom.pos;
+            F32 mass = mom.mass;
+            F32vec pos = mom.pos;
+            this->mass = mass;
+            this->pos = pos;
         }
         void clear(){
             mass = 0.0;
             pos = 0.0;
         }
-        F64 getCharge() const {
+        F32 getCharge() const {
             return mass;
         }
-        F64vec getPos() const {
+        F32vec getPos() const {
             return pos;
         }
         void setPos(const F64vec & pos_new) {
@@ -1073,27 +1075,29 @@ namespace ParticleSimulator{
         MomentMonopole convertToMoment() const {
             return MomentMonopole(mass, pos);
         }
-        F64 mass;
-        F64vec pos;
+        F32 mass;
+        F32vec pos;
     };
 
-// the same as SPJMonopole
-        // for P^3T
+    // the same as SPJMonopole
+    // for P^3T
     class SPJMonopoleScatter{
     public:
         template<class Tmom>
         void copyFromMoment(const Tmom & mom){
-            mass = mom.mass;
-            pos = mom.pos;
+            F32 mass = mom.mass;
+            F32vec pos = mom.pos;
+            this->mass = mass;
+            this->pos = pos;
         }
         void clear(){
             mass = 0.0;
             pos = 0.0;
         }
-        F64 getCharge() const {
+        F32 getCharge() const {
             return mass;
         }
-        F64vec getPos() const {
+        F32vec getPos() const {
             return pos;
         }
         void setPos(const F64vec & pos_new) {
@@ -1103,22 +1107,22 @@ namespace ParticleSimulator{
             return MomentMonopoleScatter(mass, pos);
         }
         void dump(std::ostream & fout=std::cout) const {
-	    fout<<"mass="<<mass<<std::endl;
-	    fout<<"pos="<<pos<<std::endl;
-	}
-        F64 mass;
-        F64vec pos;
+            fout<<"mass="<<mass<<std::endl;
+            fout<<"pos="<<pos<<std::endl;
+        }
+        F32 mass;
+        F32vec pos;
     };
 
     class SPJQuadrupoleScatter{
     public:
-        F64 mass;
-        F64vec pos;
-        F64mat quad;
-        F64 getCharge() const {
+        F32 mass;
+        F32vec pos;
+        F32mat quad;
+        F32 getCharge() const {
             return mass;
         }
-        F64vec getPos() const {
+        F32vec getPos() const {
             return pos;
         }
         void setPos(const F64vec & pos_new) {
@@ -1126,9 +1130,12 @@ namespace ParticleSimulator{
         }
         template<class Tmom>
         void copyFromMoment(const Tmom & mom){
-            mass = mom.mass;
-            pos = mom.pos;
-            quad = mom.quad;
+            F32 mass = mom.mass;
+            F32vec pos = mom.pos;
+            F32mat quad = mom.quad;
+            this->mass = mass;
+            this->pos = pos;
+            this->quad = quad;
         }
         MomentQuadrupoleScatter convertToMoment() const {
             return MomentQuadrupoleScatter(mass, pos, quad);
@@ -1157,10 +1164,10 @@ namespace ParticleSimulator{
             mass = 0.0;
             pos = 0.0;
         }
-        F64 getCharge() const {
+        F32 getCharge() const {
             return mass;
         }
-        F64vec getPos() const {
+        F32vec getPos() const {
             return pos;
         }
         void setPos(const F64vec & pos_new) {
@@ -1169,8 +1176,8 @@ namespace ParticleSimulator{
         MomentMonopoleCutoffScatter convertToMoment() const {
             return MomentMonopoleCutoffScatter(mass, pos);
         }
-        F64 mass;
-        F64vec pos;
+        F32 mass;
+        F32vec pos;
     };
 
 
@@ -1309,10 +1316,10 @@ namespace ParticleSimulator{
             mass = 0.0;
             pos = 0.0;
         }        
-        F64 getCharge() const {
+        F32 getCharge() const {
             return mass;
         }
-        F64vec getPos() const {
+        F32vec getPos() const {
             return pos;
         }
         void setPos(const F64vec & pos_new) {

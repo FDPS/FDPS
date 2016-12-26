@@ -67,64 +67,52 @@ namespace ParticleSimulator{
             this->low_.y = ( this->low_.y <= vec.y - size) ? this->low_.y : vec.y - size;
             this->low_.z = ( this->low_.z <= vec.z - size) ? this->low_.z : vec.z - size;
         }
-#if 0
-	// new
-        unsigned int notOverlapped(const Orthotope3 & a) const {
-            return (a.high_.x < low_.x) || (high_.x <= a.low_.x)
-                || (a.high_.y < low_.y) || (high_.y <= a.low_.y)
-                || (a.high_.z < low_.z) || (high_.z <= a.low_.z);
-        }
-#else
-	// old
-        unsigned int notOverlapped(const Orthotope3 & a) const {
-            const Vector3<T> a_high = a.high_;
-            const Vector3<T> a_low = a.low_;
-            const Vector3<T> b_high = this->high_;
-            const Vector3<T> b_low = this->low_;
-            return (a_high.x < b_low.x) || (b_high.x < a_low.x)
-                || (a_high.y < b_low.y) || (b_high.y < a_low.y)
-                || (a_high.z < b_low.z) || (b_high.z < a_low.z);
-/*
-            return (a.high_.x < low_.x) || (high_.x < a.low_.x)
-                || (a.high_.y < low_.y) || (high_.y < a.low_.y)
-                || (a.high_.z < low_.z) || (high_.z < a.low_.z);
-*/
-        }
-#endif
-        unsigned int overlapped(const Orthotope3 & a) const {
-            return notOverlapped(a) ^ 0x1;
-        }
-	
-#if 1
-	// new // needed
-        unsigned int notOverlapped(const Vector3<T> & pos) const {
+
+        unsigned int notContained(const Vector3<T> & pos) const {
             return (pos.x < low_.x) || (high_.x <= pos.x)
                 || (pos.y < low_.y) || (high_.y <= pos.y)
                 || (pos.z < low_.z) || (high_.z <= pos.z);
         }
-#else
-	// old
+
+        unsigned int contained(const Vector3<T> & pos) const {
+            return notContained(pos) ^ 0x1;
+        }
+
+        unsigned int notContained(const Orthotope3 & a) const {
+            const Vector3<T> a_high = a.high_;
+            const Vector3<T> a_low = a.low_;
+            const Vector3<T> b_high = this->high_;
+            const Vector3<T> b_low = this->low_;
+
+            return (a_high.x < b_low.x) || (b_high.x < a_low.x)
+                || (a_high.y < b_low.y) || (b_high.y < a_low.y)
+                || (a_high.z < b_low.z) || (b_high.z < a_low.z);
+        }
+
+        unsigned int contained(const Orthotope3 & a) const {
+            return notContained(a) ^ 0x1;
+        }
+
         unsigned int notOverlapped(const Vector3<T> & pos) const {
             return (pos.x < low_.x) || (high_.x < pos.x)
                 || (pos.y < low_.y) || (high_.y < pos.y)
                 || (pos.z < low_.z) || (high_.z < pos.z);
         }
-#endif
-	
         unsigned int overlapped(const Vector3<T> & pos) const {
             return notOverlapped(pos) ^ 0x1;
         }
-        
-        unsigned int notContains(const Orthotope3 & a) const {
+
+        unsigned int notOverlapped(const Orthotope3 & a) const {
             return (a.low_.x < low_.x) || (high_.x < a.high_.x)
                 || (a.low_.y < low_.y) || (high_.y < a.high_.y)
                 || (a.low_.z < low_.z) || (high_.z < a.high_.z);
         }
 	
-        unsigned int contains(const Orthotope3 & a){
-            return notContains(a) ^ 0x1;
+        unsigned int overlapped(const Orthotope3 & a) const {
+            return notOverlapped(a) ^ 0x1;
         }
-	
+
+
         const Vector3<T> getCenter() const {
             return (high_ + low_) * T(0.5);
         }

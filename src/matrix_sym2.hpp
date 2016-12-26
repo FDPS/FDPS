@@ -16,6 +16,7 @@ namespace ParticleSimulator{
             : xx(_xx), yy(_yy), xy(_xy) {} 
         MatrixSym2(const T s) : xx(s), yy(s), xy(s){}
         MatrixSym2(const MatrixSym2 & src) : xx(src.xx), yy(src.yy), xy(src.xy) {}
+        MatrixSym2(const Vector2<T> & a, const Vector2<T> & b) : xx(a.x * b.x), yy(a.y * b.y), xy(a.x * b.y) {}
 
         const MatrixSym2 & operator = (const MatrixSym2 & rhs) {
             xx = rhs.xx;
@@ -31,20 +32,33 @@ namespace ParticleSimulator{
         MatrixSym2 operator + (const MatrixSym2 & rhs) const {
             return MatrixSym2(xx + rhs.xx, yy + rhs.yy, xy + rhs.xy);
         }
-        const MatrixSym2 & operator += (const MatrixSym2 & rhs) const {
+        const MatrixSym2 & operator += (const MatrixSym2 & rhs) {
             (*this) = (*this) + rhs;
             return (*this);
         }
         MatrixSym2 operator - (const MatrixSym2 & rhs) const {
             return MatrixSym2(xx - rhs.xx, yy - rhs.yy, xy - rhs.xy);
         }
-        const MatrixSym2 & operator -= (const MatrixSym2 & rhs) const {
+        const MatrixSym2 & operator -= (const MatrixSym2 & rhs) {
             (*this) = (*this) - rhs;
             return (*this);
         }
+        MatrixSym2 operator * (const T & rhs) const {
+            return MatrixSym2(xx * rhs, yy * rhs, xy * rhs);
+        }
+        friend MatrixSym2 operator * (const T s, const MatrixSym2 & m) {
+            return (m * s);
+        }
+        const MatrixSym2 & operator /= (const T & rhs) {
+            (*this).xx /= rhs;
+            (*this).yy /= rhs;
+            (*this).xy /= rhs;
+            return (*this);
+        }
+
 
         T getTrace() const {
-            return (xx + yy + xy);
+            return (xx + yy);
         }
 
         template <typename U>
