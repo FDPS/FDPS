@@ -33,16 +33,6 @@ public:
 };
 
 
-class ForceLJ{
-public:
-    PS::F64vec acc;
-    PS::F64 pot;
-    void clear(){
-        acc = 0.0;
-        pot = 0.0;
-    }
-};
-
 class FPLJ{
 public:
     PS::S64 id;
@@ -52,12 +42,16 @@ public:
     PS::F64vec acc;
     PS::F64 pot;
     PS::F64 search_radius;
-    PS::F64 getRsearch() const{
+    void clear(){
+        acc = 0.0;
+        pot = 0.0;
+    }
+    PS::F64 getRSearch() const{
 	return this->search_radius;
     }
     PS::F64vec getPos() const { return pos; }
     void setPos(const PS::F64vec & p) { pos = p; }
-    void copyFromForce(const ForceLJ & force){
+    void copyFromForce(const FPLJ & force){
         acc = force.acc;
         pot = force.pot;
     }
@@ -70,92 +64,53 @@ public:
 		fscanf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
                &this->id, &this->mass, &this->pos.x, &this->pos.y, &this->pos.z, &this->vel.x, &this->vel.y, &this->vel.z);
 	}
-
-};
-
-class EPILJ{
-public:
-    PS::S64 id;
-    PS::F64vec pos;
-    static PS::F64 eps;
-    PS::F64vec getPos() const { return pos;}
-    void copyFromFP(const FPLJ & fp){ 
-        pos = fp.pos;
-        id = fp.id;
-    }
-};
-
-PS::F64 EPILJ::eps = 1.0/32.0;
-
-class EPJLJ{
-public:
-    PS::S64 id;
-    PS::F64 mass;
-    PS::F64vec pos;
-    PS::F64 search_radius;
-    PS::F64 getRSearch() const{
-	return this->search_radius;
-    }
     void copyFromFP(const FPLJ & fp){ 
         mass = fp.mass;
         pos = fp.pos;
         id = fp.id;
 	search_radius = fp.search_radius;
     }
-    PS::F64vec getPos() const { return pos; }
-    void setPos(const PS::F64vec & pos_new){ pos = pos_new;}
-    PS::F64 getCharge() const { return mass; }
+    
 };
 
 
-struct CalcForceEpEp{
-    void operator () (const EPILJ * ep_i,
-		      const PS::S32 n_ip,
-                      const EPJLJ * ep_j,
-                      const PS::S32 n_jp,
-                      ForceLJ * force){
-	const PS::F64 r0 = 3;
-	const PS::F64 r0sq = r0*r0;
-	const PS::F64 r0inv = 1/r0;
-	const PS::F64 r0invp6 = 1/(r0sq*r0sq*r0sq);
-	const PS::F64 r0invp7 = r0invp6*r0inv;
-	const PS::F64 foffset = -12.0*r0invp6*r0invp7+6*r0invp7;
-	const PS::F64 poffset = -13.0*r0invp6*r0invp6+7*r0invp6;
-	
-
-	//	std::cerr << "CalcForce n_ip, n_jp  =" << n_ip << " " << n_jp << std::endl;
-        for(PS::S32 i=0; i<n_ip; i++){
-            PS::F64vec xi = ep_i[i].pos;
-	    //	    std::cerr << "xi =" << xi << std::endl;
-            PS::F64vec ai = 0.0;
-            PS::F64 poti = 0.0;
-            PS::S64 idi = ep_i[i].id;
-            for(PS::S32 j=0; j<n_jp; j++){
-                if( idi == ep_j[j].id ) continue;
-		//		std::cerr << "xj =" << ep_j[j].pos  << std::endl;
-                PS::F64vec rij = xi - ep_j[j].pos;
-                PS::F64 r2 = rij * rij;
-		if (r2 < r0sq){
-		    PS::F64 r_inv = 1.0/sqrt(r2);
-		    PS::F64 r = r2*r_inv;
-		    PS::F64 r2_inv = r_inv * r_inv;
-		    PS::F64 r6_inv = r2_inv * r2_inv * r2_inv;
-		    PS::F64 r12_inv = r6_inv * r6_inv;
-		    //                ai -= r3_inv * rij;
-		    //                poti -= r_inv;
-		    poti += r12_inv - r6_inv-foffset*r+poffset;
-		    ai += (12*r12_inv*r2_inv - 6*r6_inv*r2_inv+ foffset*r_inv)
-			* rij;
-			
-		}
-            }
-            force[i].acc += ai;
-            force[i].pot += poti;
-	    //	    std::cerr << "a, p =" << ai << " " <<poti<<std::endl;
-	    
-        }
+void CalcForceFpFp(const FPLJ * ep_i,
+		   const PS::S32 n_ip,
+		   const FPLJ * ep_j,
+		   const PS::S32 n_jp,
+		   FPLJ * force){
+    const PS::F64 r0 = 3;
+    const PS::F64 r0sq = r0*r0;
+    const PS::F64 r0inv = 1/r0;
+    const PS::F64 r0invp6 = 1/(r0sq*r0sq*r0sq);
+    const PS::F64 r0invp7 = r0invp6*r0inv;
+    const PS::F64 foffset = -12.0*r0invp6*r0invp7+6*r0invp7;
+    const PS::F64 poffset = -13.0*r0invp6*r0invp6+7*r0invp6;
+    for(PS::S32 i=0; i<n_ip; i++){
+	PS::F64vec xi = ep_i[i].pos;
+	PS::F64vec ai = 0.0;
+	PS::F64 poti = 0.0;
+	PS::S64 idi = ep_i[i].id;
+	for(PS::S32 j=0; j<n_jp; j++){
+	    if( idi == ep_j[j].id ) continue;
+	    PS::F64vec rij = xi - ep_j[j].pos;
+	    PS::F64 r2 = rij * rij;
+	    if (r2 < r0sq){
+		PS::F64 r_inv = 1.0/sqrt(r2);
+		PS::F64 r = r2*r_inv;
+		PS::F64 r2_inv = r_inv * r_inv;
+		PS::F64 r6_inv = r2_inv * r2_inv * r2_inv;
+		PS::F64 r12_inv = r6_inv * r6_inv;
+		poti += r12_inv - r6_inv-foffset*r+poffset;
+		ai += (12*r12_inv*r2_inv - 6*r6_inv*r2_inv+ foffset*r_inv)
+		    * rij;
+	    }
+	}
+	force[i].acc += ai;
+	force[i].pot += poti;
     }
-};
+}
+
 
 
 
@@ -471,10 +426,11 @@ int main(int argc, char *argv[]){
     struct stat st;
     if(stat(dir_name, &st) != 0) {
 	PS::S32 rank = PS::Comm::getRank();
-	PS::S32 ret_loc, ret;
+	PS::S32 ret_loc=0, ret;
 	if(rank == 0)
 	    ret_loc = mkdir(dir_name, 0777);
-	PS::Comm::broadcast(&ret_loc, ret);
+	ret=ret_loc;
+	PS::Comm::broadcast(&ret, 1);
 	if(ret == 0) {
 	    if(rank == 0)
 		fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
@@ -522,12 +478,11 @@ int main(int argc, char *argv[]){
     dinfo.decomposeDomain();
     system_grav.exchangeParticle(dinfo);
     n_grav_loc = system_grav.getNumberOfParticleLocal();
-    //    PS::TreeForForceLong<ForceLJ, EPILJ, EPJLJ>::Monopole tree_grav;
-    PS::TreeForForceShort<ForceLJ, EPILJ, EPJLJ>::Scatter tree_grav;
+    PS::TreeForForceShort<FPLJ, FPLJ, FPLJ>::Scatter tree_grav;
 
     tree_grav.initialize(n_grav_glb, theta, n_leaf_limit, n_group_limit);
     
-    tree_grav.calcForceAllAndWriteBack(CalcForceEpEp(),  system_grav, dinfo);
+    tree_grav.calcForceAllAndWriteBack(CalcForceFpFp,  system_grav, dinfo);
 
     PS::F64 Epot0, Ekin0, Etot0, Epot1, Ekin1, Etot1;
     CalcEnergy(system_grav, Etot0, Ekin0, Epot0);
@@ -580,9 +535,9 @@ int main(int argc, char *argv[]){
 	//	tree_grav.calcForceAllAndWriteBackWithTimer
 	//            (CalcForceEpEp(),  system_grav, dinfo, timer, true);
 		tree_grav.calcForceAllAndWriteBack
-	            (CalcForceEpEp(),  system_grav, dinfo);
+	            (CalcForceFpFp,  system_grav, dinfo);
 	tree_grav.calcForceAllAndWriteBack
-	    (CalcForceEpEp(),  system_grav, dinfo, true);
+	    (CalcForceFpFp,  system_grav, dinfo, true);
         Tloop = PS::GetWtime() - Tloop;
 	
 	

@@ -118,15 +118,9 @@ void calcEnergy(const Tpsys & system,
     ekin_loc *= 0.5;
     epot_loc *= 0.5;
     etot_loc  = ekin_loc + epot_loc;
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     etot = PS::Comm::getSum(etot_loc);
     epot = PS::Comm::getSum(epot_loc);
-    ekin = PS::Comm::getSum(ekin_loc);
-#else
-    etot = etot_loc;
-    epot = epot_loc;
-    ekin = ekin_loc;
-#endif
+    ekin = PS::Comm::getSum(ekin_loc);    
 }
 
 void printHelp() {
@@ -144,19 +138,22 @@ void printHelp() {
 
 void makeOutputDirectory(char * dir_name) {
     struct stat st;
-    if(stat(dir_name, &st) != 0) {
-        PS::S32 ret_loc = 0;
-        PS::S32 ret     = 0;
-        if(PS::Comm::getRank() == 0)
-            ret_loc = mkdir(dir_name, 0777);
-        PS::Comm::broadcast(&ret_loc, ret);
-        if(ret == 0) {
-            if(PS::Comm::getRank() == 0)
-                fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
+    PS::S32 ret;
+    if (PS::Comm::getRank() == 0) {
+        if (stat(dir_name, &st) != 0) {
+            ret = mkdir(dir_name, 0777);
         } else {
-            fprintf(stderr, "Directory %s fails to be made.\n", dir_name);
-            PS::Abort();
+            ret = 0; // the directory named dir_name already exists.
         }
+    } 
+    PS::Comm::broadcast(&ret, 1);
+    if (ret == 0) {
+        if (PS::Comm::getRank() == 0)
+            fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
+    } else {
+        if (PS::Comm::getRank() == 0)
+            fprintf(stderr, "Directory %s fails to be made.\n", dir_name);
+        PS::Abort();
     }
 }
 

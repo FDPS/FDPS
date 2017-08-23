@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <iostream>
 #include <vector>
+#include <sys/stat.h>
 
 /* Parameters */
 const short int Dim = 3;
@@ -209,6 +210,27 @@ class CalcHydroForce{
    }
 };
 
+void makeOutputDirectory(char * dir_name) {
+    struct stat st;
+    PS::S32 ret;
+    if (PS::Comm::getRank() == 0) {
+        if (stat(dir_name, &st) != 0) {
+            ret = mkdir(dir_name, 0777);
+        } else {
+            ret = 0; // the directory named dir_name already exists.
+        }
+    } 
+    PS::Comm::broadcast(&ret, 1);
+    if (ret == 0) {
+        if (PS::Comm::getRank() == 0)
+            fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
+    } else {
+        if (PS::Comm::getRank() == 0)
+            fprintf(stderr, "Directory %s fails to be made.\n", dir_name);
+        PS::Abort();
+    }
+}
+
 void SetupIC(PS::ParticleSystem<FP>& sph_system, PS::F64 *end_time, boundary *box){
    // Place SPH particles
    std::vector<FP> ptcl;
@@ -339,6 +361,10 @@ void CheckConservativeVariables(const PS::ParticleSystem<FP>& sph_system){
 int main(int argc, char* argv[]){
    // Initialize FDPS
    PS::Initialize(argc, argv);
+   // Make a directory
+   char dir_name[1024];
+   sprintf(dir_name,"./result");
+   makeOutputDirectory(dir_name);
    // Display # of MPI processes and threads
    PS::S32 nprocs = PS::Comm::getNumberOfProc();
    PS::S32 nthrds = PS::Comm::getNumberOfThread();

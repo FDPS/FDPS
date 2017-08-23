@@ -84,9 +84,9 @@ namespace ParticleSimulator{
             const Vector3<T> b_high = this->high_;
             const Vector3<T> b_low = this->low_;
 
-            return (a_high.x < b_low.x) || (b_high.x < a_low.x)
-                || (a_high.y < b_low.y) || (b_high.y < a_low.y)
-                || (a_high.z < b_low.z) || (b_high.z < a_low.z);
+            return (a_high.x < b_low.x) || (b_high.x <= a_low.x)
+                || (a_high.y < b_low.y) || (b_high.y <= a_low.y)
+                || (a_high.z < b_low.z) || (b_high.z <= a_low.z);
         }
 
         unsigned int contained(const Orthotope3 & a) const {

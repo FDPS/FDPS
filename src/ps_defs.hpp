@@ -147,6 +147,17 @@ namespace ParticleSimulator{
           F32vec( 0.5, -0.5, -0.5), F32vec( 0.5, -0.5,  0.5),
           F32vec( 0.5,  0.5, -0.5), F32vec( 0.5,  0.5,  0.5) };
 #endif
+#ifdef PARTICLE_SIMULATOR_SPMOM_F32
+    typedef S32    SSP;
+    typedef F32    FSP;
+    typedef F32vec FSPvec;
+    typedef F32mat FSPmat;
+#else
+    typedef S64    SSP;
+    typedef F64    FSP;
+    typedef F64vec FSPvec;
+    typedef F64mat FSPmat;
+#endif
     typedef U64 CountT;
 
     static const F64 LARGE_FLOAT = std::numeric_limits<F32>::max()*0.0625;
@@ -158,25 +169,45 @@ namespace ParticleSimulator{
     // static const S64 LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1ll<<30;
     ///// A.Tanikawa modified to
 
+    //////////////////
+    /// enum 
     enum SEARCH_MODE{
         LONG_NO_CUTOFF,
         LONG_CUTOFF,
         LONG_SCATTER, // new for P^3T
         LONG_CUTOFF_SCATTER, // new for P^3T + PM
+        LONG_SYMMETRY,
         SHORT_GATHER,
         SHORT_SCATTER,
         SHORT_SYMMETRY,
     };
-
-    struct TagForceLong{};
-    struct TagForceShort{};
+    enum FORCE_TYPE{
+        FORCE_TYPE_LONG,
+        FORCE_TYPE_SHORT,
+    };
+    struct TagForceLong{
+        enum{
+            force_type = FORCE_TYPE_LONG,
+        };
+    };
+    struct TagForceShort{
+        enum{
+            force_type = FORCE_TYPE_SHORT,
+        };
+    };
+    //struct TagExLetOneStage{};
+    //struct TagExLetTwoStage{};
+    //struct TagForceLong{};
+    //struct TagForceShort{};
     struct TagSearchLong{};
     struct TagSearchLongCutoff{};
     struct TagSearchLongScatter{};
+    struct TagSearchLongSymmetry{};
     struct TagSearchLongCutoffScatter{};
     struct TagSearchShortGather{};
     struct TagSearchShortScatter{};
     struct TagSearchShortSymmetry{};
+    
     struct SEARCH_MODE_LONG{
         typedef TagForceLong force_type;
         typedef TagSearchLong search_type;
@@ -221,11 +252,16 @@ namespace ParticleSimulator{
             search_type_id = LONG_SCATTER,
         };
     };
-
+    struct SEARCH_MODE_LONG_SYMMETRY{
+        typedef TagForceLong force_type;
+        typedef TagSearchLongSymmetry search_type;
+        enum{
+            search_type_id = LONG_SYMMETRY,
+        };
+    };
     struct SEARCH_MODE_LONG_CUTOFF_SCATTER{
         typedef TagForceLong force_type;
         typedef TagSearchLongCutoffScatter search_type;
-        //typedef TagSearchLongScatter search_type;
         enum{
             search_type_id = LONG_CUTOFF_SCATTER,
         };
@@ -876,7 +912,7 @@ namespace ParticleSimulator{
 			std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
 			std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
 			std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-			std::cerr << "     ||     Version 2.0 (2016/06)        ||" << std::endl;
+			std::cerr << "     ||     Version 3.0 (2016/12)        ||"   << std::endl;
 			std::cerr << "     \\\\==================================//" << std::endl;
 			std::cerr << "" << std::endl;
 			std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;

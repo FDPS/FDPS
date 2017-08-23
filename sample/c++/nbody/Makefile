@@ -8,19 +8,20 @@ CFLAGS = -O3
 #CFLAGS += -Wall
 #CFLAGS += -ffast-math
 #CFLAGS += -funroll-loops
-#CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL
-#CFLAGS += -fopenmp
+#CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 #use_phantom_grape_x86 = yes
 #use_gpu_cuda = yes
 
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
+
 all:nbody.out
 
 ifeq ($(use_phantom_grape_x86),yes)
-INC += -I../../src/phantom_grape_x86/G5/newton/libpg5/
+INC += -I$(PS_PATH)/phantom_grape_x86/G5/newton/libpg5/
 CFLAGS  += -DENABLE_PHANTOM_GRAPE_X86
-CLIBS   = -L../../src/phantom_grape_x86/G5/newton/libpg5/ -lpg5
+CLIBS   = -L$(PS_PATH)/phantom_grape_x86/G5/newton/libpg5/ -lpg5
 endif
 
 ifeq ($(use_gpu_cuda),yes)
@@ -38,8 +39,14 @@ endif
 nbody.out:nbody.cpp $(OBJS)
 	$(CC) $(INC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
-clean:	
+clean:
 	rm -f nbody.out
 
-distclean:	
+distclean:
 	rm -f nbody.out *.o *~
+
+test: 
+	# This command is only for FDPS developers.
+	./test.py
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

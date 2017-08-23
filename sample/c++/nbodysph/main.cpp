@@ -4,13 +4,12 @@
 
 void makeOutputDirectory(const char * dir_name) {
     struct stat st;
-    if(stat(dir_name, &st) != 0) {
-        PS::S32 ret_loc = 0;
-        PS::S32 ret     = 0;
-        if(PS::Comm::getRank() == 0)
-            ret_loc = mkdir(dir_name, 0777);
-        PS::Comm::broadcast(&ret_loc, ret);
-        if(ret == 0) {
+    if (stat(dir_name, &st) != 0) {
+        PS::S32 ret = -1;
+        if (PS::Comm::getRank() == 0)
+            ret = mkdir(dir_name, 0777);
+        PS::Comm::broadcast(&ret, 1);
+        if (ret == 0) {
             if(PS::Comm::getRank() == 0)
                 fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
         } else {

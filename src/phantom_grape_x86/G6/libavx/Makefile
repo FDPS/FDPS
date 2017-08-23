@@ -1,4 +1,4 @@
-CC = gcc-4.8.1 -march=core-avx2 -O3 -ffast-math -funroll-loops -fopenmp -Wall
+CC = gcc -march=core-avx2 -O3 -ffast-math -funroll-loops -fopenmp -Wall
 AR = ar
 
 HDR = gp6util.h gravity.h avx_type.h timeprof.h avx.h

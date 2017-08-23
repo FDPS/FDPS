@@ -150,20 +150,22 @@ namespace ParticleSimulator{
 			if(1==i) return y;
 			std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
 			std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
-#  ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 			MPI::COMM_WORLD.Abort(-1);
-#  endif		
+#endif		
 			exit(-1);
+            return x; //dummy for avoid warning
 		}
         T & operator[](const int i){
 			if(0==i) return x;
 			if(1==i) return y;
 			std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
 			std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
-#  ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 			MPI::COMM_WORLD.Abort(-1);
-#  endif		
+#endif		
 			exit(-1);
+            return x; //dummy for avoid warning
 		}
 #endif
 

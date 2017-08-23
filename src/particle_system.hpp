@@ -325,7 +325,7 @@ namespace ParticleSimulator{
                                const Theader * const header,
                                void (Tptcl::*pFuncPtcl)(FILE*)const,
                                void (Theader::*pFuncHead)(FILE*)const,
-                               const char * open_format){                        
+                               const char * open_format){
             if(format == NULL){
                 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
                 //declare local # of ptcl.
@@ -363,7 +363,7 @@ namespace ParticleSimulator{
                 }
                 delete [] n_ptcl;
                 delete [] n_ptcl_displs;
-                delete [] ptcl; 
+                delete [] ptcl;
                 #else
                 const S32 n_tot = ptcl_.size();
                 if(Comm::getRank() == 0){
@@ -1054,5 +1054,33 @@ namespace ParticleSimulator{
 	    ptcl_.resizeNoInitialize(i_loc+1);
 	    */
 	}
+
+        void dumpMemSizeUsed(std::ostream & fout){
+            F64 sum_loc,sum_max;
+            sum_loc = (double)(ptcl_.getMemSize()
+                              +idx_remove_ptcl_.getMemSize()
+                              +ptcl_send_.getMemSize()
+                              +ptcl_recv_.getMemSize()) * 1e-9;
+            if (Comm::getRank() == 0) {
+                fout<<"ptcl_.getMemSize()= "<<ptcl_.getMemSize()<<std::endl;
+                fout<<"    ptcl_.size()= "<<ptcl_.size()<<std::endl;
+                fout<<"    sizeof(Tptcl)= "<<sizeof(Tptcl)<<std::endl;
+                fout<<"idx_remove_ptcl_.getMemSize()= "<<idx_remove_ptcl_.getMemSize()<<std::endl;
+                fout<<"ptcl_send_.getMemSize()= "<<ptcl_send_.getMemSize()<<std::endl;
+                fout<<"ptcl_recv_.getMemSize()= "<<ptcl_recv_.getMemSize()<<std::endl;
+                fout<<"sum[GB]= " << sum_loc << std::endl;
+            }
+            //MPI::COMM_WORLD.Allreduce(&sum_loc,&sum,1,MPI::DOUBLE,MPI::MAX);
+            sum_max = Comm::getMaxValue(sum_loc);
+            if (Comm::getRank() == 0) {
+               fout << "sum[GB](psys,max.) = " << sum_max << std::endl;
+            }
+        }
+        
+        void freeCommunicationBuffer(){
+            ptcl_send_.freeMem();
+            ptcl_recv_.freeMem();
+        }
+        
     };
 }

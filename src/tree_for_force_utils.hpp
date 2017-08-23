@@ -16,7 +16,8 @@ _mm256_undefined_ps (void)
 }
 */
 
-/*
+#ifdef FAST_WALK_AVX2
+
 static inline void transpose_4ymm(__m256 &v0, __m256 &v1, __m256 &v2, __m256 &v3){
     // transpose from
     // [ |w4|z4|y4|x4||w0|z0|y0|x0|, |w5|z5|y5|x5||w1|z1|y1|x1|, |w6|z6|y6|x6||w2|z2|y2|x2|, |w7|z7|y7|x7||w3|z3|y3|x3| ]
@@ -46,8 +47,7 @@ static inline void transpose_4ymm(__m256 &v0, __m256 &v1, __m256 &v2, __m256 &v3
     v2 = zzzz;
     v3 = wwww;
 }
-*/
-/*
+
 static inline __m256 _mm256_set_m128_forgcc(__m128 hi, __m128 lo){
     __m256 ret = {};
     //__m256 ret = _mm256_undefined_ps();
@@ -56,7 +56,7 @@ static inline __m256 _mm256_set_m128_forgcc(__m128 hi, __m128 lo){
     ret = _mm256_insertf128_ps(ret, hi, 1);
     return ret;
 }
-*/
+#endif
 
 #endif
 
@@ -1019,8 +1019,6 @@ namespace ParticleSimulator{
         }
     }
 
-#if 1
-    // original version
     // FOR P^3T
     template<class Ttc, class Tep>
     inline void SearchSendParticleLongScatter(const ReallocatableArray<Ttc> & tc_first,
@@ -1045,20 +1043,10 @@ namespace ParticleSimulator{
             if(n_child == 0) continue;
             else if( (open_bits>>i) & 0x1 ){
                 if( !(tc_child->isLeaf(n_leaf_limit)) ){
-		    //#ifdef DEBUG_1023
-#ifdef PARTICLE_SIMULATOR_EXCHANGE_LET_ALL
-
-                    SearchSendParticleLongScatter<Ttc, Tep>
-                        (tc_first,   tc_first[adr_tc_child].adr_tc_, ep_first,
-                         id_ep_send, id_sp_send, pos_target_box,
-                         r_crit_sq, n_leaf_limit);
-#else
-
                     SearchSendParticleLongScatter<Ttc, Tep>
                         (tc_first,   tc_first[adr_tc_child].adr_tc_, ep_first,
                          id_ep_send, id_sp_send, pos_target_box,
                          r_crit_sq*0.25, n_leaf_limit);
-#endif
                 }
                 else{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
@@ -1073,22 +1061,24 @@ namespace ParticleSimulator{
             }
         }
     }
-#else
-    // cut-off verseion
+
+
     template<class Ttc, class Tep>
-    inline void SearchSendParticleLongScatter(const ReallocatableArray<Ttc> & tc_first,
-                                              const S32 adr_tc,
-                                              const ReallocatableArray<Tep> & ep_first,
-                                              ReallocatableArray<S32> & id_ep_send,
-                                              ReallocatableArray<S32> & id_sp_send,
-                                              const F64ort & pos_target_box, // position of domain
-                                              const F64 r_crit_sq,
-                                              const S32 n_leaf_limit){
+    inline void SearchSendParticleLongSymmetry(const ReallocatableArray<Ttc> & tc_first,
+                                               const S32 adr_tc,
+                                               const ReallocatableArray<Tep> & ep_first,
+                                               ReallocatableArray<S32> & id_ep_send,
+                                               ReallocatableArray<S32> & id_sp_send,
+                                               const F64ort & pos_target_box_in,
+                                               const F64ort & pos_target_box_out,
+                                               const F64 r_crit_sq,
+                                               const S32 n_leaf_limit){
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
-            open_bits |= ( ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
-                             || (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut())) ) 
+            open_bits |= ( ( (pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
+                             || (pos_target_box_in.contained( tc_first[adr_tc+i].mom_.getVertexOut())) 
+                             || (pos_target_box_out.contained( tc_first[adr_tc+i].mom_.getVertexIn())) )
                            << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1098,9 +1088,9 @@ namespace ParticleSimulator{
             if(n_child == 0) continue;
             else if( (open_bits>>i) & 0x1 ){
                 if( !(tc_child->isLeaf(n_leaf_limit)) ){
-                    SearchSendParticleLongScatter<Ttc, Tep>
+                    SearchSendParticleLongSymmetry<Ttc, Tep>
                         (tc_first,   tc_first[adr_tc_child].adr_tc_, ep_first,
-                         id_ep_send, id_sp_send, pos_target_box,
+                         id_ep_send, id_sp_send, pos_target_box_in, pos_target_box_out,
                          r_crit_sq*0.25, n_leaf_limit);
                 }
                 else{
@@ -1116,7 +1106,7 @@ namespace ParticleSimulator{
             }
         }
     }
-#endif
+
 
     inline F64ort makeChildCellBox(const S32 i,
                                    const F64ort & cell_box) {
@@ -1262,7 +1252,6 @@ namespace ParticleSimulator{
     
     /////////////////////////////
     /// MAKE INTERACTION LIST ///
-#if 1
     template<class Ttc, class Ttp, class Tep, class Tsp>
     void MakeInteractionListLongEPSP(const ReallocatableArray<Ttc> & tc_first,
                                      const S32 adr_tc,
@@ -1467,7 +1456,6 @@ namespace ParticleSimulator{
                     }
                     ep_list.resizeNoInitialize(iloc);
 #else
-		    /*
                     for(S32 ip=0; ip<n_child; ip++){
                         if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_) == 0){
                             Tep ep_tmp = ep_first[adr_ptcl_tmp++];
@@ -1478,8 +1466,7 @@ namespace ParticleSimulator{
                             sp_list.pushBackNoCheck(sp_tmp);
                         }
                     }
-		    */
-
+                    /*
                     for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
                         U32 msb = GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_);                        
                         Tep ep_tmp = ep_first[adr_ptcl_tmp];
@@ -1489,6 +1476,7 @@ namespace ParticleSimulator{
                         sp_list.pushBackNoCheck(sp_tmp);
                         sp_list.resizeNoInitialize(sp_list.size()-(msb^0x1));
                     }
+                    */
 #endif
                 }
             }
@@ -1506,18 +1494,25 @@ namespace ParticleSimulator{
             }
         }
     }
-#else
+
+    /////////////////////////////
+    // new for multiwalk (send index)
+#if 0
+    //underconstruction
     template<class Ttc, class Ttp, class Tep, class Tsp>
-    void MakeInteractionListLongEPSP(const ReallocatableArray<Ttc> & tc_first,
-                                     const S32 adr_tc,
-                                     const ReallocatableArray<Ttp> & tp_first,
-                                     const ReallocatableArray<Tep> & ep_first,
-                                     ReallocatableArray<Tep> & ep_list,
-                                     const ReallocatableArray<Tsp> & sp_first,
-                                     ReallocatableArray<Tsp> & sp_list,
-                                     const F64ort & pos_target_box,
-                                     const F64 r_crit_sq,
-                                     const S32 n_leaf_limit){
+    void MakeInteractionListLongEPSPIndex(const ReallocatableArray<Ttc> & tc_first,
+                                          const S32 adr_tc,
+                                          const ReallocatableArray<Ttp> & tp_first,
+                                          const ReallocatableArray<Tep> & ep_first,
+                                          ReallocatableArray<S32> & id_ep_list,
+                                          const ReallocatableArray<Tsp> & sp_first,
+                                          ReallocatableArray<S32> & id_sp_list,
+                                          const F64ort & pos_target_box,
+                                          const F64 r_crit_sq,
+                                          const S32 n_leaf_limit){
+        if(tc_first[adr_tc].n_ptcl_ == 0) continue;
+
+
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
@@ -1525,106 +1520,51 @@ namespace ParticleSimulator{
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             const S32 adr_tc_child = adr_tc + i;
-            //const Ttc * tc_child = tc_first.data() + adr_tc_child;
             const Ttc * tc_child = tc_first.getPointer(adr_tc_child);
             const S32 n_child = tc_child->n_ptcl_;
-            if(n_child == 0) continue;
+            __asm__("#tree walk  before branch");
+            if(n_child == 0){
+                __asm__("#tree walk  n_child == 0");
+                continue;
+            }
             else if( (open_bits>>i) & 0x1 ){
+                __asm__("#tree walk  cell open");
                 if( !(tc_child->isLeaf(n_leaf_limit)) ){
-                    MakeInteractionListLongEPSP<Ttc, Ttp, Tep, Tsp>
+                    __asm__("#tree walk cell is not leaf");
+                    MakeInteractionListLongEPSPIndex<Ttc, Ttp, Tep, Tsp>
                         (tc_first, tc_first[adr_tc_child].adr_tc_, tp_first, ep_first, 
-                         ep_list,   sp_first, sp_list, 
+                         id_ep_list,   sp_first, id_sp_list, 
                          pos_target_box, r_crit_sq*0.25, n_leaf_limit);
                 }
                 else{
+                    __asm__("#tree walk cell is leaf");
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    //ep_list.reserve( ep_list.size()+n_child );
-                    //sp_list.reserve( sp_list.size()+n_child );
-                    ep_list.reserveEmptyAreaAtLeast( n_child );
-                    sp_list.reserveEmptyAreaAtLeast( n_child );
+                    id_ep_list.reserveEmptyAreaAtLeast( n_child );
+                    id_sp_list.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++){
                         if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_) == 0){
-                            //ep_list[n_ep] = ep_first[adr_ptcl_tmp++];
-                            ep_list.pushBackNoCheck(ep_first[adr_ptcl_tmp++]);
+                            id_ep_list.pushBackNoCheck(adr_ptcl_tmp++);
                         }
                         else{
-                            sp_list.pushBackNoCheck(sp_first[adr_ptcl_tmp++]);
+                            id_sp_list.pushBackNoCheck(adr_ptcl_tmp++);
                         }
                     }
                 }
             }
             else{
-                sp_list.increaseSize();
-                sp_list.back().copyFromMoment(tc_child->mom_);
+                __asm__("#tree walk substitute SP");
+                S32 offset = ep_first.size();
+                id_sp_list.push_back(adr_tc_child+offset);
             }
         }
     }
 #endif
 
 
-    /*
-    template<class Ttc, class Ttp, class Tep, class Tsp>
-    void MakeInteractionListLongEPSPMultiWalk(const ReallocatableArray<Ttc> & tc_first,
-					      const S32 adr_tc,
-					      const ReallocatableArray<Ttp> & tp_first,
-					      const ReallocatableArray<Tep> & ep_first,
-					      ReallocatableArray<Tep> & ep_list,
-					      const ReallocatableArray<Tsp> & sp_first,
-					      ReallocatableArray<Tsp> & sp_list,
-					      const F64ort & pos_target_box,
-					      const F64 r_crit_sq,
-					      const S32 n_leaf_limit){
 
 
-	MakeInteractionListLongEPSP(tc_first,
-				    adr_tc,
-				    tp_first,
-				    ep_first,
-				    ep_list,
-				    sp_first,
-				    sp_list,
-				    pos_target_box,
-				    r_crit_sq,
-				    n_leaf_limit);
 
-        U32 open_bits = 0;
-        for(S32 i=0; i<N_CHILDREN; i++){
-            const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
-            open_bits |= ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) << i);
-        }
-        for(S32 i=0; i<N_CHILDREN; i++){
-            const S32 adr_tc_child = adr_tc + i;
-            const Ttc * tc_child = tc_first.getPointer(adr_tc_child);
-            const S32 n_child = tc_child->n_ptcl_;
-            if(n_child == 0) continue;
-            else if( (open_bits>>i) & 0x1 ){
-                if( !(tc_child->isLeaf(n_leaf_limit)) ){
-                    MakeInteractionListLongEPSP<Ttc, Ttp, Tep, Tsp>
-                        (tc_first, tc_first[adr_tc_child].adr_tc_, tp_first, ep_first, 
-                         ep_list,   sp_first, sp_list, 
-                         pos_target_box, r_crit_sq*0.25, n_leaf_limit);
-                }
-                else{
-                    S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    ep_list.reserveEmptyAreaAtLeast( n_child );
-                    sp_list.reserveEmptyAreaAtLeast( n_child );
-                    for(S32 ip=0; ip<n_child; ip++){
-                        if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_) == 0){
-                            ep_list.pushBackNoCheck(ep_first[adr_ptcl_tmp++]);
-                        }
-                        else{
-                            sp_list.pushBackNoCheck(sp_first[adr_ptcl_tmp++]);
-                        }
-                    }
-                }
-            }
-            else{
-                sp_list.increaseSize();
-                sp_list.back().copyFromMoment(tc_child->mom_);
-            }
-        }
-    }
-    */
+
 
     template<class Ttc, class Ttp, class Tep, class Tsp>
     void MakeInteractionListLongScatterEPSP(const ReallocatableArray<Ttc> & tc_first,
@@ -1687,6 +1627,65 @@ namespace ParticleSimulator{
             }
         }
     }
+
+
+
+    template<class Ttc, class Ttp, class Tep, class Tsp>
+    void MakeInteractionListLongSymmetryEPSP(const ReallocatableArray<Ttc> & tc_first,
+                                             const S32 adr_tc,
+                                             const ReallocatableArray<Ttp> & tp_first,
+                                             const ReallocatableArray<Tep> & ep_first,
+                                             ReallocatableArray<Tep> & ep_list,
+                                             const ReallocatableArray<Tsp> & sp_first,
+                                             ReallocatableArray<Tsp> & sp_list,
+                                             const F64ort & pos_target_box_in,
+                                             const F64ort & pos_target_box_out,
+                                             const F64 r_crit_sq,
+                                             const S32 n_leaf_limit){
+        U32 open_bits = 0;
+        for(S32 i=0; i<N_CHILDREN; i++){
+            const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
+            const F64ort box_tmp_out = tc_first[adr_tc+i].mom_.getVertexOut();
+            const F64ort box_tmp_in = tc_first[adr_tc+i].mom_.getVertexIn();
+            open_bits |= ( 
+                ( (pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
+                  || ( pos_target_box_out.contained(box_tmp_in))
+                  || ( pos_target_box_in.contained(box_tmp_out)) )
+                << i);
+        }
+        for(S32 i=0; i<N_CHILDREN; i++){
+            const S32 adr_tc_child = adr_tc + i;
+            const Ttc * tc_child = tc_first.getPointer(adr_tc_child);
+            const S32 n_child = tc_child->n_ptcl_;
+            if(n_child == 0) continue;
+            else if( (open_bits>>i) & 0x1 ){
+                if( !(tc_child->isLeaf(n_leaf_limit)) ){
+                    MakeInteractionListLongSymmetryEPSP<Ttc, Ttp, Tep, Tsp>
+                        (tc_first, tc_first[adr_tc_child].adr_tc_, tp_first, ep_first, 
+                         ep_list,   sp_first, sp_list, 
+                         pos_target_box_in, pos_target_box_out, r_crit_sq*0.25, n_leaf_limit);
+                }
+                else{
+                    S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
+                    ep_list.reserveEmptyAreaAtLeast( n_child );
+                    sp_list.reserveEmptyAreaAtLeast( n_child );
+                    for(S32 ip=0; ip<n_child; ip++){
+                        if( GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_) == 0){
+                            ep_list.pushBackNoCheck(ep_first[adr_ptcl_tmp++]);
+                        }
+                        else{
+                            sp_list.pushBackNoCheck(sp_first[adr_ptcl_tmp++]);
+                        }
+                    }
+                }
+            }
+            else{
+                sp_list.increaseSize();
+                sp_list.back().copyFromMoment(tc_child->mom_);
+            }
+        }
+    }
+    
 
     template<class Ttc, class Ttp, class Tep, class Tsp>
     void MakeInteractionListLongCutoffEPSP(const ReallocatableArray<Ttc> & tc_first,
@@ -1754,10 +1753,6 @@ namespace ParticleSimulator{
             }
         }
     }
-
-
-    
-
 
     template<class Ttc, class Tep2, class Tep3>
     inline void MakeListUsingOuterBoundary(const Ttc * tc_first,
@@ -2765,15 +2760,15 @@ namespace ParticleSimulator{
             return n_cell_open;
         }
         //static __thread Stack<S32, 1000> adr_tc_stack;
-	Stack<S32> adr_tc_stack;
+        Stack<S32> adr_tc_stack;
         //static __thread Stack<F64, 1000> r_crit_sq_stack;
-	Stack<F64> r_crit_sq_stack;
+        Stack<F64> r_crit_sq_stack;
         adr_tc_stack.init();
         r_crit_sq_stack.init();
         adr_tc_stack.push(tc_first[adr_tc].adr_tc_);  // push first child
         r_crit_sq_stack.push(r_crit_sq*0.25);  // push firt child
         while( !adr_tc_stack.empty() ){
-// root cell has children
+            // root cell has children
             n_cell_open++;
             U32 open_bits = 0;
             const S32 adr_tc_curr = adr_tc_stack.pop();

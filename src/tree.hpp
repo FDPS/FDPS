@@ -295,18 +295,7 @@ namespace ParticleSimulator{
                 ip->vertex_ = tc.mom_.vertex_out_;
             }
         };
-#if 0
-// modified by M.I.
-        template<class Ttc2, class Tdummy>
-        struct CopyFromTCDummy<SEARCH_MODE_SYMMETRY, Ttc2, Tdummy>{
-            void operator () (IPGroup * ip, const Ttc2 & tc){
-                // for SYMMETRY
-                ip->n_ptcl_ = tc.n_ptcl_;
-                ip->adr_ptcl_ = tc.adr_ptcl_;
-                ip->vertex_ = tc.mom_.vertex_out_;
-            }
-        };
-#endif
+
         template<class Ttc2, class Tdummy>
         struct CopyFromTCDummy<SEARCH_MODE_LONG, Ttc2, Tdummy>{
             void operator () (IPGroup * ip, const Ttc2 & tc){
@@ -352,6 +341,30 @@ namespace ParticleSimulator{
         }
     };
 
+    template<>
+    class IPGroup<SEARCH_MODE_LONG_SYMMETRY>{
+    public:
+        S32 n_ptcl_;
+        S32 adr_ptcl_;
+        F64ort vertex_;
+        F64ort vertex_out_;
+        template<class Ttc> 
+        void copyFromTC(const Ttc & tc){
+            // for SYMMETRY
+            n_ptcl_ = tc.n_ptcl_;
+            adr_ptcl_ = tc.adr_ptcl_;
+            vertex_ = tc.mom_.vertex_in_;
+            vertex_out_ = tc.mom_.vertex_out_;
+        }
+        // for DEBUG
+        void dump(std::ostream & fout = std::cout){
+            fout<<"n_ptcl_="<<n_ptcl_<<std::endl;
+            fout<<"adr_ptcl_="<<adr_ptcl_<<std::endl;
+            fout<<"vertex_="<<vertex_<<std::endl;
+            fout<<"vertex_out_="<<vertex_out_<<std::endl;
+        }
+    };    
+
     ////////////////////////
     // ESSENTIAL PARTICLE //
     class EPXROnly{
@@ -377,20 +390,21 @@ namespace ParticleSimulator{
 
     //////////////
     /// Moment ///
-    // for P^3T
-    class MomentMonopoleScatter{
+    // new
+    // these are the same as
+    class MomentMonopoleInAndOut{
     public:
-        F32 mass;
-        F32vec pos;
+        FSP mass;
+        FSPvec pos;
         F64ort vertex_out_;
         F64ort vertex_in_;
-        MomentMonopoleScatter(){
+        MomentMonopoleInAndOut(){
             mass = 0.0;
             pos = 0.0;
             vertex_out_.init();
             vertex_in_.init();
         }
-        MomentMonopoleScatter(const F32 m, const F32vec & p){ 
+        MomentMonopoleInAndOut(const FSP m, const FSPvec & p){ 
             mass = m;
             pos = p;
         }
@@ -402,10 +416,169 @@ namespace ParticleSimulator{
             vertex_out_.init();
             vertex_in_.init();
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
+            return mass;
+        }
+        template<class Tepj>
+        void accumulateAtLeaf(const Tepj & epj){
+            this->mass += epj.getCharge();
+            this->pos += epj.getCharge() * epj.getPos();
+            (this->vertex_out_).merge(epj.getPos(), epj.getRSearch());
+            (this->vertex_in_).merge(epj.getPos());
+        }
+        template<class Tepj>
+        void accumulateAtLeaf2(const Tepj & epj){}
+        void set(){
+            pos = pos / mass;
+        }
+        void accumulate(const MomentMonopoleInAndOut & mom){
+            this->mass += mom.mass;
+            this->pos += mom.mass * mom.pos;
+            (this->vertex_out_).merge(mom.vertex_out_);
+            (this->vertex_in_).merge(mom.vertex_in_);
+        }
+        void accumulate2(const MomentMonopoleInAndOut & mom){}
+        // for DEBUG 
+        void dump(std::ostream & fout = std::cout) const {
+            fout<<"mass="<<mass<<std::endl;
+            fout<<"pos="<<pos<<std::endl;
+            fout<<"vertex_out.low_="<<vertex_out_.low_<<std::endl;
+            fout<<"vertex_out.high_="<<vertex_out_.high_<<std::endl;
+            fout<<"vertex_in.low_="<<vertex_in_.low_<<std::endl;
+            fout<<"vertex_in.high_="<<vertex_in_.high_<<std::endl;
+        }
+    };
+
+
+    class MomentQuadrupoleInAndOut{
+    public:
+        FSP mass;
+        FSPvec pos;
+        FSPmat quad;
+        F64ort vertex_out_;
+        F64ort vertex_in_;
+        MomentQuadrupoleInAndOut(){
+            mass = 0.0;
+            pos = 0.0;
+	    quad = 0.0;
+            vertex_out_.init();
+            vertex_in_.init();
+        }
+        MomentQuadrupoleInAndOut(const FSP m, const FSPvec & p, const FSPmat & q){ 
+            mass = m;
+            pos = p;
+            quad = q;
+        }
+        F64ort getVertexOut() const { return vertex_out_; }
+        F64ort getVertexIn() const { return vertex_in_; }
+        void init(){
+            mass = 0.0;
+            pos = 0.0;
+            quad = 0.0;
+            vertex_out_.init();
+            vertex_in_.init();
+        }
+        FSPvec getPos() const {
+            return pos;
+        }
+        FSP getCharge() const {
+            return mass;
+        }
+        template<class Tepj>
+        void accumulateAtLeaf(const Tepj & epj){
+            this->mass += epj.getCharge();
+            this->pos += epj.getCharge() * epj.getPos();
+            (this->vertex_out_).merge(epj.getPos(), epj.getRSearch());
+            (this->vertex_in_).merge(epj.getPos());
+        }
+        template<class Tepj>
+        void accumulateAtLeaf2(const Tepj & epj){
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+            F64 ctmp = epj.getCharge();
+            F64vec ptmp = epj.getPos() - this->pos;
+            F64 cx = ctmp * ptmp.x;
+            F64 cy = ctmp * ptmp.y;
+            F64 cz = ctmp * ptmp.z;
+            this->quad.xx += cx * ptmp.x;
+            this->quad.yy += cy * ptmp.y;
+            this->quad.zz += cz * ptmp.z;
+            this->quad.xy += cx * ptmp.y;
+            this->quad.xz += cx * ptmp.z;
+            this->quad.yz += cy * ptmp.z;
+#else
+	    // under construction
+#endif
+	}
+        void set(){
+            pos = pos / mass;
+        }
+        void accumulate(const MomentQuadrupoleInAndOut & mom){
+            this->mass += mom.mass;
+            this->pos += mom.mass * mom.pos;
+            (this->vertex_out_).merge(mom.vertex_out_);
+            (this->vertex_in_).merge(mom.vertex_in_);
+        }
+        void accumulate2(const MomentQuadrupoleInAndOut & mom){
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+            F64 mtmp = mom.mass;
+            F64vec ptmp = mom.pos - this->pos;
+            F64 cx = mtmp * ptmp.x;
+            F64 cy = mtmp * ptmp.y;
+            F64 cz = mtmp * ptmp.z;
+            this->quad.xx += cx * ptmp.x + mom.quad.xx;
+            this->quad.yy += cy * ptmp.y + mom.quad.yy;
+            this->quad.zz += cz * ptmp.z + mom.quad.zz;
+            this->quad.xy += cx * ptmp.y + mom.quad.xy;
+            this->quad.xz += cx * ptmp.z + mom.quad.xz;
+            this->quad.yz += cy * ptmp.z + mom.quad.yz;
+#else
+	    // under construction
+#endif
+	}
+        // for DEBUG 
+        void dump(std::ostream & fout = std::cout) const {
+            fout<<"mass="<<mass<<std::endl;
+            fout<<"pos="<<pos<<std::endl;
+            fout<<"vertex_out.low_="<<vertex_out_.low_<<std::endl;
+            fout<<"vertex_out.high_="<<vertex_out_.high_<<std::endl;
+            fout<<"vertex_in.low_="<<vertex_in_.low_<<std::endl;
+            fout<<"vertex_in.high_="<<vertex_in_.high_<<std::endl;
+        }
+    };
+    
+    
+    // for P^3T
+    class MomentMonopoleScatter{
+    public:
+        FSP mass;
+        FSPvec pos;
+        F64ort vertex_out_;
+        F64ort vertex_in_;
+        MomentMonopoleScatter(){
+            mass = 0.0;
+            pos = 0.0;
+            vertex_out_.init();
+            vertex_in_.init();
+        }
+        MomentMonopoleScatter(const FSP m, const FSPvec & p){ 
+            mass = m;
+            pos = p;
+        }
+        F64ort getVertexOut() const { return vertex_out_; }
+        F64ort getVertexIn() const { return vertex_in_; }
+        void init(){
+            mass = 0.0;
+            pos = 0.0;
+            vertex_out_.init();
+            vertex_in_.init();
+        }
+        FSPvec getPos() const {
+            return pos;
+        }
+        FSP getCharge() const {
             return mass;
         }
         template<class Tepj>
@@ -441,9 +614,9 @@ namespace ParticleSimulator{
 
     class MomentQuadrupoleScatter{
     public:
-        F32 mass;
-        F32vec pos;
-        F32mat quad;
+        FSP mass;
+        FSPvec pos;
+        FSPmat quad;
         F64ort vertex_out_;
         F64ort vertex_in_;
         MomentQuadrupoleScatter(){
@@ -453,7 +626,7 @@ namespace ParticleSimulator{
             vertex_out_.init();
             vertex_in_.init();
         }
-        MomentQuadrupoleScatter(const F32 m, const F32vec & p, const F32mat & q){ 
+        MomentQuadrupoleScatter(const FSP m, const FSPvec & p, const FSPmat & q){ 
             mass = m;
             pos = p;
             quad = q;
@@ -467,10 +640,10 @@ namespace ParticleSimulator{
             vertex_out_.init();
             vertex_in_.init();
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return mass;
         }
         template<class Tepj>
@@ -539,8 +712,8 @@ namespace ParticleSimulator{
     // for P^3T + PM
     class MomentMonopoleCutoffScatter{
     public:
-        F32 mass;
-        F32vec pos;
+        FSP mass;
+        FSPvec pos;
         F64ort vertex_out_; // cutoff
         F64ort vertex_out2_; // search ep
         F64ort vertex_in_;
@@ -551,7 +724,7 @@ namespace ParticleSimulator{
             vertex_out2_.init();
             vertex_in_.init();
         }
-        MomentMonopoleCutoffScatter(const F32 m, const F32vec & p){ 
+        MomentMonopoleCutoffScatter(const FSP m, const FSPvec & p){ 
             mass = m;
             pos = p;
         }
@@ -565,10 +738,10 @@ namespace ParticleSimulator{
             vertex_out2_.init();
             vertex_in_.init();
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return mass;
         }
         template<class Tepj>
@@ -606,13 +779,13 @@ namespace ParticleSimulator{
 
     class MomentMonopole{
     public:
-        F32 mass;
-        F32vec pos;
+        FSP mass;
+        FSPvec pos;
         MomentMonopole(){
             mass = 0.0;
             pos = 0.0;
         }
-        MomentMonopole(const F32 m, const F32vec & p){
+        MomentMonopole(const FSP m, const FSPvec & p){
             mass = m;
             pos = p;
         }
@@ -620,10 +793,10 @@ namespace ParticleSimulator{
             mass = 0.0;
             pos = 0.0;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return mass;
         }
         template<class Tepj>
@@ -650,9 +823,9 @@ namespace ParticleSimulator{
 
     class MomentQuadrupole{
     public:
-        F32vec pos;
-        F32 mass;
-        F32mat quad;
+        FSPvec pos;
+        FSP mass;
+        FSPmat quad;
         void init(){
             pos = 0.0;
             mass = 0.0;
@@ -663,12 +836,12 @@ namespace ParticleSimulator{
             pos = 0.0;
             quad = 0.0;
         }
-        MomentQuadrupole(const F32 m, const F32vec & p, const F32mat & q){
+        MomentQuadrupole(const FSP m, const FSPvec & p, const FSPmat & q){
             mass = m;
             pos = p;
             quad = q;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
         template<class Tepj>
@@ -722,15 +895,15 @@ namespace ParticleSimulator{
 
     class MomentMonopoleGeometricCenter{
     public:
-        S32 n_ptcl;
-        F32 charge;
-        F32vec pos;
+        SSP n_ptcl;
+        FSP charge;
+        FSPvec pos;
         MomentMonopoleGeometricCenter(){
             n_ptcl = 0;
             charge = 0.0;
             pos = 0.0;
         }
-        MomentMonopoleGeometricCenter(const F32 c, const F32vec & p, const S32 n){
+        MomentMonopoleGeometricCenter(const FSP c, const FSPvec & p, const SSP n){
             n_ptcl = n;
             charge = c;
             pos = p;
@@ -740,10 +913,10 @@ namespace ParticleSimulator{
             charge = 0.0;
             pos = 0.0;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return charge;
         }
         template<class Tepj>
@@ -773,18 +946,18 @@ namespace ParticleSimulator{
 
     class MomentDipoleGeometricCenter{
     public:
-        S32 n_ptcl;
-        F32 charge;
-        F32vec pos;
-        F32vec dipole;
+        SSP n_ptcl;
+        FSP charge;
+        FSPvec pos;
+        FSPvec dipole;
         MomentDipoleGeometricCenter(){
             n_ptcl = 0;
             charge = 0.0;
             pos = 0.0;
             dipole = 0.0;
         }
-        MomentDipoleGeometricCenter(const F32 c, const F32vec & p, 
-                                    const S32 n, const F32vec & di){
+        MomentDipoleGeometricCenter(const FSP c, const FSPvec & p, 
+                                    const SSP n, const FSPvec & di){
             charge = c;
             pos = p;
             n_ptcl = n;
@@ -795,10 +968,10 @@ namespace ParticleSimulator{
             charge = 0.0;
             pos = dipole = 0.0;
         }
-        F64vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        F64 getCharge() const {
+        FSP getCharge() const {
             return charge;
         }
         template<class Tepj>
@@ -835,11 +1008,11 @@ namespace ParticleSimulator{
 
     class MomentQuadrupoleGeometricCenter{
     public:
-        S32 n_ptcl;
-        F32 charge;
-        F32vec pos;
-        F32vec dipole;
-        F32mat quadrupole;
+        SSP n_ptcl;
+        FSP charge;
+        FSPvec pos;
+        FSPvec dipole;
+        FSPmat quadrupole;
         MomentQuadrupoleGeometricCenter(){
             n_ptcl = 0;
             charge = 0.0;
@@ -847,9 +1020,9 @@ namespace ParticleSimulator{
             dipole = 0.0;
             quadrupole = 0.0;
         }
-        MomentQuadrupoleGeometricCenter(const F32 c, const F32vec & p, 
-                                        const S32 n, const F32vec & di,
-                                        const F32mat & q){
+        MomentQuadrupoleGeometricCenter(const FSP c, const FSPvec & p, 
+                                        const SSP n, const FSPvec & di,
+                                        const FSPmat & q){
             charge = c;
             pos = p;
             n_ptcl = n;
@@ -862,10 +1035,10 @@ namespace ParticleSimulator{
             pos = dipole = 0.0;
             quadrupole = 0.0;
         }
-        F64vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        F64 getCharge() const {
+        FSP getCharge() const {
             return charge;
         }
         template<class Tepj>
@@ -931,16 +1104,16 @@ namespace ParticleSimulator{
     
     class MomentMonopoleCutoff{
     public:
-        F32 mass;
-        F32vec pos;
+        FSP mass;
+        FSPvec pos;
         F64ort vertex_out_;
         MomentMonopoleCutoff(){
             mass = 0.0;
             pos = 0.0;
             vertex_out_.init();
         }
-        MomentMonopoleCutoff(const F32 m,
-			     const F32vec & p,
+        MomentMonopoleCutoff(const FSP m,
+			     const FSPvec & p,
 			     const F64ort & v_out){
             mass = m;
             pos = p;
@@ -951,10 +1124,10 @@ namespace ParticleSimulator{
             pos = 0.0;
             vertex_out_.init();
         }
-        F64vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        F64 getCharge() const {
+        FSP getCharge() const {
             return mass;
         }
         F64ort getVertexOut() const { return vertex_out_; }
@@ -1050,12 +1223,14 @@ namespace ParticleSimulator{
 
     ///////////
     /// SPJ ///
-    class SPJMonopole{
+    class SPJMonopoleInAndOut{
     public:
+        FSP mass;
+        FSPvec pos;
         template<class Tmom>
         void copyFromMoment(const Tmom & mom){
-            F32 mass = mom.mass;
-            F32vec pos = mom.pos;
+            FSP mass = mom.mass;
+            FSPvec pos = mom.pos;
             this->mass = mass;
             this->pos = pos;
         }
@@ -1063,30 +1238,97 @@ namespace ParticleSimulator{
             mass = 0.0;
             pos = 0.0;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return mass;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F64vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
+            pos = pos_new;
+        }
+        MomentMonopoleInAndOut convertToMoment() const {
+            return MomentMonopoleInAndOut(mass, pos);
+        }
+    };
+
+    class SPJQuadrupoleInAndOut{
+    public:
+        FSP mass;
+        FSPvec pos;
+        FSPmat quad;
+        FSP getCharge() const {
+            return mass;
+        }
+        FSPvec getPos() const {
+            return pos;
+        }
+        void setPos(const FSPvec & pos_new) {
+            pos = pos_new;
+        }
+        template<class Tmom>
+        void copyFromMoment(const Tmom & mom){
+            FSP mass = mom.mass;
+            FSPvec pos = mom.pos;
+            FSPmat quad = mom.quad;
+            this->mass = mass;
+            this->pos = pos;
+            this->quad = quad;
+        }
+        MomentQuadrupoleInAndOut convertToMoment() const {
+            return MomentQuadrupoleInAndOut(mass, pos, quad);
+        }
+        void clear(){
+            mass = 0.0;
+            pos = 0.0;
+	    quad = 0.0;
+        }
+        void dump(std::ostream & fout=std::cout) const {
+	    fout<<"mass="<<mass<<std::endl;
+	    fout<<"pos="<<pos<<std::endl;
+	}
+    };
+    
+    
+    class SPJMonopole{
+    public:
+        FSP mass;
+        FSPvec pos;
+        template<class Tmom>
+        void copyFromMoment(const Tmom & mom){
+            FSP mass = mom.mass;
+            FSPvec pos = mom.pos;
+            this->mass = mass;
+            this->pos = pos;
+        }
+        void clear(){
+            mass = 0.0;
+            pos = 0.0;
+        }
+        FSP getCharge() const {
+            return mass;
+        }
+        FSPvec getPos() const {
+            return pos;
+        }
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
         MomentMonopole convertToMoment() const {
             return MomentMonopole(mass, pos);
         }
-        F32 mass;
-        F32vec pos;
     };
 
     // the same as SPJMonopole
     // for P^3T
     class SPJMonopoleScatter{
     public:
+        FSP mass;
+        FSPvec pos;
         template<class Tmom>
         void copyFromMoment(const Tmom & mom){
-            F32 mass = mom.mass;
-            F32vec pos = mom.pos;
+            FSP mass = mom.mass;
+            FSPvec pos = mom.pos;
             this->mass = mass;
             this->pos = pos;
         }
@@ -1094,13 +1336,13 @@ namespace ParticleSimulator{
             mass = 0.0;
             pos = 0.0;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return mass;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F64vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
         MomentMonopoleScatter convertToMoment() const {
@@ -1110,29 +1352,27 @@ namespace ParticleSimulator{
             fout<<"mass="<<mass<<std::endl;
             fout<<"pos="<<pos<<std::endl;
         }
-        F32 mass;
-        F32vec pos;
     };
 
     class SPJQuadrupoleScatter{
     public:
-        F32 mass;
-        F32vec pos;
-        F32mat quad;
-        F32 getCharge() const {
+        FSP mass;
+        FSPvec pos;
+        FSPmat quad;
+        FSP getCharge() const {
             return mass;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F64vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
         template<class Tmom>
         void copyFromMoment(const Tmom & mom){
-            F32 mass = mom.mass;
-            F32vec pos = mom.pos;
-            F32mat quad = mom.quad;
+            FSP mass = mom.mass;
+            FSPvec pos = mom.pos;
+            FSPmat quad = mom.quad;
             this->mass = mass;
             this->pos = pos;
             this->quad = quad;
@@ -1149,12 +1389,13 @@ namespace ParticleSimulator{
 	    fout<<"mass="<<mass<<std::endl;
 	    fout<<"pos="<<pos<<std::endl;
 	}
-
     };
 
-        // for P^3T + PM
+    // for P^3T + PM
     class SPJMonopoleCutoffScatter{
     public:
+        FSP mass;
+        FSPvec pos;
         template<class Tmom>
         void copyFromMoment(const Tmom & mom){
             mass = mom.mass;
@@ -1164,35 +1405,32 @@ namespace ParticleSimulator{
             mass = 0.0;
             pos = 0.0;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return mass;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F64vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
         MomentMonopoleCutoffScatter convertToMoment() const {
             return MomentMonopoleCutoffScatter(mass, pos);
         }
-        F32 mass;
-        F32vec pos;
     };
-
 
     class SPJQuadrupole{
     public:
-        F32 mass;
-        F32vec pos;
-        F32mat quad;
-        F32 getCharge() const {
+        FSP mass;
+        FSPvec pos;
+        FSPmat quad;
+        FSP getCharge() const {
             return mass;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F32vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
         void copyFromMoment(const MomentQuadrupole & mom){
@@ -1212,9 +1450,9 @@ namespace ParticleSimulator{
 
     class SPJMonopoleGeometricCenter{
     public:
-        S32 n_ptcl;
-        F32 charge;
-        F32vec pos;
+        SSP n_ptcl;
+        FSP charge;
+        FSPvec pos;
         void copyFromMoment(const MomentMonopoleGeometricCenter & mom){
             n_ptcl = mom.n_ptcl;
             charge = mom.charge;
@@ -1225,13 +1463,13 @@ namespace ParticleSimulator{
             charge = 0.0;
             pos = 0.0;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return charge;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F32vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
         MomentMonopoleGeometricCenter convertToMoment() const {
@@ -1241,10 +1479,10 @@ namespace ParticleSimulator{
 
     class SPJDipoleGeometricCenter{
     public:
-        S32 n_ptcl;
-        F32 charge;
-        F32vec pos;
-        F32vec dipole;
+        SSP n_ptcl;
+        FSP charge;
+        FSPvec pos;
+        FSPvec dipole;
         void copyFromMoment(const MomentDipoleGeometricCenter & mom){
             n_ptcl = mom.n_ptcl;
             charge = mom.charge;
@@ -1257,13 +1495,13 @@ namespace ParticleSimulator{
             pos = 0.0;
             dipole = 0.0;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return charge;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F32vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
         MomentDipoleGeometricCenter convertToMoment() const {
@@ -1273,11 +1511,11 @@ namespace ParticleSimulator{
 
     class SPJQuadrupoleGeometricCenter{
     public:
-        S32 n_ptcl;
-        F32 charge;
-        F32vec pos;
-        F32vec dipole;
-        F32mat quadrupole;
+        SSP n_ptcl;
+        FSP charge;
+        FSPvec pos;
+        FSPvec dipole;
+        FSPmat quadrupole;
         void copyFromMoment(const MomentQuadrupoleGeometricCenter & mom){
             n_ptcl = mom.n_ptcl;
             charge = mom.charge;
@@ -1292,13 +1530,13 @@ namespace ParticleSimulator{
             dipole = 0.0;
             quadrupole = 0.0;
         }
-        F32 getCharge() const {
+        FSP getCharge() const {
             return charge;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F32vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
         MomentQuadrupoleGeometricCenter convertToMoment() const {
@@ -1308,6 +1546,9 @@ namespace ParticleSimulator{
 
     class SPJMonopoleCutoff{
     public:
+        FSP mass;
+        FSPvec pos;
+        //static FSP r_cutoff;
         void copyFromMoment(const MomentMonopoleCutoff & mom){
             mass = mom.mass;
             pos = mom.pos;
@@ -1316,17 +1557,17 @@ namespace ParticleSimulator{
             mass = 0.0;
             pos = 0.0;
         }        
-        F32 getCharge() const {
+        FSP getCharge() const {
             return mass;
         }
-        F32vec getPos() const {
+        FSPvec getPos() const {
             return pos;
         }
-        void setPos(const F64vec & pos_new) {
+        void setPos(const FSPvec & pos_new) {
             pos = pos_new;
         }
 	/*
-        MomentMonopoleCutoff convertToMoment(const F32vec & r_cutoff) const {
+        MomentMonopoleCutoff convertToMoment(const FSPvec & r_cutoff) const {
             //const F32ort v_out_dummy(0.0, 0.0);
 	    // don't forget to expand box in calc moment global tree
 	    const F32ort v_out_dummy(pos-r_cutoff, pos+r_cutoff); 
@@ -1338,9 +1579,6 @@ namespace ParticleSimulator{
             const F64ort v_out_dummy(0.0, 0.0);
             return MomentMonopoleCutoff(mass, pos, v_out_dummy);
         }
-        F32 mass;
-        F32vec pos;
-        //static F32 r_cutoff;
     };
     //F32 SPJMonopoleCutoff::r_cutoff;
     typedef SPJMonopoleCutoff SPJMonopolePeriodic;

@@ -13,7 +13,7 @@ module user_defined_types
       !$fdps copyFromFP full_particle (id,id) (mass,mass) (eps,eps) (pos,pos) 
       !$fdps clear id=keep, mass=keep, eps=keep, pos=keep, vel=keep
       integer(kind=c_long_long) :: id
-      real(kind=c_double) :: mass !$fdps charge
+      real(kind=c_double)  mass !$fdps charge
       real(kind=c_double) :: eps
       type(fdps_f64vec) :: pos !$fdps position
       type(fdps_f64vec) :: vel !$fdps velocity
@@ -37,12 +37,8 @@ module user_defined_types
       !* Compute force
       do i=1,n_ip
          eps2 = ep_i(i)%eps * ep_i(i)%eps
-         xi%x = ep_i(i)%pos%x
-         xi%y = ep_i(i)%pos%y
-         xi%z = ep_i(i)%pos%z
-         ai%x = 0.0d0
-         ai%y = 0.0d0
-         ai%z = 0.0d0
+         xi = ep_i(i)%pos
+         ai = 0.0d0
          poti = 0.0d0
          do j=1,n_jp
             rij%x  = xi%x - ep_j(j)%pos%x
@@ -60,11 +56,18 @@ module user_defined_types
             ai%y   = ai%y - r3_inv * rij%y
             ai%z   = ai%z - r3_inv * rij%z
             poti   = poti - r_inv
+            ! [IMPORTANT NOTE]
+            !   In the innermost loop, we use the components of vectors
+            !   directly for vector operations because of the following
+            !   reasion. Except for intel compilers with `-ipo` option,
+            !   most of Fortran compilers use function calls to perform
+            !   vector operations like rij = x - ep_j(j)%pos.
+            !   This significantly slow downs the speed of the code.
+            !   By using the components of vector directly, we can avoid 
+            !   these function calls.
          end do
-         f(i)%pot   = f(i)%pot   + poti
-         f(i)%acc%x = f(i)%acc%x + ai%x
-         f(i)%acc%y = f(i)%acc%y + ai%y
-         f(i)%acc%z = f(i)%acc%z + ai%z
+         f(i)%pot = f(i)%pot + poti
+         f(i)%acc = f(i)%acc + ai
       end do
 
    end subroutine calc_gravity_pp
@@ -82,12 +85,8 @@ module user_defined_types
 
       do i=1,n_ip
          eps2 = ep_i(i)%eps * ep_i(i)%eps
-         xi%x = ep_i(i)%pos%x
-         xi%y = ep_i(i)%pos%y
-         xi%z = ep_i(i)%pos%z
-         ai%x = 0.0d0
-         ai%y = 0.0d0
-         ai%z = 0.0d0
+         xi = ep_i(i)%pos
+         ai = 0.0d0
          poti = 0.0d0
          do j=1,n_jp
             rij%x  = xi%x - ep_j(j)%pos%x
@@ -106,10 +105,8 @@ module user_defined_types
             ai%z   = ai%z - r3_inv * rij%z
             poti   = poti - r_inv
          end do
-         f(i)%pot   = f(i)%pot   + poti
-         f(i)%acc%x = f(i)%acc%x + ai%x
-         f(i)%acc%y = f(i)%acc%y + ai%y
-         f(i)%acc%z = f(i)%acc%z + ai%z
+         f(i)%pot = f(i)%pot + poti
+         f(i)%acc = f(i)%acc + ai
       end do
 
    end subroutine calc_gravity_psp

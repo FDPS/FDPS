@@ -158,12 +158,8 @@ module user_defined_types
          !* Zero-clear
          v_sig_max = 0.0d0
          !* Extract i-particle info.
-         pos_i%x = ep_i(i)%pos%x
-         pos_i%y = ep_i(i)%pos%y
-         pos_i%z = ep_i(i)%pos%z
-         vel_i%x = ep_i(i)%vel%x
-         vel_i%y = ep_i(i)%vel%y
-         vel_i%z = ep_i(i)%vel%z
+         pos_i = ep_i(i)%pos
+         vel_i = ep_i(i)%vel
          mass_i  = ep_i(i)%mass
          smth_i  = ep_i(i)%smth
          dens_i  = ep_i(i)%dens
@@ -216,6 +212,15 @@ module user_defined_types
          end do
          f(i)%dt = C_CFL*2.0d0*smth_i/(v_sig_max*kernel_support_radius)
       end do
+      ! [IMPORTANT NOTE]
+      !   In the innermost loop, we use the components of vectors
+      !   directly for vector operations because of the following
+      !   reasion. Except for intel compilers with `-ipo` option,
+      !   most of Fortran compilers use function calls to perform
+      !   vector operations like rij = x - ep_j(j)%pos.
+      !   This significantly slow downs the speed of the code.
+      !   By using the components of vector directly, we can avoid 
+      !   these function calls.
 
    end subroutine calc_hydro_force
 

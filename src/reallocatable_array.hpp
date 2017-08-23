@@ -6,6 +6,8 @@ namespace  ParticleSimulator{
     template<class T>
         class ReallocatableArray{
     private:
+        ReallocatableArray(const ReallocatableArray &);
+        ReallocatableArray & operator = (const ReallocatableArray &);
         T * data_;
         int size_;
         int capacity_;
@@ -189,7 +191,7 @@ namespace  ParticleSimulator{
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
-                const int new_cap = n * 1.3 + 100;
+                const int new_cap = (n+(n+3)/3) + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
                     //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
@@ -233,8 +235,8 @@ namespace  ParticleSimulator{
 
         void clearSize() {size_ = 0;}
 
-        void increaseSize(){ resizeNoInitialize(size_+1); }
-        void decreaseSize(){ resizeNoInitialize(size_-1); } // no check
+        void increaseSize(const int n=1){ resizeNoInitialize(size_+n); }
+        void decreaseSize(const int n=1){ resizeNoInitialize(size_-n); } // no check
 
         void reserveAtLeast(const int n){
             if( n >= capacity_){
@@ -242,7 +244,7 @@ namespace  ParticleSimulator{
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
-                const int new_cap = n * 1.3 + 100;
+                const int new_cap = (n+(n+3)/3) + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
                     //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
@@ -270,7 +272,7 @@ namespace  ParticleSimulator{
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
-                const int new_cap = n * 1.3 + 100;
+                const int new_cap = (n+(n+3)/3) + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
                     //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
@@ -293,6 +295,8 @@ namespace  ParticleSimulator{
                 capacity_org_ = capacity_;
                 size_ = capacity_ = 0;
                 delete [] data_;
+                capacity_ = 100;
+                data_ = new T[capacity_];
             }
             else{
                 capacity_org_ = 0;

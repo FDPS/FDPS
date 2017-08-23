@@ -129,9 +129,9 @@ namespace ParticleSimulator{
 		MPI::COMM_WORLD.Abort(-1);
 #else
 		exit(-1);
-#endif		
+#endif	//PARTICLE_SIMULATOR_MPI_PARALLEL
 	    }
-#endif
+#endif //PARTICLE_SIMULATOR_VECTOR_RANGE_CHECK
             return (&x)[i];
         }
 
@@ -144,37 +144,39 @@ namespace ParticleSimulator{
 		MPI::COMM_WORLD.Abort(-1);
 #else
 		exit(-1);
-#endif		
+#endif //PARTICLE_SIMULATOR_MPI_PARALLEL		
 	    }
-#endif
+#endif //PARTICLE_SIMULATOR_VECTOR_RANGE_CHECK
             return (&x)[i];
         }
-#else
+#else // #if 0
         const T & operator[](const int i) const {
-	    //std::cerr<<"operator []"<<std::endl;
-	    if(0==i) return x;
-	    if(1==i) return y;
-	    if(2==i) return z;
-	    std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
-	    std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
-#  ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    MPI::COMM_WORLD.Abort(-1);
-#  endif		
-	    exit(-1);
-	}
+            if(0==i) return x;
+            if(1==i) return y;
+            if(2==i) return z;
+            std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
+            std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI::COMM_WORLD.Abort(-1);
+#endif //PARTICLE_SIMULATOR_MPI_PARALLEL
+            exit(-1);
+            return x; //dummy for avoid warning
+        }
+
         T & operator[](const int i){
-	    //std::cerr<<"operator []"<<std::endl;
-	    if(0==i) return x;
-	    if(1==i) return y;
-	    if(2==i) return z;
-	    std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
-	    std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
-#  ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    MPI::COMM_WORLD.Abort(-1);
-#  endif		
-	    exit(-1);
-	}
-#endif
+            //std::cerr<<"operator []"<<std::endl;
+            if(0==i) return x;
+            if(1==i) return y;
+            if(2==i) return z;
+            std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
+            std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI::COMM_WORLD.Abort(-1);
+#endif //PARTICLE_SIMULATOR_MPI_PARALLEL
+            exit(-1);
+            return x; //dummy for avoid warning
+        }
+#endif // #if 0
 
         T getDistanceSQ(const Vector3 & u) const {
             T dx = x - u.x;

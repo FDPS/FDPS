@@ -1,6 +1,8 @@
 ////////////////////////////////////////////////
 /// implementaion of methods of TreeForForce ///
 
+//#include"tree_walk.hpp"
+
 namespace ParticleSimulator{
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -210,6 +212,7 @@ namespace ParticleSimulator{
             std::cerr<<"SPJ: "<<typeid(Tspj).name()<<std::endl;
             Abort(-1);
         }
+        //comm_table_.initialize();
 
         is_initialized_ = true;
         n_glb_tot_ = n_glb_tot;
@@ -218,23 +221,13 @@ namespace ParticleSimulator{
         n_group_limit_ = n_group_limit;
         lev_max_ = 0;
         const S32 n_thread = Comm::getNumberOfThread();
-        //std::cerr<<"n_thread="<<n_thread<<std::endl;
         const S64 n_proc = Comm::getNumberOfProc();
-        //std::cerr<<"n_proc="<<n_proc<<std::endl;
         const S64 np_ave = (n_glb_tot_ / n_proc);
-        //std::cerr<<"np_ave="<<np_ave<<std::endl;
-
-        //n_interaction_ep_ep_local_ = n_interaction_ep_ep_global_ = n_interaction_ep_sp_local_ = n_interaction_ep_sp_global_ = n_walk_local_ = n_walk_global_ = 0;
         n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = n_walk_local_ = 0;
-
         n_interaction_ep_ep_ = n_interaction_ep_sp_ = 0;
         wtime_exlet_comm_ = wtime_exlet_a2a_ = wtime_exlet_a2av_ = 0.0;
         wtime_walk_LET_1st_ = wtime_walk_LET_2nd_ = 0.0;
-        //TexLET0_ = TexLET1_ = TexLET2_ = TexLET3_ = TexLET4_ = 0.0;
-        //n_ep_send_1st_ = n_ep_recv_1st_ = n_ep_send_2nd_ = n_ep_recv_2nd_ = 0;
-
         ni_ave_ = nj_ave_ = 0;
-
         Comm::barrier();
         if(Comm::getRank() == 0){
             std::cerr<<"np_ave="<<np_ave<<std::endl;
@@ -247,7 +240,8 @@ namespace ParticleSimulator{
         n_surface_for_comm_ = (6*np_one_dim*np_one_dim+8*np_one_dim)*6;
         //n_surface_for_comm_ = (6*np_one_dim*np_one_dim+8*np_one_dim)*2;
 #endif
-        epi_org_.reserve( np_ave*3 + 100 );
+        //epi_org_.reserve( np_ave*3 + 100 );
+        epi_org_.reserve( np_ave+(np_ave/3) + 100 );
         epi_sorted_.reserve( epi_org_.capacity() );
 
 
@@ -281,10 +275,13 @@ namespace ParticleSimulator{
             ParticleSimulator::Abort(-1);
         }
 
-        id_ep_send_buf_ = new ReallocatableArray<S32>[n_thread];
-        id_sp_send_buf_ = new ReallocatableArray<S32>[n_thread];
-        epj_for_force_ = new ReallocatableArray<Tepj>[n_thread];
-        spj_for_force_ = new ReallocatableArray<Tspj>[n_thread];
+        id_ep_send_buf_   = new ReallocatableArray<S32>[n_thread];
+        id_sp_send_buf_   = new ReallocatableArray<S32>[n_thread];
+        epj_for_force_    = new ReallocatableArray<Tepj>[n_thread];
+        spj_for_force_    = new ReallocatableArray<Tspj>[n_thread];
+        id_epj_for_force_ = new ReallocatableArray<S32>[n_thread];
+        id_spj_for_force_ = new ReallocatableArray<S32>[n_thread];
+
         id_proc_send_ = new S32*[n_thread];
         shift_image_domain_ = new ReallocatableArray<F64vec>[n_thread];
         id_ptcl_send_ = new ReallocatableArray<S32>[n_thread];
@@ -309,14 +306,15 @@ namespace ParticleSimulator{
 #endif	
         if( typeid(TSM) == typeid(SEARCH_MODE_LONG) || 
             typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) || 
-            typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER) ){
+            typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER) ||
+            typeid(TSM) == typeid(SEARCH_MODE_LONG_SYMMETRY)){
             if(theta_ > 0.0){
                 const S64 n_tmp = epi_org_.capacity() + (S64)2000 * pow((0.5 / theta_), DIMENSION);
                 const S64 n_new = std::min( std::min(n_tmp, n_glb_tot_+(S64)(100)), (S64)(20000) );
                 //epj_org_.reserve( n_new );
                 //epj_sorted_.reserve( n_new );
-		epj_org_.reserve( n_new + 10000);
-		epj_sorted_.reserve( n_new + 10000);
+                epj_org_.reserve( n_new + 10000);
+                epj_sorted_.reserve( n_new + 10000);
                 spj_org_.reserve( epj_org_.capacity() );
                 spj_sorted_.reserve( epj_sorted_.capacity() );
             }
@@ -359,7 +357,6 @@ namespace ParticleSimulator{
 	if(typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER)){
             for(S32 ith=0; ith<n_thread; ith++){
                 epj_neighbor_[ith].reserve(10);
-		//epj_neighbor_[ith].reserve(epj_org_.capacity() / n_thread * 2);
 	    }
         }
         Comm::barrier();
@@ -382,8 +379,10 @@ namespace ParticleSimulator{
         }
 #endif
         for(S32 i=0; i<n_thread; i++) id_proc_send_[i] = new S32[n_proc];
-        epj_send_.reserve(n_surface_for_comm_);
-        epj_recv_.reserve(n_surface_for_comm_);
+        //epj_send_.reserve(n_surface_for_comm_);
+        //epj_recv_.reserve(n_surface_for_comm_);
+        epj_send_.reserve(100);
+        epj_recv_.reserve(100);
 
         n_ep_send_ = new S32[n_proc];
         n_ep_recv_ = new S32[n_proc];
@@ -481,7 +480,7 @@ namespace ParticleSimulator{
         const F64 time_offset = GetWtime();
         const S32 nloc = psys.getNumberOfParticleLocal();
         if(clear){ n_loc_tot_ = 0;}
-	//        const S32 offset = 0;
+        //        const S32 offset = 0;
         const S32 offset = n_loc_tot_;
         n_loc_tot_ += nloc;
         epi_org_.resizeNoInitialize(n_loc_tot_);
@@ -549,12 +548,10 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     mortonSortLocalTreeOnly(){
         const F64 time_offset = GetWtime();
-
         tp_loc_.resizeNoInitialize(n_loc_tot_);
         tp_buf_.resizeNoInitialize(n_loc_tot_);
         epi_sorted_.resizeNoInitialize(n_loc_tot_);
         epj_sorted_.resizeNoInitialize(n_loc_tot_);
-
         MortonKey::initialize( length_ * 0.5, center_);
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
@@ -562,7 +559,6 @@ namespace ParticleSimulator{
         for(S32 i=0; i<n_loc_tot_; i++){
             tp_loc_[i].setFromEP(epj_org_[i], i);
         }
-	//std::cerr<<"start sort"<<std::endl;
 #ifdef USE_STD_SORT
 	std::sort(tp_loc_.getPointer(), tp_loc_.getPointer()+n_loc_tot_, 
 		  [](const TreeParticle & l, const TreeParticle & r )
@@ -571,7 +567,6 @@ namespace ParticleSimulator{
 #else
         rs_.lsdSort(tp_loc_.getPointer(), tp_buf_.getPointer(), 0, n_loc_tot_-1);
 #endif
-	//std::cerr<<"finish sort"<<std::endl;
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel for
 #endif	
@@ -596,7 +591,7 @@ namespace ParticleSimulator{
         const F64 time_offset = GetWtime();
         //std::cerr<<"start link"<<std::endl;
         LinkCell(tc_loc_,  adr_tc_level_partition_, tp_loc_.getPointer(), 
-		 lev_max_, n_loc_tot_, n_leaf_limit_);
+                 lev_max_, n_loc_tot_, n_leaf_limit_);
         //std::cerr<<"finish link"<<std::endl;
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -612,9 +607,7 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentLocalTreeOnly(){
         F64 time_offset = GetWtime();
-        //std::cerr<<"start calc moment"<<std::endl;
         calcMomentLocalTreeOnlyImpl(typename TSM::search_type());
-        //std::cerr<<"finish calc moment"<<std::endl;
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
 #endif
@@ -631,6 +624,14 @@ namespace ParticleSimulator{
         CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
                    epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
     }
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcMomentLocalTreeOnlyImpl(TagSearchLongSymmetry){
+        CalcMoment(adr_tc_level_partition_, tc_loc_.getPointer(),
+                   epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
+    }
+    
     // FOR P^3T
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -1010,11 +1011,7 @@ namespace ParticleSimulator{
     }
 
 
-
-
-
-
-
+    ///////////////
     // FOR P^3T
     // original version
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -1168,69 +1165,73 @@ namespace ParticleSimulator{
     }
 
 
-
-
-
-
-
-
-
-#if 0
-    // FOR P^3T + PM
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    exchangeLocalEssentialTreeImpl(TagSearchLongCutoffScatter, const DomainInfo & dinfo){
-        const F64 time_offset = GetWtime();
+    exchangeLocalEssentialTreeImpl(TagSearchLongSymmetry, const DomainInfo & dinfo){
+        F64 time_offset = GetWtime();
         const S32 n_proc = Comm::getNumberOfProc();
         const S32 my_rank = Comm::getRank();
+        static ReallocatableArray< std::pair<F64ort, F64ort> > tree_top_boundary_pos;
+        tree_top_boundary_pos.resizeNoInitialize(n_proc);
+        std::pair<F64ort, F64ort> boundary_pos;
+        boundary_pos.first  = tc_loc_[0].mom_.getVertexIn();
+        boundary_pos.second = tc_loc_[0].mom_.getVertexOut();
+        Comm::allGather(&boundary_pos, 1, tree_top_boundary_pos.getPointer());
+        tree_top_inner_pos_.resizeNoInitialize(n_proc);
+        tree_top_outer_pos_.resizeNoInitialize(n_proc);
+        for(S32 i=0; i<n_proc; i++){
+            tree_top_inner_pos_[i] = boundary_pos.first;
+            tree_top_outer_pos_[i] = boundary_pos.second;
+        }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
-#endif
+#endif	
         {
             const S32 ith = Comm::getThreadNum();
             S32 n_proc_cum = 0;
-            id_ep_send_buf_[ith].reserve(1000);
-            id_sp_send_buf_[ith].reserve(1000);
-            shift_image_domain_[ith].reserve(125);
             id_ep_send_buf_[ith].resizeNoInitialize(0);
             id_sp_send_buf_[ith].resizeNoInitialize(0);
-            shift_image_domain_[ith].resizeNoInitialize(0);
             const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
             const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
-            bool pa[DIMENSION];
-            dinfo.getPeriodicAxis(pa);
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for schedule(dynamic, 4)
 #endif
             for(S32 ib=0; ib<n_proc; ib++){
                 n_ep_send_[ib] = n_sp_send_[ib] = n_ep_recv_[ib] = n_sp_recv_[ib] = 0;
-                shift_image_domain_.clearSize();
-                if(dinfo.getBoundaryCondition() == BOUNDARY_CONDITION_OPEN){
-                    shift_image_domain_.push_back( F64vec(0.0) );
+                if(my_rank == ib) continue;
+                //const F64ort pos_target_domain = dinfo.getPosDomain(ib);
+                const F64ort pos_target_box_in = tree_top_inner_pos_[ib];
+                const F64ort pos_target_box_out = tree_top_outer_pos_[ib];
+                const S32 n_ep_cum = id_ep_send_buf_[ith].size();
+                const S32 n_sp_cum = id_sp_send_buf_[ith].size();
+                if(!tc_loc_[0].isLeaf(n_leaf_limit_)){
+                    SearchSendParticleLongSymmetry<TreeCell<Tmomloc>, Tepj>
+                        (tc_loc_,               adr_tc_tmp,    epj_sorted_,
+                         id_ep_send_buf_[ith],  id_sp_send_buf_[ith],
+                         pos_target_box_in,  pos_target_box_out,
+                         r_crit_sq,   n_leaf_limit_);
                 }
                 else{
-                    CalcNumberAndShiftOfImageDomain
-                        (shift_image_domain_, dinfo.getPosRootDomain().getFullLength(),
-                         outer_boundary_of_my_tree, dinfo.getPosDomain(i), periodic_axis);
-                }
-                S32 n_image = shift_image_domain.size();
-                for(S32 j = 0; j < n_image; j++) {
-                    if(my_rank == i && j == 0) continue;
-                    const F64ort pos_target_domain =dinfo.getPosDomain(i).shift(shift_image_domain[j]);
-                    const F64ort cell_box = pos_root_cell_;
-                    if( !tc_loc_[0].isLeaf(n_leaf_limit_) ){
-                        SearchSendParticleLongCutoffScatter();
+                    F64vec pos_tmp = tc_loc_[0].mom_.getPos();
+                    //if( (pos_target_domain.getDistanceMinSQ(pos_tmp) <= r_crit_sq * 4.0) ){
+                    if( (pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq * 4.0)
+                        || (pos_target_box_out.contained(pos_tmp)) ){
+                        const S32 n_tmp = tc_loc_[0].n_ptcl_;
+                        S32 adr_tmp = tc_loc_[0].adr_ptcl_;
+                        for(S32 ip=0; ip<n_tmp; ip++){
+                            id_ep_send_buf_[ith].push_back(adr_tmp++);
+                        }
                     }
-                    else{}
+                    else{
+                        id_sp_send_buf_[ith].push_back(0); // set root
+                    }
                 }
-                n_ep_send_[i] = epj_send_buf[ith].size() - n_epj_cum;
-                n_sp_send_[i] = spj_send_buf[ith].size() - n_spj_cum;
-                n_epj_cum = epj_send_buf[ith].size();
-                n_spj_cum = spj_send_buf[ith].size();
-                id_proc_send_[ith][n_proc_cum++] = i;
-            } // end of for loop
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+                n_ep_send_[ib] = id_ep_send_buf_[ith].size() - n_ep_cum;
+                n_sp_send_[ib] = id_sp_send_buf_[ith].size() - n_sp_cum;
+                id_proc_send_[ith][n_proc_cum++] = ib;
+            }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp single
 #endif
             {
@@ -1268,12 +1269,16 @@ namespace ParticleSimulator{
             n_ep_sp_send_[2*i] = n_ep_send_[i];
             n_ep_sp_send_[2*i+1] = n_sp_send_[i];
         }
+
+        F64 wtime_offset_tmp = GetWtime();
 #ifdef FAST_ALL_TO_ALL_FOR_K
         static CommForAllToAll<S32, 2> comm_a2a_2d;
         comm_a2a_2d.execute(n_ep_sp_send_, 2, n_ep_sp_recv_);
 #else
         Comm::allToAll(n_ep_sp_send_, 2, n_ep_sp_recv_); // TEST
 #endif //FAST_ALL_TO_ALL_FOR_K
+        time_profile_.exchange_LET_1st__a2a_n += GetWtime() - wtime_offset_tmp;
+
         for(S32 i=0; i<n_proc; i++){
             n_ep_recv_[i] = n_ep_sp_recv_[2*i];
             n_sp_recv_[i] = n_ep_sp_recv_[2*i+1];
@@ -1285,18 +1290,32 @@ namespace ParticleSimulator{
         }
         epj_recv_.resizeNoInitialize( n_ep_recv_disp_[n_proc] );
         spj_recv_.resizeNoInitialize( n_sp_recv_disp_[n_proc] );
+
+
 #ifdef FAST_ALL_TO_ALL_FOR_K
         static CommForAllToAll<Tepj, 2> comm_a2a_epj_2d;
         static CommForAllToAll<Tspj, 2> comm_a2a_spj_2d;
+
+        wtime_offset_tmp = GetWtime();
         comm_a2a_epj_2d.executeV(epj_send_, epj_recv_, n_ep_send_, n_ep_recv_);
+        time_profile_.exchange_LET_1st__a2a_ep += GetWtime() - wtime_offset_tmp;
+
+        wtime_offset_tmp = GetWtime();
         comm_a2a_spj_2d.executeV(spj_send_, spj_recv_, n_sp_send_, n_sp_recv_);
+        time_profile_.exchange_LET_1st__a2a_sp += GetWtime() - wtime_offset_tmp;
 #else
+        wtime_offset_tmp = GetWtime();
         Comm::allToAllV(epj_send_.getPointer(), n_ep_send_, n_ep_send_disp_,
                         epj_recv_.getPointer(), n_ep_recv_, n_ep_recv_disp_);
+        time_profile_.exchange_LET_1st__a2a_ep += GetWtime() - wtime_offset_tmp;
+
+        wtime_offset_tmp = GetWtime();
         Comm::allToAllV(spj_send_.getPointer(), n_sp_send_, n_sp_send_disp_,
                         spj_recv_.getPointer(), n_sp_recv_, n_sp_recv_disp_);
+        time_profile_.exchange_LET_1st__a2a_sp += GetWtime() - wtime_offset_tmp;
 #endif //FAST_ALL_TO_ALL_FOR_K
         time_profile_.exchange_LET_1st += GetWtime() - time_offset;
+
 
         n_let_ep_send_1st_ += (CountT)epj_send_.size();
         n_let_ep_recv_1st_ += (CountT)epj_recv_.size();
@@ -1304,7 +1323,160 @@ namespace ParticleSimulator{
         n_let_sp_recv_1st_ += (CountT)spj_recv_.size();
         //time_profile_.exchange_LET_tot += time_profile_.make_LET_1st + time_profile_.exchange_LET_1st;
     }
+
+
+    
+
+
+#if 0
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    exchangeLocalEssentialTreeImpl(TagSearchLongSymmetry, const DomainInfo & dinfo){
+        F64 wtime_offset = GetWtime();
+        const S32 n_proc = Comm::getNumberOfProc();
+        const S32 my_rank = Comm::getRank();
+        static ReallocatableArray< std::pair<F64ort, F64ort> > tree_top_boundary_pos;
+        tree_top_boundary_pos.resizeNoInitialize(n_proc);
+        std::pair<F64ort, F64ort> boundary_pos;
+        boundary_pos.first  = tc_loc_[0].mom_.getVertexIn();
+        boundary_pos.second = tc_loc_[0].mom_.getVertexOut();
+        Comm::allGather(&boundary_pos, 1, tree_top_boundary_pos.getPointer());
+        tree_top_inner_pos_.resizeNoInitialize(n_proc);
+        tree_top_outer_pos_.resizeNoInitialize(n_proc);
+        for(S32 i=0; i<n_proc; i++){
+            tree_top_inner_pos_[i] = boundary_pos.first;
+            tree_top_outer_pos_[i] = boundary_pos.second;
+        }
+        
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel
+#endif	
+        {
+            const S32 ith = Comm::getThreadNum();
+            S32 n_proc_cum = 0;
+            id_ep_send_buf_[ith].resizeNoInitialize(0);
+            id_sp_send_buf_[ith].resizeNoInitialize(0);
+            ReallocatableArray<Tepj> ep_list_dummy;
+            ReallocatableArray<Tspj> sp_list_dummy, sp_list_dummy2;
+            S32 n_ep_cum = 0;
+            S32 n_sp_cum = 0;
+            const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
+            //const S32 adr_tc_tmp = tc_loc_[0].adr_tc_;
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#pragma omp for schedule(dynamic, 4)
 #endif
+            for(S32 ib=0; ib<n_proc; ib++){
+                n_ep_send_[ib] = n_sp_send_[ib] = n_ep_recv_[ib] = n_sp_recv_[ib] = 0;
+                if(my_rank == ib) continue;
+                MakeListUsingTreeRecursiveTop<TSM, MAKE_LIST_MODE_LET, LIST_CONTENT_ID, TreeCell<Tmomloc>, TreeParticle, Tepj, Tspj>
+                    (tc_loc_, 0, tp_loc_, epj_sorted_, ep_list_dummy,  id_ep_send_buf_[ith], sp_list_dummy, sp_list_dummy2,
+                     id_sp_send_buf_[ith], tree_top_inner_pos_[ib], tree_top_outer_pos_[ib], r_crit_sq, n_leaf_limit_);
+                n_ep_send_[ib] = id_ep_send_buf_[ith].size() - n_ep_cum;
+                n_sp_send_[ib] = id_sp_send_buf_[ith].size() - n_sp_cum;
+                n_ep_cum = id_ep_send_buf_[ith].size();
+                n_sp_cum = id_sp_send_buf_[ith].size();
+            }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#pragma omp single
+#endif
+            {
+                n_ep_send_disp_[0] = n_sp_send_disp_[0] = 0;
+                for(S32 ib=0; ib<n_proc; ib++){
+                    n_ep_send_disp_[ib+1] = n_ep_send_disp_[ib] + n_ep_send_[ib];
+                    n_sp_send_disp_[ib+1] = n_sp_send_disp_[ib] + n_sp_send_[ib];
+                }
+                epj_send_.resizeNoInitialize( n_ep_send_disp_[n_proc] );
+                spj_send_.resizeNoInitialize( n_sp_send_disp_[n_proc] );                
+            }
+            S32 n_ep_cnt = 0;
+            S32 n_sp_cnt = 0;
+            for(S32 ib=0; ib<n_proc_cum; ib++){
+                const S32 id = id_proc_send_[ith][ib];
+                S32 adr_ep_tmp = n_ep_send_disp_[id];
+                const S32 n_ep_tmp = n_ep_send_[id];
+                for(int ip=0; ip<n_ep_tmp; ip++){
+                    const S32 id_ep = id_ep_send_buf_[ith][n_ep_cnt++];
+                    epj_send_[adr_ep_tmp++] = epj_sorted_[id_ep];
+                }
+                S32 adr_sp_tmp = n_sp_send_disp_[id];
+                const S32 n_sp_tmp = n_sp_send_[id];
+                for(int ip=0; ip<n_sp_tmp; ip++){
+                    const S32 id_sp = id_sp_send_buf_[ith][n_sp_cnt++];
+                    spj_send_[adr_sp_tmp++].copyFromMoment(tc_loc_[id_sp].mom_);
+                }
+            }
+        } // omp parallel scope
+
+        time_profile_.make_LET_1st += GetWtime() - wtime_offset;
+        wtime_offset = GetWtime();
+
+        for(S32 i=0; i<n_proc; i++){
+            n_ep_sp_send_[2*i] = n_ep_send_[i];
+            n_ep_sp_send_[2*i+1] = n_sp_send_[i];
+        }
+
+        F64 wtime_offset_tmp = GetWtime();
+#ifdef FAST_ALL_TO_ALL_FOR_K
+        static CommForAllToAll<S32, 2> comm_a2a_2d;
+        comm_a2a_2d.execute(n_ep_sp_send_, 2, n_ep_sp_recv_);
+#else
+        Comm::allToAll(n_ep_sp_send_, 2, n_ep_sp_recv_); // TEST
+#endif //FAST_ALL_TO_ALL_FOR_K
+        time_profile_.exchange_LET_1st__a2a_n += GetWtime() - wtime_offset_tmp;
+
+        for(S32 i=0; i<n_proc; i++){
+            n_ep_recv_[i] = n_ep_sp_recv_[2*i];
+            n_sp_recv_[i] = n_ep_sp_recv_[2*i+1];
+        }
+        n_ep_recv_disp_[0] = n_sp_recv_disp_[0] = 0;
+        for(S32 i=0; i<n_proc; i++){
+            n_ep_recv_disp_[i+1] = n_ep_recv_disp_[i] + n_ep_recv_[i];
+            n_sp_recv_disp_[i+1] = n_sp_recv_disp_[i] + n_sp_recv_[i];
+        }
+        epj_recv_.resizeNoInitialize( n_ep_recv_disp_[n_proc] );
+        spj_recv_.resizeNoInitialize( n_sp_recv_disp_[n_proc] );
+
+
+#ifdef FAST_ALL_TO_ALL_FOR_K
+        static CommForAllToAll<Tepj, 2> comm_a2a_epj_2d;
+        static CommForAllToAll<Tspj, 2> comm_a2a_spj_2d;
+
+        wtime_offset_tmp = GetWtime();
+        comm_a2a_epj_2d.executeV(epj_send_, epj_recv_, n_ep_send_, n_ep_recv_);
+        time_profile_.exchange_LET_1st__a2a_ep += GetWtime() - wtime_offset_tmp;
+
+        wtime_offset_tmp = GetWtime();
+        comm_a2a_spj_2d.executeV(spj_send_, spj_recv_, n_sp_send_, n_sp_recv_);
+        time_profile_.exchange_LET_1st__a2a_sp += GetWtime() - wtime_offset_tmp;
+#else
+        wtime_offset_tmp = GetWtime();
+        Comm::allToAllV(epj_send_.getPointer(), n_ep_send_, n_ep_send_disp_,
+                        epj_recv_.getPointer(), n_ep_recv_, n_ep_recv_disp_);
+        time_profile_.exchange_LET_1st__a2a_ep += GetWtime() - wtime_offset_tmp;
+
+        wtime_offset_tmp = GetWtime();
+        Comm::allToAllV(spj_send_.getPointer(), n_sp_send_, n_sp_send_disp_,
+                        spj_recv_.getPointer(), n_sp_recv_, n_sp_recv_disp_);
+        time_profile_.exchange_LET_1st__a2a_sp += GetWtime() - wtime_offset_tmp;
+#endif //FAST_ALL_TO_ALL_FOR_K
+        time_profile_.exchange_LET_1st += GetWtime() - wtime_offset;
+        n_let_ep_send_1st_ += (CountT)epj_send_.size();
+        n_let_ep_recv_1st_ += (CountT)epj_recv_.size();
+        n_let_sp_send_1st_ += (CountT)spj_send_.size();
+        n_let_sp_recv_1st_ += (CountT)spj_recv_.size();
+        time_profile_.exchange_LET_tot += GetWtime() - wtime_offset;
+    }
+#endif
+    
+
+
+
+
+
+
+
+
 
 
 
@@ -2503,8 +2675,6 @@ namespace ParticleSimulator{
         S32 n_proc_src_1st = 0;
         S32 n_proc_dest_1st = 0;
 
-        //TexLET0_ = GetWtime();
-
         ////////////
         // 1st STEP (send j particles)
         // SYMMETRY 
@@ -2516,8 +2686,6 @@ namespace ParticleSimulator{
                   epj_sorted_, dinfo);
         assert(epj_recv_1st_buf.size() == n_ep_recv_disp_1st[n_proc]);
 
-        //TexLET0_ = GetWtime() - TexLET0_;
-
         n_let_ep_send_1st_ += (CountT)epj_send_.size();
         n_let_ep_recv_1st_ += (CountT)epj_recv_1st_buf.size();
 
@@ -2525,8 +2693,6 @@ namespace ParticleSimulator{
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"epj_recv_1st_buf.size()="<<epj_recv_1st_buf.size()<<" epj_send_size()="<<epj_send_.size()<<std::endl;
 #endif
-
-        //TexLET1_ = GetWtime();
 
         ////////////
         // 2nd step (send j particles)
@@ -2982,9 +3148,7 @@ namespace ParticleSimulator{
 #else
         rs_.lsdSort(tp_glb_.getPointer(), tp_buf_.getPointer(), 0, n_glb_tot_-1);
 #endif
-
         epj_sorted_.resizeNoInitialize( n_glb_tot_ );
-
         if( typeid(TSM) == typeid(SEARCH_MODE_LONG)
             || typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) 
             || typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER) 
@@ -2999,9 +3163,6 @@ namespace ParticleSimulator{
                     epj_sorted_[i] = epj_org_[adr];
                 }
                 else{
-#ifdef DEBUG_1031
-                    epj_sorted_[i] = epj_org_[adr];
-#endif
                     spj_sorted_[i] = spj_org_[ClearMSB(adr)];
                 }
             }
@@ -3015,7 +3176,6 @@ namespace ParticleSimulator{
                 epj_sorted_[i] = epj_org_[adr];
             }
         }
-
 
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -3092,6 +3252,17 @@ namespace ParticleSimulator{
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcMomentGlobalTreeOnlyImpl(TagSearchLongSymmetry){
+        CalcMomentLongGlobalTree
+            (adr_tc_level_partition_,  tc_glb_.getPointer(),
+             tp_glb_.getPointer(),     epj_sorted_.getPointer(),
+             spj_sorted_.getPointer(), lev_max_,
+             n_leaf_limit_);
+    }    
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentGlobalTreeOnlyImpl(TagSearchLongCutoff){
         CalcMomentLongGlobalTree
             (adr_tc_level_partition_,  tc_glb_.getPointer(),
@@ -3109,7 +3280,7 @@ namespace ParticleSimulator{
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentGlobalTreeOnlyImpl(TagSearchShortGather){
         CalcMoment(adr_tc_level_partition_, tc_glb_.getPointer(),
@@ -3117,12 +3288,40 @@ namespace ParticleSimulator{
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     calcMomentGlobalTreeOnlyImpl(TagSearchShortSymmetry){
         CalcMoment(adr_tc_level_partition_, tc_glb_.getPointer(),
                    epj_sorted_.getPointer(), lev_max_, n_leaf_limit_);
     }
+
+    /////////////////////////////
+    // new for multiwalk (send index)
+    /////////////////////////
+    /// add moment as spj ///
+    /*
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    addMomentAsSp(){
+        addMomentAsSp(typename TSM::force_type());
+    }
+    */
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    addMomentAsSpImpl(TagForceLong){
+        S32 n_spj_prev = spj_sorted_.size();
+        spj_sorted_.resizeNoInitialize(spj_sorted_.size()+tc_glb_.size());
+        for(S32 i=0; i<tc_glb_.size(); i++){
+            spj_sorted_[n_spj_prev+i].copyFromMoment(tc_glb_[i].mom_);
+        }
+    }
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    addMomentAsSpImpl(TagForceShort){ /* do nothing */ }
+
 
     ////////////////////
     /// MAKE IPGROUP ///
@@ -3140,6 +3339,7 @@ namespace ParticleSimulator{
         time_profile_.calc_force += GetWtime() - time_offset;
         time_profile_.calc_force__make_ipgroup += GetWtime() - time_offset;
     }
+
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -3168,8 +3368,8 @@ namespace ParticleSimulator{
 	    ipg_[i].vertex_ = GetMinBoxSingleThread(epi_sorted_.getPointer(adr), n);
 	}
 #endif //PARTICLE_SIMULATOR_GLB_TREE_CELL_AS_IPG_BOX
-
     }
+    
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -3178,30 +3378,26 @@ namespace ParticleSimulator{
     }
 
 #if 0
-    ///////////////////////////////////////////
-    /// MAKE INTERACTION LIST for MULTI WALK///
+    //under construction
+    /////////////////////////////
+    /// MAKE INTERACTION LIST ///
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionListMultiWalk(const S32 adr_ipg){
-        makeInteractionListMultWalkImpl(typename TSM::search_type(), adr_ipg);
-    }
-
-    template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    makeInteractionListMultiWalkImpl(TagSearchLong, const S32 adr_ipg){
+    makeInteractionListIndexImpl(TagSearchLong, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
         const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
-        epj_for_force_[ith].clearSize();
-        spj_for_force_[ith].clearSize();
+        if(clear){
+            id_epj_for_force_[ith].clearSize();
+            id_spj_for_force_[ith].clearSize();
+        }
         const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
         if( !tc_glb_[0].isLeaf(n_leaf_limit_) ){
-            MakeInteractionListLongEPSP
+            MakeInteractionListLongEPSPIndex
                 (tc_glb_, tc_glb_[0].adr_tc_, 
-                 tp_glb_, epj_sorted_, 
-                 epj_for_force_[ith],
-                 spj_sorted_, spj_for_force_[ith],
+                 tp_glb_, 
+                 epj_sorted_, id_epj_for_force_[ith],
+                 spj_sorted_, id_spj_for_force_[ith],
                  pos_target_box, r_crit_sq, n_leaf_limit_);
         }
         else{
@@ -3209,14 +3405,14 @@ namespace ParticleSimulator{
             if( pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq*4.0 ){
                 const S32 n_tmp = tc_glb_[0].n_ptcl_;
                 S32 adr_ptcl_tmp = tc_glb_[0].adr_ptcl_;
-                epj_for_force_[ith].reserveEmptyAreaAtLeast( n_tmp );
-                spj_for_force_[ith].reserveEmptyAreaAtLeast( n_tmp );
+                id_epj_for_force_[ith].reserveEmptyAreaAtLeast( n_tmp );
+                id_spj_for_force_[ith].reserveEmptyAreaAtLeast( n_tmp );
                 for(S32 ip=0; ip<n_tmp; ip++){
                     if( GetMSB(tp_glb_[adr_ptcl_tmp].adr_ptcl_) == 0){
-                        epj_for_force_[ith].pushBackNoCheck(epj_sorted_[adr_ptcl_tmp++]);
+                        id_epj_for_force_[ith].pushBackNoCheck(adr_ptcl_tmp++);
                     }
                     else{
-                        spj_for_force_[ith].pushBackNoCheck(spj_sorted_[adr_ptcl_tmp++]);
+                        id_spj_for_force_[ith].pushBackNoCheck(adr_ptcl_tmp++);
                     }
                 }
             }
@@ -3224,8 +3420,8 @@ namespace ParticleSimulator{
     }
 #endif
 
-    /////////////////////////////
-    /// MAKE INTERACTION LIST ///
+
+
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -3283,6 +3479,8 @@ namespace ParticleSimulator{
 #endif
     }
 
+
+
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -3330,7 +3528,6 @@ namespace ParticleSimulator{
     }
 
 
-#if 1
     // FOR P^3T
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -3338,11 +3535,7 @@ namespace ParticleSimulator{
     makeInteractionListImpl(TagSearchLongScatter, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
         const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
-#ifdef PARTICLE_SIMULATOR_INTERACTION_LIST_ALL
-        const F64 r_crit_sq = 1e10;
-#else //PARTICLE_SIMULATOR_INTERACTION_LIST_ALL
         const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
-#endif //PARTICLE_SIMULATOR_INTERACTION_LIST_ALL
 	if(clear){	
 	    epj_for_force_[ith].clearSize();
 	    spj_for_force_[ith].clearSize();
@@ -3371,7 +3564,72 @@ namespace ParticleSimulator{
                     }
                 }
             }
+            else{
+                spj_for_force_[ith].increaseSize();
+                spj_for_force_[ith].back().copyFromMoment(tc_glb_[0].mom_);
+            }
         }
+    }
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    makeInteractionListImpl(TagSearchLongSymmetry, const S32 adr_ipg, const bool clear){
+        const S32 ith = Comm::getThreadNum();
+        const F64ort pos_target_box_in = ipg_[adr_ipg].vertex_;
+        const F64ort pos_target_box_out = ipg_[adr_ipg].vertex_out_;
+        const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_) * 0.25;
+	if(clear){	
+	    epj_for_force_[ith].clearSize();
+	    spj_for_force_[ith].clearSize();
+	}
+        if( !tc_glb_[0].isLeaf(n_leaf_limit_) ){
+            MakeInteractionListLongSymmetryEPSP
+                (tc_glb_, tc_glb_[0].adr_tc_, 
+                 tp_glb_, epj_sorted_, 
+                 epj_for_force_[ith],
+                 spj_sorted_, spj_for_force_[ith],
+                 pos_target_box_in, pos_target_box_out, r_crit_sq, n_leaf_limit_);
+        }
+        else{
+            const F64vec pos_tmp = tc_glb_[0].mom_.getPos();
+            if( pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq*4.0 ){
+                const S32 n_tmp = tc_glb_[0].n_ptcl_;
+                S32 adr_ptcl_tmp = tc_glb_[0].adr_ptcl_;
+                epj_for_force_[ith].reserveEmptyAreaAtLeast( n_tmp );
+                spj_for_force_[ith].reserveEmptyAreaAtLeast( n_tmp );
+                for(S32 ip=0; ip<n_tmp; ip++){
+                    if( GetMSB(tp_glb_[adr_ptcl_tmp].adr_ptcl_) == 0){
+                        epj_for_force_[ith].pushBackNoCheck(epj_sorted_[adr_ptcl_tmp++]);
+                    }
+                    else{
+                        spj_for_force_[ith].pushBackNoCheck(spj_sorted_[adr_ptcl_tmp++]);
+                    }
+                }
+            }
+            else{
+                spj_for_force_[ith].increaseSize();
+                spj_for_force_[ith].back().copyFromMoment(tc_glb_[0].mom_);
+            }
+        }
+    }    
+
+#if 0    
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    makeInteractionListImpl(TagSearchLongSymmetry, const S32 adr_ipg, const bool clear){
+        const S32 ith = Comm::getThreadNum();
+        const F64ort pos_target_box = (ipg_[adr_ipg]).vertex_;
+        const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
+	if(clear){	
+	    epj_for_force_[ith].clearSize();
+	    spj_for_force_[ith].clearSize();
+	}
+        ReallocatableArray<Tspj> sp_list_dummy, sp_list_dummy2;
+        MakeListUsingTreeRecursiveTop<TSM, MAKE_LIST_MODE_INTERACTION, LIST_CONTENT_ID, TreeCell<Tmomloc>, TreeParticle, Tepj, Tspj>
+            (tc_glb_, 0, tp_glb_, epj_sorted_, epj_for_force_[ith],  id_ep_send_buf_[ith], spj_sorted_, spj_for_force_[ith],
+             id_sp_send_buf_[ith], tree_top_inner_pos_[ib], tree_top_outer_pos_[ib], r_crit_sq, n_leaf_limit_);        
     }
 #endif
 
@@ -3824,8 +4082,379 @@ namespace ParticleSimulator{
         time_profile_.calc_force += GetWtime() - time_offset;
     }
 
+    /*
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tfunc_ep_ep, class Tfunc_ep_sp>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcForceReuseList(Tfunc_ep_ep pfunc_ep_ep,
+                       Tfunc_ep_sp pfunc_ep_sp,
+                       const bool clear){
+        const S32 n_ipg = ipg_.size();
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for schedule(dynamic, 4) 
+#endif
+        for(S32 ig=0; ig<n_ipg; ig++){
+            S32 ith = id_recorder_for_interaction[ig].ith_;
+            S32 n_epj = id_recorder_for_interaction[ig].n_epj_;
+            S32 adr_epj = id_recorder_for_interaction[ig].adr_epj_;
+            for(S32 ip=0; ip<n_epj; ip++){
+                epj_for_force_[ith][ip] = epj_sorted_[id_epj_recorder_for_force_[ith][adr_epj+ip]];
+            }
+            S32 n_spj = id_recorder_for_interaction[ig].n_spj_;
+            S32 adr_spj = id_recorder_for_interaction[ig].adr_spj_;
+            for(S32 ip=0; ip<n_spj; ip++){
+                spj_for_force_[ith][ip] = spj_sorted_[id_spj_recorder_for_force_[ith][adr_spj+ip]];
+            }
+            calcForceOnly( pfunc_ep_ep, pfunc_ep_sp, ig, clear);
+        }
+        copyForceOriginalOrder();
+    }
+    */
+
+
+
+
+
+
+
+
+
+
     //////////////
     /// for multi walk
+#if 0
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tfunc_dispatch, class Tfunc_retrieve>
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcForceMultiWalkIndex(Tfunc_dispatch pfunc_dispatch,
+                            Tfunc_retrieve pfunc_retrieve,
+                            const S32 tag_max,
+                            const S32 n_walk_limit,
+                            const bool clear){
+        if(tag_max <= 0){
+            PARTICLE_SIMULATOR_PRINT_ERROR("tag_max is illegal. In currente version, tag_max must be 1");
+            Abort(-1);
+        }
+        S32 ret = 0;
+        const F64 time_offset = GetWtime();
+        ret = calcForceMultiWalkIndexImpl(typename TSM::force_type(),
+                                          pfunc_dispatch,
+                                          pfunc_retrieve,
+                                          tag_max,
+                                          n_walk_limit,
+                                          clear);
+        time_profile_.calc_force += GetWtime() - time_offset;
+        return ret;
+    }
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tfunc_dispatch, class Tfunc_retrieve>
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcForceMultiWalkIndexImpl(TagForceLong,
+                                Tfunc_dispatch pfunc_dispatch,
+                                Tfunc_retrieve pfunc_retrieve,
+                                const S32 tag_max,
+                                const S32 n_walk_limit,
+                                const bool clear){
+        const F64 offset_core = GetWtime();
+        static bool first = true;
+        S32 ret = 0;
+        S32 tag = 0;
+        const S32 n_thread = Comm::getNumberOfThread();
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
+        const S32 n_ipg = ipg_.size();
+        n_walk_local_ += n_ipg;
+        const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg%n_walk_limit==0 ? 0 : 1);
+        static std::vector<S32> walk_grp;
+        static std::vector<S32> walk_grp_disp;
+        walk_grp.resize(n_loop_max); // group of walk (walk_grp[i] < n_walk_limit)
+        walk_grp_disp.resize(n_loop_max+1);
+        static S32  * iw2ith;
+        static S32  * iw2cnt;
+        static S32  * n_epi_array;
+        static S32  * n_epi_array_prev;
+        static S32  * n_epj_array;
+        static S32  * n_spj_array;
+        static S32  ** n_epj_disp_thread; // [n_thread][n_walk]
+        static S32  ** n_spj_disp_thread;// [n_thread][n_walk]
+        static Tepi ** epi_array; // array of pointer *[n_walk]
+        static S32  ** id_epj_array; // array of pointer *[n_walk]
+        static S32  ** id_spj_array; // array of pointer *[n_walk]
+        static Tforce ** force_array; // array of pointer *[n_walk]
+        static Tforce ** force_prev_array; // array of pointer *[n_walk]
+        static S32  * cnt_thread;
+        static S32  * n_ep_cum_thread;
+        static S32  * n_sp_cum_thread;
+        static S64 * n_interaction_ep_ep_array;
+        static S64 * n_interaction_ep_sp_array;
+        if(first){
+            iw2ith = new S32[n_walk_limit];
+            iw2cnt = new S32[n_walk_limit];
+            n_epi_array = new S32[n_walk_limit];
+            n_epi_array_prev = new S32[n_walk_limit];
+            n_epj_array = new S32[n_walk_limit];
+            n_spj_array = new S32[n_walk_limit];
+            n_epj_disp_thread = new S32*[n_thread];
+            n_spj_disp_thread = new S32*[n_thread];
+            epi_array        = new Tepi*[n_walk_limit];
+            id_epj_array        = new S32*[n_walk_limit];
+            id_spj_array        = new S32*[n_walk_limit];
+            force_array      = new Tforce*[n_walk_limit];
+            force_prev_array = new Tforce*[n_walk_limit];
+            for(int i=0; i<n_thread; i++){
+                n_epj_disp_thread[i] = new S32[n_walk_limit];
+                n_spj_disp_thread[i] = new S32[n_walk_limit];
+            }
+            cnt_thread = new S32[n_thread];
+            n_ep_cum_thread = new S32[n_thread];
+            n_sp_cum_thread = new S32[n_thread];
+            n_interaction_ep_ep_array = new S64[n_thread];
+            n_interaction_ep_sp_array = new S64[n_thread];
+            first = false;
+        }
+        walk_grp_disp[0] = 0;
+        for(int wg=0; wg<n_ipg%n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max + 1;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int wg=n_ipg%n_loop_max; wg<n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int i=0; i<n_thread; i++){
+            n_interaction_ep_ep_array[i] = n_interaction_ep_sp_array[i] = 0;
+        }
+        bool first_loop = true;
+        S32 n_walk_prev = 0;
+        if(n_ipg > 0){
+            n_epj_array[0] = epj_sorted_.size();
+            n_spj_array[0] = spj_sorted_.size();
+            S32 tmp = pfunc_dispatch(tag, -1, 
+                                     (const Tepi **)epi_array, n_epi_array, 
+                                     (const Tepj **)epj_sorted_.getPointer(), (const S32**)id_epj_array, n_epj_array, 
+                                     (const Tspj **)spj_sorted_.getPointer(), (const S32**)id_spj_array, n_spj_array);
+            for(int wg=0; wg<n_loop_max; wg++){
+                const S32 n_walk = walk_grp[wg];
+                const S32 walk_grp_head = walk_grp_disp[wg];
+                for(int i=0; i<n_thread; i++){
+                    n_ep_cum_thread[i] = n_sp_cum_thread[i] = cnt_thread[i] = 0;
+                    n_epj_disp_thread[i][0] = 0;
+                    n_spj_disp_thread[i][0] = 0;
+                    epj_for_force_[i].clearSize();
+                    spj_for_force_[i].clearSize();
+                }
+                const F64 offset_calc_force__core__walk_tree = GetWtime();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for schedule(dynamic, 4) 
+#endif
+                for(int iw=0; iw<n_walk; iw++){
+                    const S32 id_ipg = walk_grp_head + iw;
+                    const S32 first_adr_ip = ipg_[id_ipg].adr_ptcl_; 
+                    const S32 ith = Comm::getThreadNum();
+                    n_epi_array[iw] = ipg_[id_ipg].n_ptcl_;
+                    epi_array[iw]   = epi_sorted_.getPointer(first_adr_ip);
+                    force_array[iw] = force_sorted_.getPointer(first_adr_ip);
+                    makeInteractionListIndexImpl(typename TSM::search_type(), id_ipg, false);
+                    n_epj_array[iw] = epj_for_force_[ith].size() - n_ep_cum_thread[ith];
+                    n_spj_array[iw] = spj_for_force_[ith].size() - n_sp_cum_thread[ith];
+                    n_ep_cum_thread[ith] = epj_for_force_[ith].size();
+                    n_sp_cum_thread[ith] = spj_for_force_[ith].size();
+                    n_epj_disp_thread[ith][cnt_thread[ith]+1] = n_ep_cum_thread[ith];
+                    n_spj_disp_thread[ith][cnt_thread[ith]+1] = n_sp_cum_thread[ith];
+                    n_interaction_ep_ep_array[ith] += ((S64)n_epj_array[iw]*(S64)n_epi_array[iw]);
+                    n_interaction_ep_sp_array[ith] += ((S64)n_spj_array[iw]*(S64)n_epi_array[iw]);
+                    iw2ith[iw] = ith;
+                    iw2cnt[iw] = cnt_thread[ith];
+                    cnt_thread[ith]++;
+                }
+                time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+                } // retrieve
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    S32 n_sp_head = n_spj_disp_thread[ith][cnt];
+                    id_epj_array[iw] = id_epj_for_force_[ith].getPointer(n_ep_head);
+                    id_spj_array[iw] = id_spj_for_force_[ith].getPointer(n_sp_head);
+                }
+                Tepj ** epj_array_tmp;
+                Tspj ** spj_array_tmp;
+                ret += pfunc_dispatch(tag, n_walk,   (const Tepi**)epi_array, n_epi_array, 
+                                      (const Tepj **)epj_array_tmp, (const S32**)id_epj_array, n_epj_array, 
+                                      (const Tspj **)spj_array_tmp, (const S32**)id_spj_array, n_spj_array);
+                first_loop = false;
+
+                for(int iw=0; iw<n_walk; iw++){
+                    n_epi_array_prev[iw] = n_epi_array[iw];
+                    force_prev_array[iw] = force_array[iw];
+                }
+                n_walk_prev = n_walk;
+            } // end of walk group loop
+            ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+        } // if(n_ipg > 0)
+        else{
+            ni_ave_ = nj_ave_ = n_interaction_ep_ep_ = n_interaction_ep_sp_ = 0;
+            n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = 0;
+        }
+        for(int i=0; i<n_thread; i++){
+            n_interaction_ep_ep_local_ += n_interaction_ep_ep_array[i];
+            n_interaction_ep_sp_local_ += n_interaction_ep_sp_array[i];
+        }
+        time_profile_.calc_force__core += GetWtime() - offset_core;
+        const F64 offset_copy_original_order = GetWtime();
+        copyForceOriginalOrder();
+        time_profile_.calc_force__copy_original_order += GetWtime() - offset_copy_original_order;
+        return ret;
+    }
+
+    // for short
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tfunc_dispatch, class Tfunc_retrieve>
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    calcForceMultiWalkIndexImpl(TagForceShort,
+                                Tfunc_dispatch pfunc_dispatch,
+                                Tfunc_retrieve pfunc_retrieve,
+                                const S32 tag_max,
+                                const S32 n_walk_limit,
+                                const bool clear){
+        /*
+        const F64 offset_core = GetWtime();
+        static bool first = true;
+        S32 ret = 0;
+        S32 tag = 0;
+        const S32 n_thread = Comm::getNumberOfThread();
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
+        const S32 n_ipg = ipg_.size();
+        n_walk_local_ += n_ipg;
+        const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg%n_walk_limit==0 ? 0 : 1);
+        static std::vector<S32> walk_grp;
+        static std::vector<S32> walk_grp_disp;
+        walk_grp.resize(n_loop_max); // group of walk (walk_grp[i] < n_walk_limit)
+        walk_grp_disp.resize(n_loop_max+1);
+        static S32  * iw2ith;
+        static S32  * iw2cnt;
+        static S32  * n_epi_array;
+        static S32  * n_epi_array_prev;
+        static S32  * n_epj_array;
+        static S32 **  n_epj_disp_thread; // [n_thread][n_walk]
+        static Tepi ** epi_array; // array of pointer *[n_walk]
+        static S32  ** id_epj_array; // array of pointer *[n_walk]
+        static Tforce ** force_array; // array of pointer *[n_walk]
+        static Tforce ** force_prev_array; // array of pointer *[n_walk]
+        static S32  * cnt_thread;
+        static S32  * n_ep_cum_thread;
+        static S64 * n_interaction_ep_ep_array;
+        if(first){
+            iw2ith = new S32[n_walk_limit];
+            iw2cnt = new S32[n_walk_limit];
+            n_epi_array = new S32[n_walk_limit];
+            n_epi_array_prev = new S32[n_walk_limit];
+            n_epj_array = new S32[n_walk_limit];
+            n_epj_disp_thread = new S32*[n_thread];
+            epi_array        = new Tepi*[n_walk_limit];
+            id_epj_array        = new Tepj*[n_walk_limit];
+            force_array      = new Tforce*[n_walk_limit];
+            force_prev_array = new Tforce*[n_walk_limit];
+            for(int i=0; i<n_thread; i++){
+                n_epj_disp_thread[i] = new S32[n_walk_limit];
+            }
+            cnt_thread = new S32[n_thread];
+            n_ep_cum_thread = new S32[n_thread];
+            n_interaction_ep_ep_array = new S64[n_thread];
+            first = false;
+        }
+        walk_grp_disp[0] = 0;
+        for(int wg=0; wg<n_ipg%n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max + 1;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int wg=n_ipg%n_loop_max; wg<n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int i=0; i<n_thread; i++){
+            n_interaction_ep_ep_array[i] = 0;
+        }
+        bool first_loop = true;
+        S32 n_walk_prev = 0;
+        if(n_ipg > 0){
+            for(int wg=0; wg<n_loop_max; wg++){
+                const S32 n_walk = walk_grp[wg];
+                const S32 walk_grp_head = walk_grp_disp[wg];
+                for(int i=0; i<n_thread; i++){
+                    n_ep_cum_thread[i] = cnt_thread[i] = 0;
+                    n_epj_disp_thread[i][0] = 0;
+                    epj_for_force_[i].clearSize();
+                }
+                const F64 offset_calc_force__core__walk_tree = GetWtime();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for schedule(dynamic, 4) 
+#endif
+                for(int iw=0; iw<n_walk; iw++){
+                    const S32 id_ipg = walk_grp_head + iw;
+                    const S32 first_adr_ip = ipg_[id_ipg].adr_ptcl_; 
+                    const S32 ith = Comm::getThreadNum();
+                    n_epi_array[iw] = ipg_[id_ipg].n_ptcl_;
+                    epi_array[iw]   = epi_sorted_.getPointer(first_adr_ip);
+                    force_array[iw] = force_sorted_.getPointer(first_adr_ip);
+                    makeInteractionList(id_ipg, false);
+                    n_epj_array[iw] = epj_for_force_[ith].size() - n_ep_cum_thread[ith];
+                    n_ep_cum_thread[ith] = epj_for_force_[ith].size();
+                    n_epj_disp_thread[ith][cnt_thread[ith]+1] = n_ep_cum_thread[ith];
+                    n_interaction_ep_ep_array[ith] += (S64)n_epj_array[iw]*(S64)n_epi_array[iw];
+                    iw2ith[iw] = ith;
+                    iw2cnt[iw] = cnt_thread[ith];
+                    cnt_thread[ith]++;
+                }
+                time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+                } // retrieve
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    id_epj_array[iw] = epj_for_force_[ith].getPointer(n_ep_head);
+                }
+                ret += pfunc_dispatch(tag, n_walk, (const Tepi**)epi_array, n_epi_array, (const S32**)id_epj_array, n_epj_array);
+                first_loop = false;
+
+                for(int iw=0; iw<n_walk; iw++){
+                    n_epi_array_prev[iw] = n_epi_array[iw];
+                    force_prev_array[iw] = force_array[iw];
+                }
+                n_walk_prev = n_walk;
+            } // end of walk group loop
+            ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+        } // if(n_ipg > 0)
+        else{
+            ni_ave_ = nj_ave_ = n_interaction_ep_ep_ = n_interaction_ep_sp_ = 0;
+            n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = 0;
+        }
+        for(int i=0; i<n_thread; i++){
+            n_interaction_ep_ep_local_ += n_interaction_ep_ep_array[i];
+        }
+        time_profile_.calc_force__core += GetWtime() - offset_core;
+        const F64 offset_copy_original_order = GetWtime();
+        copyForceOriginalOrder();
+        time_profile_.calc_force__copy_original_order += GetWtime() - offset_copy_original_order;
+        return ret;
+        */
+    }
+#endif //#if 0
+
+
+    // no index version
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
@@ -3968,8 +4597,6 @@ namespace ParticleSimulator{
                     cnt_thread[ith]++;
                 }
                 time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
-                //std::cout<<"n_walk_limit="<<n_walk_limit<<std::endl;
-                //std::cout<<"n_walk="<<n_walk<<std::endl;
                 if(!first_loop){
                     ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
                 } // retrieve
@@ -3980,7 +4607,6 @@ namespace ParticleSimulator{
                     S32 n_sp_head = n_spj_disp_thread[ith][cnt];
                     epj_array[iw] = epj_for_force_[ith].getPointer(n_ep_head);
                     spj_array[iw] = spj_for_force_[ith].getPointer(n_sp_head);
-                    //std::cout<<"n_epi_array[iw]="<<n_epi_array[iw]<<" n_epj_array[iw]="<<n_epj_array[iw]<<" n_spj_array[iw]="<<n_spj_array[iw]<<std::endl;
                 }
                 ret += pfunc_dispatch(tag, n_walk, (const Tepi**)epi_array, n_epi_array, (const Tepj**)epj_array, n_epj_array, (const Tspj**)spj_array, n_spj_array);
                 first_loop = false;
@@ -4001,8 +4627,6 @@ namespace ParticleSimulator{
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_array[i];
             n_interaction_ep_sp_local_ += n_interaction_ep_sp_array[i];
         }
-        //std::cout<<"n_interaction_ep_ep_local_="<<n_interaction_ep_ep_local_<<std::endl;
-        //std::cout<<"n_interaction_ep_sp_local_="<<n_interaction_ep_ep_local_<<std::endl;
         time_profile_.calc_force__core += GetWtime() - offset_core;
         const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
@@ -4010,8 +4634,7 @@ namespace ParticleSimulator{
         return ret;
     }
 
-
-// for short
+    // for short
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
@@ -4145,6 +4768,8 @@ namespace ParticleSimulator{
         time_profile_.calc_force__copy_original_order += GetWtime() - offset_copy_original_order;
         return ret;
     }
+
+
     
     // return forces in original order
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -4286,7 +4911,8 @@ namespace ParticleSimulator{
 					      r_search_sq,
 					      tc_glb_.getPointer(),
 					      tp_glb_.getPointer(), adr, 
-					      epj_sorted_,   epj_neighbor_[id_thread], n_leaf_limit_);
+					      epj_sorted_,   epj_neighbor_[id_thread],
+                                              n_leaf_limit_);
 	S32 nnp = epj_neighbor_[id_thread].size();
         epj = epj_neighbor_[id_thread].getPointer();
         return nnp;
@@ -4308,7 +4934,28 @@ namespace ParticleSimulator{
 	S32 nnp = epj_neighbor_[id_thread].size();
         epj = epj_neighbor_[id_thread].getPointer();
         return nnp;
-    }    
+    }
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tptcl>
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getNeighborListOneParticleImpl(TagSearchLongSymmetry, const Tptcl & ptcl, Tepj * & epj){
+	const S32 id_thread = Comm::getThreadNum();
+	epj_neighbor_[id_thread].clearSize();
+	const F64vec pos_target = ptcl.getPos();
+        const S32 adr = 0;
+        const F64 r_search_sq = ptcl.getRSearch() * ptcl.getRSearch();
+	SearchNeighborListOneParticleSymmetry(pos_target,
+                                              r_search_sq,
+                                              tc_glb_.getPointer(),
+                                              tp_glb_.getPointer(), adr,
+                                              epj_sorted_,   epj_neighbor_[id_thread],
+                                              n_leaf_limit_);
+	S32 nnp = epj_neighbor_[id_thread].size();
+        epj = epj_neighbor_[id_thread].getPointer();
+        return nnp;
+    }
     
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -4559,4 +5206,33 @@ namespace ParticleSimulator{
 	}
     }
 
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    F64ort TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getOuterBoundaryOfLocalTreeImpl(TagSearchLongSymmetry){
+        return tc_loc_[0].mom_.vertex_out_;
+    }
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    F64ort TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getInnerBoundaryOfLocalTreeImpl(TagSearchLongSymmetry){
+        return tc_loc_[0].mom_.vertex_in_;
+    }
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    F64ort TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getOuterBoundaryOfLocalTreeImpl(TagSearchShortSymmetry){
+        return tc_loc_[0].mom_.vertex_out_;
+    }
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    F64ort TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getInnerBoundaryOfLocalTreeImpl(TagSearchShortSymmetry){
+        return tc_loc_[0].mom_.vertex_in_;
+    }
+    
+    
 }
