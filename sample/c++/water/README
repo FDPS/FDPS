@@ -1,0 +1,26 @@
+Components:
+	README
+	ice_unit.pdb:	information of ice Ih unit lattice for initial condition of simulation
+	./src
+		main.cpp:		main function and kernel definition
+		user_deined_class.h:	definition of FP, EP, Mom, SPJ class
+		constraint.h:		definition of Constraint class for RATTLE method
+		pdb_manager.h:		definition of PDBManager class for reading ice_unit.pdb
+		unit.h:			unit parameters for normalization
+		water_params.h:		parameters of water models (SPC/E)
+
+How to use:
+	make
+	./main.out
+
+More info:
+	To enable some fuctions, uncomment flags below in src/Makefile
+		IPS_TREE_PSEUDOPARTICLE_QUADRUPOLE_MOMENT_CHECK: To chek superparticles exactly reproduce original quadrupole moment
+
+Options:
+	s: number of steps (default: 1000)
+	o: dir name of output (default: ./result)
+	t: parameter for accuracy of force calculation (default: 0.2)
+	n: n_group_limit (default: 64.0)
+
+	example: ./main.out -t 0.2 -s 10000 -o ./test_directory
