@@ -7,7 +7,7 @@ module fdps_super_particle
    use fdps_matrix
    implicit none
 
-#ifdef PARTICLE_SIMULATOR_SPMOM_32BIT_PRECISION
+#ifdef PARTICLE_SIMULATOR_SPMOM_F32
    !**** PS::SPJMonopole
    type, public, bind(c) :: fdps_spj_monopole
       real(kind=c_float) :: mass
