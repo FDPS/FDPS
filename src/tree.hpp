@@ -44,7 +44,6 @@ namespace ParticleSimulator{
     template<class Tmom>
     class TreeCell{
     public:
-        //U32 n_ptcl_;
         S32 n_ptcl_;
         U32 adr_tc_;
         U32 adr_ptcl_;
@@ -775,7 +774,6 @@ namespace ParticleSimulator{
             fout<<"vertex_in.high_="<<vertex_in_.high_<<std::endl;
         }
     };
-
 
     class MomentMonopole{
     public:
@@ -1588,6 +1586,20 @@ namespace ParticleSimulator{
         void clear(){}
     };
 
-
+    class EssentialParticleBase{
+    public:
+        F64vec pos;
+        F64    r_search;
+        F64vec getPos() const {
+            return pos;
+        }
+        F64 getRSearch() const {
+            return r_search;
+        }
+        void setPos(const F64vec & _pos){
+            pos = _pos;
+        }
+        void clear(){}
+    };
 
 }

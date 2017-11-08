@@ -27,6 +27,12 @@ module FDPS_module
       enumerator :: fdps_bc_shearing_box
       enumerator :: fdps_bc_user_defined
    end enum
+   !**** PS::INTERACTION_LIST_MODE
+   enum, bind(c)
+      enumerator :: fdps_make_list
+      enumerator :: fdps_make_list_for_reuse
+      enumerator :: fdps_reuse_list
+   end enum
 
    !**** FDPS controller
    type, public :: FDPS_controller
@@ -65,6 +71,7 @@ module FDPS_module
       !-----------------------------------------------
       procedure :: remove_particle
       procedure :: adjust_pos_into_root_domain
+      procedure :: sort_particle
       !-(DomainInfo functions)
       procedure :: create_dinfo
       procedure :: delete_dinfo
@@ -120,6 +127,12 @@ module FDPS_module
       !           and generic procedure of get_neighbor_list*() 
       !           are generated.
       ! fdps-autogen:get_neighbor_list:method;
+      !-----------------------------------------------
+      !-----------------------------------------------
+      ! [Comment] A place where private procedures 
+      !           and generic procedure of get_epj_from_id*()
+      !           are generated.
+      ! fdps-autogen:get_epj_from_id:method;
       !-----------------------------------------------
       !-(MPI comm. functions)
       procedure :: get_rank 
@@ -205,6 +218,7 @@ module FDPS_module
    !-------------------------------------------
    private :: remove_particle
    private :: adjust_pos_into_root_domain
+   private :: sort_particle
    !-(DomainInfo functions)
    private :: create_dinfo
    private :: delete_dinfo
@@ -247,6 +261,11 @@ module FDPS_module
    ! [Comment] A place where private procedures 
    !           get_neighbor_list*() are declared.
    ! fdps-autogen:get_neighbor_list:decl;
+   !-------------------------------------------
+   !-------------------------------------------
+   ! [Comment] A place where private procedures 
+   !           get_epj_from_id*() are declared.
+   ! fdps-autogen:get_epj_from_id:decl;
    !-------------------------------------------
    !-(MPI comm. functions)
    private :: get_rank 
@@ -421,6 +440,12 @@ module FDPS_module
          implicit none
          integer(kind=c_int), value, intent(in) :: psys_num,dinfo_num
       end subroutine fdps_adjust_pos_into_root_domain
+
+      !----------------------------------------------------------
+      ! [Comment] A place where the interface statements for 
+      !           fdps_sort_particle*() are generated.
+      ! fdps-autogen:sort_particle:if;
+      !----------------------------------------------------------
 
       !----------------------
       !  Domain Info
@@ -617,6 +642,12 @@ module FDPS_module
       ! [Comment] A place where the interface statements for
       !           fdps_get_neighbor_list*() are generated.
       ! fdps-autogen:get_neighbor_list:if;
+      !----------------------------------------------------------
+
+      !----------------------------------------------------------
+      ! [Comment] A place where the interface statements for
+      !           fdps_get_epj_from_id*() are generated.
+      ! fdps-autogen:get_epj_from_id:if;
       !----------------------------------------------------------
 
       !----------------------
@@ -1000,6 +1031,35 @@ module FDPS_module
       call fdps_adjust_pos_into_root_domain(psys_num,dinfo_num)
 
    end subroutine adjust_pos_into_root_domain
+
+   !----------------------------------------------------------
+   subroutine sort_particle(this,psys_num,pfunc_comp)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: psys_num
+      type(c_funptr), intent(in) :: pfunc_comp
+      !* Local parameters
+      integer, parameter :: bufsize=256
+      !* Local variables
+      character(len=bufsize,kind=c_char) :: psys_info
+      !-(To throw errors)
+      character(len=64) :: errmsg,func_name
+
+      call get_psys_info(this,psys_num,psys_info)
+
+      select case (trim(psys_info)) 
+      !--------------
+      ! fdps-autogen:sort_particle:impl;
+      !--------------
+      case default
+         errmsg = "Unknow psys_num is specified"
+         func_name = "sort_particle"
+         call print_errmsg(errmsg,func_name)
+         call PS_abort(this)
+         stop 1
+      end select
+
+   end subroutine sort_particle
 
    !##########################################################
    subroutine create_dinfo(this,dinfo_num)
@@ -1394,17 +1454,29 @@ module FDPS_module
                                               tree_num,    &
                                               pfunc_ep_ep, &
                                               psys_num,    &
-                                              dinfo_num)
+                                              dinfo_num,   &
+                                              list_mode)
       implicit none
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,psys_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep
+      integer(kind=c_int), optional, intent(IN) :: list_mode
       !* Local parameters
       integer, parameter :: bufsize=256
       !* Local variables
+      logical(kind=c_bool) :: clear_
+      integer(kind=c_int) :: list_mode_
       character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
+
+      !* Process Optional arguments
+      clear_ = .true.
+      if (present(list_mode)) then
+         list_mode_ = list_mode
+      else
+         list_mode_ = fdps_make_list ! default value
+      end if
 
       call get_psys_info(this,psys_num,psys_info)
       call get_tree_info(this,tree_num,tree_info)
@@ -1430,17 +1502,29 @@ module FDPS_module
                                               pfunc_ep_ep, &
                                               pfunc_ep_sp, &
                                               psys_num,    &
-                                              dinfo_num)
+                                              dinfo_num,   &
+                                              list_mode)
       implicit none
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,psys_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+      integer(kind=c_int), optional, intent(IN) :: list_mode
       !* Local parameters
       integer, parameter :: bufsize=256
       !* Local variables
+      logical(kind=c_bool) :: clear_
+      integer(kind=c_int) :: list_mode_
       character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
+
+      !* Process optional arguments
+      clear_ = .true.
+      if (present(list_mode)) then
+         list_mode_ = list_mode
+      else
+         list_mode_ = fdps_make_list ! default value
+      end if
 
       call get_psys_info(this,psys_num,psys_info)
       call get_tree_info(this,tree_num,tree_info) 
@@ -1465,17 +1549,29 @@ module FDPS_module
                                tree_num,    &
                                pfunc_ep_ep, &
                                psys_num,    &
-                               dinfo_num)
+                               dinfo_num,   &
+                               list_mode)
       implicit none
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,psys_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep
+      integer(kind=c_int), optional, intent(IN) :: list_mode
       !* Local parameters
       integer, parameter :: bufsize=256
       !* Local variables
+      logical(kind=c_bool) :: clear_
+      integer(kind=c_int) :: list_mode_
       character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
+
+      !* Process optional arguments
+      clear_ = .true.
+      if (present(list_mode)) then
+         list_mode_ = list_mode
+      else
+         list_mode_ = fdps_make_list ! default value
+      end if
 
       call get_psys_info(this,psys_num,psys_info)
       call get_tree_info(this,tree_num,tree_info)
@@ -1501,17 +1597,29 @@ module FDPS_module
                                pfunc_ep_ep, &
                                pfunc_ep_sp, &
                                psys_num,    &
-                               dinfo_num)
+                               dinfo_num,   &
+                               list_mode)
       implicit none
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,psys_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+      integer(kind=c_int), optional, intent(IN) :: list_mode
       !* Local parameters
       integer, parameter :: bufsize=256
       !* Local variables
+      logical(kind=c_bool) :: clear_
+      integer(kind=c_int) :: list_mode_
       character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
+
+      !* Process optional arguments
+      clear_ = .true.
+      if (present(list_mode)) then
+         list_mode_ = list_mode
+      else
+         list_mode_ = fdps_make_list ! default value
+      end if
 
       call get_psys_info(this,psys_num,psys_info)
       call get_tree_info(this,tree_num,tree_info) 
@@ -1543,9 +1651,13 @@ module FDPS_module
       !* Local parameters
       integer, parameter :: bufsize=256
       !* Local variables
+      logical(kind=c_bool) :: clear_
       character(len=bufsize,kind=c_char) :: info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
+      
+      !* Process optioanl arguments
+      clear_ = .true.
 
       call get_tree_info(this,tree_num,info)
 
@@ -1576,9 +1688,13 @@ module FDPS_module
       !* Local parameters
       integer, parameter :: bufsize=256
       !* Local variables
+      logical(kind=c_bool) :: clear_
       character(len=bufsize,kind=c_char) :: info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
+
+      !* Process optional arguments
+      clear_ = .true.
 
       call get_tree_info(this,tree_num,info) 
 
@@ -1608,9 +1724,13 @@ module FDPS_module
       !* Local parameters
       integer, parameter :: bufsize=256
       !* Local variables
+      logical(kind=c_bool) :: clear_
       character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
+
+      !* Process optional arguments
+      clear_ = .true.
 
       call get_psys_info(this,psys_num,psys_info)
       call get_tree_info(this,tree_num,tree_info)
@@ -1643,9 +1763,13 @@ module FDPS_module
       !* Local parameters
       integer, parameter :: bufsize=256
       !* Local variables
+      logical(kind=c_bool) :: clear_
       character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
+
+      !* Process optional arguments
+      clear_ = .true.
 
       call get_psys_info(this,psys_num,psys_info)
       call get_tree_info(this,tree_num,tree_info) 
@@ -1669,6 +1793,11 @@ module FDPS_module
    ! [Comment] A place where the implementations of
    !           get_neighbor_list*() are generated.
    ! fdps-autogen:get_neighbor_list:impl;
+
+   !----------------------------------------------------------
+   ! [Comment] A place where the implementations of
+   !           get_epj_from_id*() are generated.
+   ! fdps-autogen:get_epj_from_id:impl;
 
    !##########################################################
    function get_rank(this)

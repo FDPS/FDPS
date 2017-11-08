@@ -143,15 +143,15 @@ namespace ParticleSimulator{
         DomainInfo() {
             first_call_by_initialize = true;
             first_call_by_decomposeDomain = true;
-	    periodic_axis_[0] = periodic_axis_[1] = false;
-	    pos_root_domain_.low_.x  = -LARGE_FLOAT;
-	    pos_root_domain_.high_.x = LARGE_FLOAT;
-	    pos_root_domain_.low_.y  = -LARGE_FLOAT;
-	    pos_root_domain_.high_.y = LARGE_FLOAT;
+            periodic_axis_[0] = periodic_axis_[1] = false;
+            pos_root_domain_.low_.x  = -LARGE_FLOAT;
+            pos_root_domain_.high_.x = LARGE_FLOAT;
+            pos_root_domain_.low_.y  = -LARGE_FLOAT;
+            pos_root_domain_.high_.y = LARGE_FLOAT;
 #ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
-	    periodic_axis_[2] = false;
-	    pos_root_domain_.low_.z  = -LARGE_FLOAT;
-	    pos_root_domain_.high_.z = LARGE_FLOAT;
+            periodic_axis_[2] = false;
+            pos_root_domain_.low_.z  = -LARGE_FLOAT;
+            pos_root_domain_.high_.z = LARGE_FLOAT;
 #endif
             boundary_condition_ = BOUNDARY_CONDITION_OPEN;
         }
@@ -184,7 +184,7 @@ namespace ParticleSimulator{
             number_of_sample_particle_loc_ = 0;
 
             //S32 rank_tmp[DIMENSION];
-	    S32 rank_tmp[DIMENSION_LIMIT];
+            S32 rank_tmp[DIMENSION_LIMIT];
             SetNumberOfDomainMultiDimension<DIMENSION>(n_domain_, rank_tmp);
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -247,7 +247,6 @@ namespace ParticleSimulator{
             setNumberOfDomainMultiDimension(nx, ny, nz);
         }
 
-
         template<class Tpsys>
         void collectSampleParticle(Tpsys & psys,
                                    const bool clear,
@@ -256,8 +255,7 @@ namespace ParticleSimulator{
             if(psys.getFirstCallByDomainInfoCollectSampleParticle()) {
                 F64vec *temp_loc = new F64vec[target_number_of_sample_particle_];
                 for(S32 i = 0; i < number_of_sample_particle_loc_; i++)
-                    temp_loc[i] = pos_sample_loc_[i];                
-                
+                    temp_loc[i] = pos_sample_loc_[i];
                 target_number_of_sample_particle_ += psys.getTargetNumberOfSampleParticle();
                 delete [] pos_sample_tot_;
                 delete [] pos_sample_loc_;
@@ -277,7 +275,6 @@ namespace ParticleSimulator{
             time_profile_.collect_sample_particle += GetWtime() - time_offset;
             return;
         }
-
 
         template<class Tpsys>
         void collectSampleParticle(Tpsys & psys,
@@ -924,6 +921,11 @@ namespace ParticleSimulator{
         void setPosDomain(const S32 id, const F64ort & pos){ pos_domain_[id] = pos;}
 
         void setBoundaryCondition(enum BOUNDARY_CONDITION bc){
+            /*
+            std::cerr<<"bc= "<<bc
+                     <<" BOUNDARY_CONDITION_PERIODIC_XY= "<<BOUNDARY_CONDITION_PERIODIC_XY
+                     <<std::endl;
+            */
             boundary_condition_ = bc;
             if(DIMENSION == 2 && 
                (bc == BOUNDARY_CONDITION_PERIODIC_XYZ ||

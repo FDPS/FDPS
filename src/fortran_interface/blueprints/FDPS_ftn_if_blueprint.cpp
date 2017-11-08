@@ -86,6 +86,10 @@ void fdps_adjust_pos_into_root_domain(const int psys_num,
                                       const int dinfo_num) {
    adjust_pos_into_root_domain(psys_num,dinfo_num);
 }
+//------------------------------------------------------------------
+// [Comment] A place where fdps_sort_particle_*() are generated.
+// fdps-autogen:sort_particle;
+//------------------------------------------------------------------
 
 //----------------------
 //  Domain Info
@@ -203,6 +207,11 @@ long long int fdps_get_num_tree_walk_glb(const int tree_num) {
 //------------------------------------------------------------------
 // [Comment] A place where fdps_get_neighbor_list_*() are generated.
 // fdps-autogen:get_neighbor_list;
+//------------------------------------------------------------------
+
+//------------------------------------------------------------------
+// [Comment] A place where fdps_get_epj_from_id_*() are generated.
+// fdps-autogen:get_epj_from_id;
 //------------------------------------------------------------------
 
 //----------------------

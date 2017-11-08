@@ -160,8 +160,9 @@ namespace ParticleSimulator{
 #endif
     typedef U64 CountT;
 
-    static const F64 LARGE_FLOAT = std::numeric_limits<F32>::max()*0.0625;
-    static const S64 LARGE_INT = std::numeric_limits<S32>::max()*0.0625;
+    static const F64 LARGE_DOUBLE = std::numeric_limits<F64>::max()*0.0625;
+    static const F64 LARGE_FLOAT  = std::numeric_limits<F32>::max()*0.0625;
+    static const S64 LARGE_INT    = std::numeric_limits<S32>::max()*0.0625;
 
     ///// A.Tanikawa modified from
     // In the upper line, the right-hand side is interpreted to be a 32bit-integer.
@@ -170,7 +171,12 @@ namespace ParticleSimulator{
     ///// A.Tanikawa modified to
 
     //////////////////
-    /// enum 
+    /// enum
+    enum INTERACTION_LIST_MODE{
+        MAKE_LIST,
+        MAKE_LIST_FOR_REUSE,
+        REUSE_LIST,
+    };
     enum SEARCH_MODE{
         LONG_NO_CUTOFF,
         LONG_CUTOFF,
@@ -195,10 +201,7 @@ namespace ParticleSimulator{
             force_type = FORCE_TYPE_SHORT,
         };
     };
-    //struct TagExLetOneStage{};
-    //struct TagExLetTwoStage{};
-    //struct TagForceLong{};
-    //struct TagForceShort{};
+
     struct TagSearchLong{};
     struct TagSearchLongCutoff{};
     struct TagSearchLongScatter{};
@@ -791,6 +794,28 @@ namespace ParticleSimulator{
 
         template<class T> static inline void gatherV(const T * val_send,
                                                      const int n_send,
+                                                     T * val_recv){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
+            const int n_proc = Comm::getNumberOfProc();
+            int * n_recv      = new int[n_proc];
+            int * n_disp_recv = new int[n_proc+1];
+            gather(&n_send, 1, n_recv);
+            n_disp_recv[0] = 0;
+            for(S32 i=0; i<n_proc; i++){
+                n_disp_recv[i+1] = n_disp_recv[i] + n_recv[i];
+            }
+            MPI::COMM_WORLD.Gatherv(val_send, n_send, GetDataType<T>(),
+                                    val_recv, n_recv, n_disp_recv, GetDataType<T>(), 0);
+            delete[] n_recv;
+            delete[] n_disp_recv;
+#else
+            int n = n_send;
+            for(int i=0; i<n; i++)val_recv[i] = val_send[i];
+#endif
+        }
+
+        template<class T> static inline void gatherV(const T * val_send,
+                                                     const int n_send,
                                                      T * val_recv,
                                                      const int * n_recv,
                                                      const int * n_recv_disp){
@@ -895,11 +920,11 @@ namespace ParticleSimulator{
         }
 */
 #ifdef MONAR
-        bool monar = false;
-        bool MONAR = false;
+        bool flag_monar = false;
+        bool flag_MONAR = false;
         for(S32 i=0; i<argc; i++){
-            if(strcmp(argv[i], "monar") == 0) monar = true;
-            if(strcmp(argv[i], "MONAR") == 0) MONAR = true;
+            if(strcmp(argv[i], "monar") == 0) flag_monar = true;
+            if(strcmp(argv[i], "MONAR") == 0) flag_MONAR = true;
         }
 #endif
 	
@@ -912,27 +937,27 @@ namespace ParticleSimulator{
 			std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
 			std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
 			std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-			std::cerr << "     ||     Version 3.0b (2017/11)       ||"   << std::endl;
+			std::cerr << "     ||     Version 4.0 (2017/11)        ||" << std::endl;
 			std::cerr << "     \\\\==================================//" << std::endl;
 			std::cerr << "" << std::endl;
 			std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
 			std::cerr << "       E-mail : fdps-support@mail.jmlab.jp" << std::endl;
 			std::cerr << "       Licence: MIT (see, https://github.com/FDPS/FDPS/blob/master/LICENSE)" << std::endl;
-			std::cerr << "       Note   : Please cite Iwasawa et al. (in press.)" << std::endl;
+			std::cerr << "       Note   : Please cite Iwasawa et al. (2016, Publications of the Astronomical Society of Japan, 68, 54)" << std::endl;
 			std::cerr << "" << std::endl;
 			std::cerr << "       Copyright (C) 2015 " << std::endl;
 			std::cerr << "         Masaki Iwasawa, Ataru Tanikawa, Natsuki Hosono," << std::endl;
-			std::cerr << "         Keigo Nitadori, Takayuki Muranushi, Daisuke Namekata" << std::endl;
-			std::cerr << "         Junichiro Makino and many others" << std::endl;
+			std::cerr << "         Keigo Nitadori, Takayuki Muranushi, Daisuke Namekata," << std::endl;
+			std::cerr << "         Kentaro Nomura, Junichiro Makino and many others" << std::endl;
 #ifdef MONAR
-            if(monar){
+            if(flag_monar){
                 std::cerr<<"　　 ^__^　 ／‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"<<std::endl;
                 std::cerr<<"　　( ´∀｀)＜******** FDPS has successfully begun. ********"<<std::endl;
                 std::cerr<<"　　(     ) ＼＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿"<<std::endl;
                 std::cerr<<"　　|  | |"<<std::endl;
                 std::cerr<<"　　(__)_)"<<std::endl;
             }
-            else if(MONAR){
+            else if(flag_MONAR){
                 std::cerr<<"        ∧_∧   ／‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"<<std::endl;
                 std::cerr<<"       (´Д`) <  ******** FDPS has successfully begun. ********"<<std::endl;
                 std::cerr<<"       ／_ /  ＼"<<std::endl;
@@ -961,9 +986,9 @@ namespace ParticleSimulator{
 
         MPI::Finalize();
 #endif
-        bool monar = false;
+        bool flag_monar = false;
         if(Comm::getRank() == 0) {
-            if(monar){
+            if(flag_monar){
             }
             else{
                 fprintf(stderr, "******** FDPS has successfully finished. ********\n");
@@ -1468,6 +1493,7 @@ namespace ParticleSimulator{
 	}
     };
 
+
     struct TagRSearch{};
     struct TagNoRSearch{};
 
@@ -1488,16 +1514,6 @@ namespace ParticleSimulator{
     
         template <class T2, T2>
         class Check{};
-/*    
-        template <typename T3>
-        static One & Func( Check<F64 (T3::*)(void), &T3::getRSearch>* );
-        template <typename T3>
-        static One & Func( Check<F32 (T3::*)(void), &T3::getRSearch>* );
-        template <typename T3>
-        static One & Func( Check<F64 (T3::*)(void) const, &T3::getRSearch>* );
-        template <typename T3>
-        static One & Func( Check<F32 (T3::*)(void) const, &T3::getRSearch>* );
-*/    
 
         template <typename T3>
         static One & Func( Check<double (T3::*)(void), &T3::getRSearch>* );
@@ -1515,6 +1531,7 @@ namespace ParticleSimulator{
         typedef typename HasRSearchInner< sizeof(Func<T>(NULL)) == 1 >::type type;
     };
 
+    
     class TimeProfile{
     public:
         F64 collect_sample_particle;
@@ -1670,6 +1687,105 @@ namespace ParticleSimulator{
         }
     };
 
+    inline F64 GetDistanceMinSq(const F64ort & pos0,
+                                const F64ort & pos1,
+                                const F64vec & len_peri){
+        const F64vec cen0 = pos0.getCenter();
+        const F64vec cen1 = pos1.getCenter();
+        const F64vec len = pos0.getHalfLength() + pos1.getHalfLength();
+        F64 dis = 0.0;
+        
+        F64 dx = fabs(cen0.x-cen1.x);
+        dx = (dx < (len_peri.x-dx)) ? dx : (len_peri.x-dx);
+        dx = (len.x < dx) ? dx-len.x : 0.0;
+
+        F64 dy = fabs(cen0.y-cen1.y);
+        dy = (dy < (len_peri.y-dy)) ? dy : (len_peri.y-dy);
+        dy = (len.y < dy) ? dy-len.y : 0.0;
+        dis = dx*dx + dy*dy;
+
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+        F64 dz = fabs(cen0.z-cen1.z);
+        dz = (dz < (len_peri.z-dz)) ? dz : (len_peri.z-dz);
+        dz = (len.z < dz) ? dz-len.z : 0.0;
+        dis += dz*dz;
+#endif
+        
+        return dis;
+    }
+    
+    inline F64 GetDistanceMinSq(const F64ort & pos0,
+                                const F64vec & pos1,
+                                const F64vec & len_peri){
+        const F64vec cen0 = pos0.getCenter();
+        const F64vec len  = pos0.getHalfLength();
+        F64 dis = 0.0;
+        
+        F64 dx = fabs(cen0.x-pos1.x);
+        dx = (dx < (len_peri.x-dx)) ? dx : (len_peri.x-dx);
+        dx = (len.x < dx) ? dx-len.x : 0.0;
+        
+        F64 dy = fabs(cen0.y-pos1.y);
+        dy = (dy < (len_peri.y-dy)) ? dy : (len_peri.y-dy);
+        dy = (len.y < dy) ? dy-len.y : 0.0;
+        
+        dis = dx*dx + dy*dy;
+        
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+        F64 dz = fabs(cen0.z-pos1.z);
+        dz = (dz < (len_peri.z-dz)) ? dz : (len_peri.z-dz);
+        dz = (len.z < dz) ? dz-len.z : 0.0;
+        dis += dz*dz;
+#endif
+        return dis;
+    }
+
+
+    inline F64 GetDistanceMinSq(const F64ort & pos0,
+                                const F64ort & pos1){
+        const F64vec cen0 = pos0.getCenter();
+        const F64vec cen1 = pos1.getCenter();
+        const F64vec len = pos0.getHalfLength() + pos1.getHalfLength();
+        F64 dis = 0.0;
+        
+        F64 dx = fabs(cen0.x-cen1.x);
+        dx = (len.x < dx) ? dx-len.x : 0.0;
+
+        F64 dy = fabs(cen0.y-cen1.y);
+        dy = (len.y < dy) ? dy-len.y : 0.0;
+        dis = dx*dx + dy*dy;
+
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+        F64 dz = fabs(cen0.z-cen1.z);
+        dz = (len.z < dz) ? dz-len.z : 0.0;
+        dis += dz*dz;
+#endif
+        
+        return dis;
+    }
+    
+    inline F64 GetDistanceMinSq(const F64ort & pos0,
+                                const F64vec & pos1){
+        const F64vec cen0 = pos0.getCenter();
+        const F64vec len  = pos0.getHalfLength();
+        F64 dis = 0.0;
+        
+        F64 dx = fabs(cen0.x-pos1.x);
+        dx = (len.x < dx) ? dx-len.x : 0.0;
+        
+        F64 dy = fabs(cen0.y-pos1.y);
+        dy = (len.y < dy) ? dy-len.y : 0.0;
+        
+        dis = dx*dx + dy*dy;
+        
+#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+        F64 dz = fabs(cen0.z-pos1.z);
+        dz = (len.z < dz) ? dz-len.z : 0.0;
+        dis += dz*dz;
+#endif
+        return dis;
+    }
+    
 }
 
 #include"util.hpp"

@@ -113,13 +113,13 @@ namespace ParticleSimulator{
             const Vector2<T> b_high = this->high_;
             const Vector2<T> b_low = this->low_;
 
-            return (a_high.x < b_low.x) || (b_high.x <= a_low.x)
-                || (a_high.y < b_low.y) || (b_high.y <= a_low.y);
+            return (a_high.x < b_low.x) || (b_high.x < a_low.x)
+                || (a_high.y < b_low.y) || (b_high.y < a_low.y);
         }
 	
-	unsigned int contained(const Orthotope2 & a) const {
-	    return notContained(a) ^ 0x1;
-	}
+        unsigned int contained(const Orthotope2 & a) const {
+            return notContained(a) ^ 0x1;
+        }
 
         unsigned int notOverlapped(const Vector2<T> & pos) const {
             return (pos.x < low_.x) || (high_.x < pos.x)
@@ -130,8 +130,8 @@ namespace ParticleSimulator{
         }
 
         unsigned int notOverlapped(const Orthotope2 & a) const {
-            return (a.low_.x < low_.x) || (high_.x < a.high_.x)
-                || (a.low_.y < low_.y) || (high_.y < a.high_.y);
+            return (a.high_.x < low_.x) || (high_.x < a.low_.x)
+                || (a.high_.y < low_.y) || (high_.y < a.low_.y);
         }
 	
         unsigned int overlapped(const Orthotope2 & a) const {

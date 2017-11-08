@@ -79,10 +79,11 @@ namespace ParticleSimulator{
         void initialize() {
             assert(first_call_by_initialize);
             first_call_by_initialize = false;
-	    n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
+            n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
             n_ptcl_send_ = n_ptcl_recv_ = 0;
-	    //first_call_by_DomainInfo_collect_sample_particle = true;
-	    //n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
+            MT::init_genrand(Comm::getRank()); // 2017.11.01
+            //first_call_by_DomainInfo_collect_sample_particle = true;
+            //n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
         }
 
         void setAverageTargetNumberOfSampleParticlePerProcess(const S32 &nsampleperprocess) {
@@ -549,9 +550,7 @@ namespace ParticleSimulator{
                                const F32 weight) {
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-
             S64 nloc = (S64)ptcl_.size();
-
             F32 weight_all = Comm::getSum(weight);
             number_of_sample_particle = (weight * n_smp_ptcl_tot_) / weight_all;
 #if 0
@@ -575,7 +574,6 @@ namespace ParticleSimulator{
             //std::cout<<"((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter))="<<((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter))<<std::endl;
             std::cout<<"number_of_sample_particle(final)="<<number_of_sample_particle<<std::endl;
 #endif
-
             S32 *record = new S32[number_of_sample_particle];
             for(S32 i = 0; i < number_of_sample_particle; i++) {
                     S32 j = getUniformDistributionFromArg1ToArg2(i, nloc-1);
@@ -933,6 +931,17 @@ namespace ParticleSimulator{
             time_profile_.exchange_particle += GetWtime() - time_offset;
         }
 #endif
+        template<class Tcomp>
+        void sortParticle(Tcomp comp){
+            const S32 n = ptcl_.size();
+            std::sort(ptcl_.getPointer(), ptcl_.getPointer(n), comp);
+        }
+
+        template<class Tcomp>
+        void sortParticleStable(Tcomp comp){
+            const S32 n = ptcl_.size();
+            std::stable_sort(ptcl_.getPointer(), ptcl_.getPointer(n), comp);
+        }
 
         // for DEBUG functions
         template<class Treal, class Tvec>

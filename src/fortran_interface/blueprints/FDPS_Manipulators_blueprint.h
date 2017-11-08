@@ -23,6 +23,11 @@ namespace FDPS_Manipulators {
       BC_SHEARING_BOX,
       BC_USER_DEFINED
    };
+   enum PS_INTERACTION_LIST_MODE {
+      MAKE_LIST,
+      MAKE_LIST_FOR_REUSE,
+      REUSE_LIST
+   };
 
    //--------------------------------
    // Initializer of FDPS_Manipulators
@@ -64,6 +69,7 @@ namespace FDPS_Manipulators {
                                int *ptcl_indx);
    extern void adjust_pos_into_root_domain(const int psys_num,
                                            const int dinfo_num);
+   // fdps-autogen:sort_particle;
 
    //----------------------------
    // DomainInfo manipulators
@@ -123,6 +129,7 @@ namespace FDPS_Manipulators {
    // fdps-autogen:calc_force_making_tree;
    // fdps-autogen:calc_force_and_write_back;
    // fdps-autogen:get_neighbor_list;
+   // fdps-autogen:get_epj_from_id;
 
    //----------------------------
    // Utility functions

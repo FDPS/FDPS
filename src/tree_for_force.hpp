@@ -5,12 +5,17 @@
 #ifdef UNORDERED_SET 
 #include<unordered_set>
 #else
-#include<set>
+#include<map>
 #endif
 
 #include<sort.hpp>
 #include<tree.hpp>
+#include<comm_table.hpp>
+#include<interaction_list.hpp>
+#include<tree_walk.hpp>
 #include<tree_for_force_utils.hpp>
+
+
 
 namespace ParticleSimulator{
     ///////////////////////////////////////
@@ -27,15 +32,20 @@ namespace ParticleSimulator{
     class TreeForForce{
 
     public:
-        //F64 length_; // length of a side of the root cell
-        //F64vec center_; // new member (not used)
+        F64 length_; // length of a side of the root cell
+        F64vec center_; // new member (not used)
         //F64ort pos_root_cell_;
 
     private:
 
-        //CommTable<Tepj, Tspj> comm_table_; // for reuse the list
-
         TimeProfile time_profile_;
+
+#ifdef UNORDERED_SET 
+typedef std::unordered_map<S64, Tepj*> MyMap;
+#else
+typedef std::map<S64, Tepj*> MyMap;
+#endif
+        MyMap map_id_to_epj_;
 
         CountT n_interaction_ep_ep_local_, n_interaction_ep_sp_local_, n_walk_local_;
         CountT n_let_ep_send_1st_, n_let_ep_recv_1st_, n_let_sp_send_1st_, n_let_sp_recv_1st_,
@@ -67,12 +77,12 @@ namespace ParticleSimulator{
         S32 n_leaf_limit_;
         S32 n_group_limit_;
 
-        S32 adr_tc_level_partition_[TREE_LEVEL_LIMIT+2];
-        S32 lev_max_;
+        //S32 adr_tc_level_partition_[TREE_LEVEL_LIMIT+2];
+        //S32 lev_max_;
         F64 theta_;
 
-        F64 length_; // length of a side of the root cell
-        F64vec center_; // new member (not used)
+        //F64 length_; // length of a side of the root cell
+        //F64vec center_; // new member (not used)
         F64ort pos_root_cell_;
 
         ReallocatableArray< TreeParticle > tp_buf_, tp_loc_, tp_glb_;
@@ -81,6 +91,7 @@ namespace ParticleSimulator{
         ReallocatableArray< Tepi > epi_sorted_, epi_org_;
         ReallocatableArray< Tepj > epj_sorted_, epj_org_;
         ReallocatableArray< Tspj > spj_sorted_, spj_org_;
+        ReallocatableArray< Tspj > spj_sorted_loc_; // for reuse the list
         ReallocatableArray< IPGroup<TSM> > ipg_;
 	
         ReallocatableArray<Tepj> epj_send_;
@@ -230,9 +241,6 @@ namespace ParticleSimulator{
         void calcMomentGlobalTreeOnlyImpl(TagSearchShortGather);
         void calcMomentGlobalTreeOnlyImpl(TagSearchShortSymmetry);
 
-        void addMomentAsSpImpl(TagForceLong);
-        void addMomentAsSpImpl(TagForceShort);
-
         void makeIPGroupImpl(TagForceLong);
         void makeIPGroupImpl(TagForceShort);
 
@@ -268,6 +276,7 @@ namespace ParticleSimulator{
                                         Tfunc_retrieve pfunc_retrieve,
                                         const S32 tag_max,
                                         const S32 n_walk_limit,
+                                        const bool flag_keep_list,
                                         const bool clear=true);
 
         template<class Tfunc_dispatch, class Tfunc_retrieve>
@@ -276,7 +285,26 @@ namespace ParticleSimulator{
                                         Tfunc_retrieve pfunc_retrieve,
                                         const S32 tag_max,
                                         const S32 n_walk_limit,
+                                        const bool flag_keep_list,
                                         const bool clear=true);
+
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        S32 calcForceMultiWalkIndexNewImpl(TagForceLong,
+                                           Tfunc_dispatch pfunc_dispatch,
+                                           Tfunc_retrieve pfunc_retrieve,
+                                           const S32 tag_max,
+                                           const S32 n_walk_limit,
+                                           const bool flag_keep_list,
+                                           const bool clear=true);
+
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        S32 calcForceMultiWalkIndexNewImpl(TagForceShort,
+                                           Tfunc_dispatch pfunc_dispatch,
+                                           Tfunc_retrieve pfunc_retrieve,
+                                           const S32 tag_max,
+                                           const S32 n_walk_limit,
+                                           const bool flag_keep_list,
+                                           const bool clear=true);
 	
 
         void checkMakeGlobalTreeImpl(TagForceLong, S32 & err, const F64vec & center, const F64 tolerance, std::ostream & fout);
@@ -522,7 +550,7 @@ namespace ParticleSimulator{
         void setRootCell(const DomainInfo & dinfo);
         void setRootCell(const F64 l, const F64vec & c=F64vec(0.0));
         template<class Ttree>  void copyRootCell(const Ttree & tree);
-        void mortonSortLocalTreeOnly();
+        void mortonSortLocalTreeOnly(const bool reuse=false);
         void linkCellLocalTreeOnly();
         void linkCellGlobalTreeOnly();
         void calcMomentLocalTreeOnly();
@@ -531,7 +559,7 @@ namespace ParticleSimulator{
         void makeIPGroup();
         void exchangeLocalEssentialTree(const DomainInfo & dinfo);
         void setLocalEssentialTreeToGlobalTree();
-        void mortonSortGlobalTreeOnly();
+        void mortonSortGlobalTreeOnly(const bool reuse=false);
         S32 getNumberOfIPG() const { return ipg_.size();}
         void makeInteractionList(const S32 adr_ipg, const bool clear=true);
         template<class Tfunc_ep_ep>
@@ -564,7 +592,16 @@ namespace ParticleSimulator{
                                     Tfunc_retrieve pfunc_retrieve,
                                     const S32 tag_max,
                                     const S32 n_walk_limit,
+                                    const bool flag_keep_list,
                                     const bool clear=true);
+
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        S32 calcForceMultiWalkIndexNew(Tfunc_dispatch pfunc_dispatch,
+                                       Tfunc_retrieve pfunc_retrieve,
+                                       const S32 tag_max,
+                                       const S32 n_walk_limit,
+                                       const bool flag_keep_list,
+                                       const bool clear=true);
 
         template<class Tfunc_ep_ep, class Tfunc_ep_sp>
         void calcForce(Tfunc_ep_ep pfunc_ep_ep,
@@ -648,30 +685,376 @@ namespace ParticleSimulator{
         F64ort getOuterBoundaryOfLocalTreeImpl(TagSearchShortSymmetry);
         F64ort getInnerBoundaryOfLocalTreeImpl(TagSearchShortSymmetry);        
 
+
+        ///////////////
+        // UTILS
+        Tepj * getEpjFromId(const S64 id, const Tepj * epj_tmp=NULL);
+
+        ///////////////
+        // DEBUG
+        S32 getNumberOfEpjSorted() const {return epj_sorted_.size();}
+
+        /////////////////////////////////
+        // FOR REUSING INTERACTION LIST
+        template<class Ttreecell>
+        void addMomentAsSpImpl(TagForceLong, ReallocatableArray<Ttreecell> & );
+        template<class Ttreecell>
+        void addMomentAsSpImpl(TagForceShort, ReallocatableArray<Ttreecell> & );
+
+        void exchangeLocalEssentialTreeReuseList(const DomainInfo & dinfo);
+        void exchangeLocalEssentialTreeReuseListImpl(TagSearchShortSymmetry,
+                                                     const DomainInfo & dinfo,
+                                                     const bool flag_reuse=false);
+        void exchangeLocalEssentialTreeReuseListImpl(TagSearchShortScatter,
+                                                     const DomainInfo & dinfo,
+                                                     const bool flag_reuse=false);
+        void exchangeLocalEssentialTreeReuseListImpl(TagSearchShortGather,
+                                                     const DomainInfo & dinfo,
+                                                     const bool flag_reuse=false);
+        void exchangeLocalEssentialTreeReuseListImpl(TagSearchLong,
+                                                     const DomainInfo & dinfo,
+                                                     const bool flag_reuse=false);
+        void exchangeLocalEssentialTreeReuseListImpl(TagSearchLongCutoff,
+                                                     const DomainInfo & dinfo,
+                                                     const bool flag_reuse=false);
+        void exchangeLocalEssentialTreeReuseListImpl(TagSearchLongScatter,
+                                                     const DomainInfo & dinfo,
+                                                     const bool flag_reuse=false);
+        void exchangeLocalEssentialTreeReuseListImpl(TagSearchLongSymmetry,
+                                                     const DomainInfo & dinfo,
+                                                     const bool flag_reuse=false);
+        void exchangeLocalEssentialTreeReuseListLong(const DomainInfo & dinfo,
+                                                     const bool flag_reuse=false);
+
+        
+        CommTable<Tepj, Tspj> comm_table_;
+        InteractionList interaction_list_;
+
+        void makeInteractionListIndexLong();
+        void makeInteractionListIndexShort();
+        void makeInteractionListIndex(TagForceLong){
+            makeInteractionListIndexLong();
+        }
+        void makeInteractionListIndex(TagForceShort){
+            makeInteractionListIndexShort();
+        }
+        template<class Tfunc_ep_ep>
+        void calcForceNoWalk(Tfunc_ep_ep pfunc_ep_ep,
+                             const bool clear=true);
+        template<class Tfunc_ep_ep, class Tfunc_ep_sp>
+        void calcForceNoWalk(Tfunc_ep_ep pfunc_ep_ep,
+                             Tfunc_ep_sp pfunc_ep_sp,
+                             const bool clear=true);
+
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        void calcForceNoWalkForMultiWalkImpl(TagForceLong,
+                                             Tfunc_dispatch pfunc_dispatch,
+                                             Tfunc_retrieve pfunc_retrieve,
+                                             const S32 n_walk_limit,
+                                             const bool clear);
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        void calcForceNoWalkForMultiWalkImpl(TagForceShort,
+                                             Tfunc_dispatch pfunc_dispatch,
+                                             Tfunc_retrieve pfunc_retrieve,
+                                             const S32 n_walk_limit,
+                                             const bool clear);        
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        void calcForceNoWalkForMultiWalk(Tfunc_dispatch pfunc_dispatch,
+                                         Tfunc_retrieve pfunc_retrieve,
+                                         const S32 n_walk_limit,
+                                         const bool clear=true){
+            F64 wtime_offset = GetWtime();
+            calcForceNoWalkForMultiWalkImpl(typename TSM::force_type(),
+                                            pfunc_dispatch,
+                                            pfunc_retrieve,
+                                            n_walk_limit,
+                                            clear);
+            time_profile_.calc_force += GetWtime() - wtime_offset;
+        }
+
+
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        void calcForceNoWalkForMultiWalkNewImpl(TagForceLong,
+                                                Tfunc_dispatch pfunc_dispatch,
+                                                Tfunc_retrieve pfunc_retrieve,
+                                                const S32 n_walk_limit,
+                                                const bool clear);
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        void calcForceNoWalkForMultiWalkNewImpl(TagForceShort,
+                                                Tfunc_dispatch pfunc_dispatch,
+                                                Tfunc_retrieve pfunc_retrieve,
+                                                const S32 n_walk_limit,
+                                                const bool clear);        
+        template<class Tfunc_dispatch, class Tfunc_retrieve>
+        void calcForceNoWalkForMultiWalkNew(Tfunc_dispatch pfunc_dispatch,
+                                            Tfunc_retrieve pfunc_retrieve,
+                                            const S32 n_walk_limit,
+                                            const bool clear=true){
+            calcForceNoWalkForMultiWalkNewImpl(typename TSM::force_type(),
+                                               pfunc_dispatch,
+                                               pfunc_retrieve,
+                                               n_walk_limit,
+                                               clear);
+        }
+        
+        S32 adr_tc_level_partition_loc_[TREE_LEVEL_LIMIT+2];
+        S32 lev_max_loc_;
+        S32 adr_tc_level_partition_glb_[TREE_LEVEL_LIMIT+2];
+        S32 lev_max_glb_;
         
         ////////////////////////////
         /// HIGH LEVEL FUNCTIONS ///
-        //////////////////
-        // FOR LONG FORCE
         template<class Tfunc_ep_ep, class Tpsys>
         void calcForceAll(Tfunc_ep_ep pfunc_ep_ep,
                           Tpsys & psys,
                           DomainInfo & dinfo,
-                          const bool clear_force=true){
-            setParticleLocalTree(psys);
-            setRootCell(dinfo);
-            mortonSortLocalTreeOnly();
-            linkCellLocalTreeOnly();
-            calcMomentLocalTreeOnly();
-            exchangeLocalEssentialTree(dinfo);
-            setLocalEssentialTreeToGlobalTree();
-            mortonSortGlobalTreeOnly();
-            linkCellGlobalTreeOnly();
-            calcMomentGlobalTreeOnly();
-            makeIPGroup();
-            calcForce(pfunc_ep_ep, clear_force);
-        }
+                          const bool clear_force=true,
+                          const INTERACTION_LIST_MODE list_mode = MAKE_LIST){
+            //std::cerr<<"list_mode= "<<list_mode<<std::endl;
+            if(list_mode == MAKE_LIST){
+                //std::cout<<"MAKE_LIST"<<std::endl;
+                setParticleLocalTree(psys);
+                setRootCell(dinfo);
+                mortonSortLocalTreeOnly();
+                linkCellLocalTreeOnly();
+                calcMomentLocalTreeOnly();
+                exchangeLocalEssentialTree(dinfo);
+                setLocalEssentialTreeToGlobalTree();
+                mortonSortGlobalTreeOnly();
+                linkCellGlobalTreeOnly();
+                calcMomentGlobalTreeOnly();
+                makeIPGroup();
+                calcForce(pfunc_ep_ep, clear_force);
+            }
+            // under construction
+            else if(list_mode == MAKE_LIST_FOR_REUSE){
+                setParticleLocalTree(psys);
+                setRootCell(dinfo);
+                mortonSortLocalTreeOnly();
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"epi_sorted_.size()= "<<epi_sorted_.size()
+                             <<" epj_sorted_.size()= "<<epj_sorted_.size()
+                             <<std::endl;
+                    for(S32 i=0; i<n_loc_tot_; i++){
+                        std::cerr<<"epi_sorted_[i].pos= "<<epi_sorted_[i].pos<<std::endl;
+                        std::cerr<<"epj_sorted_[i].pos= "<<epj_sorted_[i].pos<<std::endl;
+                    }
+                }
+                */
+                //MortonSortFP(psys, tp_loc_);
+                linkCellLocalTreeOnly();
+                
+                calcMomentLocalTreeOnly();
 
+                /*
+                if(Comm::getRank()==1){
+                    std::cerr<<"tc_loc_.size()= "<<tc_loc_.size()<<std::endl;
+                    for(S32 i=0; i<tc_loc_.size(); i++){
+                        std::cout<<"i= "<<i<<std::endl;
+                        tc_loc_[i].dump(std::cout);
+                    }
+                } 
+                Comm::barrier();
+                exit(1);
+                */
+                
+                //addMomentAsSpImpl(typename TSM::force_type(), tc_loc_); // new
+                //AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_, spj_sorted_loc_); // new
+
+                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
+
+                /*
+                if(Comm::getRank()==2){
+                    std::cerr<<"epj_org_.size()= "<<epj_org_.size()<<std::endl;
+                    std::cerr<<"epj_recv_.size()= "<<epj_recv_.size()<<std::endl;
+                    for(S32 i=0; i<epj_recv_.size(); i++){
+                        std::cerr<<"i= "<<i<<" epj_recv_[i].pos= "<<epj_recv_[i].pos<<std::endl;
+                    }
+                    for(S32 i=0; i<epj_org_.size(); i++){
+                        std::cerr<<"i= "<<i<<" epj_org_[i].pos= "<<epj_org_[i].pos<<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                /*
+                SetLocalEssentialTreeToGlobalTreeImpl(epj_recv_, tp_loc_,
+                                                      epj_org_, tp_glb_);
+                */
+                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
+                this->n_glb_tot_ = tp_glb_.size();
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"epj_org_.size()= "<<epj_org_.size()<<std::endl;
+                    std::cout<<"n_glb_tot_= "<<n_glb_tot_<<std::endl;
+                    for(S32 i=0; i<epj_org_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" epj_org_[i].pos= "<<epj_org_[i].pos
+                                 <<" tp_glb_[i].adr_ptcl_= "<<tp_glb_[i].adr_ptcl_
+                                 <<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+
+                //Comm::barrier(); if(Comm::getRank()==0) std::cerr<<"check A"<<std::endl;
+                
+                mortonSortGlobalTreeOnly();
+
+                //Comm::barrier(); if(Comm::getRank()==0) std::cerr<<"check B"<<std::endl;
+
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"epj_org_.size()= "<<epj_org_.size()<<std::endl;
+                    std::cout<<"n_glb_tot_= "<<n_glb_tot_<<std::endl;
+                    for(S32 i=0; i<epj_org_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" tp_glb_[i].adr_ptcl_= "<<tp_glb_[i].adr_ptcl_
+                                 <<std::endl;
+                    }
+                }
+                */
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"epj_sorted_.size()= "<<epj_sorted_.size()<<std::endl;
+                    for(S32 i=0; i<n_glb_tot_; i++){
+                        std::cout<<"i= "<<i
+                                 <<" epj_sorted_[i].pos= "<<epj_sorted_[i].pos
+                                 <<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                
+                linkCellGlobalTreeOnly();
+
+                //Comm::barrier(); if(Comm::getRank()==0) std::cerr<<"check C"<<std::endl;
+                
+                calcMomentGlobalTreeOnly();
+
+                //Comm::barrier(); if(Comm::getRank()==0) std::cerr<<"check D"<<std::endl;
+                
+                makeIPGroup();
+
+                //Comm::barrier(); if(Comm::getRank()==0) std::cerr<<"check E"<<std::endl;
+                
+                makeInteractionListIndexShort();
+                /*
+                if(Comm::getRank()==0){
+                    const S32 n_ipg = ipg_.size();
+                    for(S32 i=0; i<n_ipg; i++){
+                        const S32 n_i = ipg_[i].n_ptcl_;
+                        const S32 n_j = interaction_list_.n_ep_[i];
+                        std::cerr<<"n_i= "<<n_i<<" n_j= "<<n_j
+                                 <<std::endl;
+                        const S32 j_h = interaction_list_.n_disp_ep_[i];
+                        const S32 j_e = interaction_list_.n_disp_ep_[i+1];
+                        for(S32 j=j_h; j<j_e; j++){
+                            std::cerr<<"interaction_list_.adr_ep_[j]= "<<interaction_list_.adr_ep_[j]<<std::endl;
+                        }
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                calcForceNoWalk(pfunc_ep_ep, clear_force);
+
+            }
+            else if(list_mode == REUSE_LIST){
+                setParticleLocalTree(psys, true);
+                mortonSortLocalTreeOnly(true);
+    #if 0
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"epi_sorted_.size()= "<<epi_sorted_.size()
+                             <<" epj_sorted_.size()= "<<epj_sorted_.size()
+                             <<std::endl;
+                    for(S32 i=0; i<n_loc_tot_; i++){
+                        std::cerr<<"epi_sorted_[i].pos= "<<epi_sorted_[i].pos<<std::endl;
+                        std::cerr<<"epj_sorted_[i].pos= "<<epj_sorted_[i].pos<<std::endl;
+                    }
+                }
+                if(Comm::getRank()==0){
+                    std::cerr<<"tc_loc_.size()= "<<tc_loc_.size()<<std::endl;
+                    for(S32 i=0; i<tc_loc_.size(); i++){
+                        std::cout<<"i= "<<i<<std::endl;
+                        tc_loc_[i].dump(std::cout);
+                    }
+                }
+                */
+                calcMomentLocalTreeOnly();
+    #endif
+                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo, true);
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"epj_org_.size()= "<<epj_org_.size()<<std::endl;
+                    std::cerr<<"epj_recv_.size()= "<<epj_recv_.size()<<std::endl;
+                    for(S32 i=0; i<epj_recv_.size(); i++){
+                        std::cerr<<"i= "<<i<<" epj_recv_[i].pos= "<<epj_recv_[i].pos<<std::endl;
+                    }
+                    for(S32 i=0; i<epj_org_.size(); i++){
+                        std::cerr<<"i= "<<i<<" epj_org_[i].pos= "<<epj_org_[i].pos<<std::endl;
+                    }
+                }
+                */
+
+#if 1
+                /*
+                SetLocalEssentialTreeToGlobalTreeImpl(epj_recv_, tp_loc_,
+                                                      epj_org_, tp_glb_,
+                                                      true);
+                */
+                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), true);
+                mortonSortGlobalTreeOnly(true);
+#else
+                // under construction
+                CopyPtclLocPtclRecvToPtclSortedGlobalTree(typename TSM::force_type(),
+                                                          epj_recv_, tp_loc_,
+                                                          epj_org_, tp_glb_);
+
+#endif
+                
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"epj_org_.size()= "<<epj_org_.size()<<std::endl;
+                    std::cout<<"n_glb_tot_= "<<n_glb_tot_<<std::endl;
+                    for(S32 i=0; i<epj_org_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" epj_org_[i].pos= "<<epj_org_[i].pos
+                                 <<" tp_glb_[i].adr_ptcl_= "<<tp_glb_[i].adr_ptcl_
+                                 <<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"epj_sorted_.size()= "<<epj_sorted_.size()<<std::endl;
+                    for(S32 i=0; i<n_glb_tot_; i++){
+                        std::cout<<"i= "<<i
+                                 <<" epj_sorted_[i].pos= "<<epj_sorted_[i].pos
+                                 <<std::endl;
+                    }
+                }                
+                Comm::barrier();
+                exit(1);
+                */
+    #if 0
+                calcMomentGlobalTreeOnly();
+    #endif
+                calcForceNoWalk(pfunc_ep_ep, clear_force);
+            }
+            else{
+                PARTICLE_SIMULATOR_PRINT_ERROR("INVALID INTERACTION_LIST_MODE.");
+                std::cerr<<"INTERACTION_LIST_MODE: "<<list_mode<<std::endl;
+                Abort(-1);
+            }
+        }
+        
         template<class Tfunc_ep_ep, class Tpsys>
         void calcForceAllWalkOnly(Tfunc_ep_ep pfunc_ep_ep, 
                                   Tpsys & psys,
@@ -739,8 +1122,9 @@ namespace ParticleSimulator{
         void calcForceAllAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
                                       Tpsys & psys,
                                       DomainInfo & dinfo,
-                                      const bool clear_force = true){
-            calcForceAll(pfunc_ep_ep, psys, dinfo, clear_force); 
+                                      const bool clear_force = true,
+                                      const INTERACTION_LIST_MODE list_mode = MAKE_LIST){
+            calcForceAll(pfunc_ep_ep, psys, dinfo, clear_force, list_mode); 
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
         }
 
@@ -768,23 +1152,375 @@ namespace ParticleSimulator{
         //////////////////
         // FOR LONG FORCE
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
-        void calcForceAll(Tfunc_ep_ep pfunc_ep_ep, 
-                          Tfunc_ep_sp pfunc_ep_sp,  
+        void calcForceAll(Tfunc_ep_ep pfunc_ep_ep,
+                          Tfunc_ep_sp pfunc_ep_sp,
                           Tpsys & psys,
                           DomainInfo & dinfo,
-                          const bool clear_force=true){
-            setParticleLocalTree(psys);
-            setRootCell(dinfo);
-            mortonSortLocalTreeOnly();
-            linkCellLocalTreeOnly();
-            calcMomentLocalTreeOnly();
-            exchangeLocalEssentialTree(dinfo);
-            setLocalEssentialTreeToGlobalTree();
-            mortonSortGlobalTreeOnly();
-            linkCellGlobalTreeOnly();
-            calcMomentGlobalTreeOnly();
-            makeIPGroup();
-            calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
+                          const bool clear_force=true,
+                          const INTERACTION_LIST_MODE list_mode = MAKE_LIST){
+            //std::cerr<<"list_mode= "<<list_mode<<std::endl;
+            if(list_mode == MAKE_LIST){
+                setParticleLocalTree(psys);
+                setRootCell(dinfo);
+                mortonSortLocalTreeOnly();
+                linkCellLocalTreeOnly();
+                calcMomentLocalTreeOnly();
+                exchangeLocalEssentialTree(dinfo);
+                setLocalEssentialTreeToGlobalTree();
+                mortonSortGlobalTreeOnly();
+                linkCellGlobalTreeOnly();
+                calcMomentGlobalTreeOnly();
+                makeIPGroup();
+                calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
+            }
+            else if(list_mode == MAKE_LIST_FOR_REUSE){
+                setParticleLocalTree(psys);
+                setRootCell(dinfo);
+                mortonSortLocalTreeOnly();
+                linkCellLocalTreeOnly();
+                calcMomentLocalTreeOnly();
+
+                //if(Comm::getRank()==0){
+                //    std::cerr<<"CHECK a"<<std::endl;
+                //    std::cerr<<"tp_loc_.size()= "<<tp_loc_.size()<<std::endl;
+                //}
+                
+                /*
+                if(Comm::getRank()==1){
+                    std::cout<<"tc_loc_.size()= "<<tc_loc_.size()<<std::endl;
+                    for(S32 i=0; i<tc_loc_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" n_ptcl= "<<tc_loc_[i].n_ptcl_
+                                 <<" vertex_out= "<<tc_loc_[i].mom_.vertex_out_
+                                 <<std::endl;
+                    }
+                }
+                //Comm::barrier();
+                //exit(1);
+                */
+                
+                spj_sorted_loc_.clearSize();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_, 0, spj_sorted_loc_);
+
+                /*
+                if(Comm::getRank()==1){
+                    std::cout<<"spj_sorted_loc_.size()= "<<spj_sorted_loc_.size()<<std::endl;
+                    for(S32 i=0; i<spj_sorted_loc_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" mass= "<<spj_sorted_loc_[i].mass
+                                 <<" pos= "<<spj_sorted_loc_[i].pos
+                                 <<std::endl;
+                    }
+                }
+                //Comm::barrier();
+                //exit(1);
+                */
+                
+                //exchangeLocalEssentialTreeReuseListLong(dinfo);
+                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
+
+
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"B) epj_recv_.size()= "<<epj_recv_.size()
+                             <<" spj_recv_.size()= "<<spj_recv_.size()
+                             <<std::endl;
+                    for(S32 i=0; i<epj_recv_.size(); i++){
+                        std::cout<<"epj_recv_[i].id= "<<epj_recv_[i].id<<std::endl;
+                    }
+                    for(S32 i=0; i<spj_recv_.size(); i++){
+                        std::cout<<"spj_recv_[i].mass= "<<spj_recv_[i].mass<<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                
+                /*
+                F64 mass_tmp = 0.0;
+                if(Comm::getRank()==2){
+                    std::cerr<<"epj_org_.size()= "<<epj_org_.size()<<std::endl;
+                    std::cerr<<"spj_org_.size()= "<<spj_org_.size()<<std::endl;
+                    std::cerr<<"epj_recv_.size()= "<<epj_recv_.size()<<std::endl;
+                    std::cerr<<"spj_recv_.size()= "<<spj_recv_.size()<<std::endl;
+                    for(S32 i=0; i<epj_org_.size(); i++){
+                        mass_tmp += epj_org_[i].mass;
+                    }
+                    std::cerr<<"A) mass_tmp= "<<mass_tmp<<std::endl;
+                    for(S32 i=0; i<epj_recv_.size(); i++){
+                        mass_tmp += epj_recv_[i].mass;
+                    }
+                    std::cerr<<"B) mass_tmp= "<<mass_tmp<<std::endl;
+                    for(S32 i=0; i<spj_recv_.size(); i++){
+                        mass_tmp += spj_recv_[i].mass;
+                    }
+                    std::cerr<<"C) mass_tmp= "<<mass_tmp<<std::endl;
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                /*
+                SetLocalEssentialTreeToGlobalTreeImpl(epj_recv_, spj_recv_, tp_loc_,
+                                                      epj_org_,  spj_org_, tp_glb_,
+                                                      false);
+                */
+                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
+                this->n_glb_tot_ = tp_glb_.size();
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"epj_org_.size()= "<<epj_org_.size()<<std::endl;
+                    std::cout<<"spj_org_.size()= "<<spj_org_.size()<<std::endl;
+                    std::cout<<"n_glb_tot_= "<<n_glb_tot_<<std::endl;
+                    for(S32 i=0; i<epj_org_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" epj_org_[i].pos= "<<epj_org_[i].pos
+                                 <<" tp_glb_[i].adr_ptcl_= "<<tp_glb_[i].adr_ptcl_
+                                 <<std::endl;
+                    }
+                    for(S32 i=epj_org_.size(); i<spj_org_.size()-epj_org_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" spj_org_[i].pos= "<<spj_org_[i].pos
+                                 <<" tp_glb_[i].adr_ptcl_= "<<tp_glb_[i].adr_ptcl_
+                                 <<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                
+                mortonSortGlobalTreeOnly();
+                
+                //AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_, spj_sorted_);
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"spj_sorted_.size()= "<<spj_sorted_.size()<<std::endl;
+                    for(S32 i=0; i<spj_sorted_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" spj_sorted_[i].getCharge()= "
+                                 <<spj_sorted_[i].getCharge()
+                                 <<" getPos()= "
+                                 <<spj_sorted_[i].getPos()
+                                 <<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                for(S32 i=0; i<tc_glb_.size(); i++){
+                    tc_glb_[i].clear();
+                }
+                
+                linkCellGlobalTreeOnly();
+                calcMomentGlobalTreeOnly();
+
+                SetOuterBoxGlobalTreeForLongCutoffTop(typename TSM::search_type(),
+                                                      tc_glb_.getPointer(),
+                                                      epj_org_.getPointer(), //to get rcut
+                                                      n_leaf_limit_,
+                                                      length_*0.5, center_);
+                /*
+                if(Comm::getRank()==0){
+                    std::cout<<"B) tc_glb_.size()= "<<tc_glb_.size()<<std::endl;
+                    for(S32 i=0; i<tc_glb_.size(); i++){
+                        std::cout<<"i= "<<i
+                                 <<" mass= "<<tc_glb_[i].mom_.mass
+                                 <<" n_ptcl_= "<<tc_glb_[i].n_ptcl_
+                                 <<" vertex_out_= "<<tc_glb_[i].mom_.vertex_out_
+                                 <<" vertex_in_= "<<tc_glb_[i].mom_.vertex_in_
+                                 <<std::endl;
+                        if(i==35){
+                            S32 adr_ptcl = tc_glb_[i].adr_ptcl_;
+                            for(S32 j=0; j<tc_glb_[i].n_ptcl_; j++){
+                                std::cerr<<"GetMSB(tp_glb_[adr_ptcl+j].adr_ptcl_)= "
+                                         <<GetMSB(tp_glb_[adr_ptcl+j].adr_ptcl_)
+                                         <<std::endl;
+                            }
+                        }
+                    }
+                }
+                */
+                
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
+                                  spj_sorted_.size(), spj_sorted_); // new
+                
+                /*
+                if(Comm::getRank()==0){
+                    for(S32 i=0; i<epj_sorted_.size(); i++){
+                        std::cerr<<"i= "<<i<<" epj_sorted_[i].mass= "<<epj_sorted_[i].mass<<std::endl;
+                    }
+                    std::cerr<<"spj_sorted_.size()= "<<spj_sorted_.size()<<std::endl;
+                    for(S32 i=0; i<spj_sorted_.size(); i++){
+                        std::cerr<<"i= "<<i<<" spj_sorted_[i].mass= "<<spj_sorted_[i].mass<<std::endl;
+                    }
+                }
+                */
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"spj_sorted_.size()= "<<spj_sorted_.size()<<std::endl;
+                    //std::cerr<<"tp_loc_.size()= "<<tp_loc_.size()<<std::endl;
+                    //std::cerr<<"epi_org_.size()= "<<epi_org_.size()<<std::endl;
+                    //std::cerr<<"epj_recv_.size()= "<<epj_recv_.size()<<std::endl;
+                    //std::cerr<<"spj_recv_.size()= "<<spj_recv_.size()<<std::endl;
+                }
+                */
+                /*
+                if(Comm::getRank()==3){
+                    std::cerr<<"spj_sorted_.size()= "<<spj_sorted_.size()<<std::endl;
+                    for(S32 i=0; i<spj_sorted_.size(); i++){
+                        if(spj_sorted_[i].getCharge() >= 0.24){
+                            std::cerr<<"i= "<<i
+                                     <<" spj_sorted_[i].getCharge()= "
+                                     <<spj_sorted_[i].getCharge()
+                                     <<" getPos()= "
+                                     <<spj_sorted_[i].getPos()
+                                     <<std::endl;
+                        }
+                    }
+                }
+                //Comm::barrier();
+                //exit(1);
+                */
+                
+                makeIPGroup();
+                
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"B) ipg_.size()= "<<ipg_.size()<<std::endl;
+                    for(S32 i=0; i<ipg_.size(); i++){
+                        std::cerr<<"i= "<<i
+                                 <<" ipg_[i].n_ptcl_= "<<ipg_[i].n_ptcl_
+                                 <<" vertex_= "<<ipg_[i].vertex_
+                                 <<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                
+                makeInteractionListIndexLong();
+                
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"ipg_.size()= "<<ipg_.size()
+                             <<" n_ep_.size()= "<<interaction_list_.n_ep_.size()
+                             <<" n_sp_.size()= "<<interaction_list_.n_sp_.size()
+                             <<std::endl;
+                    for(S32 i=0; i<ipg_.size(); i++){
+                        std::cerr<<"i= "<<i
+                                 <<" n_ep= "<<interaction_list_.n_ep_[i]
+                                 <<" n_sp= "<<interaction_list_.n_sp_[i]
+                                 <<std::endl;
+                    }
+                }
+                Comm::barrier();
+                exit(1);
+                */
+                calcForceNoWalk(pfunc_ep_ep, pfunc_ep_sp, clear_force);
+
+                //if(Comm::getRank()==0){
+                //    std::cerr<<"CHECK c"<<std::endl;
+                //    std::cerr<<"tp_loc_.size()= "<<tp_loc_.size()<<std::endl;
+                //}
+            }
+            else if(list_mode == REUSE_LIST){
+                //if(Comm::getRank()==0){
+                //    std::cerr<<"CHECK 0"<<std::endl;
+                //    std::cerr<<"tp_loc_.size()= "<<tp_loc_.size()<<std::endl;
+                //}
+                /*
+                for(S32 i=0; i<n_loc_tot_; i++){
+                    epi_org_[i].copyFromFP(psys[i]);
+                    epj_org_[i].copyFromFP(psys[i]);
+                }
+                */
+                //CopyFpToEpSortedLocalTree(psys, tp_loc_, epi_sorted_, epj_sorted_);
+                setParticleLocalTree(psys);
+                mortonSortLocalTreeOnly(true);
+                
+                calcMomentLocalTreeOnly();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_,
+                                  0, spj_sorted_loc_);
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"epj_sorted_.size()= "<<epj_sorted_.size()<<std::endl;
+                    for(S32 i=0; i<epj_sorted_.size(); i++){
+                        std::cerr<<"i= "<<i<<" epj_sorted_[i].mass= "<<epj_sorted_[i].mass<<std::endl;
+                    }
+                    std::cerr<<"spj_sorted_loc_.size()= "<<spj_sorted_loc_.size()<<std::endl;
+                    for(S32 i=0; i<spj_sorted_loc_.size(); i++){
+                        std::cerr<<"i= "<<i<<" spj_sorted_loc_[i].mass= "<<spj_sorted_loc_[i].mass<<std::endl;
+                    }
+                }
+                */
+                
+                //exchangeLocalEssentialTreeReuseListLong(dinfo, true);
+                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo, true);
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"epj_recv_.size()= "<<epj_recv_.size()<<std::endl;
+                    for(S32 i=0; i<epj_sorted_.size(); i++){
+                        std::cerr<<"i= "<<i<<" epj_recv_[i].mass= "<<epj_recv_[i].mass<<std::endl;
+                    }
+                    std::cerr<<"spj_recv_.size()= "<<spj_recv_.size()<<std::endl;
+                    for(S32 i=0; i<spj_recv_.size(); i++){
+                        std::cerr<<"i= "<<i<<" spj_recv_[i].mass= "<<spj_recv_[i].mass<<std::endl;
+                    }
+                } 
+                */
+                /*
+                SetLocalEssentialTreeToGlobalTreeImpl(epj_recv_, spj_recv_, tp_loc_,
+                                                      epj_org_,  spj_org_,  tp_glb_,
+                                                      true);
+                */
+                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), true);
+                
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"CHECK 2"<<std::endl;
+                    std::cerr<<"epj_org_.size()= "<<epj_org_.size()<<std::endl;
+                    for(S32 i=0; i<epj_org_.size(); i++){
+                        std::cerr<<"i= "<<i
+                                 <<" epj_org_[i].getCharge()= "
+                                 <<epj_org_[i].getCharge()
+                                 <<std::endl;
+                    }                    
+                    std::cerr<<"spj_org_.size()= "<<spj_org_.size()<<std::endl;
+                    for(S32 i=0; i<spj_org_.size(); i++){
+                        std::cerr<<"i= "<<i
+                                 <<" spj_org_[i].getCharge()= "
+                                 <<spj_org_[i].getCharge()
+                                 <<std::endl;
+                    }
+                }
+                */
+                
+                mortonSortGlobalTreeOnly(true);
+                calcMomentGlobalTreeOnly();
+                S32 offset = epi_org_.size() + epj_recv_.size() + spj_recv_.size();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
+                                  offset, spj_sorted_);
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"epj_sorted_.size()= "<<epj_sorted_.size()<<std::endl;
+                    for(S32 i=0; i<epj_sorted_.size(); i++){
+                        std::cerr<<"i= "<<i<<" epj_sorted_[i].mass= "<<epj_sorted_[i].mass<<std::endl;
+                    }
+                    std::cerr<<"spj_sorted_.size()= "<<spj_sorted_.size()<<std::endl;
+                    for(S32 i=0; i<spj_sorted_.size(); i++){
+                        std::cerr<<"i= "<<i<<" spj_sorted_[i].mass= "<<spj_sorted_[i].mass<<std::endl;
+                    }
+                }
+                */
+                
+                //makeInteractionListIndexLong();
+                calcForceNoWalk(pfunc_ep_ep, pfunc_ep_sp, clear_force);
+            }
+            else{
+                PARTICLE_SIMULATOR_PRINT_ERROR("INVALID INTERACTION_LIST_MODE.");
+                std::cerr<<"INTERACTION_LIST_MODE: "<<list_mode<<std::endl;
+                Abort(-1);
+            }
+            
         }
 
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
@@ -853,10 +1589,12 @@ namespace ParticleSimulator{
                                       Tfunc_ep_sp pfunc_ep_sp,  
                                       Tpsys & psys,
                                       DomainInfo & dinfo,
-                                      const bool clear_force=true){
-
-            clearSizeOfArray();
-            calcForceAll(pfunc_ep_ep, pfunc_ep_sp, psys, dinfo, clear_force);
+                                      const bool clear_force=true,
+                                      const INTERACTION_LIST_MODE list_mode = MAKE_LIST){
+            if(list_mode != REUSE_LIST){
+                clearSizeOfArray();
+            }
+            calcForceAll(pfunc_ep_ep, pfunc_ep_sp, psys, dinfo, clear_force, list_mode);
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
         }
 
@@ -883,20 +1621,68 @@ namespace ParticleSimulator{
                                   Tpsys & psys,
                                   DomainInfo & dinfo,
                                   const S32 n_walk_limit,
-                                  const bool clear=true){
+                                  const bool clear=true,
+                                  const INTERACTION_LIST_MODE list_mode = MAKE_LIST){
             S32 ret = 0;
-            setParticleLocalTree(psys);
-            setRootCell(dinfo);
-            mortonSortLocalTreeOnly();
-            linkCellLocalTreeOnly();
-            calcMomentLocalTreeOnly();
-            exchangeLocalEssentialTree(dinfo);
-            setLocalEssentialTreeToGlobalTree();
-            mortonSortGlobalTreeOnly();
-            linkCellGlobalTreeOnly();
-            calcMomentGlobalTreeOnly();
-            makeIPGroup();
-            ret = calcForceMultiWalk(pfunc_dispatch, pfunc_retrieve, tag_max, n_walk_limit, clear);
+            if(list_mode == MAKE_LIST){
+                setParticleLocalTree(psys);
+                setRootCell(dinfo);
+                mortonSortLocalTreeOnly();
+                linkCellLocalTreeOnly();
+                calcMomentLocalTreeOnly();
+                exchangeLocalEssentialTree(dinfo);
+                setLocalEssentialTreeToGlobalTree();
+                mortonSortGlobalTreeOnly();
+                linkCellGlobalTreeOnly();
+                calcMomentGlobalTreeOnly();
+                makeIPGroup();
+                ret = calcForceMultiWalk(pfunc_dispatch, pfunc_retrieve, tag_max, n_walk_limit, clear);
+            }
+            else if(list_mode == MAKE_LIST_FOR_REUSE){
+                setParticleLocalTree(psys);
+                setRootCell(dinfo);
+                mortonSortLocalTreeOnly();
+                linkCellLocalTreeOnly();
+                calcMomentLocalTreeOnly();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_,
+                                  0, spj_sorted_loc_);
+                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
+                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
+                this->n_glb_tot_ = tp_glb_.size();
+                mortonSortGlobalTreeOnly();
+                for(S32 i=0; i<tc_glb_.size(); i++){
+                    tc_glb_[i].clear();
+                }
+                linkCellGlobalTreeOnly();
+                calcMomentGlobalTreeOnly();
+                SetOuterBoxGlobalTreeForLongCutoffTop(typename TSM::search_type(),
+                                                      tc_glb_.getPointer(),
+                                                      epj_org_.getPointer(), //to get rcut
+                                                      n_leaf_limit_,
+                                                      length_*0.5, center_);
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
+                                  spj_sorted_.size(), spj_sorted_);
+                makeIPGroup();
+                //ret = calcForceMultiWalkIndexNew(pfunc_dispatch, pfunc_retrieve, tag_max, 500, true, clear);
+                ret = calcForceMultiWalkIndexNew(pfunc_dispatch, pfunc_retrieve, tag_max, n_walk_limit, true, clear);
+            }
+            else if(list_mode == REUSE_LIST){
+                setParticleLocalTree(psys);
+                mortonSortLocalTreeOnly(true);
+                calcMomentLocalTreeOnly();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_,
+                                  0, spj_sorted_loc_);
+                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo, true);
+                
+                setLocalEssentialTreeToGlobalTree2(true);
+                mortonSortGlobalTreeOnly(true);
+                calcMomentGlobalTreeOnly();
+                S32 offset = epi_org_.size() + epj_recv_.size() + spj_recv_.size();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
+                                  offset, spj_sorted_);
+                //calcForceNoWalkForMultiWalkNew(pfunc_dispatch, pfunc_retrieve, 500, clear);
+                calcForceNoWalkForMultiWalkNew(pfunc_dispatch, pfunc_retrieve, n_walk_limit, clear);
+            }
             return ret;
         }
 	
@@ -907,16 +1693,33 @@ namespace ParticleSimulator{
                                               Tpsys & psys,
                                               DomainInfo & dinfo,
                                               const S32 n_walk_limit,
-                                              const bool clear=true){
+                                              const bool clear=true,
+                                              const INTERACTION_LIST_MODE list_mode = MAKE_LIST){
             S32 ret = 0;
             ret = calcForceAllMultiWalk(pfunc_dispatch, pfunc_retrieve,
-                                        tag_max, psys, dinfo, n_walk_limit, clear);
+                                        tag_max, psys, dinfo, n_walk_limit, clear, list_mode);
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
             return ret;
         }
 
         ///////
-        // new 
+        // new
+        void setLocalEssentialTreeToGlobalTree2(const bool flag_reuse = false){
+            setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), flag_reuse);
+        } 
+        void setLocalEssentialTreeToGlobalTreeImpl2(TagForceLong,
+                                                    const bool flag_reuse = false){
+            SetLocalEssentialTreeToGlobalTreeImpl(epj_recv_, spj_recv_, tp_loc_,
+                                                  epj_org_,  spj_org_, tp_glb_,
+                                                  flag_reuse);
+        }
+        void setLocalEssentialTreeToGlobalTreeImpl2(TagForceShort,
+                                                    const bool flag_reuse = false){
+            SetLocalEssentialTreeToGlobalTreeImpl(epj_recv_, tp_loc_,
+                                                  epj_org_,  tp_glb_,
+                                                  flag_reuse);
+        }
+
         template<class Tfunc_dispatch, class Tfunc_retrieve, class Tpsys>
         S32 calcForceAllMultiWalkIndex(Tfunc_dispatch pfunc_dispatch,
                                        Tfunc_retrieve pfunc_retrieve,
@@ -924,23 +1727,131 @@ namespace ParticleSimulator{
                                        Tpsys & psys,
                                        DomainInfo & dinfo,
                                        const S32 n_walk_limit,
-                                       const bool clear=true){
+                                       const bool clear=true,
+                                       const INTERACTION_LIST_MODE list_mode = MAKE_LIST){
             S32 ret = 0;
-            setParticleLocalTree(psys);
-            setRootCell(dinfo);
-            mortonSortLocalTreeOnly();
-            linkCellLocalTreeOnly();
-            calcMomentLocalTreeOnly();
-            exchangeLocalEssentialTree(dinfo);
-            setLocalEssentialTreeToGlobalTree();
-            mortonSortGlobalTreeOnly();
-            linkCellGlobalTreeOnly();
-            calcMomentGlobalTreeOnly();
-            addMomentAsSpImpl(typename TSM::force_type());
-            makeIPGroup();
-            ret = calcForceMultiWalkIndex(pfunc_dispatch, pfunc_retrieve, tag_max, n_walk_limit, clear);
+            if(list_mode == MAKE_LIST){
+                setParticleLocalTree(psys);
+                setRootCell(dinfo);
+                mortonSortLocalTreeOnly();
+                linkCellLocalTreeOnly();
+                calcMomentLocalTreeOnly();
+                exchangeLocalEssentialTree(dinfo);
+                setLocalEssentialTreeToGlobalTree();
+                mortonSortGlobalTreeOnly();
+                linkCellGlobalTreeOnly();
+                calcMomentGlobalTreeOnly();
+
+                SetOuterBoxGlobalTreeForLongCutoffTop(typename TSM::search_type(),
+                                                      tc_glb_.getPointer(),
+                                                      epj_org_.getPointer(), //to get rcut
+                                                      n_leaf_limit_,
+                                                      length_*0.5, center_);
+
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
+                                  spj_sorted_.size(), spj_sorted_);
+                makeIPGroup();
+                ret = calcForceMultiWalkIndex(pfunc_dispatch, pfunc_retrieve, 
+                                              tag_max, n_walk_limit, false, clear);
+            }
+            else if(list_mode == MAKE_LIST_FOR_REUSE){
+                //std::cerr<<"check 0 : "<<time_profile_.calc_force<<std::endl;
+                setParticleLocalTree(psys);
+                setRootCell(dinfo);
+                mortonSortLocalTreeOnly();
+                linkCellLocalTreeOnly();
+                calcMomentLocalTreeOnly();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_,
+                                  0, spj_sorted_loc_);
+                //exchangeLocalEssentialTreeReuseListLong(dinfo);
+                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
+                //setLocalEssentialTreeToGlobalTree2(typename TSM::force_type(), false);
+                setLocalEssentialTreeToGlobalTree2(false);
+                this->n_glb_tot_ = tp_glb_.size();
+                mortonSortGlobalTreeOnly();
+                for(S32 i=0; i<tc_glb_.size(); i++){
+                    tc_glb_[i].clear();
+                }
+                linkCellGlobalTreeOnly();
+                calcMomentGlobalTreeOnly();
+                SetOuterBoxGlobalTreeForLongCutoffTop(typename TSM::search_type(),
+                                                      tc_glb_.getPointer(),
+                                                      epj_org_.getPointer(), //to get rcut
+                                                      n_leaf_limit_,
+                                                      length_*0.5, center_);
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
+                                  spj_sorted_.size(), spj_sorted_);
+                //std::cerr<<"check 1 : "<<time_profile_.calc_force<<std::endl;
+                makeIPGroup();
+                //std::cerr<<"check 2 : "<<time_profile_.calc_force<<std::endl;
+
+#if 1
+                // DOUBLE BUFFERING
+                ret = calcForceMultiWalkIndex(pfunc_dispatch, pfunc_retrieve, 
+                                              tag_max, n_walk_limit, true, clear);
+#else
+                makeInteractionListIndex(typename TSM::force_type());
+                /*
+                if(Comm::getRank()==0){
+                    std::cerr<<"ipg_.size()= "<<ipg_.size()
+                             <<" n_ep_.size()= "<<interaction_list_.n_ep_.size()
+                             <<" n_sp_.size()= "<<interaction_list_.n_sp_.size()
+                             <<std::endl;
+                    for(S32 i=0; i<ipg_.size(); i++){
+                        std::cerr<<"i= "<<i
+                                 <<" n_ep= "<<interaction_list_.n_ep_[i]
+                                 <<" n_sp= "<<interaction_list_.n_sp_[i]
+                                 <<std::endl;
+                    }
+                }
+                Comm::barrier();
+                //exit(1);
+                */
+                calcForceNoWalkForMultiWalk(pfunc_dispatch, pfunc_retrieve, n_walk_limit, clear);
+#endif
+                //std::cerr<<"check 3 : "<<time_profile_.calc_force<<std::endl;
+                //Comm::barrier();
+                //exit(1);
+            }
+            else if(list_mode == REUSE_LIST){
+                //std::cerr<<"check 0a : "<<time_profile_.calc_force<<std::endl;
+                setParticleLocalTree(psys);
+                mortonSortLocalTreeOnly(true);
+                
+                calcMomentLocalTreeOnly();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_,
+                                  0, spj_sorted_loc_);
+                //exchangeLocalEssentialTreeReuseListLong(dinfo, true);
+                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo, true);
+                /*
+                SetLocalEssentialTreeToGlobalTreeImpl(epj_recv_, spj_recv_, tp_loc_,
+                                                      epj_org_,  spj_org_,  tp_glb_,
+                                                      true);
+                */
+                //setLocalEssentialTreeToGlobalTree2(typename TSM::force_type(), true);
+                setLocalEssentialTreeToGlobalTree2(true);
+
+                mortonSortGlobalTreeOnly(true);
+                calcMomentGlobalTreeOnly();
+                S32 offset = epi_org_.size() + epj_recv_.size() + spj_recv_.size();
+                AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
+                                  offset, spj_sorted_);
+                F64 wtime_tmp = GetWtime();
+                //std::cerr<<"check 1a : "<<time_profile_.calc_force<<std::endl;
+                calcForceNoWalkForMultiWalk(pfunc_dispatch, pfunc_retrieve, n_walk_limit, clear);
+                //std::cerr<<"check 2a : "<<time_profile_.calc_force<<std::endl;
+                wtime_tmp = GetWtime() - wtime_tmp;
+                //std::cerr<<"wtime_tmp= "<<wtime_tmp<<std::endl;
+            }
+            else{
+                PARTICLE_SIMULATOR_PRINT_ERROR("INVALID INTERACTION_LIST_MODE.");
+                std::cerr<<"INTERACTION_LIST_MODE: "<<list_mode<<std::endl;
+                Abort(-1);
+            }
             return ret;
         }
+
+        
         template<class Tfunc_dispatch, class Tfunc_retrieve, class Tpsys>
         S32 calcForceAllAndWriteBackMultiWalkIndex(Tfunc_dispatch pfunc_dispatch,
                                                    Tfunc_retrieve pfunc_retrieve,
@@ -948,10 +1859,11 @@ namespace ParticleSimulator{
                                                    Tpsys & psys,
                                                    DomainInfo & dinfo,
                                                    const S32 n_walk_limit,
-                                                   const bool clear=true){
+                                                   const bool clear=true,
+                                                   const INTERACTION_LIST_MODE list_mode = MAKE_LIST){
             S32 ret = 0;
             ret = calcForceAllMultiWalkIndex(pfunc_dispatch, pfunc_retrieve,
-                                             tag_max, psys, dinfo, n_walk_limit, clear);
+                                             tag_max, psys, dinfo, n_walk_limit, clear, list_mode);
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
             return ret;
         }

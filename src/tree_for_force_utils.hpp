@@ -63,14 +63,111 @@ static inline __m256 _mm256_set_m128_forgcc(__m128 hi, __m128 lo){
 #include"stack.hpp"
 
 namespace ParticleSimulator{
+
+#if 1
     inline void CalcNumberAndShiftOfImageDomain
     (ReallocatableArray<F64vec> & shift_image_domain,
      const F64vec & size_root_domain,
      const F64ort & pos_my_domain,
      const F64ort & pos_target_domain,
-     const bool periodic_axis[]){
-        shift_image_domain.clearSize();
-        if(pos_my_domain.contained(pos_target_domain)){
+     const bool periodic_axis[],
+     const bool clear = true){
+        if(clear) shift_image_domain.clearSize();
+        /*
+        std::cerr<<"periodic_axis[0]= "<<periodic_axis[0]
+                 <<" periodic_axis[1]= "<<periodic_axis[1]
+                 <<std::endl;
+        */
+#ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
+        if( periodic_axis[0] == false && periodic_axis[1] == false){
+            shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
+            return;
+        }
+#else
+        if( periodic_axis[0] == false
+            && periodic_axis[1] == false
+            && periodic_axis[2] == false ){
+            shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
+            return;
+        }
+#endif
+        //if(pos_my_domain.contained(pos_target_domain)){
+        if(pos_my_domain.overlapped(pos_target_domain)){
+            shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
+        }
+#ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
+
+        for(S32 lev=1;; lev++){
+            S32 n_image_per_level = 0;
+            S32 lev_x = 0;
+            S32 lev_y = 0;
+            if(periodic_axis[0] == true) lev_x = lev;
+            if(periodic_axis[1] == true) lev_y = lev;
+            for(S32 ix=-lev_x; ix<=lev_x; ix++){
+                for(S32 iy=-lev_y; iy<=lev_y; iy++){
+                    if( (std::abs(ix) !=lev_x || periodic_axis[0] == false)
+                        && (std::abs(iy) != lev_y  || periodic_axis[1] == false)) continue;
+                    const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y);
+                    const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
+                    //if(pos_my_domain.contained(pos_image_tmp)){
+                    if(pos_my_domain.overlapped(pos_image_tmp)){
+                        shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
+                        n_image_per_level++;
+                    }
+                }
+            }
+            if(n_image_per_level == 0) break;
+        }
+#else
+        for(S32 lev=1;; lev++){
+            S32 n_image_per_level = 0;
+            S32 lev_x = 0;
+            S32 lev_y = 0;
+            S32 lev_z = 0;
+            if(periodic_axis[0] == true) lev_x = lev;
+            if(periodic_axis[1] == true) lev_y = lev;
+            if(periodic_axis[2] == true) lev_z = lev;
+            for(S32 ix=-lev_x; ix<=lev_x; ix++){
+                for(S32 iy=-lev_y; iy<=lev_y; iy++){
+                    for(S32 iz=-lev_z; iz<=lev_z; iz++){
+                        if( (std::abs(ix) !=lev_x || periodic_axis[0] == false)
+                            && (std::abs(iy) != lev_y  || periodic_axis[1] == false)
+                            && (std::abs(iz) != lev_z || periodic_axis[2] == false) ) continue;
+                        const F64vec shift_tmp(ix*size_root_domain.x,
+                                               iy*size_root_domain.y,
+                                               iz*size_root_domain.z);
+                        const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
+                        //if(pos_my_domain.contained(pos_image_tmp)){
+                        if(pos_my_domain.overlapped(pos_image_tmp)){
+                            shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
+                            n_image_per_level++;
+                        }
+                    }
+                }
+            }
+            if(n_image_per_level == 0) break;
+        }
+#endif
+        //std::cerr<<"shift_image_domain.size()= "<<shift_image_domain.size()<<std::endl;
+    }
+
+#else
+
+    inline void CalcNumberAndShiftOfImageDomain
+    (ReallocatableArray<F64vec> & shift_image_domain,
+     const F64vec & size_root_domain,
+     const F64ort & pos_my_domain,
+     const F64ort & pos_target_domain,
+     const bool periodic_axis[],
+     const bool clear = true){
+        if(clear) shift_image_domain.clearSize();
+        /*
+        std::cerr<<"pos_my_domain.contained(pos_target_domain)1= "<<pos_my_domain.contained(pos_target_domain)
+                 <<" pos_my_domain.overlapped(pos_target_domain)1= "<<pos_my_domain.overlapped(pos_target_domain)
+                 <<std::endl;
+        */
+        //if(pos_my_domain.contained(pos_target_domain)){
+        if(pos_my_domain.overlapped(pos_target_domain)){
             shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
         }
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
@@ -85,7 +182,13 @@ namespace ParticleSimulator{
                     if( (std::abs(ix) !=lev_x || periodic_axis[0] == false) && (std::abs(iy) != lev_y  || periodic_axis[1] == false)) continue;
                     const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y);
                     const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
-                    if(pos_my_domain.contained(pos_image_tmp)){
+                    /*
+                    std::cerr<<"pos_my_domain.contained(pos_image_tmp)2= "<<pos_my_domain.contained(pos_image_tmp)
+                             <<" pos_my_domain.overlapped(pos_image_tmp)2= "<<pos_my_domain.overlapped(pos_image_tmp)
+                             <<std::endl;
+                    */
+                    //if(pos_my_domain.contained(pos_image_tmp)){
+                    if(pos_my_domain.overlapped(pos_image_tmp)){
                         shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
                         n_image_per_level++;
                     }
@@ -108,7 +211,13 @@ namespace ParticleSimulator{
                         if( (std::abs(ix) !=lev_x || periodic_axis[0] == false) && (std::abs(iy) != lev_y  || periodic_axis[1] == false) && (std::abs(iz) != lev_z || periodic_axis[2] == false) ) continue;
                         const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y, iz*size_root_domain.z);
                         const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
-                        if(pos_my_domain.contained(pos_image_tmp)){
+                        /*
+                        std::cerr<<"pos_my_domain.contained(pos_image_tmp)2= "<<pos_my_domain.contained(pos_image_tmp)
+                                 <<" pos_my_domain.overlapped(pos_image_tmp)2= "<<pos_my_domain.overlapped(pos_image_tmp)
+                                 <<std::endl;
+                        */
+                        //if(pos_my_domain.contained(pos_image_tmp)){
+                        if(pos_my_domain.overlapped(pos_image_tmp)){
                             shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
                             n_image_per_level++;
                         }
@@ -119,8 +228,9 @@ namespace ParticleSimulator{
         }
 #endif
     }
-
     
+#endif
+
     inline S32vec CalcIDOfImageDomain(const F64ort & pos_root_domain,
                                       const F64vec & pos_target,
                                       const bool periodic_axis[]){
@@ -415,6 +525,7 @@ namespace ParticleSimulator{
                            S32 & lev_max,
                            const S32 n_tot,
                            const S32 n_leaf_limit){
+
         tc_array.resizeNoInitialize(N_CHILDREN*2);
         tc_array[0].n_ptcl_ = n_tot;
         tc_array[0].adr_tc_ = N_CHILDREN;
@@ -583,7 +694,7 @@ namespace ParticleSimulator{
         for(S32 i=lev_max; i>=0; --i){
             const S32 head = adr_tc_level_partition[i];
             const S32 next = adr_tc_level_partition[i+1];
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 j=head; j<next; j++){
@@ -1076,9 +1187,15 @@ namespace ParticleSimulator{
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
+            /*
             open_bits |= ( ( (pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
                              || (pos_target_box_in.contained( tc_first[adr_tc+i].mom_.getVertexOut())) 
                              || (pos_target_box_out.contained( tc_first[adr_tc+i].mom_.getVertexIn())) )
+                           << i);
+            */
+            open_bits |= ( ( (pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
+                             || (pos_target_box_in.overlapped( tc_first[adr_tc+i].mom_.getVertexOut())) 
+                             || (pos_target_box_out.overlapped( tc_first[adr_tc+i].mom_.getVertexIn())) )
                            << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1102,7 +1219,15 @@ namespace ParticleSimulator{
                 }
             }
             else{
+                #if 0
                 id_sp_send.push_back(adr_tc_child);
+                if(tc_child->mom_.mass < 1e-10){
+                    std::cerr<<"check bbb"<<std::endl;
+                }
+                #else
+                // original
+                id_sp_send.push_back(adr_tc_child);
+                #endif
             }
         }
     }
@@ -1468,7 +1593,7 @@ namespace ParticleSimulator{
                     }
                     /*
                     for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
-                        U32 msb = GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_);                        
+                        U32 msb = GetMSB(tp_first[adr_ptcl_tmp].adr_ptcl_);
                         Tep ep_tmp = ep_first[adr_ptcl_tmp];
                         Tsp sp_tmp = sp_first[adr_ptcl_tmp];
                         ep_list.pushBackNoCheck(ep_tmp);
@@ -1674,6 +1799,7 @@ namespace ParticleSimulator{
                             ep_list.pushBackNoCheck(ep_first[adr_ptcl_tmp++]);
                         }
                         else{
+                            //if(sp_first[adr_ptcl_tmp].mass == 0.0) { std::cerr<<"check a"<<std::endl; } // another node sent sp with mass of 0
                             sp_list.pushBackNoCheck(sp_first[adr_ptcl_tmp++]);
                         }
                     }
@@ -1704,16 +1830,20 @@ namespace ParticleSimulator{
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
             open_bits |= ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) << i);
-#if 1
+#ifdef DEBUG_2017_10_30
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+#else
+    #if 1
 	    // vertex_out is not used
             const F64ort child_cell_box = makeChildCellBox(i, cell_box);
             open_bits |= ( (pos_target_box.getDistanceMinSQ(child_cell_box) <= r_cut_sq) << (i + N_CHILDREN));
-#else
+    #else
 	    // cell_box is not used. maybe faster than above one.
 	    // In this case, SPJ must have r_cutoff
 	    // becuase vertex_out of global tree depends on r_cutoff of SPJ.
 	    // It is not easy to tell r_cutoff to SPJ defined by users.
 	    open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+    #endif
 #endif
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -2169,7 +2299,6 @@ namespace ParticleSimulator{
             }
 */
         }
-
 
         for(S32 i=0; i<N_CHILDREN; i++){
             if( (open_bits>>i) & 0x1){
@@ -2994,5 +3123,7 @@ namespace ParticleSimulator{
         return n_cell_open;
     }
 #endif
-
 }
+
+#include"tree_for_force_utils2.hpp"
+    

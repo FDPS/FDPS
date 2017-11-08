@@ -103,15 +103,14 @@ namespace ParticleSimulator{
         }
 
         unsigned int notOverlapped(const Orthotope3 & a) const {
-            return (a.low_.x < low_.x) || (high_.x < a.high_.x)
-                || (a.low_.y < low_.y) || (high_.y < a.high_.y)
-                || (a.low_.z < low_.z) || (high_.z < a.high_.z);
+            return (a.high_.x < low_.x) || (high_.x < a.low_.x)
+                || (a.high_.y < low_.y) || (high_.y < a.low_.y)
+                || (a.high_.z < low_.z) || (high_.z < a.low_.z);
         }
 	
         unsigned int overlapped(const Orthotope3 & a) const {
             return notOverlapped(a) ^ 0x1;
         }
-
 
         const Vector3<T> getCenter() const {
             return (high_ + low_) * T(0.5);
@@ -124,6 +123,7 @@ namespace ParticleSimulator{
         }
 
         const T getDistanceMinSQ(const Orthotope3 & ort) const {
+            // it dose not work in the case of an orthotope with negative volume
             const Vector3<T> a_high = ort.high_;
             const Vector3<T> a_low = ort.low_;
             const Vector3<T> b_high = this->high_;
@@ -141,29 +141,12 @@ namespace ParticleSimulator{
             dy = (y0*y1 < 0) ? dy : T(0);
             dz = (z0*z1 < 0) ? dz : T(0);
             return dx*dx + dy*dy + dz*dz;
-/*
-            T x0 = low_.x - ort.high_.x;
-            T x1 = ort.low_.x - high_.x;
-            T y0 = low_.y - ort.high_.y;
-            T y1 = ort.low_.y - high_.y;
-            T z0 = low_.z - ort.high_.z;
-            T z1 = ort.low_.z - high_.z;
-            T dx = (x0 > x1) ? x0 : x1;
-            T dy = (y0 > y1) ? y0 : y1;
-            T dz = (z0 > z1) ? z0 : z1;
-            dx = (x0*x1 < 0) ? dx : T(0);
-            dy = (y0*y1 < 0) ? dy : T(0);
-            dz = (z0*z1 < 0) ? dz : T(0);
-            return dx*dx + dy*dy + dz*dz;
-*/
         }
-
+        const T getDistanceMinSq(const Orthotope3 & ort) const {
+            return getDistanceMinSQ(ort);
+        }
+        
         const T getDistanceMinSQ(const Vector3<T> & vec) const {
-/*
-            T dx = (vec.x > high_.x) ? (vec.x - high_.x) : ( (vec.x < low_.x) ? (low_.x - vec.x) : T(0) );
-            T dy = (vec.y > high_.y) ? (vec.y - high_.y) : ( (vec.y < low_.y) ? (low_.y - vec.y) : T(0) );
-            T dz = (vec.z > high_.z) ? (vec.z - high_.z) : ( (vec.z < low_.z) ? (low_.z - vec.z) : T(0) );
-*/
             const Vector3<T> b_high = this->high_;
             const Vector3<T> b_low = this->low_;
             T dx = (vec.x > b_high.x) ? (vec.x - b_high.x) : ( (vec.x < b_low.x) ? (b_low.x - vec.x) : T(0) );
@@ -172,6 +155,10 @@ namespace ParticleSimulator{
             return dx*dx + dy*dy + dz*dz;
         }
 
+        const T getDistanceMinSq(const Vector3<T> & vec) const {
+            return getDistanceMinSQ(vec);
+        }
+        
         //Cast to Orthotope3<U>
         template <typename U>
         operator Orthotope3<U> () const {

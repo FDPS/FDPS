@@ -69,7 +69,8 @@ class Structure_Data:
                              "EPJ":False, \
                              "Force":False}
         # Method database
-        self.method_DB    = {"getPos":[False,False,[]], \
+        self.method_DB    = {"getId":[False,False,[]], \
+                             "getPos":[False,False,[]], \
                              "setPos":[False,False,[]], \
                              "getCharge":[False,False,[]], \
                              "getChargePM":[False,False,[]], \
@@ -270,7 +271,8 @@ class Automatic_Generator:
                                                  "EPI", \
                                                  "EPJ", \
                                                  "Force"])
-        self.__usable_fdps_mbr_dirs = frozenset(["position", \
+        self.__usable_fdps_mbr_dirs = frozenset(["id", \
+                                                 "position", \
                                                  "velocity", \
                                                  "charge", \
                                                  "rsearch"])
@@ -383,6 +385,22 @@ class Automatic_Generator:
                                 bool_val = True
         return bool_val
 
+    def __getId_existence_check(self,class_name):
+        for f in self.files:
+            for mod in f.modules:
+                for s in mod.structures:
+                    if (class_name == s.name):
+                        # First, we check if class_name is EPJ or not
+                        if (s.attrib["EPJ"] == False):
+                            msg = "{0} is not EPJ!".format(class_name)
+                            self.__print_error(msg)
+                            sys.exit()
+                        else:
+                            if (s.method_DB["getId"][s._INDX_GENERABLE_FLAG]):
+                                return True
+                            else:
+                                return False
+
     def __getRSearch_existence_check(self,class_name):
         for f in self.files:
             for mod in f.modules:
@@ -490,6 +508,23 @@ class Automatic_Generator:
                             sys.exit()
                         else:
                             return mod.name
+
+    def __is_s32(self,mbr):
+        conditions = []
+        conditions.append((mbr.data_type == "integer(kind=c_int)") and \
+                          (mbr.is_array == False))
+        conditions.append((mbr.data_type == "integer(c_int)") and \
+                          (mbr.is_array == False))
+        return any(conditions)
+
+    def __is_s64(self,mbr):
+        conditions = []
+        conditions.append((mbr.data_type == "integer(kind=c_long_long)") and \
+                          (mbr.is_array == False))
+        conditions.append((mbr.data_type == "integer(c_long_long)") and \
+                          (mbr.is_array == False))
+        return any(conditions)
+
     def __is_f32(self,mbr):
         conditions = []
         conditions.append((mbr.data_type == "real(kind=c_float)") and \
@@ -569,6 +604,19 @@ class Automatic_Generator:
                 if (item != ''):
                     output_text += item_to_be_added
         return output_text
+
+    def __write_getId(self,fh,data_type,member_name):
+        text = """
+        {DATA_TYPE} getId() const {{ 
+           return this->{MBR_NAME};
+        }}
+        """.format(DATA_TYPE=data_type, \
+                   MBR_NAME=member_name)
+        text = text[1:].rstrip()
+        text = textwrap.dedent(text)
+        indent = self.__get_cpp_indent(1)
+        text = self.__add_indent(text,indent)
+        fh.write(text)
 
     def __write_getPos(self,fh,data_type,member_name):
         text = """
@@ -848,6 +896,41 @@ class Automatic_Generator:
         text = "".join(texts)
         fh.write(text)
 
+    def __write_sort_particle_cpp_impl(self,fh):
+        # Set the common indent
+        indent = self.__get_cpp_indent(1)
+        # Set the output text
+        texts = []
+        func_name_base = "sort_particle"
+        func_num = 0
+        for fp_t in self.__FPs:
+            func_name = func_name_base + "{0:05d}".format(func_num)
+            indent_at_func_args = " " * int(len(func_name) + 6)
+            text = """
+            void {FUNC_NAME}(const int psys_num,
+            {INDENT}bool (*pfunc_comp)(const struct {FP_T} &,
+            {INDENT}                   const struct {FP_T} &)) {{
+               for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
+                  if (it->id == psys_num) {{
+                     PS::ParticleSystem<{FP_T}> *psys;
+                     psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
+                     psys->sortParticle(pfunc_comp);
+                     break;
+                  }}
+               }}
+            }}
+            """.format(FUNC_NAME=func_name, \
+                       FP_T=fp_t, \
+                       INDENT=indent_at_func_args)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1
+        # Output
+        text = "".join(texts)
+        fh.write(text)
+
     def __write_tree_branch_for_create_tree(self,fh):
         # Set the indent
         indent = self.__get_cpp_indent(2)
@@ -949,13 +1032,10 @@ class Automatic_Generator:
         text = "".join(texts)
         fh.write(text)
 
-    def __write_calc_force_branch(self,fh,generic_func_name,fdps_method_name, \
-                                  use_psys,use_dinfo):
+    def __write_calc_force_branch(self,fh,generic_func_name,fdps_method_name):
         # Check arguments
         ret = isinstance(generic_func_name,str) and \
-              isinstance(fdps_method_name,str) and \
-              isinstance(use_psys,bool) and \
-              isinstance(use_dinfo,bool)
+              isinstance(fdps_method_name,str)
         if (ret == False):
            print("[dev] invalid arguments in __write_calc_force_branch()!")
            sys.exit()
@@ -968,104 +1048,127 @@ class Automatic_Generator:
         #=================================
         func_name_base = generic_func_name + "_s"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
                 func_name = func_name_base + "{0:05d}".format(func_num)
                 indent_at_func_args = " " * int(len(func_name) + 6)
-                if (use_dinfo):
-                    text = """
-                    void {FUNC_NAME}(const int tree_num,
-                    {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {EPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}const int psys_num,
-                    {INDENT}const int dinfo_num) {{
-                       // Get tree
-                       PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *tree;
-                       for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
-                          if (it->id == tree_num) {{
-                             tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Get psys
-                       PS::ParticleSystem<{FP_T}> *psys;
-                       for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
-                          if (it->id == psys_num) {{
-                             psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Get dinfo
-                       PS::DomainInfo *dinfo;
-                       for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {{
-                          if (it->id == dinfo_num) {{
-                             dinfo = (PS::DomainInfo *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Issue calcForce*()
-                       tree->{API_NAME}(pfunc_ep_ep,*psys,*dinfo);
-                    }}
-                    """.format(FUNC_NAME=func_name,\
-                               API_NAME=fdps_method_name, \
-                               FP_T=fp_t, \
-                               TREE_T=tree_t, \
-                               FORCE_T=force_t, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SEARCH_T=search_t, \
-                               INDENT=indent_at_func_args)
-                else:
-                    text = """
-                    void {FUNC_NAME}(const int tree_num,
-                    {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {EPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}const int psys_num) {{
-                       // Get tree
-                       PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *tree;
-                       for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
-                          if (it->id == tree_num) {{
-                             tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Get psys
-                       PS::ParticleSystem<{FP_T}> *psys;
-                       for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
-                          if (it->id == psys_num) {{
-                             psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Issue calcForce*()
-                       tree->{API_NAME}(pfunc_ep_ep,*psys);
-                    }}
-                    """.format(FUNC_NAME=func_name,\
-                               API_NAME=fdps_method_name, \
-                               FP_T=fp_t, \
-                               TREE_T=tree_t, \
-                               FORCE_T=force_t, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SEARCH_T=search_t, \
-                               INDENT=indent_at_func_args)
+                text = """
+                void {FUNC_NAME}(const int tree_num,
+                {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {EPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}const int psys_num,
+                {INDENT}const int dinfo_num,
+                {INDENT}const bool clear,
+                {INDENT}const enum PS_INTERACTION_LIST_MODE list_mode) {{
+                   // Get tree
+                   PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *tree;
+                   for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
+                      if (it->id == tree_num) {{
+                         tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Get psys
+                   PS::ParticleSystem<{FP_T}> *psys;
+                   for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
+                      if (it->id == psys_num) {{
+                         psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Get dinfo
+                   PS::DomainInfo *dinfo;
+                   for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {{
+                      if (it->id == dinfo_num) {{
+                         dinfo = (PS::DomainInfo *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Issue calcForce*()
+                   if (list_mode == MAKE_LIST) {{
+                      tree->{API_NAME}(pfunc_ep_ep, *psys, *dinfo, clear, PS::MAKE_LIST);
+                   }} else if (list_mode == MAKE_LIST_FOR_REUSE) {{
+                      tree->{API_NAME}(pfunc_ep_ep, *psys, *dinfo, clear, PS::MAKE_LIST_FOR_REUSE);
+                   }} else if (list_mode == REUSE_LIST) {{
+                      tree->{API_NAME}(pfunc_ep_ep, *psys, *dinfo, clear, PS::REUSE_LIST);
+                   }} else {{
+                      PS::S32 myrank = PS::Comm::getRank();
+                      if (myrank == 0) {{
+                         std::string errmsg,func_name;
+                         errmsg = "Unknow list_mode is specified.";
+                         func_name = "{FUNC_NAME}";
+                         print_errmsg(errmsg,func_name);
+                      }}
+                      PS::Abort(-1);
+                      std::exit(EXIT_FAILURE);
+                   }}
+                }}
+                """.format(FUNC_NAME=func_name,\
+                           API_NAME=fdps_method_name, \
+                           FP_T=fp_t, \
+                           TREE_T=tree_t, \
+                           FORCE_T=force_t, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SEARCH_T=search_t, \
+                           INDENT=indent_at_func_args)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1;
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
+                func_name = func_name_base + "{0:05d}".format(func_num)
+                indent_at_func_args = " " * int(len(func_name) + 6)
+                text = """
+                void {FUNC_NAME}(const int tree_num,
+                {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {EPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}const int psys_num,
+                {INDENT}const bool clear) {{
+                   // Get tree
+                   PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *tree;
+                   for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
+                      if (it->id == tree_num) {{
+                         tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Get psys
+                   PS::ParticleSystem<{FP_T}> *psys;
+                   for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
+                      if (it->id == psys_num) {{
+                         psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Issue calcForce*()
+                   tree->{API_NAME}(pfunc_ep_ep, *psys, clear);
+                }}
+                """.format(FUNC_NAME=func_name,\
+                           API_NAME=fdps_method_name, \
+                           FP_T=fp_t, \
+                           TREE_T=tree_t, \
+                           FORCE_T=force_t, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SEARCH_T=search_t, \
+                           INDENT=indent_at_func_args)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
                 # update func_num
                 func_num += 1;
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,search_t in self.__tree_kinds:
                 if (tree_t == "Long"):
                     continue
@@ -1078,7 +1181,8 @@ class Automatic_Generator:
                 {INDENT}                    struct {EPJ_T} *,
                 {INDENT}                    int ,
                 {INDENT}                    struct {FORCE_T} *),
-                {INDENT}const int dinfo_num) {{
+                {INDENT}const int dinfo_num,
+                {INDENT}const bool clear) {{
                    // Get tree
                    PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{SEARCH_T} *tree;
                    for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
@@ -1096,7 +1200,7 @@ class Automatic_Generator:
                       }}
                    }}
                    // Issue calcForce*()
-                   tree->{API_NAME}(pfunc_ep_ep, *dinfo);
+                   tree->{API_NAME}(pfunc_ep_ep, *dinfo, clear);
                 }}
                 """.format(FUNC_NAME=func_name,\
                            API_NAME=fdps_method_name, \
@@ -1110,7 +1214,6 @@ class Automatic_Generator:
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
-                # update func_num
                 func_num += 1;
 
         #=================================
@@ -1118,117 +1221,140 @@ class Automatic_Generator:
         #=================================
         func_name_base = generic_func_name + "_l"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
                 func_name = func_name_base + "{0:05d}".format(func_num)
                 indent_at_func_args = " " * int(len(func_name) + 6)
                 spj_t = self.__SPJs_cpp[self.__multipole_kinds.index(multipole_t)]
-                if (use_dinfo):
-                    text = """
-                    void {FUNC_NAME}(const int tree_num,
-                    {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {EPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}void (*pfunc_ep_sp)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    {SPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}const int psys_num,
-                    {INDENT}const int dinfo_num) {{
-                       // Get tree
-                       PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *tree;
-                       for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
-                          if (it->id == tree_num) {{
-                             tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Get psys
-                       PS::ParticleSystem<{FP_T}> *psys;
-                       for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
-                          if (it->id == psys_num) {{
-                             psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Get dinfo
-                       PS::DomainInfo *dinfo;
-                       for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {{
-                          if (it->id == dinfo_num) {{
-                             dinfo = (PS::DomainInfo *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Issue calcForce*()
-                       tree->{API_NAME}(pfunc_ep_ep, pfunc_ep_sp, *psys, *dinfo);
-                    }}
-                    """.format(FUNC_NAME=func_name,\
-                               API_NAME=fdps_method_name, \
-                               FP_T=fp_t, \
-                               TREE_T=tree_t, \
-                               FORCE_T=force_t, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SPJ_T=spj_t, \
-                               MULTIPOLE_T=multipole_t, \
-                               INDENT=indent_at_func_args)
-                else:
-                    text = """
-                    void {FUNC_NAME}(const int tree_num,
-                    {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {EPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}void (*pfunc_ep_sp)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    {SPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}const int psys_num) {{
-                       // Get tree
-                       PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *tree;
-                       for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
-                          if (it->id == tree_num) {{
-                             tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Get psys
-                       PS::ParticleSystem<{FP_T}> *psys;
-                       for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
-                          if (it->id == psys_num) {{
-                             psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
-                             break;
-                          }}
-                       }}
-                       // Issue calcForce*()
-                       tree->{API_NAME}(pfunc_ep_ep, pfunc_ep_sp, *psys);
-                    }}
-                    """.format(FUNC_NAME=func_name,\
-                               API_NAME=fdps_method_name, \
-                               FP_T=fp_t, \
-                               TREE_T=tree_t, \
-                               FORCE_T=force_t, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SPJ_T=spj_t, \
-                               MULTIPOLE_T=multipole_t, \
-                               INDENT=indent_at_func_args)
+                text = """
+                void {FUNC_NAME}(const int tree_num,
+                {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {EPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}void (*pfunc_ep_sp)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    {SPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}const int psys_num,
+                {INDENT}const int dinfo_num,
+                {INDENT}const bool clear,
+                {INDENT}const enum PS_INTERACTION_LIST_MODE list_mode) {{
+                   // Get tree
+                   PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *tree;
+                   for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
+                      if (it->id == tree_num) {{
+                         tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Get psys
+                   PS::ParticleSystem<{FP_T}> *psys;
+                   for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
+                      if (it->id == psys_num) {{
+                         psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Get dinfo
+                   PS::DomainInfo *dinfo;
+                   for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {{
+                      if (it->id == dinfo_num) {{
+                         dinfo = (PS::DomainInfo *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Issue calcForce*()
+                   if (list_mode == MAKE_LIST) {{
+                      tree->{API_NAME}(pfunc_ep_ep, pfunc_ep_sp, *psys, *dinfo, clear, PS::MAKE_LIST);
+                   }} else if (list_mode == MAKE_LIST_FOR_REUSE) {{
+                      tree->{API_NAME}(pfunc_ep_ep, pfunc_ep_sp, *psys, *dinfo, clear, PS::MAKE_LIST_FOR_REUSE);
+                   }} else if (list_mode == REUSE_LIST) {{
+                      tree->{API_NAME}(pfunc_ep_ep, pfunc_ep_sp, *psys, *dinfo, clear, PS::REUSE_LIST);
+                   }} else {{
+                      PS::S32 myrank = PS::Comm::getRank();
+                      if (myrank == 0) {{
+                         std::string errmsg,func_name;
+                         errmsg = "Unknow list_mode is specified.";
+                         func_name = "{FUNC_NAME}";
+                         print_errmsg(errmsg,func_name);
+                      }}
+                      PS::Abort(-1);
+                      std::exit(EXIT_FAILURE);
+                   }}
+                }}
+                """.format(FUNC_NAME=func_name,\
+                           API_NAME=fdps_method_name, \
+                           FP_T=fp_t, \
+                           TREE_T=tree_t, \
+                           FORCE_T=force_t, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SPJ_T=spj_t, \
+                           MULTIPOLE_T=multipole_t, \
+                           INDENT=indent_at_func_args)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
-                # Update func_num
                 func_num += 1
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
+                func_name = func_name_base + "{0:05d}".format(func_num)
+                indent_at_func_args = " " * int(len(func_name) + 6)
+                spj_t = self.__SPJs_cpp[self.__multipole_kinds.index(multipole_t)]
+                text = """
+                void {FUNC_NAME}(const int tree_num,
+                {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {EPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}void (*pfunc_ep_sp)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    {SPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}const int psys_num,
+                {INDENT}const bool clear) {{
+                   // Get tree
+                   PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *tree;
+                   for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
+                      if (it->id == tree_num) {{
+                         tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Get psys
+                   PS::ParticleSystem<{FP_T}> *psys;
+                   for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {{
+                      if (it->id == psys_num) {{
+                         psys = (PS::ParticleSystem<{FP_T}> *) it->ptr;
+                         break;
+                      }}
+                   }}
+                   // Issue calcForce*()
+                   tree->{API_NAME}(pfunc_ep_ep, pfunc_ep_sp, *psys, clear);
+                }}
+                """.format(FUNC_NAME=func_name,\
+                           API_NAME=fdps_method_name, \
+                           FP_T=fp_t, \
+                           TREE_T=tree_t, \
+                           FORCE_T=force_t, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SPJ_T=spj_t, \
+                           MULTIPOLE_T=multipole_t, \
+                           INDENT=indent_at_func_args)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,multipole_t in self.__tree_kinds:
                 if (tree_t == "Short"):
                     continue
@@ -1247,7 +1373,8 @@ class Automatic_Generator:
                 {INDENT}                    {SPJ_T} *,
                 {INDENT}                    int ,
                 {INDENT}                    struct {FORCE_T} *),
-                {INDENT}const int dinfo_num) {{
+                {INDENT}const int dinfo_num,
+                {INDENT}const bool clear) {{
                    // Get tree
                    PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MULTIPOLE_T} *tree;
                    for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
@@ -1265,7 +1392,7 @@ class Automatic_Generator:
                       }}
                    }}
                    // Issue calcForce*()
-                   tree->{API_NAME}(pfunc_ep_ep, pfunc_ep_sp, *dinfo);
+                   tree->{API_NAME}(pfunc_ep_ep, pfunc_ep_sp, *dinfo, clear);
                 }}
                 """.format(FUNC_NAME=func_name,\
                            API_NAME=fdps_method_name, \
@@ -1280,7 +1407,6 @@ class Automatic_Generator:
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
-                # Update func_num
                 func_num += 1
         # Output
         text = "".join(texts)
@@ -1340,6 +1466,55 @@ class Automatic_Generator:
         text = "".join(texts)
         fh.write(text)
 
+    def __write_get_epj_from_id_branch(self,fh):
+        # Set the indent
+        indent = self.__get_cpp_indent(1)
+        # Set the output text
+        texts = []
+        func_name_base = "get_epj_from_id"
+        func_num = 0
+        for tree_t,force_t,epi_t,epj_t,mode_t in self.__tree_kinds:
+            # Skip if the generable condition is not satisfied.
+            # [Note] 
+            #    If EPJ does not have getId(), we do not generate this API.
+            if (not self.__getId_existence_check(epj_t)):
+                continue
+            # Generate
+            func_name = func_name_base + "{0:05d}".format(func_num)
+            indent_at_func_args = " " * int(len(func_name) + 6)
+            text = """
+            void {FUNC_NAME}(const int tree_num,
+            {INDENT}const PS::S64 id,
+            {INDENT}void **cptr_to_epj) {{
+               // Get tree
+               PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MODE_T} *tree;
+               for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {{
+                  if (it->id == tree_num) {{
+                     tree = (PS::TreeForForce{TREE_T}<{FORCE_T},{EPI_T},{EPJ_T}>::{MODE_T} *) it->ptr;
+                     break;
+                  }}
+               }}
+               // Get EPJ
+               struct {EPJ_T} * epj;
+               epj = tree->getEpjFromId(id);
+               *cptr_to_epj = (void *) epj;
+            }}
+            """.format(FUNC_NAME=func_name,\
+                       TREE_T=tree_t, \
+                       FORCE_T=force_t, \
+                       EPI_T=epi_t, \
+                       EPJ_T=epj_t, \
+                       MODE_T=mode_t, \
+                       INDENT=indent_at_func_args)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1;
+        # Output
+        text = "".join(texts)
+        fh.write(text)
+
     def __write_add_particle_protoDCL(self,fh):
         # Set the common indent
         indent = self.__get_cpp_indent(1)
@@ -1365,11 +1540,35 @@ class Automatic_Generator:
         text = "".join(texts)
         fh.write(text)
 
-    def __write_calc_force_protoDCL_branch(self,fh,generic_func_name,use_psys,use_dinfo):
+    def __write_sort_particle_protoDCL(self,fh):
+        # Set the common indent
+        indent = self.__get_cpp_indent(1)
+        # Set the output texts
+        texts = []
+        func_name_base = "sort_particle"
+        func_num = 0
+        for fp_t in self.__FPs:
+            func_name = func_name_base + "{0:05d}".format(func_num)
+            indent_at_func_args = " " * int(len(func_name) + 6)
+            text = """
+            void {FUNC_NAME}(const int psys_num,
+            {INDENT}bool (*pfunc_comp)(const struct {FP_T} & left,
+            {INDENT}                   const struct {FP_T} & right));
+            """.format(FUNC_NAME=func_name, \
+                       FP_T=fp_t, \
+                       INDENT=indent_at_func_args)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1
+        # Output
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_calc_force_protoDCL_branch(self,fh,generic_func_name):
         # Check arguments
-        ret = isinstance(generic_func_name,str) and \
-              isinstance(use_psys,bool) and \
-              isinstance(use_dinfo,bool)
+        ret = isinstance(generic_func_name,str)
         if (ret == False):
            print("[dev] invalid arguments in __write_calc_force_protoDCL_branch()!")
            sys.exit()
@@ -1382,50 +1581,56 @@ class Automatic_Generator:
         #=================================
         func_name_base = generic_func_name + "_s"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
                 func_name = func_name_base + "{0:05d}".format(func_num)
                 indent_at_func_args = " " * int(len(func_name) + 6 + 7)
-                if (use_dinfo):
-                    text = """
-                    extern void {FUNC_NAME}(const int tree_num,
-                    {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {EPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}const int psys_num,
-                    {INDENT}const int dinfo_num);
-                    """.format(FUNC_NAME=func_name,\
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               FORCE_T=force_t, \
-                               INDENT=indent_at_func_args)
-                else:
-                    text = """
-                    extern void {FUNC_NAME}(const int tree_num,
-                    {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {EPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}const int psys_num);
-                    """.format(FUNC_NAME=func_name,\
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               FORCE_T=force_t, \
-                               INDENT=indent_at_func_args)
+                text = """
+                extern void {FUNC_NAME}(const int tree_num,
+                {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {EPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}const int psys_num,
+                {INDENT}const int dinfo_num,
+                {INDENT}const bool clear,
+                {INDENT}const enum PS_INTERACTION_LIST_MODE list_mode);
+                """.format(FUNC_NAME=func_name,\
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           FORCE_T=force_t, \
+                           INDENT=indent_at_func_args)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
-                # update func_num
                 func_num += 1;
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
+                func_name = func_name_base + "{0:05d}".format(func_num)
+                indent_at_func_args = " " * int(len(func_name) + 6 + 7)
+                text = """
+                extern void {FUNC_NAME}(const int tree_num,
+                {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {EPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}const int psys_num,
+                {INDENT}const bool clear);
+                """.format(FUNC_NAME=func_name,\
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           FORCE_T=force_t, \
+                           INDENT=indent_at_func_args)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1;
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,search_t in self.__tree_kinds:
                 if (tree_t == "Long"):
                     continue
@@ -1438,7 +1643,8 @@ class Automatic_Generator:
                 {INDENT}                    struct {EPJ_T} *,
                 {INDENT}                    int ,
                 {INDENT}                    struct {FORCE_T} *),
-                {INDENT}const int dinfo_num);
+                {INDENT}const int dinfo_num,
+                {INDENT}const bool clear);
                 """.format(FUNC_NAME=func_name,\
                            EPI_T=epi_t, \
                            EPJ_T=epj_t, \
@@ -1448,71 +1654,78 @@ class Automatic_Generator:
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
-                # update func_num
                 func_num += 1;
+
 
         #=================================
         # (2) Long-range interaction
         #=================================
         func_name_base = generic_func_name + "_l"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
                 func_name = func_name_base + "{0:05d}".format(func_num)
                 indent_at_func_args = " " * int(len(func_name) + 6 + 7)
                 spj_t = self.__SPJs_cpp[self.__multipole_kinds.index(multipole_t)]
-                if (use_dinfo):
-                    text = """
-                    extern void {FUNC_NAME}(const int tree_num,
-                    {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {EPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}void (*pfunc_ep_sp)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    {SPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}const int psys_num,
-                    {INDENT}const int dinfo_num);
-                    """.format(FUNC_NAME=func_name,\
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SPJ_T=spj_t, \
-                               FORCE_T=force_t, \
-                               INDENT=indent_at_func_args)
-                else:
-                    text = """
-                    extern void {FUNC_NAME}(const int tree_num,
-                    {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {EPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}void (*pfunc_ep_sp)(struct {EPI_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    {SPJ_T} *,
-                    {INDENT}                    int ,
-                    {INDENT}                    struct {FORCE_T} *),
-                    {INDENT}const int psys_num);
-                    """.format(FUNC_NAME=func_name,\
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SPJ_T=spj_t, \
-                               FORCE_T=force_t, \
-                               INDENT=indent_at_func_args)
+                text = """
+                extern void {FUNC_NAME}(const int tree_num,
+                {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {EPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}void (*pfunc_ep_sp)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    {SPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}const int psys_num,
+                {INDENT}const int dinfo_num,
+                {INDENT}const bool clear,
+                {INDENT}const enum PS_INTERACTION_LIST_MODE list_mode);
+                """.format(FUNC_NAME=func_name,\
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SPJ_T=spj_t, \
+                           FORCE_T=force_t, \
+                           INDENT=indent_at_func_args)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
-                # Update func_num
                 func_num += 1
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
+                func_name = func_name_base + "{0:05d}".format(func_num)
+                indent_at_func_args = " " * int(len(func_name) + 6 + 7)
+                spj_t = self.__SPJs_cpp[self.__multipole_kinds.index(multipole_t)]
+                text = """
+                extern void {FUNC_NAME}(const int tree_num,
+                {INDENT}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {EPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}void (*pfunc_ep_sp)(struct {EPI_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    {SPJ_T} *,
+                {INDENT}                    int ,
+                {INDENT}                    struct {FORCE_T} *),
+                {INDENT}const int psys_num,
+                {INDENT}const bool clear);
+                """.format(FUNC_NAME=func_name,\
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SPJ_T=spj_t, \
+                           FORCE_T=force_t, \
+                           INDENT=indent_at_func_args)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,multipole_t in self.__tree_kinds:
                 if (tree_t == "Short"):
                     continue
@@ -1531,7 +1744,8 @@ class Automatic_Generator:
                 {INDENT}                    {SPJ_T} *,
                 {INDENT}                    int ,
                 {INDENT}                    struct {FORCE_T} *),
-                {INDENT}const int dinfo_num);
+                {INDENT}const int dinfo_num,
+                {INDENT}const bool clear);
                 """.format(FUNC_NAME=func_name,\
                            EPI_T=epi_t, \
                            EPJ_T=epj_t, \
@@ -1542,7 +1756,6 @@ class Automatic_Generator:
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
-                # Update func_num
                 func_num += 1
         # Output
         text = "".join(texts)
@@ -1569,6 +1782,37 @@ class Automatic_Generator:
             {INDENT}const PS::F64vec *pos,
             {INDENT}const PS::F64 r_search,
             {INDENT}int *num_epj,
+            {INDENT}void **cptr_to_epj);
+            """.format(FUNC_NAME=func_name,\
+                       INDENT=indent_at_func_args)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1;
+        # Output
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_get_epj_from_id_protoDCL_branch(self,fh):
+        # Set the indent
+        indent = self.__get_cpp_indent(1)
+        # Set the output text
+        texts = []
+        func_name_base = "get_epj_from_id"
+        func_num = 0
+        for tree_t,force_t,epi_t,epj_t,mode_t in self.__tree_kinds:
+            # Skip if the generable condition is not satisfied.
+            # [Note] 
+            #    If EPJ does not have getId(), we do not generate this API.
+            if (not self.__getId_existence_check(epj_t)):
+                continue
+            # Generate
+            func_name = func_name_base + "{0:05d}".format(func_num)
+            indent_at_func_args = " " * int(len(func_name) + 6 + 7)
+            text = """
+            extern void {FUNC_NAME}(const int tree_num,
+            {INDENT}const PS::S64 id,
             {INDENT}void **cptr_to_epj);
             """.format(FUNC_NAME=func_name,\
                        INDENT=indent_at_func_args)
@@ -1610,11 +1854,39 @@ class Automatic_Generator:
         text = "".join(texts)
         fh.write(text)
 
-    def __write_calc_force_cpp_if(self,fh,generic_func_name,use_psys,use_dinfo):
+    def __write_sort_particle_cpp_if(self,fh):
+        # Set the common indent
+        indent = ""
+        # Set the output texts
+        texts = []
+        real_name_base = "sort_particle"
+        func_num = 0
+        for fp_t in self.__FPs:
+            real_name = real_name_base + "{0:05d}".format(func_num)
+            if_name  = "fdps_" + real_name
+            indent_at_func_args = " " * int(len(if_name) + 6)
+            text = """
+            void {IFC_NAME}(const int psys_num,
+            {INDENT}bool (*pfunc_comp)(const struct {FP_T} & left,
+            {INDENT}                   const struct {FP_T} & right)) {{
+               {REAL_NAME}(psys_num,pfunc_comp);
+            }}
+            """.format(IFC_NAME=if_name, \
+                       REAL_NAME=real_name, \
+                       FP_T=fp_t, \
+                       INDENT=indent_at_func_args)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1;
+        # Output
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_calc_force_cpp_if(self,fh,generic_func_name):
         # Check arguments
-        ret = isinstance(generic_func_name,str) and \
-              isinstance(use_psys,bool) and \
-              isinstance(use_dinfo,bool)
+        ret = isinstance(generic_func_name,str)
         if (ret == False):
            print("[dev] invalid arguments in __write_calc_force_cpp_if()!")
            sys.exit()
@@ -1628,10 +1900,8 @@ class Automatic_Generator:
         if_name_base = "fdps_" + generic_func_name + "_s"
         real_name_base = generic_func_name + "_s"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
                 # Set function names
                 func_label = "{0:05d}".format(func_num)
@@ -1641,55 +1911,73 @@ class Automatic_Generator:
                 indent_at_func_args1 = " " * int(len(if_name) + 6)
                 indent_at_func_args2 = " " * int(len(real_name) + 4)
                 # Set the output text
-                if (use_dinfo):
-                    text = """
-                    void {IFC_NAME}(const int tree_num,
-                    {INDENT1}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT1}                    int ,
-                    {INDENT1}                    struct {EPJ_T} *,
-                    {INDENT1}                    int , 
-                    {INDENT1}                    struct {FORCE_T} *),
-                    {INDENT1}const int psys_num,
-                    {INDENT1}const int dinfo_num) {{
-                       {REAL_NAME}(tree_num, 
-                    {INDENT2}pfunc_ep_ep,
-                    {INDENT2}psys_num,
-                    {INDENT2}dinfo_num);
-                    }}
-                    """.format(IFC_NAME=if_name, \
-                               REAL_NAME=real_name, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               FORCE_T=force_t, \
-                               INDENT1=indent_at_func_args1, \
-                               INDENT2=indent_at_func_args2)
-                else:
-                    text = """
-                    void {IFC_NAME}(const int tree_num,
-                    {INDENT1}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT1}                    int ,
-                    {INDENT1}                    struct {EPJ_T} *,
-                    {INDENT1}                    int , 
-                    {INDENT1}                    struct {FORCE_T} *),
-                    {INDENT1}const int psys_num) {{
-                       {REAL_NAME}(tree_num, 
-                    {INDENT2}pfunc_ep_ep,
-                    {INDENT2}psys_num);
-                    }}
-                    """.format(IFC_NAME=if_name, \
-                               REAL_NAME=real_name, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               FORCE_T=force_t, \
-                               INDENT1=indent_at_func_args1, \
-                               INDENT2=indent_at_func_args2)
+                text = """
+                void {IFC_NAME}(const int tree_num,
+                {INDENT1}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT1}                    int ,
+                {INDENT1}                    struct {EPJ_T} *,
+                {INDENT1}                    int , 
+                {INDENT1}                    struct {FORCE_T} *),
+                {INDENT1}const int psys_num,
+                {INDENT1}const int dinfo_num,
+                {INDENT1}const bool clear,
+                {INDENT1}const enum PS_INTERACTION_LIST_MODE list_mode) {{
+                   {REAL_NAME}(tree_num, 
+                {INDENT2}pfunc_ep_ep,
+                {INDENT2}psys_num,
+                {INDENT2}dinfo_num,
+                {INDENT2}clear,
+                {INDENT2}list_mode);
+                }}
+                """.format(IFC_NAME=if_name, \
+                           REAL_NAME=real_name, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           FORCE_T=force_t, \
+                           INDENT1=indent_at_func_args1, \
+                           INDENT2=indent_at_func_args2)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
                 func_num += 1
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
+                # Set function names
+                func_label = "{0:05d}".format(func_num)
+                if_name = if_name_base + func_label
+                real_name = real_name_base + func_label
+                # Set the other indents
+                indent_at_func_args1 = " " * int(len(if_name) + 6)
+                indent_at_func_args2 = " " * int(len(real_name) + 4)
+                # Set the output text
+                text = """
+                void {IFC_NAME}(const int tree_num,
+                {INDENT1}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT1}                    int ,
+                {INDENT1}                    struct {EPJ_T} *,
+                {INDENT1}                    int , 
+                {INDENT1}                    struct {FORCE_T} *),
+                {INDENT1}const int psys_num,
+                {INDENT1}const bool clear) {{
+                   {REAL_NAME}(tree_num, 
+                {INDENT2}pfunc_ep_ep,
+                {INDENT2}psys_num,
+                {INDENT2}clear);
+                }}
+                """.format(IFC_NAME=if_name, \
+                           REAL_NAME=real_name, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           FORCE_T=force_t, \
+                           INDENT1=indent_at_func_args1, \
+                           INDENT2=indent_at_func_args2)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,search_t in self.__tree_kinds:
                 if (tree_t == "Long"):
                     continue
@@ -1708,10 +1996,12 @@ class Automatic_Generator:
                 {INDENT1}                    struct {EPJ_T} *,
                 {INDENT1}                    int , 
                 {INDENT1}                    struct {FORCE_T} *),
-                {INDENT1}const int dinfo_num) {{
+                {INDENT1}const int dinfo_num,
+                {INDENT1}const bool clear) {{
                    {REAL_NAME}(tree_num, 
                 {INDENT2}pfunc_ep_ep,
-                {INDENT2}dinfo_num);
+                {INDENT2}dinfo_num,
+                {INDENT2}clear);
                 }}
                 """.format(IFC_NAME=if_name, \
                            REAL_NAME=real_name, \
@@ -1731,10 +2021,8 @@ class Automatic_Generator:
         if_name_base = "fdps_" + generic_func_name + "_l"
         real_name_base = generic_func_name + "_l"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
                 # Set function names
                 func_label = "{0:05d}".format(func_num)
@@ -1746,69 +2034,89 @@ class Automatic_Generator:
                 # Set SuperParticleJ type
                 spj_t = self.__SPJs_cpp[self.__multipole_kinds.index(multipole_t)]
                 # Set the output text
-                if (use_dinfo):
-                    text = """
-                    void {IFC_NAME}(const int tree_num,
-                    {INDENT1}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT1}                    int ,
-                    {INDENT1}                    struct {EPJ_T} *,
-                    {INDENT1}                    int , 
-                    {INDENT1}                    struct {FORCE_T} *),
-                    {INDENT1}void (*pfunc_ep_sp)(struct {EPI_T} *,
-                    {INDENT1}                    int ,
-                    {INDENT1}                    {SPJ_T} *,
-                    {INDENT1}                    int ,
-                    {INDENT1}                    struct {FORCE_T} *),
-                    {INDENT1}const int psys_num,
-                    {INDENT1}const int dinfo_num) {{
-                       {REAL_NAME}(tree_num, 
-                    {INDENT2}pfunc_ep_ep,
-                    {INDENT2}pfunc_ep_sp,
-                    {INDENT2}psys_num,
-                    {INDENT2}dinfo_num);
-                    }}
-                    """.format(IFC_NAME=if_name, \
-                               REAL_NAME=real_name, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SPJ_T=spj_t, \
-                               FORCE_T=force_t, \
-                               INDENT1=indent_at_func_args1, \
-                               INDENT2=indent_at_func_args2)
-                else:
-                    text = """
-                    void {IFC_NAME}(const int tree_num,
-                    {INDENT1}void (*pfunc_ep_ep)(struct {EPI_T} *,
-                    {INDENT1}                    int ,
-                    {INDENT1}                    struct {EPJ_T} *,
-                    {INDENT1}                    int , 
-                    {INDENT1}                    struct {FORCE_T} *),
-                    {INDENT1}void (*pfunc_ep_sp)(struct {EPI_T} *,
-                    {INDENT1}                    int ,
-                    {INDENT1}                    {SPJ_T} *,
-                    {INDENT1}                    int ,
-                    {INDENT1}                    struct {FORCE_T} *),
-                    {INDENT1}const int psys_num) {{
-                       {REAL_NAME}(tree_num, 
-                    {INDENT2}pfunc_ep_ep,
-                    {INDENT2}pfunc_ep_sp,
-                    {INDENT2}psys_num);
-                    }}
-                    """.format(IFC_NAME=if_name, \
-                               REAL_NAME=real_name, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SPJ_T=spj_t, \
-                               FORCE_T=force_t, \
-                               INDENT1=indent_at_func_args1, \
-                               INDENT2=indent_at_func_args2)
+                text = """
+                void {IFC_NAME}(const int tree_num,
+                {INDENT1}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT1}                    int ,
+                {INDENT1}                    struct {EPJ_T} *,
+                {INDENT1}                    int , 
+                {INDENT1}                    struct {FORCE_T} *),
+                {INDENT1}void (*pfunc_ep_sp)(struct {EPI_T} *,
+                {INDENT1}                    int ,
+                {INDENT1}                    {SPJ_T} *,
+                {INDENT1}                    int ,
+                {INDENT1}                    struct {FORCE_T} *),
+                {INDENT1}const int psys_num,
+                {INDENT1}const int dinfo_num,
+                {INDENT1}const bool clear,
+                {INDENT1}const enum PS_INTERACTION_LIST_MODE list_mode) {{
+                   {REAL_NAME}(tree_num, 
+                {INDENT2}pfunc_ep_ep,
+                {INDENT2}pfunc_ep_sp,
+                {INDENT2}psys_num,
+                {INDENT2}dinfo_num,
+                {INDENT2}clear,
+                {INDENT2}list_mode);
+                }}
+                """.format(IFC_NAME=if_name, \
+                           REAL_NAME=real_name, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SPJ_T=spj_t, \
+                           FORCE_T=force_t, \
+                           INDENT1=indent_at_func_args1, \
+                           INDENT2=indent_at_func_args2)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
                 func_num += 1
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
+                # Set function names
+                func_label = "{0:05d}".format(func_num)
+                if_name = if_name_base + func_label
+                real_name = real_name_base + func_label
+                # Set the other indents
+                indent_at_func_args1 = " " * int(len(if_name) + 6)
+                indent_at_func_args2 = " " * int(len(real_name) + 4)
+                # Set SuperParticleJ type
+                spj_t = self.__SPJs_cpp[self.__multipole_kinds.index(multipole_t)]
+                # Set the output text
+                text = """
+                void {IFC_NAME}(const int tree_num,
+                {INDENT1}void (*pfunc_ep_ep)(struct {EPI_T} *,
+                {INDENT1}                    int ,
+                {INDENT1}                    struct {EPJ_T} *,
+                {INDENT1}                    int , 
+                {INDENT1}                    struct {FORCE_T} *),
+                {INDENT1}void (*pfunc_ep_sp)(struct {EPI_T} *,
+                {INDENT1}                    int ,
+                {INDENT1}                    {SPJ_T} *,
+                {INDENT1}                    int ,
+                {INDENT1}                    struct {FORCE_T} *),
+                {INDENT1}const int psys_num,
+                {INDENT1}const bool clear) {{
+                   {REAL_NAME}(tree_num, 
+                {INDENT2}pfunc_ep_ep,
+                {INDENT2}pfunc_ep_sp,
+                {INDENT2}psys_num,
+                {INDENT2}clear);
+                }}
+                """.format(IFC_NAME=if_name, \
+                           REAL_NAME=real_name, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SPJ_T=spj_t, \
+                           FORCE_T=force_t, \
+                           INDENT1=indent_at_func_args1, \
+                           INDENT2=indent_at_func_args2)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,multipole_t in self.__tree_kinds:
                 if (tree_t == "Short"):
                     continue
@@ -1834,11 +2142,13 @@ class Automatic_Generator:
                 {INDENT1}                    {SPJ_T} *,
                 {INDENT1}                    int ,
                 {INDENT1}                    struct {FORCE_T} *),
-                {INDENT1}const int dinfo_num) {{
+                {INDENT1}const int dinfo_num,
+                {INDENT1}const bool clear) {{
                    {REAL_NAME}(tree_num, 
                 {INDENT2}pfunc_ep_ep,
                 {INDENT2}pfunc_ep_sp,
-                {INDENT2}dinfo_num);
+                {INDENT2}dinfo_num,
+                {INDENT2}clear);
                 }}
                 """.format(IFC_NAME=if_name, \
                            REAL_NAME=real_name, \
@@ -1885,6 +2195,45 @@ class Automatic_Generator:
             {INDENT2}pos,
             {INDENT2}r_search,
             {INDENT2}num_epj,
+            {INDENT2}cptr_to_epj);
+            }}
+            """.format(IFC_NAME=if_name,\
+                       REAL_NAME=real_name, \
+                       INDENT1=indent_at_func_args1, \
+                       INDENT2=indent_at_func_args2)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1;
+        # Output
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_get_epj_from_id_cpp_if(self,fh):
+        # Set the common indent
+        indent = ""
+        # Set the output texts
+        texts = []
+        generic_func_name = "get_epj_from_id"
+        func_num = 0
+        for tree_t,force_t,epi_t,epj_t,mode_t in self.__tree_kinds:
+            # Skip if the generable condition is not satisfied.
+            # [Note] 
+            #    If EPJ does not have getId(), we do not generate this API.
+            if (not self.__getId_existence_check(epj_t)):
+                continue
+            # Generate
+            real_name = generic_func_name + "{0:05d}".format(func_num)
+            if_name  = "fdps_" + real_name
+            indent_at_func_args1 = " " * int(len(if_name) + 6)
+            indent_at_func_args2 = " " * int(len(real_name) + 4)
+            text = """
+            void {IFC_NAME}(const int tree_num,
+            {INDENT1}const PS::S64 id,
+            {INDENT1}void **cptr_to_epj) {{
+               {REAL_NAME}(tree_num,
+            {INDENT2}id,
             {INDENT2}cptr_to_epj);
             }}
             """.format(IFC_NAME=if_name,\
@@ -2202,7 +2551,62 @@ class Automatic_Generator:
         text = "".join(texts)
         fh.write(text)
 
-    def __write_calc_force_ftn_if(self,fh,generic_func_name,use_psys,use_dinfo):
+    def __write_sort_particle_ftn_if(self,fh):
+        # Set the common indent
+        indent = self.__get_ftn_indent(2)
+        # Set th outout texts
+        texts = []
+        if_name_base = "fdps_sort_particle"
+        if_num = 0
+        for fp_t in self.__FPs:
+            if_name = if_name_base + "{0:05d}".format(if_num)
+            mod_name = self.__get_mod_name_by_FP(fp_t)
+            text = """
+            subroutine {IFC_NAME}(psys_num,pfunc_comp) bind(c)
+               use, intrinsic :: iso_c_binding
+               use {MOD_NAME}
+               implicit none
+               integer(kind=c_int), value, intent(in) :: psys_num
+               type(c_funptr), value, intent(in) :: pfunc_comp
+            end subroutine {IFC_NAME}
+            """.format(IFC_NAME=if_name, \
+                       MOD_NAME=mod_name)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            if_num += 1
+        # Output the text
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_sort_particle_impl(self,fh):
+        # Set the common indent
+        indent = self.__get_ftn_indent(2)
+        # Set the outout texts
+        texts = []
+        if_name_base = "fdps_sort_particle"
+        func_num = 0
+        for fp_t in self.__FPs:
+            # Set the function name
+            func_label = "{0:05d}".format(func_num)
+            if_name = if_name_base + func_label
+            # Set the output text
+            text = """
+            case("{FP_T}")
+               call {IFC_NAME}(psys_num,pfunc_comp)
+            """.format(IFC_NAME=if_name, \
+                       FP_T=fp_t)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1
+        # Output the text
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_calc_force_ftn_if(self,fh,generic_func_name):
         # Set the indent
         indent = self.__get_ftn_indent(2)
         # Set th outout texts
@@ -2212,10 +2616,8 @@ class Automatic_Generator:
         #=================================
         if_name_base = "fdps_" + generic_func_name + "_s"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceMakingTree()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
                 # Set the function name
                 func_label = "{0:05d}".format(func_num)
@@ -2223,38 +2625,54 @@ class Automatic_Generator:
                 # Set the other indents
                 indent_at_func_args = " " * int(len(if_name) + 12)
                 # Set the output text
-                if (use_dinfo):
-                    text = """
-                    subroutine {IFC_NAME}(tree_num, &
-                    {INDENT}pfunc_ep_ep, &
-                    {INDENT}psys_num,    &
-                    {INDENT}dinfo_num) bind(c)
-                       use, intrinsic :: iso_c_binding
-                       implicit none
-                       integer(kind=c_int), value, intent(in) :: tree_num,psys_num,dinfo_num
-                       type(c_funptr), value, intent(in) :: pfunc_ep_ep
-                    end subroutine {IFC_NAME}
-                    """.format(IFC_NAME=if_name, \
-                               INDENT=indent_at_func_args)
-                else:
-                    text = """
-                    subroutine {IFC_NAME}(tree_num, &
-                    {INDENT}pfunc_ep_ep, &
-                    {INDENT}psys_num) bind(c)
-                       use, intrinsic :: iso_c_binding
-                       implicit none
-                       integer(kind=c_int), value, intent(in) :: tree_num,psys_num
-                       type(c_funptr), value, intent(in) :: pfunc_ep_ep
-                    end subroutine {IFC_NAME}
-                    """.format(IFC_NAME=if_name, \
-                               INDENT=indent_at_func_args)
+                text = """
+                subroutine {IFC_NAME}(tree_num, &
+                {INDENT}pfunc_ep_ep, &
+                {INDENT}psys_num,    &
+                {INDENT}dinfo_num,   &
+                {INDENT}clear,       &
+                {INDENT}list_mode) bind(c)
+                   use, intrinsic :: iso_c_binding
+                   implicit none
+                   integer(kind=c_int), value, intent(in) :: tree_num,psys_num,dinfo_num
+                   type(c_funptr), value, intent(in) :: pfunc_ep_ep
+                   logical(kind=c_bool), value, intent(in) :: clear
+                   integer(kind=c_int), value, intent(in) :: list_mode
+                end subroutine {IFC_NAME}
+                """.format(IFC_NAME=if_name, \
+                           INDENT=indent_at_func_args)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
                 func_num += 1
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
+                # Set the function name
+                func_label = "{0:05d}".format(func_num)
+                if_name = if_name_base + func_label
+                # Set the other indents
+                indent_at_func_args = " " * int(len(if_name) + 12)
+                # Set the output text
+                text = """
+                subroutine {IFC_NAME}(tree_num, &
+                {INDENT}pfunc_ep_ep, &
+                {INDENT}psys_num,    &
+                {INDENT}clear) bind(c)
+                   use, intrinsic :: iso_c_binding
+                   implicit none
+                   integer(kind=c_int), value, intent(in) :: tree_num,psys_num
+                   type(c_funptr), value, intent(in) :: pfunc_ep_ep
+                   logical(kind=c_bool), value, intent(in) :: clear
+                end subroutine {IFC_NAME}
+                """.format(IFC_NAME=if_name, \
+                           INDENT=indent_at_func_args)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,search_t in self.__tree_kinds:
                 if (tree_t == "Long"):
                     continue
@@ -2267,11 +2685,13 @@ class Automatic_Generator:
                 text = """
                 subroutine {IFC_NAME}(tree_num, &
                 {INDENT}pfunc_ep_ep, &
-                {INDENT}dinfo_num) bind(c)
+                {INDENT}dinfo_num,   &
+                {INDENT}clear) bind(c)
                    use, intrinsic :: iso_c_binding
                    implicit none
                    integer(kind=c_int), value, intent(in) :: tree_num,dinfo_num
                    type(c_funptr), value, intent(in) :: pfunc_ep_ep
+                   logical(kind=c_bool), value, intent(in) :: clear
                 end subroutine {IFC_NAME}
                 """.format(IFC_NAME=if_name, \
                            INDENT=indent_at_func_args)
@@ -2285,10 +2705,8 @@ class Automatic_Generator:
         #=================================
         if_name_base = "fdps_" + generic_func_name + "_l"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
                 # Set the function name
                 func_label = "{0:05d}".format(func_num)
@@ -2296,40 +2714,56 @@ class Automatic_Generator:
                 # Set the other indents
                 indent_at_func_args = " " * int(len(if_name) + 12)
                 # Set the output text
-                if (use_dinfo):
-                    text = """
-                    subroutine {IFC_NAME}(tree_num, &
-                    {INDENT}pfunc_ep_ep, &
-                    {INDENT}pfunc_ep_sp, &
-                    {INDENT}psys_num,    &
-                    {INDENT}dinfo_num) bind(c)
-                       use, intrinsic :: iso_c_binding
-                       implicit none
-                       integer(kind=c_int), value, intent(in) :: tree_num,psys_num,dinfo_num
-                       type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
-                    end subroutine {IFC_NAME}
-                    """.format(IFC_NAME=if_name, \
-                               INDENT=indent_at_func_args)
-                else:
-                    text = """
-                    subroutine {IFC_NAME}(tree_num, &
-                    {INDENT}pfunc_ep_ep, &
-                    {INDENT}pfunc_ep_sp, &
-                    {INDENT}psys_num) bind(c)
-                       use, intrinsic :: iso_c_binding
-                       implicit none
-                       integer(kind=c_int), value, intent(in) :: tree_num,psys_num
-                       type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
-                    end subroutine {IFC_NAME}
-                    """.format(IFC_NAME=if_name, \
-                               INDENT=indent_at_func_args)
+                text = """
+                subroutine {IFC_NAME}(tree_num, &
+                {INDENT}pfunc_ep_ep, &
+                {INDENT}pfunc_ep_sp, &
+                {INDENT}psys_num,    &
+                {INDENT}dinfo_num,   &
+                {INDENT}clear,       &
+                {INDENT}list_mode) bind(c)
+                   use, intrinsic :: iso_c_binding
+                   implicit none
+                   integer(kind=c_int), value, intent(in) :: tree_num,psys_num,dinfo_num
+                   type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+                   logical(kind=c_bool), value, intent(in) :: clear
+                   integer(kind=c_int), value, intent(in) :: list_mode
+                end subroutine {IFC_NAME}
+                """.format(IFC_NAME=if_name, \
+                           INDENT=indent_at_func_args)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
                 func_num += 1
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
+                # Set the function name
+                func_label = "{0:05d}".format(func_num)
+                if_name = if_name_base + func_label
+                # Set the other indents
+                indent_at_func_args = " " * int(len(if_name) + 12)
+                # Set the output text
+                text = """
+                subroutine {IFC_NAME}(tree_num, &
+                {INDENT}pfunc_ep_ep, &
+                {INDENT}pfunc_ep_sp, &
+                {INDENT}psys_num,    &
+                {INDENT}clear) bind(c)
+                   use, intrinsic :: iso_c_binding
+                   implicit none
+                   integer(kind=c_int), value, intent(in) :: tree_num,psys_num
+                   type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+                   logical(kind=c_bool), value, intent(in) :: clear
+                end subroutine {IFC_NAME}
+                """.format(IFC_NAME=if_name, \
+                           INDENT=indent_at_func_args)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,multipole_t in self.__tree_kinds:
                 if (tree_t == "Short"):
                     continue
@@ -2343,11 +2777,13 @@ class Automatic_Generator:
                 subroutine {IFC_NAME}(tree_num, &
                 {INDENT}pfunc_ep_ep, &
                 {INDENT}pfunc_ep_sp, &
-                {INDENT}dinfo_num) bind(c)
+                {INDENT}dinfo_num,   &
+                {INDENT}clear) bind(c)
                    use, intrinsic :: iso_c_binding
                    implicit none
                    integer(kind=c_int), value, intent(in) :: tree_num,dinfo_num
                    type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+                   logical(kind=c_bool), value, intent(in) :: clear
                 end subroutine {IFC_NAME}
                 """.format(IFC_NAME=if_name, \
                            INDENT=indent_at_func_args)
@@ -2360,17 +2796,15 @@ class Automatic_Generator:
         text = "".join(texts)
         fh.write(text)
 
-    def __write_calc_force_ftn_impl_s(self,fh,generic_func_name,use_psys,use_dinfo):
+    def __write_calc_force_ftn_impl_s(self,fh,generic_func_name):
         # Set the indent
         indent = self.__get_ftn_indent(2)
         # Set th outout texts
         texts = []
         if_name_base = "fdps_" + generic_func_name + "_s"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
                 # Set the function name
                 func_label = "{0:05d}".format(func_num)
@@ -2378,42 +2812,55 @@ class Automatic_Generator:
                 # Set the other indents
                 indent_at_func_args = " " * int(len(if_name) + 6)
                 # Set the output text
-                if (use_dinfo):
-                    text = """
-                    case("{FP_T},{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{SEARCH_T}")
-                       call {IFC_NAME}(tree_num,    &
-                       {INDENT}pfunc_ep_ep, &
-                       {INDENT}psys_num,    &
-                       {INDENT}dinfo_num)
-                    """.format(IFC_NAME=if_name, \
-                               FP_T=fp_t, \
-                               TREE_T=tree_t, \
-                               FORCE_T=force_t, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SEARCH_T=search_t, \
-                               INDENT=indent_at_func_args)
-                else:
-                    text = """
-                    case("{FP_T},{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{SEARCH_T}")
-                       call {IFC_NAME}(tree_num,    &
-                       {INDENT}pfunc_ep_ep, &
-                       {INDENT}psys_num)
-                    """.format(IFC_NAME=if_name, \
-                               FP_T=fp_t, \
-                               TREE_T=tree_t, \
-                               FORCE_T=force_t, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               SEARCH_T=search_t, \
-                               INDENT=indent_at_func_args)
+                text = """
+                case("{FP_T},{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{SEARCH_T}")
+                   call {IFC_NAME}(tree_num,    &
+                   {INDENT}pfunc_ep_ep, &
+                   {INDENT}psys_num,    &
+                   {INDENT}dinfo_num,   &
+                   {INDENT}clear_,      &
+                   {INDENT}list_mode_)
+                """.format(IFC_NAME=if_name, \
+                           FP_T=fp_t, \
+                           TREE_T=tree_t, \
+                           FORCE_T=force_t, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SEARCH_T=search_t, \
+                           INDENT=indent_at_func_args)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
                 func_num += 1
-        else:
-            # calcForceMakingTree()
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,search_t in self.__calc_force_kinds_short:
+                # Set the function name
+                func_label = "{0:05d}".format(func_num)
+                if_name = if_name_base + func_label
+                # Set the other indents
+                indent_at_func_args = " " * int(len(if_name) + 6)
+                # Set the output text
+                text = """
+                case("{FP_T},{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{SEARCH_T}")
+                   call {IFC_NAME}(tree_num,    &
+                   {INDENT}pfunc_ep_ep, &
+                   {INDENT}psys_num,    &
+                   {INDENT}clear_)
+                """.format(IFC_NAME=if_name, \
+                           FP_T=fp_t, \
+                           TREE_T=tree_t, \
+                           FORCE_T=force_t, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           SEARCH_T=search_t, \
+                           INDENT=indent_at_func_args)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1
+        elif (generic_func_name == "calc_force_and_making_tree"):
             for tree_t,force_t,epi_t,epj_t,search_t in self.__tree_kinds:
                 if (tree_t == "Long"):
                     continue
@@ -2427,7 +2874,8 @@ class Automatic_Generator:
                 case("{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{SEARCH_T}")
                    call {IFC_NAME}(tree_num,    &
                    {INDENT}pfunc_ep_ep, &
-                   {INDENT}dinfo_num)
+                   {INDENT}dinfo_num,   &
+                   {INDENT}clear_)
                 """.format(IFC_NAME=if_name, \
                            TREE_T=tree_t, \
                            FORCE_T=force_t, \
@@ -2444,17 +2892,15 @@ class Automatic_Generator:
         text = "".join(texts)
         fh.write(text)
 
-    def __write_calc_force_ftn_impl_l(self,fh,generic_func_name,use_psys,use_dinfo):
+    def __write_calc_force_ftn_impl_l(self,fh,generic_func_name):
         # Set the indent
         indent = self.__get_ftn_indent(2)
         # Set th outout texts
         texts = []
         if_name_base = "fdps_" + generic_func_name + "_l"
         func_num = 0
-        if (use_psys):
-            # calcForceAllAndWriteBack()
-            # calcForceAll()
-            # calcForceAndWriteBack()
+        if ((generic_func_name == "calc_force_all_and_write_back") or \
+            (generic_func_name == "calc_force_all")):
             for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
                 # Set the function name
                 func_label = "{0:05d}".format(func_num)
@@ -2462,43 +2908,57 @@ class Automatic_Generator:
                 # Set the other indents
                 indent_at_func_args = " " * int(len(if_name) + 6)
                 # Set the output text
-                if (use_dinfo):
-                    text = """
-                    case("{FP_T},{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{MULTIPOLE_T}")
-                       call {IFC_NAME}(tree_num,    &
-                       {INDENT}pfunc_ep_ep, &
-                       {INDENT}pfunc_ep_sp, &
-                       {INDENT}psys_num,    &
-                       {INDENT}dinfo_num)
-                    """.format(IFC_NAME=if_name, \
-                               FP_T=fp_t, \
-                               TREE_T=tree_t, \
-                               FORCE_T=force_t, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               MULTIPOLE_T=multipole_t, \
-                               INDENT=indent_at_func_args)
-                else:
-                    text = """
-                    case("{FP_T},{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{MULTIPOLE_T}")
-                       call {IFC_NAME}(tree_num,    &
-                       {INDENT}pfunc_ep_ep, &
-                       {INDENT}pfunc_ep_sp, &
-                       {INDENT}psys_num)
-                    """.format(IFC_NAME=if_name, \
-                               FP_T=fp_t, \
-                               TREE_T=tree_t, \
-                               FORCE_T=force_t, \
-                               EPI_T=epi_t, \
-                               EPJ_T=epj_t, \
-                               MULTIPOLE_T=multipole_t, \
-                               INDENT=indent_at_func_args)
+                text = """
+                case("{FP_T},{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{MULTIPOLE_T}")
+                   call {IFC_NAME}(tree_num,    &
+                   {INDENT}pfunc_ep_ep, &
+                   {INDENT}pfunc_ep_sp, &
+                   {INDENT}psys_num,    &
+                   {INDENT}dinfo_num,   &
+                   {INDENT}clear_,      &
+                   {INDENT}list_mode_)
+                """.format(IFC_NAME=if_name, \
+                           FP_T=fp_t, \
+                           TREE_T=tree_t, \
+                           FORCE_T=force_t, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           MULTIPOLE_T=multipole_t, \
+                           INDENT=indent_at_func_args)
                 text = text[1:].rstrip() + "\n"
                 text = textwrap.dedent(text)
                 text = self.__add_indent(text,indent)
                 texts.append(text)
                 func_num += 1
-        else:
+        elif (generic_func_name == "calc_force_and_write_back"):
+            for fp_t,tree_t,force_t,epi_t,epj_t,multipole_t in self.__calc_force_kinds_long:
+                # Set the function name
+                func_label = "{0:05d}".format(func_num)
+                if_name = if_name_base + func_label
+                # Set the other indents
+                indent_at_func_args = " " * int(len(if_name) + 6)
+                # Set the output text
+                text = """
+                case("{FP_T},{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{MULTIPOLE_T}")
+                   call {IFC_NAME}(tree_num,    &
+                   {INDENT}pfunc_ep_ep, &
+                   {INDENT}pfunc_ep_sp, &
+                   {INDENT}psys_num,    &
+                   {INDENT}clear_)
+                """.format(IFC_NAME=if_name, \
+                           FP_T=fp_t, \
+                           TREE_T=tree_t, \
+                           FORCE_T=force_t, \
+                           EPI_T=epi_t, \
+                           EPJ_T=epj_t, \
+                           MULTIPOLE_T=multipole_t, \
+                           INDENT=indent_at_func_args)
+                text = text[1:].rstrip() + "\n"
+                text = textwrap.dedent(text)
+                text = self.__add_indent(text,indent)
+                texts.append(text)
+                func_num += 1
+        elif (generic_func_name == "calc_force_making_tree"):
             for tree_t,force_t,epi_t,epj_t,multipole_t in self.__tree_kinds:
                 if (tree_t == "Short"):
                     continue
@@ -2513,7 +2973,8 @@ class Automatic_Generator:
                    call {IFC_NAME}(tree_num,    &
                    {INDENT}pfunc_ep_ep, &
                    {INDENT}pfunc_ep_sp, &
-                   {INDENT}dinfo_num)
+                   {INDENT}dinfo_num,   &
+                   {INDENT}clear_)
                 """.format(IFC_NAME=if_name, \
                            TREE_T=tree_t, \
                            FORCE_T=force_t, \
@@ -2718,6 +3179,194 @@ class Automatic_Generator:
                
                !* Convert C-pointer to Fortran-pointer
                call c_f_pointer(cptr_to_EPJ,fptr_to_EPJ,[num_epj])
+
+            end subroutine {METHOD_NAME}
+            """.format(METHOD_NAME=method_name, \
+                       EPJ_T=target_epj_t)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            method_num += 1
+        # Output the text
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_get_epj_from_id_meth(self,fh):
+        # Set the common indent
+        indent = self.__get_ftn_indent(2)
+        # Set the output texts
+        texts_tmp1 = []
+        texts_tmp2 = []
+        func_name_base = "get_epj_from_id"
+        prefix_first   = "generic :: get_epj_from_id => "
+        prefix_others  = " " * int(len(prefix_first))
+        func_num = 0
+        for epj_t in self.__EPJs:
+            func_name = func_name_base + "{0:05d}".format(func_num)
+            # (1) Private procedures
+            text = "procedure, private :: {0}".format(func_name)
+            text = self.__add_indent(text,indent)
+            texts_tmp1.append(text)
+            # (2) Connection to generic procedure
+            if (func_num == 0):
+               text = prefix_first  + func_name
+            else:
+               text = prefix_others + func_name
+            text += ", &" # continuation line mark
+            text = self.__add_indent(text,indent)
+            texts_tmp2.append(text) 
+            func_num += 1
+        # Output the text
+        text = "".join(texts_tmp1 + texts_tmp2)
+        end = text.rindex(", &")
+        text = text[:end] + "\n"
+        fh.write(text)
+
+    def __write_get_epj_from_id_decl(self,fh):
+        # Set the common indent
+        indent = self.__get_ftn_indent(1)
+        # Set th outout texts
+        texts = []
+        # (1) Private procedures
+        func_name_base = "get_epj_from_id"
+        func_num = 0
+        for epj_t in self.__EPJs:
+            # Set the function name
+            func_label = "{0:05d}".format(func_num)
+            func_name  = func_name_base + func_label
+            # Set the output text
+            text = "private :: {0}".format(func_name)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1
+        # Output the text
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_get_epj_from_id_ftn_if(self,fh):
+        # Set the common indent
+        indent = self.__get_ftn_indent(2)
+        # Set the output texts
+        texts = []
+        if_name_base = "fdps_get_epj_from_id"
+        func_num = 0
+        for tree_t,force_t,epi_t,epj_t,mode_t in self.__tree_kinds:
+            # Skip if the generable condition is not satisfied.
+            if (not self.__getId_existence_check(epj_t)):
+                continue
+            # Generate
+            if_name = if_name_base + "{0:05d}".format(func_num)
+            indent_at_func_args = " " * int(len(if_name) + 12)
+            text = """
+            subroutine {IFC_NAME}(tree_num, &
+            {INDENT}id, &
+            {INDENT}cptr_to_epj) bind(c)
+               use, intrinsic :: iso_c_binding
+               use fdps_vector
+               implicit none
+               integer(kind=c_int), value, intent(in) :: tree_num
+               integer(kind=c_long_long), value, intent(in) :: id
+               type(c_ptr), intent(inout) :: cptr_to_epj
+            end subroutine {IFC_NAME}
+            """.format(IFC_NAME=if_name, \
+                       INDENT=indent_at_func_args)
+            text = text[1:].rstrip() + "\n"
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            func_num += 1
+        # Output the text
+        text = "".join(texts)
+        fh.write(text)
+
+    def __write_get_epj_from_id_impl(self,fh):
+        # Set the output texts
+        texts = []
+        method_name_base = "get_epj_from_id"
+        method_num = 0
+        for target_epj_t in self.__EPJs:
+            method_name = method_name_base + "{0:05d}".format(method_num)
+            mod_name = self.__get_mod_name_by_EPJ(target_epj_t)
+            # First-half
+            indent = self.__get_ftn_indent(1)
+            text = """
+            subroutine {METHOD_NAME}(this,tree_num,id,fptr_to_EPJ)
+               use {MOD_NAME}
+               use fdps_vector
+               implicit none
+               class(FDPS_controller) :: this
+               integer(kind=c_int), intent(IN) :: tree_num
+               integer(kind=c_long_long), intent(IN) :: id
+               type({EPJ_T}), pointer, intent(INOUT) :: fptr_to_EPJ
+               !* Local parameters
+               integer, parameter :: bufsize=256
+               !* Local variables
+               character(len=bufsize,kind=c_char) :: info
+               type(c_ptr) :: cptr_to_EPJ
+               !-(To throw errors)
+               character(len=256) :: errmsg
+               character(len=64) :: func_name
+
+               call get_tree_info(this,tree_num,info)
+               select case (trim(info))
+            """.format(METHOD_NAME=method_name, \
+                       MOD_NAME=mod_name, \
+                       EPJ_T=target_epj_t)
+            text = text[1:].rstrip() + "\n" 
+            text = textwrap.dedent(text)
+            text = self.__add_indent(text,indent)
+            texts.append(text)
+            # Generate case-branch
+            if_name_base = "fdps_get_epj_from_id"
+            if_num = 0
+            for tree_t,force_t,epi_t,epj_t,mode_t in self.__tree_kinds:
+                # Skip if the generable condition is not satisfied.
+                if (not self.__getId_existence_check(epj_t)):
+                    continue
+                # Generate a case-branch
+                if_name = if_name_base + "{0:05d}".format(if_num)
+                indent_at_func_args = " " * int(len(if_name) + 6)
+                if (target_epj_t == epj_t):
+                    indent = self.__get_ftn_indent(2)
+                    text = """
+                    case("{TREE_T},{FORCE_T},{EPI_T},{EPJ_T},{MODE_T}")
+                       call {IFC_NAME}(tree_num, &
+                       {INDENT}id, &
+                       {INDENT}cptr_to_EPJ)
+                    """.format(IFC_NAME=if_name, \
+                               TREE_T=tree_t, \
+                               FORCE_T=force_t, \
+                               EPI_T=epi_t, \
+                               EPJ_T=epj_t, \
+                               MODE_T=mode_t, \
+                               INDENT=indent_at_func_args)
+                    text = text[1:].rstrip() + "\n" 
+                    text = textwrap.dedent(text)
+                    text = self.__add_indent(text,indent)
+                    texts.append(text)
+                if_num += 1
+            # Last-half
+            indent = self.__get_ftn_indent(1)
+            text = """
+               case default
+                  errmsg =  "EssentialParticleJ specified does not have " &
+                         // "a method returning the particle id, or, "  &
+                         // "unknown tree object is specified."
+                  func_name = "{METHOD_NAME}"
+                  call print_errmsg(errmsg,func_name)
+                  !* Additional information
+                  write(*,100)"{EPJ_T}",trim(info)
+                  100 format("Please check the definitions of EssentialParticleJ"/ &
+                             "and tree object:"/ &
+                             " - EssentialParticleJ: ",a/ &
+                             " - TreeInfo: ",a)
+                  call PS_abort(this)
+                  stop 1
+               end select
+               
+               !* Convert C-pointer to Fortran-pointer
+               call c_f_pointer(cptr_to_EPJ,fptr_to_EPJ)
 
             end subroutine {METHOD_NAME}
             """.format(METHOD_NAME=method_name, \
@@ -3401,13 +4050,29 @@ class Automatic_Generator:
             print("checking the consistency of members variables")
             for mod in f.modules:
                 for s in mod.structures:
-                    fdps_members = {"position":False, \
+                    fdps_members = {"id":False, \
+                                    "position":False, \
                                     "velocity":False, \
                                     "charge":False, \
                                     "rsearch":False}
                     for mbr in s.members:
-                        if ((mbr.attrib == "position") or \
-                            (mbr.attrib == "velocity")):
+                        if (mbr.attrib == "id"):
+                            # Check if the FDPS member directive is multiply defined
+                            if (fdps_members[mbr.attrib] == False):
+                                fdps_members[mbr.attrib] == True
+                            else:
+                                msg = "The FDPS directive `{0}` multiply defined.".format(mbr.attrib)
+                                self.__print_error(msg)
+                                sys.exit()
+                            # Check if data type is correct
+                            if (not self.__is_s64(mbr)):
+                                msg = "The data type of the member `{0}` ".format(mbr.name) \
+                                    + "of the structure `{0}` ".format(s.name) \
+                                    + "is not correct for `{0}`.".format(mbr.attrib)
+                                self.__print_error(msg)
+                                sys.exit()
+                        elif ((mbr.attrib == "position") or \
+                              (mbr.attrib == "velocity")):
                             # Check if the FDPS member directive is multiply defined
                             if (fdps_members[mbr.attrib] == False):
                                 fdps_members[mbr.attrib] == True
@@ -3448,7 +4113,10 @@ class Automatic_Generator:
                     # (1) Check FDPS member directives
                     for mbr in s.members:
                         data_type, array_dim = self.__get_fdpsDT(mbr)
-                        if (mbr.attrib == "position"):
+                        if (mbr.attrib == "id"):
+                            (s.method_DB["getId"])[s._INDX_GENERABLE_FLAG] = True
+                            (s.method_DB["getId"])[s._INDX_DATA_TO_GEN]    = [data_type,mbr.name]
+                        elif (mbr.attrib == "position"):
                             (s.method_DB["getPos"])[s._INDX_GENERABLE_FLAG] = True
                             (s.method_DB["getPos"])[s._INDX_DATA_TO_GEN]    = [data_type,mbr.name]
                             (s.method_DB["setPos"])[s._INDX_GENERABLE_FLAG] = True
@@ -3909,6 +4577,9 @@ class Automatic_Generator:
                                                             mbr.name))
                     fh.write("\n")
                     # Write the definitions of the method
+                    if (s.method_DB["getId"][s._INDX_GENERABLE_FLAG] == True):
+                        data_type, member_name = s.method_DB["getId"][s._INDX_DATA_TO_GEN]
+                        self.__write_getId(fh,data_type,member_name)
                     if (s.method_DB["getPos"][s._INDX_GENERABLE_FLAG] == True):
                         data_type, member_name = s.method_DB["getPos"][s._INDX_DATA_TO_GEN]
                         self.__write_getPos(fh,data_type,member_name)
@@ -3959,6 +4630,7 @@ class Automatic_Generator:
         pat_get_psys_cptr        = re.compile(r"fdps-autogen:get_psys_cptr;")
         pat_exch_ptcl            = re.compile(r"fdps-autogen:exchange_particle;")
         pat_add_ptcl             = re.compile(r"fdps-autogen:add_particle;")
+        pat_sort_ptcl            = re.compile(r"fdps-autogen:sort_particle;")
         pat_remove_ptcl          = re.compile(r"fdps-autogen:remove_particle;")
         pat_adjust_pos           = re.compile(r"fdps-autogen:adjust_pos_into_root_domain;")
         pat_col_smpl_ptcl        = re.compile(r"fdps-autogen:collect_sample_particle;")
@@ -3980,6 +4652,7 @@ class Automatic_Generator:
         pat_calc_force_MT        = re.compile(r"fdps-autogen:calc_force_making_tree;")
         pat_calc_force_WB        = re.compile(r"fdps-autogen:calc_force_and_write_back;")
         pat_get_ngb_list         = re.compile(r"fdps-autogen:get_neighbor_list;")
+        pat_get_epj_from_id      = re.compile(r"fdps-autogen:get_epj_from_id;")
         pat_set_psys_pm          = re.compile(r"fdps-autogen:set_psys_of_pm;")
         pat_pm_force_all_WB      = re.compile(r"fdps-autogen:calc_pm_force_all_and_write_back;")
         # Auto-generation
@@ -4027,6 +4700,8 @@ class Automatic_Generator:
                 self.__write_psys_branch_for_normal_APIs(ofh,inst)
             if (pat_add_ptcl.search(line)):
                 self.__write_add_particle_cpp_impl(ofh)
+            if (pat_sort_ptcl.search(line)):
+                self.__write_sort_particle_cpp_impl(ofh)
             if (pat_remove_ptcl.search(line)):
                 inst = "psys->removeParticle(ptcl_indx,numPtcl);"
                 self.__write_psys_branch_for_normal_APIs(ofh,inst)
@@ -4080,22 +4755,24 @@ class Automatic_Generator:
             if (pat_calc_force_all_WB.search(line)):
                 generic_func_name = "calc_force_all_and_write_back"
                 fdps_method_name  = "calcForceAllAndWriteBack"
-                self.__write_calc_force_branch(ofh,generic_func_name,fdps_method_name,True,True)
+                self.__write_calc_force_branch(ofh,generic_func_name,fdps_method_name)
             if (pat_calc_force_all.search(line)):
                 generic_func_name = "calc_force_all"
                 fdps_method_name  = "calcForceAll"
-                self.__write_calc_force_branch(ofh,generic_func_name,fdps_method_name,True,True)
+                self.__write_calc_force_branch(ofh,generic_func_name,fdps_method_name)
             if (pat_calc_force_MT.search(line)):
                 generic_func_name = "calc_force_making_tree"
                 fdps_method_name  = "calcForceMakingTree"
-                self.__write_calc_force_branch(ofh,generic_func_name,fdps_method_name,False,True)
+                self.__write_calc_force_branch(ofh,generic_func_name,fdps_method_name)
             if (pat_calc_force_WB.search(line)):
                 generic_func_name = "calc_force_and_write_back"
                 fdps_method_name  = "calcForceAndWriteBack"
-                self.__write_calc_force_branch(ofh,generic_func_name,fdps_method_name,True,False)
-            #----- tree APIs (get_neighbor_list*) ------
+                self.__write_calc_force_branch(ofh,generic_func_name,fdps_method_name)
+            #----- tree APIs (get_neighbor_list & get_epj_from_id*) ------
             if (pat_get_ngb_list.search(line)):
                 self.__write_get_ngb_list_branch(ofh)
+            if (pat_get_epj_from_id.search(line)):
+                self.__write_get_epj_from_id_branch(ofh)
             #----- ParticleMesh APIs ------
             if (pat_set_psys_pm.search(line)):
                 inst = "pm->setParticleParticleMesh(*psys,clear);"
@@ -4109,11 +4786,13 @@ class Automatic_Generator:
         # (4) FDPS_Manipulators.h 
         # Pattern list
         pat_add_ptcl          = re.compile(r"fdps-autogen:add_particle;")
+        pat_sort_ptcl         = re.compile(r"fdps-autogen:sort_particle;")
         pat_calc_force_all_WB = re.compile(r"fdps-autogen:calc_force_all_and_write_back;")
         pat_calc_force_all    = re.compile(r"fdps-autogen:calc_force_all;")
         pat_calc_force_MT     = re.compile(r"fdps-autogen:calc_force_making_tree;")
         pat_calc_force_WB     = re.compile(r"fdps-autogen:calc_force_and_write_back;")
         pat_get_ngb_list      = re.compile(r"fdps-autogen:get_neighbor_list;")
+        pat_get_epj_from_id   = re.compile(r"fdps-autogen:get_epj_from_id;")
         # Auto-generation
         input_file  = blueprint_dir + "/FDPS_Manipulators_blueprint.h"
         output_file = output_dir    + "/FDPS_Manipulators.h"
@@ -4124,33 +4803,39 @@ class Automatic_Generator:
             #----- psys APIs -----
             if (pat_add_ptcl.search(line)):
                 self.__write_add_particle_protoDCL(ofh)
+            if (pat_sort_ptcl.search(line)):
+                self.__write_sort_particle_protoDCL(ofh)
             #----- tree APIs (calc_force*) -----
             if (pat_calc_force_all_WB.search(line)):
                 generic_func_name = "calc_force_all_and_write_back"
-                self.__write_calc_force_protoDCL_branch(ofh,generic_func_name,True,True)
+                self.__write_calc_force_protoDCL_branch(ofh,generic_func_name)
             if (pat_calc_force_all.search(line)):
                 generic_func_name = "calc_force_all"
-                self.__write_calc_force_protoDCL_branch(ofh,generic_func_name,True,True)
+                self.__write_calc_force_protoDCL_branch(ofh,generic_func_name)
             if (pat_calc_force_MT.search(line)):
                 generic_func_name = "calc_force_making_tree"
-                self.__write_calc_force_protoDCL_branch(ofh,generic_func_name,False,True)
+                self.__write_calc_force_protoDCL_branch(ofh,generic_func_name)
             if (pat_calc_force_WB.search(line)):
                 generic_func_name = "calc_force_and_write_back"
-                self.__write_calc_force_protoDCL_branch(ofh,generic_func_name,True,False)
-            #----- tre APIs (get_neighbor_list*)
+                self.__write_calc_force_protoDCL_branch(ofh,generic_func_name)
+            #----- tre APIs (get_neighbor_list* & get_epj_from_id*)
             if (pat_get_ngb_list.search(line)):
                 self.__write_get_ngb_list_protoDCL_branch(ofh)
+            if (pat_get_epj_from_id.search(line)):
+                self.__write_get_epj_from_id_protoDCL_branch(ofh)
         ifh.close()
         ofh.close()
         #---------------------------------------------------------------------------------
         # (5) FDPS_ftn_if.cpp
         # Pattern list
         pat_add_ptcl          = re.compile(r"fdps-autogen:add_particle")
+        pat_sort_ptcl         = re.compile(r"fdps-autogen:sort_particle")
         pat_calc_force_all_WB = re.compile(r"fdps-autogen:calc_force_all_and_write_back;")
         pat_calc_force_all    = re.compile(r"fdps-autogen:calc_force_all;")
         pat_calc_force_MT     = re.compile(r"fdps-autogen:calc_force_making_tree;")
         pat_calc_force_WB     = re.compile(r"fdps-autogen:calc_force_and_write_back;")
         pat_get_ngb_list      = re.compile(r"fdps-autogen:get_neighbor_list;")
+        pat_get_epj_from_id   = re.compile(r"fdps-autogen:get_epj_from_id;")
         pat_get_min_value     = re.compile(r"fdps-autogen:get_min_value;")
         pat_get_max_value     = re.compile(r"fdps-autogen:get_max_value;")
         pat_get_sum           = re.compile(r"fdps-autogen:get_sum;")
@@ -4165,21 +4850,25 @@ class Automatic_Generator:
             #----- psys APIs -----
             if (pat_add_ptcl.search(line)):
                 self.__write_add_particle_cpp_if(ofh)
+            if (pat_sort_ptcl.search(line)):
+                self.__write_sort_particle_cpp_if(ofh)
             #----- tree APIs -----
             if (pat_calc_force_all_WB.search(line)):
                 generic_func_name = "calc_force_all_and_write_back"
-                self.__write_calc_force_cpp_if(ofh,generic_func_name,True,True)
+                self.__write_calc_force_cpp_if(ofh,generic_func_name)
             if (pat_calc_force_all.search(line)):
                 generic_func_name = "calc_force_all"
-                self.__write_calc_force_cpp_if(ofh,generic_func_name,True,True)
+                self.__write_calc_force_cpp_if(ofh,generic_func_name)
             if (pat_calc_force_MT.search(line)):
                 generic_func_name = "calc_force_making_tree"
-                self.__write_calc_force_cpp_if(ofh,generic_func_name,False,True)
+                self.__write_calc_force_cpp_if(ofh,generic_func_name)
             if (pat_calc_force_WB.search(line)):
                 generic_func_name = "calc_force_and_write_back"
-                self.__write_calc_force_cpp_if(ofh,generic_func_name,True,False)
+                self.__write_calc_force_cpp_if(ofh,generic_func_name)
             if (pat_get_ngb_list.search(line)):
                 self.__write_get_ngb_list_cpp_if(ofh)
+            if (pat_get_epj_from_id.search(line)):
+                self.__write_get_epj_from_id_cpp_if(ofh)
             #----- comm APIs -----
             if (pat_get_min_value.search(line)):
                 generic_func_name = "get_min_value"
@@ -4207,6 +4896,8 @@ class Automatic_Generator:
         pat_add_ptcl_decl            = re.compile(r"fdps-autogen:add_particle:decl;")
         pat_add_ptcl_if              = re.compile(r"fdps-autogen:add_particle:if")
         pat_add_ptcl_impl            = re.compile(r"fdps-autogen:add_particle:impl")
+        pat_sort_ptcl_if             = re.compile(r"fdps-autogen:sort_particle:if")
+        pat_sort_ptcl_impl           = re.compile(r"fdps-autogen:sort_particle:impl")
         pat_calc_force_all_WB_if     = re.compile(r"fdps-autogen:calc_force_all_and_write_back:if;")
         pat_calc_force_all_WB_impl_s = re.compile(r"fdps-autogen:calc_force_all_and_write_back:impl:short;") 
         pat_calc_force_all_WB_impl_l = re.compile(r"fdps-autogen:calc_force_all_and_write_back:impl:long;")
@@ -4223,6 +4914,10 @@ class Automatic_Generator:
         pat_get_ngb_list_decl        = re.compile(r"fdps-autogen:get_neighbor_list:decl;")
         pat_get_ngb_list_if          = re.compile(r"fdps-autogen:get_neighbor_list:if;")
         pat_get_ngb_list_impl        = re.compile(r"fdps-autogen:get_neighbor_list:impl;")
+        pat_get_epj_from_id_meth     = re.compile(r"fdps-autogen:get_epj_from_id:method;")
+        pat_get_epj_from_id_decl     = re.compile(r"fdps-autogen:get_epj_from_id:decl;")
+        pat_get_epj_from_id_if       = re.compile(r"fdps-autogen:get_epj_from_id:if;")
+        pat_get_epj_from_id_impl     = re.compile(r"fdps-autogen:get_epj_from_id:impl;")
         pat_get_min_value_meth       = re.compile(r"fdps-autogen:get_min_value:method;")
         pat_get_min_value_decl       = re.compile(r"fdps-autogen:get_min_value:decl;")
         pat_get_min_value_ftn_if     = re.compile(r"fdps-autogen:get_min_value:ftn_if;")
@@ -4253,6 +4948,7 @@ class Automatic_Generator:
                 self.__write_get_psys_fptr_decl(ofh)
             if (pat_get_psys_fptr_impl.search(line)):
                 self.__write_get_psys_fptr_impl(ofh)
+
             if (pat_add_ptcl_meth.search(line)):
                 self.__write_add_particle_meth(ofh)
             if (pat_add_ptcl_decl.search(line)):
@@ -4261,48 +4957,54 @@ class Automatic_Generator:
                 self.__write_add_particle_ftn_if(ofh)
             if (pat_add_ptcl_impl.search(line)):
                 self.__write_add_particle_impl(ofh)
+
+            if (pat_sort_ptcl_if.search(line)):
+                self.__write_sort_particle_ftn_if(ofh)
+            if (pat_sort_ptcl_impl.search(line)):
+                self.__write_sort_particle_impl(ofh)
             #----- tree APIs (calc_force) -----
             # (1) calc_force_all_and_write_back
             if (pat_calc_force_all_WB_if.search(line)):
                 generic_func_name = "calc_force_all_and_write_back"
-                self.__write_calc_force_ftn_if(ofh,generic_func_name,True,True)
+                self.__write_calc_force_ftn_if(ofh,generic_func_name)
             if (pat_calc_force_all_WB_impl_s.search(line)):
                 generic_func_name = "calc_force_all_and_write_back"
-                self.__write_calc_force_ftn_impl_s(ofh,generic_func_name,True,True)
+                self.__write_calc_force_ftn_impl_s(ofh,generic_func_name)
             if (pat_calc_force_all_WB_impl_l.search(line)):
                 generic_func_name = "calc_force_all_and_write_back"
-                self.__write_calc_force_ftn_impl_l(ofh,generic_func_name,True,True)
+                self.__write_calc_force_ftn_impl_l(ofh,generic_func_name)
             # (2) calc_force_all
             if (pat_calc_force_all_if.search(line)):
                 generic_func_name = "calc_force_all"
-                self.__write_calc_force_ftn_if(ofh,generic_func_name,True,True)
+                self.__write_calc_force_ftn_if(ofh,generic_func_name)
             if (pat_calc_force_all_impl_s.search(line)):
                 generic_func_name = "calc_force_all"
-                self.__write_calc_force_ftn_impl_s(ofh,generic_func_name,True,True)
+                self.__write_calc_force_ftn_impl_s(ofh,generic_func_name)
             if (pat_calc_force_all_impl_l.search(line)):
                 generic_func_name = "calc_force_all"
-                self.__write_calc_force_ftn_impl_l(ofh,generic_func_name,True,True)
+                self.__write_calc_force_ftn_impl_l(ofh,generic_func_name)
             # (3) calc_force_making_tree
             if (pat_calc_force_MT_if.search(line)):
                 generic_func_name = "calc_force_making_tree"
-                self.__write_calc_force_ftn_if(ofh,generic_func_name,False,True)
+                self.__write_calc_force_ftn_if(ofh,generic_func_name)
             if (pat_calc_force_MT_impl_s.search(line)):
                 generic_func_name = "calc_force_making_tree"
-                self.__write_calc_force_ftn_impl_s(ofh,generic_func_name,False,True)
+                self.__write_calc_force_ftn_impl_s(ofh,generic_func_name)
             if (pat_calc_force_MT_impl_l.search(line)):
                 generic_func_name = "calc_force_making_tree"
-                self.__write_calc_force_ftn_impl_l(ofh,generic_func_name,False,True)
+                self.__write_calc_force_ftn_impl_l(ofh,generic_func_name)
             # (4) calc_force_and_write_back
             if (pat_calc_force_WB_if.search(line)):
                 generic_func_name = "calc_force_and_write_back"
-                self.__write_calc_force_ftn_if(ofh,generic_func_name,True,False)
+                self.__write_calc_force_ftn_if(ofh,generic_func_name)
             if (pat_calc_force_WB_impl_s.search(line)):
                 generic_func_name = "calc_force_and_write_back"
-                self.__write_calc_force_ftn_impl_s(ofh,generic_func_name,True,False)
+                self.__write_calc_force_ftn_impl_s(ofh,generic_func_name)
             if (pat_calc_force_WB_impl_l.search(line)):
                 generic_func_name = "calc_force_and_write_back"
-                self.__write_calc_force_ftn_impl_l(ofh,generic_func_name,True,False)
-            #----- tree APIs (get_neighbor_list*) ------
+                self.__write_calc_force_ftn_impl_l(ofh,generic_func_name)
+            #----- tree APIs (get_neighbor_list* & get_epj_from_id*) ------
+            # (1) get_neighbor_list
             if (pat_get_ngb_list_meth.search(line)):
                 self.__write_get_ngb_list_meth(ofh)
             if (pat_get_ngb_list_decl.search(line)):
@@ -4311,6 +5013,15 @@ class Automatic_Generator:
                 self.__write_get_ngb_list_ftn_if(ofh)
             if (pat_get_ngb_list_impl.search(line)):
                 self.__write_get_ngb_list_impl(ofh)
+            # (2) get_epj_from_id
+            if (pat_get_epj_from_id_meth.search(line)):
+                self.__write_get_epj_from_id_meth(ofh)
+            if (pat_get_epj_from_id_decl.search(line)):
+                self.__write_get_epj_from_id_decl(ofh)
+            if (pat_get_epj_from_id_if.search(line)):
+                self.__write_get_epj_from_id_ftn_if(ofh)
+            if (pat_get_epj_from_id_impl.search(line)):
+                self.__write_get_epj_from_id_impl(ofh)
             #----- comm APIs -----
             # (1) get_min_value
             if (pat_get_min_value_meth.search(line)):
