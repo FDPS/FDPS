@@ -863,7 +863,11 @@ module FDPS_module
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(INOUT) :: psys_num
       character(len=*,kind=c_char), intent(IN) :: psys_info_in
-      character(len=:,kind=c_char), allocatable :: psys_info
+     !character(len=:,kind=c_char), allocatable :: psys_info
+      ! Note that Fortran compiler in K-computer does not support
+      ! auto-reallocation introduced in Fortran 2003.
+      ! (see http://www.nag-j.co.jp/fortran/fortran2003/Fortran2003_3_7.html)
+      character(len=len(psys_info_in)+1,kind=c_char) :: psys_info
 
       psys_info = trim(psys_info_in) // c_null_char
       call fdps_create_psys(psys_num,psys_info)
@@ -1262,7 +1266,9 @@ module FDPS_module
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(INOUT) :: tree_num
       character(len=*,kind=c_char), intent(IN) :: tree_info_in
-      character(len=:,kind=c_char), allocatable :: tree_info
+     !character(len=:,kind=c_char), allocatable :: tree_info
+      ! See the comment in API create_psys for this comment-out.
+      character(len=len(tree_info_in)+1,kind=c_char) :: tree_info
 
       tree_info = trim(tree_info_in) // c_null_char
       call fdps_create_tree(tree_num,tree_info)

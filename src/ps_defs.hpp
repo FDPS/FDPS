@@ -1550,6 +1550,7 @@ namespace ParticleSimulator{
         F64 exchange_LET_1st;
         F64 exchange_LET_2nd;
 
+        // not public
         F64 morton_sort_local_tree;
         F64 link_cell_local_tree;
         F64 morton_sort_global_tree;
@@ -1585,6 +1586,24 @@ namespace ParticleSimulator{
         F64 exchange_LET_1st__a2a_sp;
         F64 exchange_LET_1st__icomm_ep;
         F64 exchange_LET_1st__a2a_ep;
+
+        void dump(std::ostream & fout=std::cout) const {
+            fout<<"collect_sample_particle= "<<collect_sample_particle<<std::endl;
+            fout<<"decompose_domain= "<<decompose_domain<<std::endl;
+            fout<<"exchange_particle= "<<exchange_particle<<std::endl;
+            fout<<"set_particle_local_tree= "<<set_particle_local_tree<<std::endl;
+            fout<<"set_particle_global_tree= "<<set_particle_global_tree<<std::endl;
+            fout<<"make_local_tree= "<<make_local_tree<<std::endl;
+            fout<<"make_global_tree= "<<make_global_tree<<std::endl;
+            fout<<"set_root_cell= "<<set_root_cell<<std::endl;
+            fout<<"calc_force= "<<calc_force<<std::endl;
+            fout<<"calc_moment_local_tree= "<<calc_moment_local_tree<<std::endl;
+            fout<<"calc_moment_global_tree= "<<calc_moment_global_tree<<std::endl;
+            fout<<"make_LET_1st= "<<make_LET_1st<<std::endl;
+            fout<<"make_LET_2nd= "<<make_LET_2nd<<std::endl;
+            fout<<"exchange_LET_1st= "<<exchange_LET_1st<<std::endl;
+            fout<<"exchange_LET_2nd= "<<exchange_LET_2nd<<std::endl;
+        }
 
         TimeProfile () {
             collect_sample_particle = decompose_domain = exchange_particle = set_particle_local_tree = set_particle_global_tree = make_local_tree = make_global_tree = set_root_cell

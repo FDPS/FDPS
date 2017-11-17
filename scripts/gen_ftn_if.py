@@ -3648,11 +3648,12 @@ class Automatic_Generator:
             func_name = "broadcast_scalar_" + label
             if_name = "fdps_broadcast_scalar_" + label
             text = """
-            subroutine {FUNC_NAME}(this,val,src)
+            subroutine {FUNC_NAME}(this,val,n,src)
                use, intrinsic :: iso_c_binding
                implicit none
                class(FDPS_controller) :: this
                {DATA_TYPE}, intent(INOUT) :: val
+               integer(kind=c_int), intent(in) :: n
                integer(kind=c_int), optional, intent(IN) :: src
 
                 if (present(src)) then
@@ -4354,7 +4355,7 @@ class Automatic_Generator:
         for f in self.files:
             for mod in f.modules:
                 for s in mod.structures:
-                    print("... {}".format(s.name))
+                    print("... {0}".format(s.name))
                     if (s.attrib["FP"] == True):
                         self.__FPs.append(s.name)
                     if (s.attrib["EPI"] == True):

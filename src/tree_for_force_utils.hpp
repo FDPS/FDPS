@@ -73,11 +73,6 @@ namespace ParticleSimulator{
      const bool periodic_axis[],
      const bool clear = true){
         if(clear) shift_image_domain.clearSize();
-        /*
-        std::cerr<<"periodic_axis[0]= "<<periodic_axis[0]
-                 <<" periodic_axis[1]= "<<periodic_axis[1]
-                 <<std::endl;
-        */
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
         if( periodic_axis[0] == false && periodic_axis[1] == false){
             shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
@@ -96,7 +91,6 @@ namespace ParticleSimulator{
             shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
         }
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
-
         for(S32 lev=1;; lev++){
             S32 n_image_per_level = 0;
             S32 lev_x = 0;
@@ -109,7 +103,6 @@ namespace ParticleSimulator{
                         && (std::abs(iy) != lev_y  || periodic_axis[1] == false)) continue;
                     const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y);
                     const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
-                    //if(pos_my_domain.contained(pos_image_tmp)){
                     if(pos_my_domain.overlapped(pos_image_tmp)){
                         shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
                         n_image_per_level++;
@@ -145,6 +138,13 @@ namespace ParticleSimulator{
                     }
                 }
             }
+            /*
+            if(Comm::getRank()==0){
+                std::cerr<<"n_image_per_level= "<<n_image_per_level
+                         <<" lev= "<<lev
+                         <<std::endl;
+            }
+            */
             if(n_image_per_level == 0) break;
         }
 #endif
@@ -313,39 +313,33 @@ namespace ParticleSimulator{
         delete [] n_disp_tmp;
     }
 
-
+#if 1
     template<class Tptcl>
     inline void AllGatherParticle(Tptcl *& ptcl,
                                   S32 *&n_ptcl,
                                   S32 *&n_ptcl_disp,
                                   const Tptcl ptcl_org[],
                                   const S32 n_loc,
-                                  const F64vec & domain_size,
-                                  const F64ort & boundary,
+                                  const F64ort & pos_root_domain,
+                                  const F64ort & pos_root_tree,
                                   const bool periodic_axis[]){
         const S32 n_proc = Comm::getNumberOfProc();
-        //std::cerr<<"n_proc="<<n_proc<<std::endl;
         n_ptcl = new S32[n_proc];
         n_ptcl_disp = new S32[n_proc+1];
-        //std::cerr<<"n_loc="<<n_loc<<std::endl;
         Comm::allGather(&n_loc, 1, n_ptcl); // TEST
-        //std::cerr<<"n_ptcl[0]="<<n_ptcl[0]<<std::endl;
         n_ptcl_disp[0] = 0;
         for(S32 i=0; i<n_proc; i++){
             n_ptcl_disp[i+1] = n_ptcl_disp[i] + n_ptcl[i];
         }
         const S32 n_tot = n_ptcl_disp[n_proc];
-        //std::cerr<<"n_tot="<<n_tot<<std::endl;
         Tptcl * ptcl_tmp = new Tptcl[ n_tot ];
-        //std::cerr<<"n_tot="<<n_tot<<std::endl;
         Comm::allGatherV(ptcl_org, n_loc, ptcl_tmp, n_ptcl, n_ptcl_disp); // TEST
         ReallocatableArray<F64vec> shift;
+        F64vec domain_size = pos_root_domain.getFullLength();
         CalcNumberAndShiftOfImageDomain(shift, domain_size, 
-                                        boundary, boundary, periodic_axis);
+                                        pos_root_tree, pos_root_domain, periodic_axis);
         const S32 n_image = shift.size();
-        //std::cerr<<"n_image="<<n_image<<std::endl;
         ptcl = new Tptcl[ n_tot*n_image ];
-        //std::cerr<<"n_tot*n_image="<<n_tot*n_image<<std::endl;
         for(S32 i=0; i<n_tot; i++){
             for(S32 ii=0; ii<n_image; ii++){
                 ptcl[i*n_image+ii] = ptcl_tmp[i];
@@ -360,21 +354,70 @@ namespace ParticleSimulator{
         for(S32 i=0; i<n_proc; i++){
             n_ptcl_disp[i+1] = n_ptcl_disp[i] + n_ptcl[i];
         }
-
         delete [] ptcl_tmp;
     }
-
+#else
     template<class Tptcl>
-    inline void AllGatherParticle(Tptcl *& ptcl, 
-                                  S32 & n_tot, 
-                                  const Tptcl ptcl_org[], 
+    inline void AllGatherParticle(Tptcl *& ptcl,
+                                  S32 *&n_ptcl,
+                                  S32 *&n_ptcl_disp,
+                                  const Tptcl ptcl_org[],
                                   const S32 n_loc,
                                   const F64vec & domain_size,
                                   const F64ort & boundary,
                                   const bool periodic_axis[]){
+        const S32 n_proc = Comm::getNumberOfProc();
+        n_ptcl = new S32[n_proc];
+        n_ptcl_disp = new S32[n_proc+1];
+        Comm::allGather(&n_loc, 1, n_ptcl); // TEST
+        n_ptcl_disp[0] = 0;
+        for(S32 i=0; i<n_proc; i++){
+            n_ptcl_disp[i+1] = n_ptcl_disp[i] + n_ptcl[i];
+        }
+        const S32 n_tot = n_ptcl_disp[n_proc];
+        Tptcl * ptcl_tmp = new Tptcl[ n_tot ];
+        Comm::allGatherV(ptcl_org, n_loc, ptcl_tmp, n_ptcl, n_ptcl_disp); // TEST
+        ReallocatableArray<F64vec> shift;
+        /*
+        if(Comm::getRank()==0){
+            std::cerr<<"domain_size= "<<domain_size
+                     <<" boundary= "<<boundary
+                     <<std::endl;
+        }
+        */
+        CalcNumberAndShiftOfImageDomain(shift, domain_size, 
+                                        boundary, boundary, periodic_axis);
+        const S32 n_image = shift.size();
+        ptcl = new Tptcl[ n_tot*n_image ];
+        for(S32 i=0; i<n_tot; i++){
+            for(S32 ii=0; ii<n_image; ii++){
+                ptcl[i*n_image+ii] = ptcl_tmp[i];
+                const F64vec pos_new = ptcl_tmp[i].getPos() + shift[ii];
+                ptcl[i*n_image+ii].setPos(pos_new);
+            }
+        }
+        for(S32 i=0; i<n_proc; i++){
+            n_ptcl[i] *= n_image;
+        }
+        n_ptcl_disp[0] = 0;
+        for(S32 i=0; i<n_proc; i++){
+            n_ptcl_disp[i+1] = n_ptcl_disp[i] + n_ptcl[i];
+        }
+        delete [] ptcl_tmp;
+    }
+#endif
+
+    template<class Tptcl>
+    inline void AllGatherParticle(Tptcl *& ptcl,
+                                  S32 & n_tot, 
+                                  const Tptcl ptcl_org[], 
+                                  const S32 n_loc,
+                                  const F64ort & pos_root_domain,
+                                  const F64ort & pos_root_cell,
+                                  const bool periodic_axis[]){
         S32 * n_tmp;
         S32 * n_disp_tmp;
-        AllGatherParticle(ptcl, n_tmp, n_disp_tmp, ptcl_org, n_loc, domain_size, boundary, periodic_axis);
+        AllGatherParticle(ptcl, n_tmp, n_disp_tmp, ptcl_org, n_loc, pos_root_domain, pos_root_cell, periodic_axis);
         n_tot = n_disp_tmp[Comm::getNumberOfProc()];
         delete [] n_tmp;
         delete [] n_disp_tmp;

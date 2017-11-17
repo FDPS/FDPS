@@ -25,9 +25,16 @@ namespace ParticleSimulator{
             PARTICLE_SIMULATOR_PRINT_ERROR("tag_max is illegal. In currente version, tag_max must be 1");
             Abort(-1);
         }
+        if(clear){
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for
+#endif
+            for(S32 i=0; i<n_loc_tot_; i++){
+                force_sorted_[i].clear();
+            }
+        }
         S32 ret = 0;
         const F64 wtime_offset = GetWtime();
-        //std::cerr<<"time_profile_.calc_force= "<<time_profile_.calc_force<<std::endl;
         ret = calcForceMultiWalkIndexImpl(typename TSM::force_type(),
                                           pfunc_dispatch,
                                           pfunc_retrieve,
@@ -96,8 +103,8 @@ namespace ParticleSimulator{
 
         static S32  * iw2ith;
         static S32  * iw2cnt;
-        static S32 ** n_epj_disp_thread; // [n_thread][n_walk]
-        static S32 ** n_spj_disp_thread;// [n_thread][n_walk]
+        static S32 ** n_epj_disp_thread; // [n_thread][n_walk+1]
+        static S32 ** n_spj_disp_thread;// [n_thread][n_walk+1]
         static Tforce ** force_array; // array of pointer *[n_walk]
         static Tforce ** force_prev_array; // array of pointer *[n_walk]
         static S32  * cnt_thread;
@@ -137,8 +144,8 @@ namespace ParticleSimulator{
             force_array      = new Tforce*[n_walk_limit];
             force_prev_array = new Tforce*[n_walk_limit];
             for(int i=0; i<n_thread; i++){
-                n_epj_disp_thread[i] = new S32[n_walk_limit];
-                n_spj_disp_thread[i] = new S32[n_walk_limit];
+                n_epj_disp_thread[i] = new S32[n_walk_limit+1];
+                n_spj_disp_thread[i] = new S32[n_walk_limit+1];
             }
             cnt_thread = new S32[n_thread];
             n_ep_cum_thread = new S32[n_thread];
@@ -355,6 +362,7 @@ namespace ParticleSimulator{
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_ar[i];
             n_interaction_ep_sp_local_ += n_interaction_ep_sp_ar[i];
         }
+        //std::cerr<<"(A) n_interaction_ep_ep_local_= "<<n_interaction_ep_ep_local_<<std::endl;
         time_profile_.calc_force__core += GetWtime() - offset_core;
         const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
@@ -383,7 +391,6 @@ namespace ParticleSimulator{
                        (const S32**)id_epj_dummy, n_epj_dummy,
                        epj_sorted_.getPointer(), epj_sorted_.size(),
                        true);
-
         static bool first = true;
         S32 ret = 0;
         S32 tag = 0;
@@ -392,6 +399,7 @@ namespace ParticleSimulator{
         force_org_.resizeNoInitialize(n_loc_tot_);
         const S32 n_ipg = ipg_.size();
         if(n_ipg <= 0) return 0;
+
         const S32 n_ipg_amari = (n_ipg > 0) ? n_ipg%n_walk_limit : 0;
         n_walk_local_ += n_ipg;
 
@@ -439,7 +447,7 @@ namespace ParticleSimulator{
             force_array      = new Tforce*[n_walk_limit];
             force_prev_array = new Tforce*[n_walk_limit];
             for(int i=0; i<n_thread; i++){
-                n_epj_disp_thread[i] = new S32[n_walk_limit];
+                n_epj_disp_thread[i] = new S32[n_walk_limit+1];
             }
             cnt_thread = new S32[n_thread];
             n_ep_cum_thread = new S32[n_thread];
@@ -588,6 +596,7 @@ namespace ParticleSimulator{
         for(int i=0; i<n_thread; i++){
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_ar[i];
         }
+        //std::cerr<<"(B) n_interaction_ep_ep_local_= "<<n_interaction_ep_ep_local_<<std::endl;
         time_profile_.calc_force__core += GetWtime() - offset_core;
         const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
@@ -609,6 +618,14 @@ namespace ParticleSimulator{
         if(tag_max <= 0){
             PARTICLE_SIMULATOR_PRINT_ERROR("tag_max is illegal. In currente version, tag_max must be 1");
             Abort(-1);
+        }
+        if(clear){
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for
+#endif
+            for(S32 i=0; i<n_loc_tot_; i++){
+                force_sorted_[i].clear();
+            }
         }
         S32 ret = 0;
         const F64 wtime_offset = GetWtime();
@@ -683,8 +700,8 @@ namespace ParticleSimulator{
             force_array      = new Tforce*[n_walk_limit];
             force_prev_array = new Tforce*[n_walk_limit];
             for(int i=0; i<n_thread; i++){
-                n_epj_disp_thread[i] = new S32[n_walk_limit];
-                n_spj_disp_thread[i] = new S32[n_walk_limit];
+                n_epj_disp_thread[i] = new S32[n_walk_limit+1];
+                n_spj_disp_thread[i] = new S32[n_walk_limit+1];
             }
             cnt_thread = new S32[n_thread];
             n_ep_cum_thread = new S32[n_thread];
@@ -776,6 +793,7 @@ namespace ParticleSimulator{
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_array[i];
             n_interaction_ep_sp_local_ += n_interaction_ep_sp_array[i];
         }
+        //std::cerr<<"(C) n_interaction_ep_ep_local_= "<<n_interaction_ep_ep_local_<<std::endl;
         time_profile_.calc_force__core += GetWtime() - offset_core;
         const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
@@ -837,7 +855,7 @@ namespace ParticleSimulator{
             force_array      = new Tforce*[n_walk_limit];
             force_prev_array = new Tforce*[n_walk_limit];
             for(int i=0; i<n_thread; i++){
-                n_epj_disp_thread[i] = new S32[n_walk_limit];
+                n_epj_disp_thread[i] = new S32[n_walk_limit+1];
             }
             cnt_thread = new S32[n_thread];
             n_ep_cum_thread = new S32[n_thread];
@@ -845,14 +863,21 @@ namespace ParticleSimulator{
             first = false;
         }
         walk_grp_disp[0] = 0;
-        //const S32 wg_tmp = n_ipg > 0 ? n_ipg%n_loop_max : 0;
+/*
         for(int wg=0; wg<n_ipg%n_loop_max; wg++){
-            //for(int wg=0; wg<wg_tmp; wg++){
             walk_grp[wg] = n_ipg / n_loop_max + 1;
             walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
         }
         for(int wg=n_ipg%n_loop_max; wg<n_loop_max; wg++){
-            //for(int wg=wg_tmp; wg<n_loop_max; wg++){
+            walk_grp[wg] = n_ipg / n_loop_max;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+*/
+        for(int wg=0; wg<n_ipg%n_loop_max; wg++){
+            walk_grp[wg] = (n_ipg/n_loop_max) + 1;
+            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
+        }
+        for(int wg=n_ipg%n_loop_max; wg<n_loop_max; wg++){
             walk_grp[wg] = n_ipg / n_loop_max;
             walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
         }
@@ -861,7 +886,6 @@ namespace ParticleSimulator{
         }
         bool first_loop = true;
         S32 n_walk_prev = 0;
-        //std::cerr<<"rank(B)= "<<Comm::getRank()<<std::endl;
         if(n_ipg > 0){
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = walk_grp[wg];
@@ -927,6 +951,7 @@ namespace ParticleSimulator{
         for(int i=0; i<n_thread; i++){
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_array[i];
         }
+        //std::cerr<<"(D) n_interaction_ep_ep_local_= "<<n_interaction_ep_ep_local_<<std::endl;
         time_profile_.calc_force__core += GetWtime() - offset_core;
         const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
@@ -950,6 +975,14 @@ namespace ParticleSimulator{
         if(tag_max <= 0){
             PARTICLE_SIMULATOR_PRINT_ERROR("tag_max is illegal. In currente version, tag_max must be 1");
             Abort(-1);
+        }
+        if(clear){
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for
+#endif
+            for(S32 i=0; i<n_loc_tot_; i++){
+                force_sorted_[i].clear();
+            }
         }
         S32 ret = 0;
         const F64 time_offset = GetWtime();
@@ -1043,8 +1076,8 @@ namespace ParticleSimulator{
             force_array      = new Tforce*[n_walk_limit];
             force_prev_array = new Tforce*[n_walk_limit];
             for(int i=0; i<n_thread; i++){
-                n_epj_disp_thread[i] = new S32[n_walk_limit];
-                n_spj_disp_thread[i] = new S32[n_walk_limit];
+                n_epj_disp_thread[i] = new S32[n_walk_limit+1];
+                n_spj_disp_thread[i] = new S32[n_walk_limit+1];
             }
             cnt_thread = new S32[n_thread];
             n_ep_cum_thread = new S32[n_thread];
@@ -1283,6 +1316,7 @@ namespace ParticleSimulator{
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_ar[i];
             n_interaction_ep_sp_local_ += n_interaction_ep_sp_ar[i];
         }
+        //std::cerr<<"(E) n_interaction_ep_ep_local_= "<<n_interaction_ep_ep_local_<<std::endl;
         time_profile_.calc_force__core += GetWtime() - offset_core;
         const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
@@ -1357,7 +1391,7 @@ namespace ParticleSimulator{
             force_array      = new Tforce*[n_walk_limit];
             force_prev_array = new Tforce*[n_walk_limit];
             for(int i=0; i<n_thread; i++){
-                n_epj_disp_thread[i] = new S32[n_walk_limit];
+                n_epj_disp_thread[i] = new S32[n_walk_limit+1];
             }
             cnt_thread = new S32[n_thread];
             n_ep_cum_thread = new S32[n_thread];
@@ -1532,6 +1566,7 @@ namespace ParticleSimulator{
         for(int i=0; i<n_thread; i++){
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_ar[i];
         }
+        //std::cerr<<"(F) n_interaction_ep_ep_local_= "<<n_interaction_ep_ep_local_<<std::endl;
         time_profile_.calc_force__core += GetWtime() - offset_core;
         const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
@@ -1642,6 +1677,9 @@ namespace ParticleSimulator{
                     n_spj_ar[iw]  = interaction_list_.n_sp_[id_walk];
                     //id_spj_ar[iw] = interaction_list_.adr_sp_.getPointer(id_walk);
                     id_spj_ar[iw] = interaction_list_.adr_sp_.getPointer(interaction_list_.n_disp_sp_[id_walk]);
+
+                    n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[iw]);
+                    n_interaction_ep_sp_local_ += ((S64)n_spj_ar[iw]*(S64)n_epi_ar[iw]);
                 }
                 pfunc_dispatch(0, n_walk, 
                                (const Tepi**)epi_ar.getPointer(),   n_epi_ar.getPointer(),
@@ -1654,10 +1692,6 @@ namespace ParticleSimulator{
             }
             
         }
-        /*
-        std::cerr<<"epj_sorted_.size()= "<<epj_sorted_.size()
-                 <<" spj_sorted_.size()= "<<spj_sorted_.size()<<std::endl;
-        */
         copyForceOriginalOrder();
         //time_profile_.calc_force += GetWtime() - time_offset;
     }
@@ -1738,6 +1772,7 @@ namespace ParticleSimulator{
                     n_epj_ar[iw]  = interaction_list_.n_ep_[id_walk];
                     id_epj_ar[iw] = interaction_list_.adr_ep_.getPointer(interaction_list_.n_disp_ep_[id_walk]);
 
+                    n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[iw]);
                 }
                 pfunc_dispatch(0, n_walk, 
                                (const Tepi**)epi_ar.getPointer(),   n_epi_ar.getPointer(),
@@ -1829,6 +1864,9 @@ namespace ParticleSimulator{
 
                     n_spj_ar[iw]  = interaction_list_.n_sp_[id_walk];
                     //id_spj_ar[iw] = interaction_list_.adr_sp_.getPointer(interaction_list_.n_disp_sp_[id_walk]);
+
+                    n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[iw]);
+                    n_interaction_ep_sp_local_ += ((S64)n_spj_ar[iw]*(S64)n_epi_ar[iw]);
                 }
 #if 1
                 const S64 n_ep_head = interaction_list_.n_disp_ep_[n_walk_head];
@@ -1931,8 +1969,6 @@ namespace ParticleSimulator{
                                        Tfunc_retrieve pfunc_retrieve,
                                        const S32 n_walk_limit,
                                        const bool clear){
-        //std::cerr<<"Comm::getRank(A)= "<<Comm::getRank()<<std::endl;
-        //F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
         static ReallocatableArray<S32>  n_epi_ar;
@@ -1987,6 +2023,8 @@ namespace ParticleSimulator{
 
                     //S32 n_ep_head = interaction_list_.n_disp_ep_[id_walk];
                     n_epj_ar[iw]  = interaction_list_.n_ep_[id_walk];
+
+                    n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[iw]);
                 }
 
 #if 1
@@ -2029,7 +2067,6 @@ namespace ParticleSimulator{
             
         }
         copyForceOriginalOrder();
-        //time_profile_.calc_force += GetWtime() - time_offset;
     }
 
 }

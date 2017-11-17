@@ -163,6 +163,7 @@ namespace ParticleSimulator{
                 Abort(-1);
             }
             assert(first_call_by_initialize);
+
             first_call_by_initialize = false;
             pos_sample_tot_ = NULL;
             pos_sample_loc_ = NULL;
@@ -187,9 +188,12 @@ namespace ParticleSimulator{
             S32 rank_tmp[DIMENSION_LIMIT];
             SetNumberOfDomainMultiDimension<DIMENSION>(n_domain_, rank_tmp);
 
+            //std::cerr<<"check 2"<<std::endl;
+
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             // NEW
             int rank_glb = Comm::getRank();
+
             for(S32 d=DIMENSION-1; d>=0; d--){
                 rank_1d_[d] = rank_glb % n_domain_[d];
                 rank_glb /= n_domain_[d];
@@ -198,10 +202,12 @@ namespace ParticleSimulator{
                 MPI_Comm_split(MPI_COMM_WORLD, rank_sub_[d], rank_glb, comm_1d_+d);
                 MPI_Comm_size(comm_sub_[d], n_proc_sub_+d);
             }
+
 	    for(S32 d=DIMENSION-1; d>=0; d--){
 		Comm::setRankMultiDim(d, rank_tmp[d]);
 		Comm::setNumberOfProcMultiDim(d, n_domain_[d]);
 	    }
+
 #endif
         }
 
@@ -962,6 +968,7 @@ namespace ParticleSimulator{
                 //std::cerr<<"low[i]="<<low[i]<<std::endl;
                 //std::cerr<<"high[i]="<<high[i]<<std::endl;
                 //std::cerr<<"periodic_axis_[i]="<<periodic_axis_[i]<<std::endl;
+
                 if( periodic_axis_[i] == false ) continue;
                 if(low[i] < high[i]){
                     pos_root_domain_.low_[i] = low[i];

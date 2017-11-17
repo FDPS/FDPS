@@ -4135,7 +4135,8 @@ namespace ParticleSimulator{
         S32 n_epj_tmp;
         bool pa[DIMENSION];
         dinfo.getPeriodicAxis(pa);
-        AllGatherParticle(epj_tmp, n_epj_tmp, epj_org_.getPointer(), n_loc_tot_, dinfo.getPosRootDomain().getFullLength(), pos_root_cell_, pa);
+        AllGatherParticle(epj_tmp, n_epj_tmp, epj_org_.getPointer(), n_loc_tot_, dinfo.getPosRootDomain(), pos_root_cell_, pa);
+        //std::cerr<<"epi_org_.size()= "<<epi_org_.size()<<" n_epj_tmp= "<<n_epj_tmp<<std::endl;
         pfunc_ep_ep(epi_org_.getPointer(), n_loc_tot_, epj_tmp, n_epj_tmp, force);
         delete [] epj_tmp;
     }
