@@ -43,6 +43,15 @@ namespace ParticleSimulator{
                 prefix_sum_[ith] = new int [n_bucket_];
             }
         }
+        ~RadixSort(){
+            for(int ith=0; ith<n_thread_; ith++){
+                delete [] bucket_size_[ith];
+                delete [] prefix_sum_[ith];
+            }
+            delete [] prefix_sum_;
+            delete [] bucket_size_;
+        }
+
         template<class Tobj>
         void lsdSort(Tobj * val,
                      Tobj * val_buf,

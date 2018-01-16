@@ -10,6 +10,7 @@
 #include<typeinfo>
 #include<cstdio>
 #include<cstring>
+#include<map>
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #include"mpi.h"
@@ -177,6 +178,14 @@ namespace ParticleSimulator{
         MAKE_LIST_FOR_REUSE,
         REUSE_LIST,
     };
+#if __cplusplus > 199711L
+    std::map<int, std::string> MAP_INTERACTION_LIST_MODE = {
+        {0, "MAKE_LIST"},
+        {1, "MAKE_LIST_FOR_REUSE"},
+        {2, "REUSE_LIST"},
+    };
+#endif
+
     enum SEARCH_MODE{
         LONG_NO_CUTOFF,
         LONG_CUTOFF,
@@ -187,6 +196,20 @@ namespace ParticleSimulator{
         SHORT_SCATTER,
         SHORT_SYMMETRY,
     };
+
+#if __cplusplus > 199711L
+    std::map<int, std::string> MAP_SEARCH_MODE = {
+        {0, "LONG_NO_CUTOFF"},
+        {1, "LONG_CUTOFF"},
+        {2, "LONG_SCATTER"},
+        {3, "LONG_CUTOFF_SCATTER"},
+        {4, "LONG_SYMMETRY"},
+        {5, "SHORT_GATHER"},
+        {6, "SHORT_SCATTER"},
+        {7, "SHORT_SYMMETRY"},
+    };
+#endif
+
     enum FORCE_TYPE{
         FORCE_TYPE_LONG,
         FORCE_TYPE_SHORT,

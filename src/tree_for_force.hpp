@@ -1,11 +1,11 @@
 #pragma once
 
-//#define UNORDERED_SET
+//#define UNORDERED_SET 
 
-#ifdef UNORDERED_SET 
-#include<unordered_set>
-#else
+#if __cplusplus <= 199711L
 #include<map>
+#else
+#include<unordered_map>
 #endif
 
 #include<sort.hpp>
@@ -36,17 +36,18 @@ namespace ParticleSimulator{
         F64vec center_; // new member (not used)
         //F64ort pos_root_cell_;
 
-    private:
+        //private:
+    public:
 
         TimeProfile time_profile_;
-
-#ifdef UNORDERED_SET 
-typedef std::unordered_map<S64, Tepj*> MyMap;
+#if __cplusplus <= 199711L
+        typedef std::map<S64, Tepj*> MyMap;
 #else
-typedef std::map<S64, Tepj*> MyMap;
+        typedef std::unordered_map<S64, Tepj*> MyMap;
 #endif
-        MyMap map_id_to_epj_;
 
+        MyMap map_id_to_epj_;
+        
         CountT n_interaction_ep_ep_local_, n_interaction_ep_sp_local_, n_walk_local_;
         CountT n_let_ep_send_1st_, n_let_ep_recv_1st_, n_let_sp_send_1st_, n_let_sp_recv_1st_,
             n_let_ep_send_2nd_, n_let_ep_recv_2nd_;
@@ -522,7 +523,64 @@ typedef std::map<S64, Tepj*> MyMap;
         }
 
         TreeForForce() : is_initialized_(false){}
-
+        ~TreeForForce(){
+            delete [] n_ep_send_;
+            delete [] n_ep_recv_;
+            delete [] n_cell_open_;
+            delete [] n_ep_send_disp_;
+            delete [] n_ep_recv_disp_;
+            const S32 n_thread = Comm::getNumberOfThread();
+            for(S32 i=0; i<n_thread; i++) delete [] id_proc_send_[i];
+            delete [] id_proc_send_;
+            delete [] id_sp_send_buf_;
+            delete [] id_ptcl_send_;
+            delete [] ip_disp_;
+            delete [] tp_scatter_;
+            delete [] tc_recv_1st_;
+            delete [] shift_image_box_;
+            delete [] epj_send_buf_;
+            delete [] epj_recv_1st_sorted_;
+            delete [] epjr_send_buf_;
+            delete [] epjr_send_buf_for_scatter_;
+            delete [] epjr_recv_1st_sorted_;
+            delete [] epj_neighbor_;
+            delete [] spj_for_force_;
+            delete [] shift_image_domain_;
+            delete [] id_ep_send_buf_;
+            delete [] ep_send_buf_for_scatter_;
+            delete [] epj_for_force_;
+            delete [] id_epj_for_force_;
+            delete [] id_spj_for_force_;
+            if( typeid(TSM) == typeid(SEARCH_MODE_LONG) ||
+                typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF) ||
+                typeid(TSM) == typeid(SEARCH_MODE_LONG_SCATTER) ||
+                typeid(TSM) == typeid(SEARCH_MODE_LONG_SYMMETRY)){
+                delete [] n_sp_send_;
+                delete [] n_sp_recv_;
+                delete [] n_sp_send_disp_;
+                delete [] n_sp_recv_disp_;
+                delete [] n_ep_sp_send_;
+                delete [] n_ep_sp_recv_;
+            }
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            delete [] req_send_;
+            delete [] req_recv_;
+#endif
+            if( typeid(TSM) == typeid(SEARCH_MODE_SYMMETRY)
+                || typeid(TSM) == typeid(SEARCH_MODE_GATHER) ){
+                delete [] n_epj_recv_1st_;
+                delete [] n_epj_recv_disp_1st_;
+                delete [] n_epj_recv_2nd_;
+                delete [] n_epj_recv_disp_2nd_;
+                delete [] id_proc_src_;
+                delete [] id_proc_dest_;
+                for(S32 i=0; i<n_thread; i++){
+                    delete [] adr_tc_level_partition_recv_1st_[i];
+                }
+                delete [] adr_tc_level_partition_recv_1st_;
+            }
+        }
+        
         size_t getMemSizeUsed()const;
 	
         void setNInteractionEPEP(const S64 n_ep_ep){
@@ -701,7 +759,7 @@ typedef std::map<S64, Tepj*> MyMap;
         template<class Ttreecell>
         void addMomentAsSpImpl(TagForceShort, ReallocatableArray<Ttreecell> & );
 
-        void exchangeLocalEssentialTreeReuseList(const DomainInfo & dinfo);
+      void exchangeLocalEssentialTreeReuseList(const DomainInfo & dinfo,const bool flag_reuse = false);
         void exchangeLocalEssentialTreeReuseListImpl(TagSearchShortSymmetry,
                                                      const DomainInfo & dinfo,
                                                      const bool flag_reuse=false);
@@ -790,12 +848,14 @@ typedef std::map<S64, Tepj*> MyMap;
                                             Tfunc_retrieve pfunc_retrieve,
                                             const S32 n_walk_limit,
                                             const bool clear=true){
-            calcForceNoWalkForMultiWalkNewImpl(typename TSM::force_type(),
-                                               pfunc_dispatch,
-                                               pfunc_retrieve,
-                                               n_walk_limit,
-                                               clear);
-        }
+	  F64 wtime_offset = GetWtime();
+	  calcForceNoWalkForMultiWalkNewImpl(typename TSM::force_type(),
+					     pfunc_dispatch,
+					     pfunc_retrieve,
+					     n_walk_limit,
+					     clear);
+	  time_profile_.calc_force += GetWtime() - wtime_offset;
+	}
         
         S32 adr_tc_level_partition_loc_[TREE_LEVEL_LIMIT+2];
         S32 lev_max_loc_;
@@ -828,8 +888,10 @@ typedef std::map<S64, Tepj*> MyMap;
                 mortonSortLocalTreeOnly();
                 linkCellLocalTreeOnly();
                 calcMomentLocalTreeOnly();
-                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
-                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
+                //exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
+		exchangeLocalEssentialTreeReuseList(dinfo);
+                //setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
+		setLocalEssentialTreeToGlobalTree2();
                 this->n_glb_tot_ = tp_glb_.size();
                 mortonSortGlobalTreeOnly();
                 linkCellGlobalTreeOnly();
@@ -840,9 +902,10 @@ typedef std::map<S64, Tepj*> MyMap;
             }
             else if(list_mode == REUSE_LIST){
                 mortonSortLocalTreeOnly(true);
-                exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo, true);
+                //exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo, true);
+		exchangeLocalEssentialTreeReuseList(dinfo, true);
 #if 1
-                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), true);
+                setLocalEssentialTreeToGlobalTree2(true);
                 mortonSortGlobalTreeOnly(true);
 #else
                 // under construction
@@ -1155,7 +1218,7 @@ typedef std::map<S64, Tepj*> MyMap;
                 setLocalEssentialTreeToGlobalTree2(true);
                 mortonSortGlobalTreeOnly(true);
                 calcMomentGlobalTreeOnly();
-                S32 offset = epi_org_.size() + epj_recv_.size() + spj_recv_.size();
+		S32 offset = epi_org_.size() + epj_recv_.size() + spj_recv_.size();
                 AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
                                   offset, spj_sorted_);
                 calcForceNoWalkForMultiWalkNew(pfunc_dispatch, pfunc_retrieve, n_walk_limit, clear);
@@ -1203,7 +1266,9 @@ typedef std::map<S64, Tepj*> MyMap;
         ///////
         // new
         void setLocalEssentialTreeToGlobalTree2(const bool flag_reuse = false){
-            setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), flag_reuse);
+	  F64 time_offset = GetWtime();
+	  setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), flag_reuse);
+	  time_profile_.set_particle_global_tree += GetWtime() - time_offset;
         } 
         void setLocalEssentialTreeToGlobalTreeImpl2(TagForceLong,
                                                     const bool flag_reuse = false){
@@ -1358,58 +1423,6 @@ typedef std::map<S64, Tepj*> MyMap;
 
         void exchangeLocalEssentialTreeUsingCommTable(){}
 
-        /*
-        template<class Tfunc_ep_ep, class Tfunc_ep_sp>
-        void calcForceReuseList(Tfunc_ep_ep pfunc_ep_ep, 
-                                Tfunc_ep_sp pfunc_ep_sp,
-                                const bool clear_force);
-        */
-        /*
-        template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
-        void calcForceAllAndWriteBackReuseList(Tfunc_ep_ep pfunc_ep_ep, 
-                                               Tfunc_ep_sp pfunc_ep_sp,  
-                                               Tpsys & psys,
-                                               DomainInfo & dinfo,
-                                               const bool clear_force=true,
-                                               const bool reuse = false){
-            if(!reuse){
-                setParticleLocalTree(psys);
-                setRootCell(dinfo);
-                mortonSortLocalTreeOnly();
-                linkCellLocalTreeOnly();
-                calcMomentLocalTreeOnly();
-                exchangeLocalEssentialTree(dinfo);
-                setLocalEssentialTreeToGlobalTree();
-                mortonSortGlobalTreeOnly();
-                linkCellGlobalTreeOnly();
-                calcMomentGlobalTreeOnly();
-                makeIPGroup();
-                calcForce(pfunc_ep_ep, pfunc_ep_sp, clear_force);
-            }
-            else{
-                //clearSizeOfArray();
-                setParticleLocalTree(psys);
-                for(S32 i=0; i<n_loc_tot_; i++){
-                    const S32 adr = tp_loc_[i].adr_ptcl_;
-                    epi_sorted_[i] = epi_org_[adr];
-                    epj_sorted_[i] = epj_org_[adr];
-                }
-                calcMomentLocalTreeOnly(); 
-                // exchange LET
-                exchangeLocalEssentialTreeUsingCommTable(); // not yet
-                setLocalEssentialTreeToGlobalTree();
-                for(S32 i=0; i<n_glb_tot_; i++){
-                    const S32 adr = tp_glb_[i].adr_ptcl_;
-                    epj_sorted_[i] = epj_org_[adr];
-                    spj_sorted_[i] = spj_org_[adr];
-                }
-                calcMomentGlobalTreeOnly();
-                calcForceReuseList(pfunc_ep_ep, pfunc_ep_sp, clear_force); // not yet
-            }
-            for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
-        }
-        */
-        
         void dumpMemSizeUsed(std::ostream & fout){
             S32 n_thread = Comm::getNumberOfThread();
             if (Comm::getRank() == 0) {

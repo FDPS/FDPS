@@ -12,7 +12,14 @@ namespace  ParticleSimulator{
         int size_;
         int capacity_;
         int capacity_org_;
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
+        void dumpImpl() const {
+            std::cout<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
+            std::cout<<"size_="<<size_<<std::endl;
+            std::cout<<"capacity_="<<capacity_<<std::endl;
+            std::cout<<"n_expand_="<<n_expand_<<std::endl;
+        }
         int n_expand_;
         void increaseNExpand(const int n_input){
             std::cout<<"expand capacity"<<std::endl;
@@ -22,13 +29,6 @@ namespace  ParticleSimulator{
             std::cout<<"capacity_="<<capacity_<<std::endl;
             std::cout<<"n_expand_="<<n_expand_<<std::endl;
             n_expand_++;
-        }
-
-        void dumpImpl() const {
-            std::cout<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
-            std::cout<<"size_="<<size_<<std::endl;
-            std::cout<<"capacity_="<<capacity_<<std::endl;
-            std::cout<<"n_expand_="<<n_expand_<<std::endl;
         }
 #endif
 
@@ -48,7 +48,8 @@ namespace  ParticleSimulator{
         }
 	
     public:
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
         ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0), n_expand_(0) {}
         ReallocatableArray(int cap) : size_(0), capacity_(cap), capacity_org_(0), n_expand_(0) {
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
@@ -91,7 +92,8 @@ namespace  ParticleSimulator{
         }
         void reserve(const int n){
             if( n > capacity_){
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
@@ -119,8 +121,9 @@ namespace  ParticleSimulator{
         int capacity() const {return capacity_; }
 
         const T & operator [] (const int i) const {
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
-            if(i > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE || i < 0 || capacity_ <= i || size_<= i ){
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
+            if(i > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE || i < 0 || capacity_ <= i){
                 dumpImpl();
                 std::cout<<"i="<<i<<std::endl;
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
@@ -128,14 +131,22 @@ namespace  ParticleSimulator{
             assert(i <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
             assert(i >= 0);
             assert(capacity_ > i);
+#endif
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
+            if(size_<= i ){
+                dumpImpl();
+                std::cout<<"i="<<i<<std::endl;
+                std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+            }
             assert(size_ > i);
 #endif
             return data_[i]; 
         }
 
         T & operator [] (const int i){
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
-            if(i > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE || i < 0 || capacity_ <= i || size_<= i ){
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
+            if(i > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE || i < 0 || capacity_ <= i){
                 dumpImpl();
                 std::cout<<"i="<<i<<std::endl;
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
@@ -143,10 +154,12 @@ namespace  ParticleSimulator{
             assert(i <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
             assert(i >= 0);
             assert(capacity_ > i);
+#endif
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
             if(size_ <= i){
-                std::cerr<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
-                std::cerr<<"i="<<i<<std::endl;
-                std::cerr<<"size_="<<size_<<std::endl;
+                dumpImpl();
+                std::cout<<"i="<<i<<std::endl;
+                std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
             }
             assert(size_ > i);
 #endif
@@ -162,7 +175,8 @@ namespace  ParticleSimulator{
         const T * data() const { return data_; }
 
         void push_back(const T & val){
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
             if(size_+1 > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 dumpImpl();
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
@@ -178,7 +192,8 @@ namespace  ParticleSimulator{
 #else
         void resizeNoInitialize (const int n){
 #endif
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
             if(n > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 dumpImpl();
                 std::cout<<"n="<<n<<std::endl;
@@ -187,7 +202,8 @@ namespace  ParticleSimulator{
             assert(n <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
 #endif
             if(n > capacity_){
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
@@ -211,7 +227,8 @@ namespace  ParticleSimulator{
         }
 
         void dump(const std::string str=""){
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
             std::cout<<str<<std::endl;
             dumpImpl();
 #endif
@@ -222,7 +239,8 @@ namespace  ParticleSimulator{
         T * getPointer(const int i=0) const { return data_+i; }
 	
         void pushBackNoCheck(const T & val){
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
             assert(size_ <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
             if(size_ >= capacity_){
                 dumpImpl();
@@ -237,10 +255,10 @@ namespace  ParticleSimulator{
 
         void increaseSize(const int n=1){ resizeNoInitialize(size_+n); }
         void decreaseSize(const int n=1){ resizeNoInitialize(size_-n); } // no check
-
         void reserveAtLeast(const int n){
             if( n >= capacity_){
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
@@ -268,7 +286,8 @@ namespace  ParticleSimulator{
 #endif
             const int n = n_add + size_;
             if( n >= capacity_){
-#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif

@@ -1937,7 +1937,8 @@ namespace ParticleSimulator{
                                            const F64vec & shift = F64vec(0.0) ){
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            //open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             if( (open_bits>>i) & 0x1){
@@ -1999,8 +2000,8 @@ namespace ParticleSimulator{
                     S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
                     ep_list.reserveEmptyAreaAtLeast( n_child );
                     for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
-#ifdef ORIGINAL_SCATTER_MODE
                         const F64vec pos_tmp = ep_first[adr_ptcl_tmp].getPos();
+#ifdef ORIGINAL_SCATTER_MODE
                         const F64 size_tmp = ep_first[adr_ptcl_tmp].getRSearch();
                         const F64 dis_sq_tmp = pos_target_box.getDistanceMinSQ(pos_tmp);
                         if(dis_sq_tmp > size_tmp*size_tmp) continue;

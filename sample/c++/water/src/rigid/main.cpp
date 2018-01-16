@@ -17,10 +17,11 @@
 #include <string>
 #include <vector>
 
-#include "unit.h"
-#include "pdb_manager.h"
+#include <unit.h>
+#include <pdb_manager.h>
+#include <water_params.h>
+
 #include "constraint.h"
-#include "water_params.h"
 #include "user_defined_class.h"
 
 const PS::F64 alpha[10] = {

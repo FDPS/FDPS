@@ -25,12 +25,15 @@ namespace ParticleSimulator{
             PARTICLE_SIMULATOR_PRINT_ERROR("tag_max is illegal. In currente version, tag_max must be 1");
             Abort(-1);
         }
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n_loc_tot_; i++){
                 force_sorted_[i].clear();
+                force_org_[i].clear();
             }
         }
         S32 ret = 0;
@@ -216,7 +219,7 @@ namespace ParticleSimulator{
                         S32 adr_tc = 0;
                         MakeListUsingTreeRecursiveTop
                             <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj, 
-                             Tspj, WALK_MODE_NORMAL>
+                             Tspj, WALK_MODE_NORMAL, TagChopLeafTrue>
                             (tc_glb_,  adr_tc, tp_glb_,
                              epj_sorted_, adr_epj_tmp[ith],
                              spj_sorted_, adr_spj_tmp[ith],
@@ -255,18 +258,12 @@ namespace ParticleSimulator{
                                      <<std::endl;
                         }
 #endif
-                        //n_ep_cum_thread[ith] = epj_for_force_[ith].size();
-                        //n_sp_cum_thread[ith] = spj_for_force_[ith].size();
                         n_ep_cum_thread[ith] = adr_epj_tmp[ith].size();
                         n_sp_cum_thread[ith] = adr_spj_tmp[ith].size();
 
                         n_epj_disp_thread[ith][cnt_thread[ith]+1] = n_ep_cum_thread[ith];
                         n_spj_disp_thread[ith][cnt_thread[ith]+1] = n_sp_cum_thread[ith];
 
-                        //n_interaction_ep_ep_array[ith] += ((S64)n_epj_array[iw]*(S64)n_epi_array[iw]);
-                        //n_interaction_ep_sp_array[ith] += ((S64)n_spj_array[iw]*(S64)n_epi_array[iw]);
-                        //n_interaction_ep_ep_ar[ith] += ((S64)interaction_list_.n_ep_[iw]*(S64)n_epi_ar[iw]);
-                        //n_interaction_ep_sp_ar[ith] += ((S64)interaction_list_.n_ep_[iw]*(S64)n_epi_ar[iw]);
                         n_interaction_ep_ep_ar[ith] += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[iw]);
                         n_interaction_ep_sp_ar[ith] += ((S64)n_spj_ar[iw]*(S64)n_epi_ar[iw]);
 
@@ -289,12 +286,6 @@ namespace ParticleSimulator{
                         const S32 id_ipg = walk_grp_head + iw;
                         interaction_list_.n_ep_[id_ipg] = n_epj_ar[iw];
                         interaction_list_.n_sp_[id_ipg] = n_spj_ar[iw];
-                        /*
-                        S32 ith = iw2ith[iw];
-                        S32 cnt = iw2cnt[iw];
-                        interaction_list_.n_disp_ep_[id_ipg+1] = n_epj_disp_thread[ith][cnt];
-                        interaction_list_.n_disp_sp_[id_ipg+1] = n_spj_disp_thread[ith][cnt];
-                        */
                     }
                     for(int iw=0; iw<n_walk; iw++){
                         const S32 id_ipg = walk_grp_head + iw;
@@ -326,6 +317,20 @@ namespace ParticleSimulator{
                 }
 
                 time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+#if 1
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    S32 n_sp_head = n_spj_disp_thread[ith][cnt];
+                    id_epj_ar[iw] = adr_epj_tmp[ith].getPointer(n_ep_head);
+                    id_spj_ar[iw] = adr_spj_tmp[ith].getPointer(n_sp_head);
+                }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
+                } // retrieve                
+#else
+                // original
                 if(!first_loop){
                     ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
                 } // retrieve
@@ -337,6 +342,8 @@ namespace ParticleSimulator{
                     id_epj_ar[iw] = adr_epj_tmp[ith].getPointer(n_ep_head);
                     id_spj_ar[iw] = adr_spj_tmp[ith].getPointer(n_sp_head);
                 }
+
+#endif
                 pfunc_dispatch(0, n_walk, 
                                (const Tepi**)epi_ar.getPointer(),   n_epi_ar.getPointer(),
                                (const S32**)id_epj_ar.getPointer(), n_epj_ar.getPointer(),
@@ -344,7 +351,6 @@ namespace ParticleSimulator{
                                epj_sorted_.getPointer(), epj_sorted_.size(),
                                spj_sorted_.getPointer(), spj_sorted_.size(),
                                false);
-                //ret += pfunc_dispatch(tag, n_walk, (const Tepi**)epi_array, n_epi_array, (const Tepj**)epj_array, n_epj_array, (const Tspj**)spj_array, n_spj_array);
                 first_loop = false;
                 for(int iw=0; iw<n_walk; iw++){
                     n_epi_ar_prev[iw] = n_epi_ar[iw];
@@ -506,7 +512,8 @@ namespace ParticleSimulator{
                         GetTargetBox<TSM>(ipg_[id_ipg], target_box);
                         S32 adr_tc = 0;
                         MakeListUsingTreeRecursiveTop
-                            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj, WALK_MODE_NORMAL>
+                            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj,
+                             WALK_MODE_NORMAL, TagChopLeafTrue>
                             (tc_glb_,  adr_tc, tp_glb_,
                              epj_sorted_, adr_epj_tmp[ith],
                              target_box,
@@ -564,8 +571,19 @@ namespace ParticleSimulator{
                         }
                     }
                 }
-
                 time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+#if 1
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    id_epj_ar[iw] = adr_epj_tmp[ith].getPointer(n_ep_head);
+                }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
+                } // retrieve
+#else
+                // original
                 if(!first_loop){
                     ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
                 } // retrieve
@@ -575,11 +593,13 @@ namespace ParticleSimulator{
                     S32 n_ep_head = n_epj_disp_thread[ith][cnt];
                     id_epj_ar[iw] = adr_epj_tmp[ith].getPointer(n_ep_head);
                 }
+#endif
                 pfunc_dispatch(0, n_walk, 
                                (const Tepi**)epi_ar.getPointer(),   n_epi_ar.getPointer(),
                                (const S32**)id_epj_ar.getPointer(), n_epj_ar.getPointer(),
                                epj_sorted_.getPointer(), epj_sorted_.size(),
                                false);
+
                 first_loop = false;
                 for(int iw=0; iw<n_walk; iw++){
                     n_epi_ar_prev[iw] = n_epi_ar[iw];
@@ -619,12 +639,15 @@ namespace ParticleSimulator{
             PARTICLE_SIMULATOR_PRINT_ERROR("tag_max is illegal. In currente version, tag_max must be 1");
             Abort(-1);
         }
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n_loc_tot_; i++){
                 force_sorted_[i].clear();
+                force_org_[i].clear();
             }
         }
         S32 ret = 0;
@@ -655,8 +678,8 @@ namespace ParticleSimulator{
         S32 ret = 0;
         S32 tag = 0;
         const S32 n_thread = Comm::getNumberOfThread();
-        force_sorted_.resizeNoInitialize(n_loc_tot_);
-        force_org_.resizeNoInitialize(n_loc_tot_);
+        //force_sorted_.resizeNoInitialize(n_loc_tot_);
+        //force_org_.resizeNoInitialize(n_loc_tot_);
         const S32 n_ipg = ipg_.size();
         //const S32 n_ipg_amari = (n_ipg > 0) ? n_ipg%n_walk_limit : 0;
         if(n_ipg <= 0) return 0;
@@ -763,6 +786,20 @@ namespace ParticleSimulator{
                     cnt_thread[ith]++;
                 }
                 time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+#if 1
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    S32 n_sp_head = n_spj_disp_thread[ith][cnt];
+                    epj_array[iw] = epj_for_force_[ith].getPointer(n_ep_head);
+                    spj_array[iw] = spj_for_force_[ith].getPointer(n_sp_head);
+                }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+                } // retrieve
+#else
+                //original
                 if(!first_loop){
                     ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
                 } // retrieve
@@ -774,6 +811,7 @@ namespace ParticleSimulator{
                     epj_array[iw] = epj_for_force_[ith].getPointer(n_ep_head);
                     spj_array[iw] = spj_for_force_[ith].getPointer(n_sp_head);
                 }
+#endif
                 ret += pfunc_dispatch(tag, n_walk, (const Tepi**)epi_array, n_epi_array, (const Tepj**)epj_array, n_epj_array, (const Tspj**)spj_array, n_spj_array);
                 first_loop = false;
 
@@ -818,8 +856,8 @@ namespace ParticleSimulator{
         S32 ret = 0;
         S32 tag = 0;
         const S32 n_thread = Comm::getNumberOfThread();
-        force_sorted_.resizeNoInitialize(n_loc_tot_);
-        force_org_.resizeNoInitialize(n_loc_tot_);
+        //force_sorted_.resizeNoInitialize(n_loc_tot_);
+        //force_org_.resizeNoInitialize(n_loc_tot_);
         const S32 n_ipg = ipg_.size();
         if(n_ipg <= 0) return 0;
         //const S32 n_ipg_amari = (n_ipg > 0) ? n_ipg%n_walk_limit : 0;
@@ -863,16 +901,6 @@ namespace ParticleSimulator{
             first = false;
         }
         walk_grp_disp[0] = 0;
-/*
-        for(int wg=0; wg<n_ipg%n_loop_max; wg++){
-            walk_grp[wg] = n_ipg / n_loop_max + 1;
-            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
-        }
-        for(int wg=n_ipg%n_loop_max; wg<n_loop_max; wg++){
-            walk_grp[wg] = n_ipg / n_loop_max;
-            walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
-        }
-*/
         for(int wg=0; wg<n_ipg%n_loop_max; wg++){
             walk_grp[wg] = (n_ipg/n_loop_max) + 1;
             walk_grp_disp[wg+1] = walk_grp_disp[wg] + walk_grp[wg];
@@ -916,6 +944,18 @@ namespace ParticleSimulator{
                     cnt_thread[ith]++;
                 }
                 time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+#if 1
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    epj_array[iw] = epj_for_force_[ith].getPointer(n_ep_head);
+                }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
+                } // retrieve
+#else
+                // original
                 if(!first_loop){
                     ret += pfunc_retrieve(tag, n_walk_prev, n_epi_array_prev, force_prev_array);
                 } // retrieve
@@ -925,15 +965,9 @@ namespace ParticleSimulator{
                     S32 n_ep_head = n_epj_disp_thread[ith][cnt];
                     epj_array[iw] = epj_for_force_[ith].getPointer(n_ep_head);
                 }
-                /*
-                std::cerr<<"rank(C)= "<<Comm::getRank()
-                         <<" n_walk= "<<n_walk
-                         <<std::endl;
-                */
+#endif
                 ret += pfunc_dispatch(tag, n_walk, (const Tepi**)epi_array, n_epi_array, (const Tepj**)epj_array, n_epj_array);
-                //std::cerr<<"rank(D)= "<<Comm::getRank()<<std::endl;
                 first_loop = false;
-
                 for(int iw=0; iw<n_walk; iw++){
                     n_epi_array_prev[iw] = n_epi_array[iw];
                     force_prev_array[iw] = force_array[iw];
@@ -976,12 +1010,15 @@ namespace ParticleSimulator{
             PARTICLE_SIMULATOR_PRINT_ERROR("tag_max is illegal. In currente version, tag_max must be 1");
             Abort(-1);
         }
+        force_sorted_.resizeNoInitialize(n_loc_tot_);
+        force_org_.resizeNoInitialize(n_loc_tot_);
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n_loc_tot_; i++){
                 force_sorted_[i].clear();
+                force_org_[i].clear();
             }
         }
         S32 ret = 0;
@@ -1014,8 +1051,8 @@ namespace ParticleSimulator{
         S32 ret = 0;
         S32 tag = 0;
         const S32 n_thread = Comm::getNumberOfThread();
-        force_sorted_.resizeNoInitialize(n_loc_tot_);
-        force_org_.resizeNoInitialize(n_loc_tot_);
+        //force_sorted_.resizeNoInitialize(n_loc_tot_);
+        //force_org_.resizeNoInitialize(n_loc_tot_);
         const S32 n_ipg = ipg_.size();
         if(n_ipg <= 0) return 0;
         n_walk_local_ += n_ipg;
@@ -1141,7 +1178,7 @@ namespace ParticleSimulator{
                         S32 adr_tc = 0;
                         MakeListUsingTreeRecursiveTop
                             <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj, 
-                             Tspj, WALK_MODE_NORMAL>
+                             Tspj, WALK_MODE_NORMAL, TagChopLeafTrue>
                             (tc_glb_,  adr_tc, tp_glb_,
                              epj_sorted_, adr_epj_tmp[ith],
                              spj_sorted_, adr_spj_tmp[ith],
@@ -1258,41 +1295,37 @@ namespace ParticleSimulator{
                     n_epj_cnt += n_epj_ar[iw];
                     n_spj_cnt += n_spj_ar[iw];
                 }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
+                } // retrieve
 #else
-                //epj_for_force_[0].resizeNoInitialize(interaction_list_.adr_ep_.size());
-                epj_for_force_[0].resizeNoInitialize(interaction_list_.n_ep_[walk_grp_head]);
-                const S32 ep_head = interaction_list_.n_disp_ep_[walk_grp_head];
-                const S32 ep_end  = interaction_list_.n_disp_ep_[walk_grp_head+1];
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                //for(S32 i=0; i<interaction_list_.adr_ep_.size(); i++){
-                for(S32 i=ep_head; i<ep_end; i++){
-                    const S32 adr = interaction_list_.adr_ep_[i];
-                    epj_for_force_[0][i] = epj_sorted_[adr];
+                // original
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
+                } // retrieve
+                epj_for_force_[0].clearSize();
+                spj_for_force_[0].clearSize();
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    S32 n_sp_head = n_spj_disp_thread[ith][cnt];
+                    S32 * id_epj = adr_epj_tmp[ith].getPointer(n_ep_head);
+                    for(S32 jp=0; jp<n_epj_ar[iw]; jp++){
+                        epj_for_force_[0].push_back( epj_sorted_[id_epj[jp]] );
+                    }
+                    S32 * id_spj = adr_spj_tmp[ith].getPointer(n_sp_head);
+                    for(S32 jp=0; jp<n_spj_ar[iw]; jp++){
+                        spj_for_force_[0].push_back( spj_sorted_[id_spj[jp]] );
+                    }
                 }
-                
-                //spj_for_force_[0].resizeNoInitialize(interaction_list_.adr_sp_.size());
-                spj_for_force_[0].resizeNoInitialize(interaction_list_.n_sp_[walk_grp_head]);
-                const S32 sp_head = interaction_list_.n_disp_sp_[walk_grp_head];
-                const S32 sp_end  = interaction_list_.n_disp_sp_[walk_grp_head+1];
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                //for(S32 i=0; i<interaction_list_.adr_sp_.size(); i++){
-                for(S32 i=sp_head; i<sp_end; i++){
-                    const S32 adr = interaction_list_.adr_sp_[i];
-                    spj_for_force_[0][i] = spj_sorted_[adr];
-                }
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                //for(S32 i=0; i<n_walk; i++){
-                for(S32 i=walk_grp_head; i<walk_grp_head+n_walk; i++){
-                    const S32 adr_ep = interaction_list_.n_disp_ep_[i];
-                    epj_ar[i] = epj_for_force_[0].getPointer(adr_ep);
-                    const S32 adr_sp = interaction_list_.n_disp_sp_[i];
-                    spj_ar[i] = spj_for_force_[0].getPointer(adr_sp);
+                S64 n_epj_cnt = 0;
+                S64 n_spj_cnt = 0;
+                for(S32 iw=0; iw<n_walk; iw++){
+                    epj_ar[iw] = epj_for_force_[0].getPointer(n_epj_cnt);
+                    spj_ar[iw] = spj_for_force_[0].getPointer(n_spj_cnt);
+                    n_epj_cnt += n_epj_ar[iw];
+                    n_spj_cnt += n_spj_ar[iw];
                 }
 #endif
                 ret += pfunc_dispatch(tag, n_walk, 
@@ -1342,8 +1375,8 @@ namespace ParticleSimulator{
         S32 ret = 0;
         S32 tag = 0;
         const S32 n_thread = Comm::getNumberOfThread();
-        force_sorted_.resizeNoInitialize(n_loc_tot_);
-        force_org_.resizeNoInitialize(n_loc_tot_);
+        //force_sorted_.resizeNoInitialize(n_loc_tot_);
+        //force_org_.resizeNoInitialize(n_loc_tot_);
         const S32 n_ipg = ipg_.size();
         if(n_ipg <= 0) return 0;
         n_walk_local_ += n_ipg;
@@ -1448,7 +1481,8 @@ namespace ParticleSimulator{
                         GetTargetBox<TSM>(ipg_[id_ipg], target_box);
                         S32 adr_tc = 0;
                         MakeListUsingTreeRecursiveTop
-                            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj, WALK_MODE_NORMAL>
+                            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj,
+                             WALK_MODE_NORMAL, TagChopLeafTrue>
                             (tc_glb_,  adr_tc, tp_glb_,
                              epj_sorted_, adr_epj_tmp[ith],
                              target_box,
@@ -1508,11 +1542,11 @@ namespace ParticleSimulator{
                 }
 
                 time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
-                if(!first_loop){
-                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
-                } // retrieve
-                
+
+
+
 #if 1
+
                 epj_for_force_[0].clearSize();
                 for(S32 iw=0; iw<n_walk; iw++){
                     S32 ith = iw2ith[iw];
@@ -1528,28 +1562,34 @@ namespace ParticleSimulator{
                     epj_ar[iw] = epj_for_force_[0].getPointer(n_epj_cnt);
                     n_epj_cnt += n_epj_ar[iw];
                 }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
+                } // retrieve
 #else
-                
-                epj_for_force_[0].resizeNoInitialize(interaction_list_.adr_ep_.size());
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                for(S32 i=0; i<interaction_list_.adr_ep_.size(); i++){
-                    const S32 adr = interaction_list_.adr_ep_[i];
-                    epj_for_force_[0][i] = epj_sorted_[adr];
+                // original                
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar_prev.getPointer(), force_prev_array);
+                } // retrieve
+                epj_for_force_[0].clearSize();
+                for(S32 iw=0; iw<n_walk; iw++){
+                    S32 ith = iw2ith[iw];
+                    S32 cnt = iw2cnt[iw];
+                    S32 n_ep_head = n_epj_disp_thread[ith][cnt];
+                    S32 * id_epj = adr_epj_tmp[ith].getPointer(n_ep_head);
+                    for(S32 jp=0; jp<n_epj_ar[iw]; jp++){
+                        epj_for_force_[0].push_back( epj_sorted_[id_epj[jp]] );
+                    }
                 }
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                for(S32 i=0; i<n_walk; i++){
-                    const S32 adr_ep = interaction_list_.n_disp_ep_[i];
-                    epj_ar[i] = epj_for_force_[0].getPointer(adr_ep);
+                S64 n_epj_cnt = 0;
+                for(S32 iw=0; iw<n_walk; iw++){
+                    epj_ar[iw] = epj_for_force_[0].getPointer(n_epj_cnt);
+                    n_epj_cnt += n_epj_ar[iw];
                 }
 #endif
                 
                 ret += pfunc_dispatch(tag, n_walk, 
                                       (const Tepi**)epi_ar.getPointer(), n_epi_ar.getPointer(), 
-                                      (const Tepj**)epj_ar.getPointer(), n_epj_ar.getPointer()); 
+                                      (const Tepj**)epj_ar.getPointer(), n_epj_ar.getPointer());
                 first_loop = false;
                 for(int iw=0; iw<n_walk; iw++){
                     n_epi_ar_prev[iw] = n_epi_ar[iw];
@@ -1597,16 +1637,24 @@ namespace ParticleSimulator{
                                     Tfunc_retrieve pfunc_retrieve,
                                     const S32 n_walk_limit,
                                     const bool clear){
-        //F64 time_offset = GetWtime();
+        F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
-        static ReallocatableArray<S32>  n_epi_ar;
-        n_epi_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tepi*> epi_ar;
         epi_ar.resizeNoInitialize(n_walk_limit);
+#if 1
+        static ReallocatableArray<S32>  n_epi_ar[2];
+        n_epi_ar[0].resizeNoInitialize(n_walk_limit);
+        n_epi_ar[1].resizeNoInitialize(n_walk_limit);
+        static ReallocatableArray<Tforce*> force_ar[2];
+        force_ar[0].resizeNoInitialize(n_walk_limit);
+        force_ar[1].resizeNoInitialize(n_walk_limit);
+#else
+        static ReallocatableArray<S32>  n_epi_ar;
+        n_epi_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tforce*> force_ar;
         force_ar.resizeNoInitialize(n_walk_limit);
-
+#endif
         static ReallocatableArray<S32> n_epj_ar;
         n_epj_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<S32*> id_epj_ar;
@@ -1619,13 +1667,13 @@ namespace ParticleSimulator{
 
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         force_org_.resizeNoInitialize(n_loc_tot_);
-
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n_loc_tot_; i++){
                 force_sorted_[i].clear();
+                force_org_[i].clear();
             }
         }
         Tepi ** epi_dummy = NULL;
@@ -1656,7 +1704,47 @@ namespace ParticleSimulator{
             n_walk_ar[wg] = n_ipg / n_loop_max;
             n_disp_walk_ar[wg+1] = n_disp_walk_ar[wg] + n_walk_ar[wg];
         }
+        bool first_loop = true;
         if(n_ipg > 0){
+#if 1
+            S32 n_walk=-1, n_walk_prev=-1, lane_0=-1, lane_1=-1;
+            for(int wg=0; wg<n_loop_max; wg++){
+                n_walk = n_walk_ar[wg];
+                const S32 n_walk_head = n_disp_walk_ar[wg];
+                lane_0 = wg % 2;
+                lane_1 = (wg+1) % 2;
+                for(S32 iw=0; iw<n_walk; iw++){
+                    const S32 id_walk = n_walk_head + iw;
+                    const S32 first_adr_ip = ipg_[id_walk].adr_ptcl_; 
+                    epi_ar[iw] = epi_sorted_.getPointer(first_adr_ip);
+                    n_epi_ar[lane_0][iw]  = ipg_[id_walk].n_ptcl_;
+                    force_ar[lane_0][iw] = force_sorted_.getPointer(first_adr_ip);
+
+                    n_epj_ar[iw]  = interaction_list_.n_ep_[id_walk];
+                    id_epj_ar[iw] = interaction_list_.adr_ep_.getPointer(interaction_list_.n_disp_ep_[id_walk]);
+
+                    n_spj_ar[iw]  = interaction_list_.n_sp_[id_walk];
+                    id_spj_ar[iw] = interaction_list_.adr_sp_.getPointer(interaction_list_.n_disp_sp_[id_walk]);
+
+                    n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[lane_0][iw]);
+                    n_interaction_ep_sp_local_ += ((S64)n_spj_ar[iw]*(S64)n_epi_ar[lane_0][iw]);
+                }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar[lane_1].getPointer(), force_ar[lane_1].getPointer());
+                }
+                pfunc_dispatch(0, n_walk, 
+                               (const Tepi**)epi_ar.getPointer(),   n_epi_ar[lane_0].getPointer(),
+                               (const S32**)id_epj_ar.getPointer(), n_epj_ar.getPointer(),
+                               (const S32**)id_spj_ar.getPointer(), n_spj_ar.getPointer(),
+                               epj_sorted_.getPointer(), epj_sorted_.size(),
+                               spj_sorted_.getPointer(), spj_sorted_.size(),
+                               false);
+                n_walk_prev = n_walk;
+                first_loop = false;
+            }
+            ret += pfunc_retrieve(tag, n_walk, n_epi_ar[lane_0].getPointer(), force_ar[lane_0].getPointer());
+#else
+            //original            
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = n_walk_ar[wg];
                 const S32 n_walk_head = n_disp_walk_ar[wg];
@@ -1667,15 +1755,10 @@ namespace ParticleSimulator{
                     epi_ar[iw] = epi_sorted_.getPointer(first_adr_ip);
                     force_ar[iw] = force_sorted_.getPointer(first_adr_ip);
 
-                    //S32 n_ep_head = interaction_list_.n_disp_ep_[id_walk];
                     n_epj_ar[iw]  = interaction_list_.n_ep_[id_walk];
-                    //id_epj_ar[iw] = interaction_list_.adr_ep_.getPointer(id_walk);
                     id_epj_ar[iw] = interaction_list_.adr_ep_.getPointer(interaction_list_.n_disp_ep_[id_walk]);
 
-
-                    //S32 n_sp_head = interaction_list_.n_disp_sp_[id_walk];
                     n_spj_ar[iw]  = interaction_list_.n_sp_[id_walk];
-                    //id_spj_ar[iw] = interaction_list_.adr_sp_.getPointer(id_walk);
                     id_spj_ar[iw] = interaction_list_.adr_sp_.getPointer(interaction_list_.n_disp_sp_[id_walk]);
 
                     n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[iw]);
@@ -1690,10 +1773,12 @@ namespace ParticleSimulator{
                                false);
                 ret += pfunc_retrieve(tag, n_walk, n_epi_ar.getPointer(), force_ar.getPointer());
             }
-            
+#endif
         }
+	time_profile_.calc_force__core += GetWtime() - time_offset;
+	const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
-        //time_profile_.calc_force += GetWtime() - time_offset;
+	time_profile_.calc_force__copy_original_order += GetWtime() - offset_copy_original_order;
     }
 
     //////////// Force Only, Kernel:Index, List:Index, Force:Short //////////////
@@ -1706,16 +1791,24 @@ namespace ParticleSimulator{
                                     Tfunc_retrieve pfunc_retrieve,
                                     const S32 n_walk_limit,
                                     const bool clear){
-        //F64 time_offset = GetWtime();
+        F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
-        static ReallocatableArray<S32>  n_epi_ar;
-        n_epi_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tepi*> epi_ar;
         epi_ar.resizeNoInitialize(n_walk_limit);
+#if 1
+        static ReallocatableArray<S32>  n_epi_ar[2];
+        n_epi_ar[0].resizeNoInitialize(n_walk_limit);
+        n_epi_ar[1].resizeNoInitialize(n_walk_limit);
+        static ReallocatableArray<Tforce*> force_ar[2];
+        force_ar[0].resizeNoInitialize(n_walk_limit);
+        force_ar[1].resizeNoInitialize(n_walk_limit);
+#else
+        static ReallocatableArray<S32>  n_epi_ar;
+        n_epi_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tforce*> force_ar;
         force_ar.resizeNoInitialize(n_walk_limit);
-
+#endif
         static ReallocatableArray<S32> n_epj_ar;
         n_epj_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<S32*> id_epj_ar;
@@ -1723,13 +1816,13 @@ namespace ParticleSimulator{
 
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         force_org_.resizeNoInitialize(n_loc_tot_);
-
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n_loc_tot_; i++){
                 force_sorted_[i].clear();
+                force_org_[i].clear();
             }
         }
         Tepi ** epi_dummy = NULL;
@@ -1757,7 +1850,41 @@ namespace ParticleSimulator{
             n_walk_ar[wg] = n_ipg / n_loop_max;
             n_disp_walk_ar[wg+1] = n_disp_walk_ar[wg] + n_walk_ar[wg];
         }
+        bool first_loop = true;
         if(n_ipg > 0){
+#if 1
+            S32 n_walk=-1, n_walk_prev=-1, lane_0=-1, lane_1=-1;
+            for(int wg=0; wg<n_loop_max; wg++){
+                n_walk = n_walk_ar[wg];
+                const S32 n_walk_head = n_disp_walk_ar[wg];
+                lane_0 = wg % 2;
+                lane_1 = (wg+1) % 2;
+                for(S32 iw=0; iw<n_walk; iw++){
+                    const S32 id_walk = n_walk_head + iw;
+                    const S32 first_adr_ip = ipg_[id_walk].adr_ptcl_;
+                    epi_ar[iw] = epi_sorted_.getPointer(first_adr_ip);
+                    n_epi_ar[lane_0][iw]  = ipg_[id_walk].n_ptcl_;
+                    force_ar[lane_0][iw] = force_sorted_.getPointer(first_adr_ip);
+
+                    n_epj_ar[iw]  = interaction_list_.n_ep_[id_walk];
+                    id_epj_ar[iw] = interaction_list_.adr_ep_.getPointer(interaction_list_.n_disp_ep_[id_walk]);
+
+                    n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[lane_0][iw]);
+                }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar[lane_1].getPointer(), force_ar[lane_1].getPointer());
+                }
+                pfunc_dispatch(0, n_walk, 
+                               (const Tepi**)epi_ar.getPointer(),   n_epi_ar[lane_0].getPointer(),
+                               (const S32**)id_epj_ar.getPointer(), n_epj_ar.getPointer(),
+                               epj_sorted_.getPointer(), epj_sorted_.size(),
+                               false);
+                n_walk_prev = n_walk;
+                first_loop = false;
+            }
+            ret += pfunc_retrieve(tag, n_walk, n_epi_ar[lane_0].getPointer(), force_ar[lane_0].getPointer());
+#else
+            // original
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = n_walk_ar[wg];
                 const S32 n_walk_head = n_disp_walk_ar[wg];
@@ -1781,10 +1908,12 @@ namespace ParticleSimulator{
                                false);
                 ret += pfunc_retrieve(tag, n_walk, n_epi_ar.getPointer(), force_ar.getPointer());
             }
-            
+#endif
         }
+        time_profile_.calc_force__core += GetWtime() - time_offset;
+	const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
-        //time_profile_.calc_force += GetWtime() - time_offset;
+	time_profile_.calc_force__copy_original_order += GetWtime() - offset_copy_original_order;
     }
 
     ///////////////////////////////////////////////////
@@ -1804,13 +1933,22 @@ namespace ParticleSimulator{
         //F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
-        static ReallocatableArray<S32>  n_epi_ar;
-        n_epi_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tepi*> epi_ar;
         epi_ar.resizeNoInitialize(n_walk_limit);
+#if 1
+        static ReallocatableArray<S32>  n_epi_ar[2];
+        n_epi_ar[0].resizeNoInitialize(n_walk_limit);
+        n_epi_ar[1].resizeNoInitialize(n_walk_limit);
+        static ReallocatableArray<Tforce*> force_ar[2];
+        force_ar[0].resizeNoInitialize(n_walk_limit);
+        force_ar[1].resizeNoInitialize(n_walk_limit);
+#else
+        static ReallocatableArray<S32>  n_epi_ar;
+        n_epi_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tforce*> force_ar;
         force_ar.resizeNoInitialize(n_walk_limit);
-
+#endif
+        
         static ReallocatableArray<S32> n_epj_ar;
         n_epj_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tepj*> epj_ar;
@@ -1823,13 +1961,13 @@ namespace ParticleSimulator{
 
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         force_org_.resizeNoInitialize(n_loc_tot_);
-
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n_loc_tot_; i++){
                 force_sorted_[i].clear();
+                force_org_[i].clear();
             }
         }
         const S64 n_ipg = ipg_.size();
@@ -1848,7 +1986,64 @@ namespace ParticleSimulator{
             n_walk_ar[wg] = n_ipg / n_loop_max;
             n_disp_walk_ar[wg+1] = n_disp_walk_ar[wg] + n_walk_ar[wg];
         }
+        bool first_loop = true;
         if(n_ipg > 0){
+#if 1
+            S32 n_walk=-1, n_walk_prev=-1, lane_0=-1, lane_1=-1;
+            for(int wg=0; wg<n_loop_max; wg++){
+                n_walk = n_walk_ar[wg];
+                n_walk_prev = (wg>0) ? n_walk_ar[wg-1] : 0;
+                const S32 n_walk_head = n_disp_walk_ar[wg];
+                lane_0 = wg % 2;
+                lane_1 = (wg+1) % 2;
+                for(S32 iw=0; iw<n_walk; iw++){
+                    const S32 id_walk = n_walk_head + iw;
+                    const S32 first_adr_ip = ipg_[id_walk].adr_ptcl_;
+                    epi_ar[iw] = epi_sorted_.getPointer(first_adr_ip);
+                    n_epi_ar[lane_0][iw]  = ipg_[id_walk].n_ptcl_;
+                    force_ar[lane_0][iw] = force_sorted_.getPointer(first_adr_ip);
+                    n_epj_ar[iw]  = interaction_list_.n_ep_[id_walk];
+                    n_spj_ar[iw]  = interaction_list_.n_sp_[id_walk];
+                    n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[lane_0][iw]);
+                    n_interaction_ep_sp_local_ += ((S64)n_spj_ar[iw]*(S64)n_epi_ar[lane_0][iw]);
+                }
+
+                const S64 n_ep_head = interaction_list_.n_disp_ep_[n_walk_head];
+                const S64 n_ep_end  = interaction_list_.n_disp_ep_[n_walk_head+n_walk];
+                const S64 n_epj_tot = n_ep_end - n_ep_head;
+                epj_for_force_[0].resizeNoInitialize(n_epj_tot);
+                for(S32 jp=0; jp<n_epj_tot; jp++){
+                    epj_for_force_[0][jp] = epj_sorted_[ interaction_list_.adr_ep_[jp+n_ep_head] ];
+                }
+                const S64 n_sp_head = interaction_list_.n_disp_sp_[n_walk_head];
+                const S64 n_sp_end  = interaction_list_.n_disp_sp_[n_walk_head+n_walk];
+                const S64 n_spj_tot = n_sp_end - n_sp_head;
+                spj_for_force_[0].resizeNoInitialize(n_spj_tot);
+                for(S32 jp=0; jp<n_spj_tot; jp++){
+                    spj_for_force_[0][jp] = spj_sorted_[ interaction_list_.adr_sp_[jp+n_sp_head] ];
+                }
+                S64 n_epj_cnt = 0;
+                S64 n_spj_cnt = 0;
+                epj_ar.resizeNoInitialize(n_walk);
+                spj_ar.resizeNoInitialize(n_walk);
+                for(S32 iw=0; iw<n_walk; iw++){
+                    epj_ar[iw] = epj_for_force_[0].getPointer(n_epj_cnt);
+                    spj_ar[iw] = spj_for_force_[0].getPointer(n_spj_cnt);
+                    n_epj_cnt += n_epj_ar[iw];
+                    n_spj_cnt += n_spj_ar[iw];
+                }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar[lane_1].getPointer(), force_ar[lane_1].getPointer());
+                }
+                ret += pfunc_dispatch(tag, n_walk, 
+                                      (const Tepi**)epi_ar.getPointer(), n_epi_ar[lane_0].getPointer(), 
+                                      (const Tepj**)epj_ar.getPointer(), n_epj_ar.getPointer(), 
+                                      (const Tspj**)spj_ar.getPointer(), n_spj_ar.getPointer());
+                first_loop = false;
+            }
+            ret += pfunc_retrieve(tag, n_walk, n_epi_ar[lane_0].getPointer(), force_ar[lane_0].getPointer());
+#else
+            // original
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = n_walk_ar[wg];
                 const S32 n_walk_head = n_disp_walk_ar[wg];
@@ -1868,7 +2063,7 @@ namespace ParticleSimulator{
                     n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[iw]);
                     n_interaction_ep_sp_local_ += ((S64)n_spj_ar[iw]*(S64)n_epi_ar[iw]);
                 }
-#if 1
+
                 const S64 n_ep_head = interaction_list_.n_disp_ep_[n_walk_head];
                 const S64 n_ep_end  = interaction_list_.n_disp_ep_[n_walk_head+n_walk];
                 const S64 n_epj_tot = n_ep_end - n_ep_head;
@@ -1915,33 +2110,6 @@ namespace ParticleSimulator{
                     n_spj_cnt += n_spj_ar[iw];
                 }
                 */
-#else
-                epj_for_force_[0].resizeNoInitialize(interaction_list_.adr_ep_.size());
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                for(S32 i=0; i<interaction_list_.adr_ep_.size(); i++){
-                    const S32 adr = interaction_list_.adr_ep_[i];
-                    epj_for_force_[0][i] = epj_sorted_[adr];
-                }
-                spj_for_force_[0].resizeNoInitialize(interaction_list_.adr_sp_.size());
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                for(S32 i=0; i<interaction_list_.adr_sp_.size(); i++){
-                    const S32 adr = interaction_list_.adr_sp_[i];
-                    spj_for_force_[0][i] = spj_sorted_[adr];
-                }
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                for(S32 i=0; i<n_walk; i++){
-                    const S32 adr_ep = interaction_list_.n_disp_ep_[i];
-                    epj_ar[i] = epj_for_force_[0].getPointer(adr_ep);
-                    const S32 adr_sp = interaction_list_.n_disp_sp_[i];
-                    spj_ar[i] = spj_for_force_[0].getPointer(adr_sp);
-                }
-#endif
                 ret += pfunc_dispatch(tag, n_walk, 
                                       (const Tepi**)epi_ar.getPointer(), n_epi_ar.getPointer(), 
                                       (const Tepj**)epj_ar.getPointer(), n_epj_ar.getPointer(), 
@@ -1949,7 +2117,7 @@ namespace ParticleSimulator{
 
                 ret += pfunc_retrieve(tag, n_walk, n_epi_ar.getPointer(), force_ar.getPointer());
             }
-            
+#endif
         }
         /*
         std::cerr<<"epj_sorted_.size()= "<<epj_sorted_.size()
@@ -1969,15 +2137,26 @@ namespace ParticleSimulator{
                                        Tfunc_retrieve pfunc_retrieve,
                                        const S32 n_walk_limit,
                                        const bool clear){
+        F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
-        static ReallocatableArray<S32>  n_epi_ar;
-        n_epi_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tepi*> epi_ar;
         epi_ar.resizeNoInitialize(n_walk_limit);
+        
+#if 1
+        static ReallocatableArray<S32>  n_epi_ar[2];
+        n_epi_ar[0].resizeNoInitialize(n_walk_limit);
+        n_epi_ar[1].resizeNoInitialize(n_walk_limit);
+        static ReallocatableArray<Tforce*> force_ar[2];
+        force_ar[0].resizeNoInitialize(n_walk_limit);
+        force_ar[1].resizeNoInitialize(n_walk_limit);
+#else
+        static ReallocatableArray<S32>  n_epi_ar;
+        n_epi_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tforce*> force_ar;
         force_ar.resizeNoInitialize(n_walk_limit);
-
+#endif
+        
         static ReallocatableArray<S32> n_epj_ar;
         n_epj_ar.resizeNoInitialize(n_walk_limit);
         static ReallocatableArray<Tepj*> epj_ar;
@@ -1985,13 +2164,13 @@ namespace ParticleSimulator{
 
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         force_org_.resizeNoInitialize(n_loc_tot_);
-
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n_loc_tot_; i++){
                 force_sorted_[i].clear();
+                force_org_[i].clear();
             }
         }
         const S64 n_ipg = ipg_.size();
@@ -2010,7 +2189,50 @@ namespace ParticleSimulator{
             n_walk_ar[wg] = n_ipg / n_loop_max;
             n_disp_walk_ar[wg+1] = n_disp_walk_ar[wg] + n_walk_ar[wg];
         }
+        bool first_loop = true;
         if(n_ipg > 0){
+#if 1
+            S32 n_walk=-1, n_walk_prev=-1, lane_0=-1, lane_1=-1;
+            for(int wg=0; wg<n_loop_max; wg++){
+                n_walk = n_walk_ar[wg];
+                n_walk_prev = (wg>0) ? n_walk_ar[wg-1] : 0;
+                const S32 n_walk_head = n_disp_walk_ar[wg];
+                lane_0 = wg % 2;
+                lane_1 = (wg+1) % 2;
+                for(S32 iw=0; iw<n_walk; iw++){
+                    const S32 id_walk = n_walk_head + iw;
+                    const S32 first_adr_ip = ipg_[id_walk].adr_ptcl_;
+                    epi_ar[iw] = epi_sorted_.getPointer(first_adr_ip);
+                    n_epi_ar[lane_0][iw]  = ipg_[id_walk].n_ptcl_;
+                    force_ar[lane_0][iw] = force_sorted_.getPointer(first_adr_ip);
+                    n_epj_ar[iw]  = interaction_list_.n_ep_[id_walk];
+                    n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[lane_0][iw]);
+                }
+                const S64 n_ep_head = interaction_list_.n_disp_ep_[n_walk_head];
+                const S64 n_ep_end  = interaction_list_.n_disp_ep_[n_walk_head+n_walk];
+                const S64 n_epj_tot = n_ep_end - n_ep_head;
+                epj_for_force_[0].resizeNoInitialize(n_epj_tot);
+                for(S32 jp=0; jp<n_epj_tot; jp++){
+                    epj_for_force_[0][jp] = epj_sorted_[ interaction_list_.adr_ep_[jp+n_ep_head] ];
+                }
+                S64 n_epj_cnt = 0;
+                epj_ar.resizeNoInitialize(n_walk);
+                for(S32 iw=0; iw<n_walk; iw++){
+                    epj_ar[iw] = epj_for_force_[0].getPointer(n_epj_cnt);
+                    n_epj_cnt += n_epj_ar[iw];
+                }
+                if(!first_loop){
+                    ret += pfunc_retrieve(tag, n_walk_prev, n_epi_ar[lane_1].getPointer(), force_ar[lane_1].getPointer());
+                }
+                ret += pfunc_dispatch(tag, n_walk, 
+                                      (const Tepi**)epi_ar.getPointer(), n_epi_ar[lane_0].getPointer(), 
+                                      (const Tepj**)epj_ar.getPointer(), n_epj_ar.getPointer());
+                first_loop = false;
+
+            }
+            ret += pfunc_retrieve(tag, n_walk, n_epi_ar[lane_0].getPointer(), force_ar[lane_0].getPointer());
+#else
+            // original
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = n_walk_ar[wg];
                 const S32 n_walk_head = n_disp_walk_ar[wg];
@@ -2026,8 +2248,6 @@ namespace ParticleSimulator{
 
                     n_interaction_ep_ep_local_ += ((S64)n_epj_ar[iw]*(S64)n_epi_ar[iw]);
                 }
-
-#if 1
                 const S64 n_ep_head = interaction_list_.n_disp_ep_[n_walk_head];
                 const S64 n_ep_end  = interaction_list_.n_disp_ep_[n_walk_head+n_walk];
                 const S64 n_epj_tot = n_ep_end - n_ep_head;
@@ -2041,32 +2261,18 @@ namespace ParticleSimulator{
                     epj_ar[iw] = epj_for_force_[0].getPointer(n_epj_cnt);
                     n_epj_cnt += n_epj_ar[iw];
                 }
-#else
-                
-                epj_for_force_[0].resizeNoInitialize(interaction_list_.adr_ep_.size());
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                for(S32 i=0; i<interaction_list_.adr_ep_.size(); i++){
-                    const S32 adr = interaction_list_.adr_ep_[i];
-                    epj_for_force_[0][i] = epj_sorted_[adr];
-                }
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-                for(S32 i=0; i<n_walk; i++){
-                    const S32 adr_ep = interaction_list_.n_disp_ep_[i];
-                    epj_ar[i] = epj_for_force_[0].getPointer(adr_ep);
-                }
-#endif
+
                 ret += pfunc_dispatch(tag, n_walk, 
                                       (const Tepi**)epi_ar.getPointer(), n_epi_ar.getPointer(), 
                                       (const Tepj**)epj_ar.getPointer(), n_epj_ar.getPointer()); 
                 ret += pfunc_retrieve(tag, n_walk, n_epi_ar.getPointer(), force_ar.getPointer());
             }
-            
+#endif
         }
+	time_profile_.calc_force__core += GetWtime() - time_offset;
+	const F64 offset_copy_original_order = GetWtime();
         copyForceOriginalOrder();
+	time_profile_.calc_force__copy_original_order += GetWtime() - offset_copy_original_order;
     }
 
 }

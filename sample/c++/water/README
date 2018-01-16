@@ -1,26 +1,55 @@
 Components:
-	README
-	ice_unit.pdb:	information of ice Ih unit lattice for initial condition of simulation
-	./src
-		main.cpp:		main function and kernel definition
-		user_deined_class.h:	definition of FP, EP, Mom, SPJ class
-		constraint.h:		definition of Constraint class for RATTLE method
-		pdb_manager.h:		definition of PDBManager class for reading ice_unit.pdb
-		unit.h:			unit parameters for normalization
-		water_params.h:		parameters of water models (SPC/E)
+  README
+  ice_unit.pdb:	information of ice Ih unit lattice for initial condition of simulation
 
-How to use:
-	make
+  src
+    rigid		source directory for rigid water simulation using LIPS-SW/Tree method
+      main.cpp:			main function and kernel definition
+      user_deined_class.h:	definition of FP, EP, Mom, SPJ class
+      constraint.h:		definition of Constraint class for RATTLE method
+      matrix3.h:		definition of class for asynmetrical 3x3 matrix operations
+
+    flex		source directory for flexible water simulation using LIPS-SW method
+      main.cpp:		        main function and kernel definition
+      user_deined_class.h:	definition of FP, EP class
+
+    cuda		source directory for flexible water simulation using GPU and reuse-list mode
+      main.cpp:		        main function and kernel definition
+      user_deined_class.h:	definition of FP, EP class
+      cuda_pointer.h:		definition of device and host pointer management class
+      kernel.cu:		definition of DispatchKernel, RetrieveKernel and device kernels
+      kernel.h:			header file for functions which use cuda APIs
+
+  inc
+    pdb_manager.h:		definition of PDBManager class for reading ice_unit.pdb
+    unit.h:			unit parameters for normalization
+    water_params.h:		parameters of water models (SPC/E)
+	
+How to compile and execute:
+    for rigid model:
+	make rigid
 	./main.out
+    for flexible model w/o gpu:
+	make flex
+	./main.out
+    for flexible model w/ gpu:
+	make gpu
+	./gpu.out
+    for flexible model w/ gpu and reuse-list mode:
+	make reuse
+	./reuse.out
 
-More info:
-	To enable some fuctions, uncomment flags below in src/Makefile
-		IPS_TREE_PSEUDOPARTICLE_QUADRUPOLE_MOMENT_CHECK: To chek superparticles exactly reproduce original quadrupole moment
+How to modify Makefile to enable MPI or openMP:
+   MPI:
+     Add -DPARTICLE_SIMULATOR_MPI_PARALLEL to CXXFLAGS and set mpi compiler to CXX according to your environment
+   openMP:
+     Add -DPARTICLE_SIMULATOR_THREAD_PARALLEL and -fopenmp to CXXFLAGS
 
 Options:
-	s: number of steps (default: 1000)
-	o: dir name of output (default: ./result)
-	t: parameter for accuracy of force calculation (default: 0.2)
-	n: n_group_limit (default: 64.0)
-
-	example: ./main.out -t 0.2 -s 10000 -o ./test_directory
+	-s: number of steps (default: 1000)
+	-o: output directory name (default: ./result)
+	-n: n_group_limit (default: 64.0)
+	-t: parameter for accuracy of force calculation (default: 0.2)
+	(-t option is only for rigid water simulation)
+	   
+	example: ./main.out -s 10000 -o ./test_directory

@@ -2,12 +2,10 @@
 #   Numerical Libraries and Compilers
 #======================================================================
 
-FDPS_LOC = ../../../../
+FDPS_LOC = ../../../../../
 FDPS_INC = -I$(FDPS_LOC)/src
-CXXFLAGS_COMMON = -std=c++11 -O3 -ffast-math -funroll-loops $(FDPS_INC)
-#CXXFLAGS_COMMON = -std=c++11 -O0 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
+CXXFLAGS_COMMON = -std=c++11 -O3 -ffast-math -funroll-loops $(FDPS_INC) -I../../inc
 
-#IPS_FLAGS = -DIPS_TREE_PSEUDOPARTICLE_QUADRUPOLE_MOMENT_CHECK
 CXXFLAGS_COMMON += $(IPS_FLAGS)
 
 # [1] Serial
@@ -29,7 +27,7 @@ CXXFLAGS = $(CXXFLAGS_COMMON)
 #   Source and Object files
 #----------------------------------------------------------------------
 SRCS	= main.cpp
-HEDS    = pdb_manager.h unit.h user_defined_class.h constraint.h
+HEDS    = user_defined_class.h
 
 TARGET = main.out
 

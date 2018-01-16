@@ -155,6 +155,14 @@ namespace ParticleSimulator{
 #endif
             boundary_condition_ = BOUNDARY_CONDITION_OPEN;
         }
+        ~DomainInfo() {
+            delete [] n_smp_array_;
+            delete [] n_smp_disp_array_;
+            delete [] pos_domain_;
+            delete [] pos_domain_temp_;
+            delete [] pos_sample_tot_;
+            delete [] pos_sample_loc_;
+        }
 
         void initialize(const F32 coef_ema = 1.0){
             if( coef_ema < 0.0 || coef_ema > 1.0){

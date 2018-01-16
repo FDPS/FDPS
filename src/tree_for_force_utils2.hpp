@@ -285,7 +285,7 @@ namespace ParticleSimulator{
                     }
                     */
                     MakeListUsingTreeRecursiveTop
-                        <TSM, Ttc, TreeParticle, Tep, Tsp, Twalkmode>
+                        <TSM, Ttc, TreeParticle, Tep, Tsp, Twalkmode, TagChopLeafFalse>
                         (tc_first, adr_tc, tp_first,
                          ep_first, adr_ep_send_tmp[ith],
                          sp_first, adr_sp_send_tmp[ith],
@@ -424,18 +424,18 @@ namespace ParticleSimulator{
         */
     }
 
-
+    // for short mode
     template<class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode>
     inline void FindScatterParticle(const ReallocatableArray<Ttc> & tc_first,
-                             const ReallocatableArray<Ttp> & tp_first,
-                             const ReallocatableArray<Tep> & ep_first,
-                             ReallocatableArray<S32> & n_ep_send,
-                             ReallocatableArray<S32> & adr_ep_send,
-                             const DomainInfo & dinfo,
-                             const S32 n_leaf_limit,
-                             ReallocatableArray<F64vec> & shift_per_image,
-                             ReallocatableArray<S32> & n_image_per_proc,
-                             ReallocatableArray<S32> & n_ep_per_image){
+                                    const ReallocatableArray<Ttp> & tp_first,
+                                    const ReallocatableArray<Tep> & ep_first,
+                                    ReallocatableArray<S32> & n_ep_send,
+                                    ReallocatableArray<S32> & adr_ep_send,
+                                    const DomainInfo & dinfo,
+                                    const S32 n_leaf_limit,
+                                    ReallocatableArray<F64vec> & shift_per_image,
+                                    ReallocatableArray<S32> & n_image_per_proc,
+                                    ReallocatableArray<S32> & n_ep_per_image){
         static bool first = true;
         static const S32 n_thread = Comm::getNumberOfThread();
         static ReallocatableArray<S32> * rank_tmp;
@@ -519,7 +519,7 @@ namespace ParticleSimulator{
                     TargetBox<SEARCH_MODE_SCATTER> target_box;
                     target_box.vertex_in_ = pos_target_domain;
                     MakeListUsingTreeRecursiveTop
-                        <SEARCH_MODE_SCATTER, Ttc, TreeParticle, Tep, Tsp, Twalkmode>
+                        <SEARCH_MODE_SCATTER, Ttc, TreeParticle, Tep, Tsp, Twalkmode, TagChopLeafFalse>
                         (tc_first, adr_tc, tp_first,
                          ep_first, adr_ep_send_tmp[ith],
                          sp_first, adr_sp_send_tmp,
@@ -850,20 +850,20 @@ namespace ParticleSimulator{
 
     template<class Ttc, class Ttp, class Tepj>
     inline void FindExchangeParticleDoubleWalk(const ReallocatableArray<Tepj> & epj_A, // received particles
-                                        const ReallocatableArray<Ttc> & tc_first_B,
-                                        const ReallocatableArray<S32> & n_epj_src_per_proc,
-                                        const ReallocatableArray<S32> & n_image_send_per_proc_irnai, // not needed
-                                        const DomainInfo & dinfo,
-                                        const S32 n_leaf_limit_B,
-                                        ReallocatableArray<S32> & n_epj_send_per_proc,
-                                        ReallocatableArray<S32> & n_epj_send_per_image,
-                                        ReallocatableArray<S32> & n_image_send_per_proc,
-                                        ReallocatableArray<S32> & adr_ep_send,
-                                        ReallocatableArray<F64vec> & shift_per_image,
-                                        const ReallocatableArray<Tepj> & epj_B, // assigned
-                                        const F64vec & center_tree,
-                                        const F64    & full_len_tree
-                                        ){
+                                               const ReallocatableArray<Ttc> & tc_first_B,
+                                               const ReallocatableArray<S32> & n_epj_src_per_proc,
+                                               const ReallocatableArray<S32> & n_image_send_per_proc_irnai, // not needed
+                                               const DomainInfo & dinfo,
+                                               const S32 n_leaf_limit_B,
+                                               ReallocatableArray<S32> & n_epj_send_per_proc,
+                                               ReallocatableArray<S32> & n_epj_send_per_image,
+                                               ReallocatableArray<S32> & n_image_send_per_proc,
+                                               ReallocatableArray<S32> & adr_ep_send,
+                                               ReallocatableArray<F64vec> & shift_per_image,
+                                               const ReallocatableArray<Tepj> & epj_B, // assigned
+                                               const F64vec & center_tree,
+                                               const F64    & full_len_tree
+                                               ){
         const S32 n_proc = Comm::getNumberOfProc();
         //const S32 my_rank = Comm::getRank();
         /*
