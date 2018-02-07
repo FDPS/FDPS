@@ -178,6 +178,7 @@ namespace ParticleSimulator{
         MAKE_LIST_FOR_REUSE,
         REUSE_LIST,
     };
+    /*
 #if __cplusplus > 199711L
     std::map<int, std::string> MAP_INTERACTION_LIST_MODE = {
         {0, "MAKE_LIST"},
@@ -185,7 +186,7 @@ namespace ParticleSimulator{
         {2, "REUSE_LIST"},
     };
 #endif
-
+    */
     enum SEARCH_MODE{
         LONG_NO_CUTOFF,
         LONG_CUTOFF,
@@ -197,6 +198,7 @@ namespace ParticleSimulator{
         SHORT_SYMMETRY,
     };
 
+    /*
 #if __cplusplus > 199711L
     std::map<int, std::string> MAP_SEARCH_MODE = {
         {0, "LONG_NO_CUTOFF"},
@@ -209,7 +211,8 @@ namespace ParticleSimulator{
         {7, "SHORT_SYMMETRY"},
     };
 #endif
-
+    */
+    
     enum FORCE_TYPE{
         FORCE_TYPE_LONG,
         FORCE_TYPE_SHORT,
