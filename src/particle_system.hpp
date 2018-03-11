@@ -54,7 +54,7 @@ namespace ParticleSimulator{
             while(domain[idomain].high_.y <= pos.y)
                 idomain += nz;
             while(domain[idomain].high_.z <= pos.z)
-                idomain++;            
+                idomain++;
             return idomain;
 #endif
         }
@@ -75,7 +75,7 @@ namespace ParticleSimulator{
             first_call_by_DomainInfo_collect_sample_particle = true;
             //n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
         }
-	
+
         void initialize() {
             assert(first_call_by_initialize);
             first_call_by_initialize = false;
@@ -112,7 +112,7 @@ namespace ParticleSimulator{
             ptcl_.resizeNoInitialize(0);
         }
 
-	
+
         //void setNumberOfParticleLocal(const S32 n){ n_ptcl_ = n; }
         void setNumberOfParticleLocal(const S32 n){
             //15/02/20 Hosono bug(?) fix.
@@ -304,7 +304,7 @@ namespace ParticleSimulator{
         void readParticleBinary(const char * const filename){
             readParticleImpl<DummyHeader>(filename, NULL, NULL, &Tptcl::readBinary, &DummyHeader::readBinary, "rb");
         }
-        
+
         template <class Theader>
         void readParticleBinary(const char * const filename, const char * const format, Theader& header, void (Tptcl::*pFunc)(FILE*)){
             readParticleImpl(filename, format, &header, pFunc, &Theader::readBinary, "rb");
@@ -457,10 +457,10 @@ namespace ParticleSimulator{
         void writeParticleBinary(const char * const filename, void (Tptcl::*pFunc)(FILE*)const){
             writeParticleImpl<DummyHeader>(filename, NULL, NULL, pFunc, &Tptcl::writeBinary, &DummyHeader::writeBinary, "wb");
         }
-        
 
-        
-	
+
+
+
         Tptcl & operator [] (const S32 id) {return ptcl_[id];}
         const Tptcl & operator [] (const S32 id) const {return ptcl_[id];}
         Tptcl & getParticle(const S32 id=0) {return ptcl_[id];}
@@ -520,23 +520,23 @@ namespace ParticleSimulator{
 #endif
         }
 
-// *******************************************************************        
+// *******************************************************************
 // ************** This can be replaced with MT method. ***************
-// *******************************************************************        
+// *******************************************************************
         inline F64 frand() {
 //                return (double) rand() / ((double) RAND_MAX + 1.);
             //return genrand_res53();
             return MT::genrand_res53();
         }
-// *******************************************************************        
-// *******************************************************************        
+// *******************************************************************
+// *******************************************************************
 
         inline S32 getUniformDistributionFromArg1ToArg2(S32 arg1,
                                                         S32 arg2) {
             S32 random_number;
-            
+
             random_number = (S32)((arg2 - arg1 + 1) * frand()) + arg1;
-            
+
             return random_number;
         }
 
@@ -554,7 +554,7 @@ namespace ParticleSimulator{
             F32 weight_all = Comm::getSum(weight);
             number_of_sample_particle = (weight * n_smp_ptcl_tot_) / weight_all;
 #if 0
-// modified to limit # of sample particles by M.I. 
+// modified to limit # of sample particles by M.I.
             const F32 coef_limitter = 0.2;
             S64 nglb = Comm::getSum( (S64)nloc );
             S32 number_of_sample_particle_limit = ((S64)nloc * n_smp_ptcl_tot_) / ((F32)nglb * (1.0 + coef_limitter)); // lower limit
@@ -579,7 +579,7 @@ namespace ParticleSimulator{
                     S32 j = getUniformDistributionFromArg1ToArg2(i, nloc-1);
                     Tptcl hold = ptcl_[j];
                     ptcl_[j]   = ptcl_[i];
-                    ptcl_[i]   = hold;        
+                    ptcl_[i]   = hold;
                     record[i]  = j;
                 }
                 for(S32 i = 0; i < number_of_sample_particle; i++) {
@@ -594,7 +594,7 @@ namespace ParticleSimulator{
                 }
 
                 delete [] record;
-                
+
                 return;
 #endif
         }
@@ -603,7 +603,7 @@ namespace ParticleSimulator{
 
 #if 1
       // new version (with switch)
-      // for search, use tree with level 3(x, y, z) 
+      // for search, use tree with level 3(x, y, z)
       // must be consistend with geometry of domains.
         template<class Tdinfo>
         void exchangeParticle(Tdinfo & dinfo) {
@@ -714,7 +714,7 @@ namespace ParticleSimulator{
             for(S32 ip = 0; ip < nrecv_tot; ip++) {
                 ptcl_.pushBackNoCheck( ptcl_recv_[ip] );
             }
-            // **************************************************** 
+            // ****************************************************
             n_ptcl_send_ += nsend_disp[nproc];
             n_ptcl_recv_ += nrecv_disp[nproc];
             time_profile_.exchange_particle__exchange_particle += GetWtime() - time_offset_inner;
@@ -800,7 +800,7 @@ namespace ParticleSimulator{
                     ptcl_send_[jloc] = ptcl_[ip];
                     nsend1[srank]++;
                 }
-            }           
+            }
             //n_ptcl_ = iloc;
 	    //std::cerr<<"check 1"<<std::endl;
 	    ptcl_.resizeNoInitialize(iloc);
@@ -877,12 +877,12 @@ namespace ParticleSimulator{
             for(S32 ib = 1; ib < nproc; ib++) {
                 S32 idsend = (ib + rank) % nproc;
                 if(nsend1[idsend] > 0) {
-                    S32 adrsend = nsend0[idsend];                    
-                    S32 tagsend = (rank < idsend) ? rank : idsend;                    
+                    S32 adrsend = nsend0[idsend];
+                    S32 tagsend = (rank < idsend) ? rank : idsend;
                     //req_send[nsendnode] = MPI::COMM_WORLD.Isend(ptcl_send_+adrsend, nsend1[idsend]*sizeof(Tptcl), MPI::BYTE, idsend, tagsend);
 		    req_send[nsendnode] = MPI::COMM_WORLD.Isend(ptcl_send_.getPointer(adrsend), nsend1[idsend], GetDataType<Tptcl>(), idsend, tagsend);
                     nsendnode++;
-                }                
+                }
                 S32 idrecv = (nproc + rank - ib) % nproc;
                 if(nrecv1[idrecv] > 0) {
                     S32 adrrecv = nrecv0[idrecv];
@@ -895,7 +895,7 @@ namespace ParticleSimulator{
             MPI::Request::Waitall(nsendnode, req_send);
             MPI::Request::Waitall(nrecvnode, req_recv);
             //std::cerr<<"check 5"<<std::endl;
-            // ****************************************************            
+            // ****************************************************
             // *** align particles ********************************
             /*
               for(S32 ip = 0; ip < nrecvtot; ip++) {
@@ -909,7 +909,7 @@ namespace ParticleSimulator{
                 ptcl_.pushBackNoCheck(ptcl_recv_[ip]);
             }
 	    //std::cerr<<"ptcl_.size()="<<ptcl_.size()<<std::endl;
-            // ****************************************************            
+            // ****************************************************
 
             delete [] nsend0;
             delete [] nsend1;
@@ -960,6 +960,33 @@ namespace ParticleSimulator{
         bool checkExchangeParticleSumOfNumberOfParticle(DomainInfo & dinfo,
                                                         S32 ntot_init);
 
+    private:
+        template <class Tfloat>
+        inline Vector3<Tfloat> adjustPeriodicBoundary_Impl(const Vector3<Tfloat> &pos,
+                                                           const F64ort          &pos_root,
+                                                           const F64vec          &len_root){
+            Vector3<Tfloat> pos_new = pos;
+
+            //if( pos_root.notOverlapped(pos_new) ){
+            while(pos_new.x <  pos_root.low_.x ) { pos_new.x += len_root.x;      }
+            while(pos_new.x >= pos_root.high_.x) { pos_new.x -= len_root.x;      }
+            if(   pos_new.x == pos_root.high_.x) { pos_new.x =  pos_root.low_.x; }
+
+            while(pos_new.y <  pos_root.low_.y ) { pos_new.y += len_root.y;      }
+            while(pos_new.y >= pos_root.high_.y) { pos_new.y -= len_root.y;      }
+            if(   pos_new.y == pos_root.high_.y) { pos_new.y =  pos_root.low_.y; }
+
+        #ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+            while(pos_new.z <  pos_root.low_.z ) { pos_new.z += len_root.z;      }
+            while(pos_new.z >= pos_root.high_.z) { pos_new.z -= len_root.z;      }
+            if(   pos_new.z == pos_root.high_.z) { pos_new.z =  pos_root.low_.z; }
+        #endif
+            //}
+
+            return pos_new;
+        }
+
+    public:
         void adjustPositionIntoRootDomain(const DomainInfo & dinfo){
             const F64ort pos_root = dinfo.getPosRootDomain();
             const F64vec len_root = pos_root.getFullLength();
@@ -968,39 +995,7 @@ namespace ParticleSimulator{
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n; i++){
-                F64vec pos_new = ptcl_[i].getPos() ;
-                //if( pos_root.notOverlapped(pos_new) ){
-                    while(pos_new.x < pos_root.low_.x){
-                        pos_new.x += len_root.x;
-                    }
-                    while(pos_new.x > pos_root.high_.x){
-                        pos_new.x -= len_root.x;
-                    }
-                    if(pos_new.x == pos_root.high_.x){
-                        pos_new.x = pos_root.low_.x;
-                    }
-                    while(pos_new.y < pos_root.low_.y){
-                        pos_new.y += len_root.y;
-                    }
-                    while(pos_new.y >= pos_root.high_.y){
-                        pos_new.y -= len_root.y;
-                    }
-                    if(pos_new.y == pos_root.high_.y){
-                        pos_new.y = pos_root.low_.y;
-                    }
-#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
-                    while(pos_new.z < pos_root.low_.z){
-                        pos_new.z += len_root.z;
-                    }
-                    while(pos_new.z >= pos_root.high_.z){
-                        pos_new.z -= len_root.z;
-                    }
-                    if(pos_new.z == pos_root.high_.z){
-                        pos_new.z = pos_root.low_.z;
-                    }
-#endif
-                    //}
-                ptcl_[i].setPos(pos_new);
+                ptcl_[i].setPos( this->adjustPeriodicBoundary_Impl(ptcl_[i].getPos(), pos_root, len_root) );
             }
         }
 
@@ -1085,11 +1080,11 @@ namespace ParticleSimulator{
                fout << "sum[GB](psys,max.) = " << sum_max << std::endl;
             }
         }
-        
+
         void freeCommunicationBuffer(){
             ptcl_send_.freeMem();
             ptcl_recv_.freeMem();
         }
-        
+
     };
 }
