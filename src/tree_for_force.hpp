@@ -36,6 +36,15 @@ namespace ParticleSimulator{
         F64vec center_; // new member (not used)
         //F64ort pos_root_cell_;
 
+        //--- internal type interface (STL container like)
+        using search_mode        = TSM;
+        using force_type         = Tforce;
+        using epi_type           = Tepi;
+        using epj_type           = Tepj;
+        using moment_local_type  = Tmomloc;
+        using moment_global_type = Tmomglb;
+        using spj_type           = Tspj;
+
         //private:
     public:
 
@@ -730,6 +739,10 @@ namespace ParticleSimulator{
         S32 getNeighborListOneParticleImpl(TagSearchLongScatter, const Tptcl & ptcl, Tepj * & epj);
         template<class Tptcl>
         S32 getNeighborListOneParticleImpl(TagSearchLongSymmetry, const Tptcl & ptcl, Tepj * & epj);
+
+        //------ wrapper for returning <Tepj*>
+        template <class Tptcl>
+        Tepj* getNeighborListOneParticle(const Tptcl &ptcl, S32 &n);
 
 
         F64ort getOuterBoundaryOfLocalTree(){

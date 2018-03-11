@@ -15,13 +15,19 @@ namespace ParticleSimulator{
         TimeProfile time_profile_;
         static const S32 n_smp_ave_ = 30;
         ReallocatableArray<Tptcl> ptcl_;
-	ReallocatableArray<S32> idx_remove_ptcl_; // add 2016/09/14
+        ReallocatableArray<S32>   idx_remove_ptcl_; // add 2016/09/14
         ReallocatableArray<Tptcl> ptcl_send_;
         ReallocatableArray<Tptcl> ptcl_recv_;
         S32 n_smp_ptcl_tot_;
         bool first_call_by_initialize;
         bool first_call_by_setAverageTargetNumberOfSampleParticlePerProcess;
         bool first_call_by_DomainInfo_collect_sample_particle;
+
+    public:
+        //--- internal type interface (STL container like)
+        using ptcl_type = Tptcl;
+
+    private:
         inline bool determineWhetherParticleIsInDomain(const F64vec & pos,
                                                        const F64ort & domain) {
             bool ret = true;
