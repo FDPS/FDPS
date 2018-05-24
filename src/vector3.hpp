@@ -126,7 +126,7 @@ namespace ParticleSimulator{
 		std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
 		std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-		MPI::COMM_WORLD.Abort(-1);
+		MPI_Abort(MPI_COMM_WORLD,-1);
 #else
 		exit(-1);
 #endif	//PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -141,7 +141,7 @@ namespace ParticleSimulator{
 		std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
 		std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-		MPI::COMM_WORLD.Abort(-1);
+		MPI_Abort(MPI_COMM_WORLD,-1);
 #else
 		exit(-1);
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL		
@@ -157,7 +157,7 @@ namespace ParticleSimulator{
             std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
             std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            MPI::COMM_WORLD.Abort(-1);
+            MPI_Abort(MPI_COMM_WORLD,-1);
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
             exit(-1);
             return x; //dummy for avoid warning
@@ -171,7 +171,7 @@ namespace ParticleSimulator{
             std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
             std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            MPI::COMM_WORLD.Abort(-1);
+            MPI_Abort(MPI_COMM_WORLD,-1);
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
             exit(-1);
             return x; //dummy for avoid warning

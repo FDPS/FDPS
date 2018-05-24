@@ -46,7 +46,7 @@
                      << Comm::getRank()  << ", "      \
                      << typeid(TSM).name() << ". "    \
                      << std::endl;                    \
-           MPI::COMM_WORLD.Abort(9);                  \
+           MPI_Abort(MPI_COMM_WORLD,9);		      \
            std::exit(1);                              \
         } catch (...) {                               \
            std::cout << "[FDPS unknown error] "       \
@@ -55,10 +55,10 @@
                      << Comm::getRank()  << ", "      \
                      << typeid(TSM).name() << ". "    \
                      << std::endl;                    \
-           MPI::COMM_WORLD.Abort(9);                  \
+           MPI_Abort(MPI_COMM_WORLD,9);		      \
            std::exit(1);                              \
         }                                             \
-        MPI::COMM_WORLD.Barrier();                    \
+        MPI_Barrier(MPI_COMM_WORLD);		      \
         if (Comm::getRank() == 0)                     \
            std::cout << #func                         \
                      << " passed." << std::endl;      \
@@ -75,7 +75,7 @@ namespace ParticleSimulator{
     static const long long int LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1ll<<30;
     static inline void Abort(const int err = -1){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        MPI::COMM_WORLD.Abort(err);
+      MPI_Abort(MPI_COMM_WORLD,err);
 #else
         exit(err);
 #endif
@@ -178,15 +178,7 @@ namespace ParticleSimulator{
         MAKE_LIST_FOR_REUSE,
         REUSE_LIST,
     };
-    /*
-#if __cplusplus > 199711L
-    std::map<int, std::string> MAP_INTERACTION_LIST_MODE = {
-        {0, "MAKE_LIST"},
-        {1, "MAKE_LIST_FOR_REUSE"},
-        {2, "REUSE_LIST"},
-    };
-#endif
-    */
+    
     enum SEARCH_MODE{
         LONG_NO_CUTOFF,
         LONG_CUTOFF,
@@ -197,21 +189,6 @@ namespace ParticleSimulator{
         SHORT_SCATTER,
         SHORT_SYMMETRY,
     };
-
-    /*
-#if __cplusplus > 199711L
-    std::map<int, std::string> MAP_SEARCH_MODE = {
-        {0, "LONG_NO_CUTOFF"},
-        {1, "LONG_CUTOFF"},
-        {2, "LONG_SCATTER"},
-        {3, "LONG_CUTOFF_SCATTER"},
-        {4, "LONG_SYMMETRY"},
-        {5, "SHORT_GATHER"},
-        {6, "SHORT_SCATTER"},
-        {7, "SHORT_SYMMETRY"},
-    };
-#endif
-    */
     
     enum FORCE_TYPE{
         FORCE_TYPE_LONG,
@@ -317,40 +294,40 @@ namespace ParticleSimulator{
     };
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-    typedef MPI::Request MpiRequest;
+    typedef MPI_Request MpiRequest;
 #else
     typedef int MpiRequest;
 #endif
-    
+
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     template<class T> 
-    inline MPI::Datatype GetDataType(){
-        static MPI::Datatype type;
-        if( type == MPI::Datatype() ){
-            type = MPI::BYTE.Create_contiguous(sizeof(T));
-            type.Commit();
-        }
-        return type;
+    inline MPI_Datatype GetDataType(){
+      static MPI_Datatype type = MPI_DATATYPE_NULL;
+      if( type == MPI_DATATYPE_NULL ){
+	MPI_Type_contiguous(sizeof(T),MPI_BYTE,&type);
+	MPI_Type_commit(&type);
+      }
+      return type;
     };
     template<class T> 
-    inline MPI::Datatype GetDataType(const T &){
+        inline MPI_Datatype GetDataType(const T &){
         return GetDataType<T>();
     }
-    template<> inline MPI::Datatype GetDataType<int>(){return MPI::INT;}
-    template<> inline MPI::Datatype GetDataType<long>(){return MPI::LONG;}
-    //template<> inline MPI::Datatype GetDataType<long long int>(){return MPI::LONG_LONG_INT;}
-    template<> inline MPI::Datatype GetDataType<long long int>(){return MPI_LONG_LONG_INT;}
-    template<> inline MPI::Datatype GetDataType<unsigned int>(){return MPI::UNSIGNED;}
-    template<> inline MPI::Datatype GetDataType<unsigned long>(){return MPI::UNSIGNED_LONG;}
-    //template<> inline MPI::Datatype GetDataType<unsigned long long int>(){return MPI::UNSIGNED_LONG;}
-    template<> inline MPI::Datatype GetDataType<unsigned long long int>(){return MPI::UNSIGNED_LONG_LONG;}
-    template<> inline MPI::Datatype GetDataType<float>(){return MPI::FLOAT;}
-    template<> inline MPI::Datatype GetDataType<double>(){return MPI::DOUBLE;}
+    template<> inline MPI_Datatype GetDataType<int>(){return MPI_INT;}
+    template<> inline MPI_Datatype GetDataType<long>(){return MPI_LONG;}
+    //template<> inline MPI_Datatype GetDataType<long long int>(){return MPI_LONG_LONG_INT;}
+    template<> inline MPI_Datatype GetDataType<long long int>(){return MPI_LONG_LONG_INT;}
+    template<> inline MPI_Datatype GetDataType<unsigned int>(){return MPI_UNSIGNED;}
+    template<> inline MPI_Datatype GetDataType<unsigned long>(){return MPI_UNSIGNED_LONG;}
+    //template<> inline MPI_Datatype GetDataType<unsigned long long int>(){return MPI_UNSIGNED_LONG;}
+    template<> inline MPI_Datatype GetDataType<unsigned long long int>(){return MPI_UNSIGNED_LONG_LONG;}
+    template<> inline MPI_Datatype GetDataType<float>(){return MPI_FLOAT;}
+    template<> inline MPI_Datatype GetDataType<double>(){return MPI_DOUBLE;}
 
     template<class Tfloat, class Tint> 
-    inline MPI::Datatype GetDataType();
-    template<> inline MPI::Datatype GetDataType<float, int>(){return MPI::FLOAT_INT;}
-    template<> inline MPI::Datatype GetDataType<double, int>(){return MPI::DOUBLE_INT;}
+    inline MPI_Datatype GetDataType();
+    template<> inline MPI_Datatype GetDataType<float, int>(){return MPI_FLOAT_INT;}
+    template<> inline MPI_Datatype GetDataType<double, int>(){return MPI_DOUBLE_INT;}
 #endif
 
 
@@ -601,17 +578,17 @@ namespace ParticleSimulator{
     private:
         Comm(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            rank_ = MPI::COMM_WORLD.Get_rank();
-            n_proc_ = MPI::COMM_WORLD.Get_size();
+	  MPI_Comm_rank(MPI_COMM_WORLD,&rank_);
+          MPI_Comm_size(MPI_COMM_WORLD,&n_proc_);
 #else
-            rank_ = 0;
-            n_proc_ = 1;
+	  rank_ = 0;
+	  n_proc_ = 1;
 #endif
-	    //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+	  //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
-            n_thread_ = omp_get_max_threads();
+	  n_thread_ = omp_get_max_threads();
 #else
-            n_thread_ = 1;
+	  n_thread_ = 1;
 #endif
         }
         ~Comm(){}
@@ -632,7 +609,8 @@ namespace ParticleSimulator{
 	static T allreduceMin(const T & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 	    T ret;
-	    MPI::COMM_WORLD.Allreduce(&val, &ret, 1, GetDataType<T>(), MPI::MIN);
+            T val_tmp = val;
+	    MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MIN, MPI_COMM_WORLD);
 	    return ret;
 #else
 	    return val;
@@ -643,7 +621,8 @@ namespace ParticleSimulator{
 	static T allreduceMax(const T & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 	    T ret;
-	    MPI::COMM_WORLD.Allreduce(&val, &ret, 1, GetDataType<T>(), MPI::MAX);
+            T val_tmp = val;
+	    MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MAX, MPI_COMM_WORLD);
 	    return ret;
 #else
 	    return val;
@@ -653,7 +632,8 @@ namespace ParticleSimulator{
 	static T allreduceSum(const T & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 	    T ret;
-	    MPI::COMM_WORLD.Allreduce(&val, &ret, 1, GetDataType<T>(), MPI::SUM);
+            T val_tmp = val;
+	    MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_SUM, MPI_COMM_WORLD);
 	    return ret;
 #else
 	    return val;
@@ -670,7 +650,7 @@ namespace ParticleSimulator{
 	    } loc, glb;
 	    loc.x = f_in;
 	    loc.y = i_in;
-	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI::MINLOC);
+	    MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI_MINLOC, MPI_COMM_WORLD);
 	    f_out = glb.x;
 	    i_out = glb.y;
 #else
@@ -688,7 +668,7 @@ namespace ParticleSimulator{
 	    } loc, glb;
 	    loc.x = f_in;
 	    loc.y = i_in;
-	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI::MINLOC);
+	    MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MINLOC, MPI_COMM_WORLD);
 	    f_out = glb.x;
 	    i_out = glb.y;
 #else
@@ -707,7 +687,7 @@ namespace ParticleSimulator{
 	    } loc, glb;
 	    loc.x = f_in;
 	    loc.y = i_in;
-	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI::MAXLOC);
+	    MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI_MAXLOC, MPI_COMM_WORLD);
 	    f_out = glb.x;
 	    i_out = glb.y;
         //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
@@ -726,7 +706,7 @@ namespace ParticleSimulator{
 	    } loc, glb;
 	    loc.x = f_in;
 	    loc.y = i_in;
-	    MPI::COMM_WORLD.Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI::MAXLOC);
+	    MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MAXLOC, MPI_COMM_WORLD);
 	    f_out = glb.x;
 	    i_out = glb.y;
 	    //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
@@ -758,14 +738,15 @@ namespace ParticleSimulator{
 
         static void barrier(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            MPI::COMM_WORLD.Barrier();
+	  MPI_Barrier(MPI_COMM_WORLD);
 #endif
         }
 	
         static bool synchronizeConditionalBranchAND(const bool & local){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             bool global;
-            MPI::COMM_WORLD.Allreduce(&local, &global, 1, MPI::BOOL, MPI::LAND);
+            bool local_tmp = local;
+            MPI_Allreduce(&local_tmp, &global, 1, MPI_C_BOOL, MPI_LAND, MPI_COMM_WORLD);
             return global;
 #else
             return local;
@@ -774,8 +755,9 @@ namespace ParticleSimulator{
         static bool synchronizeConditionalBranchOR(const bool & local){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             bool global;
+            bool local_tmp = local;
             //std::cerr<<"rank="<<Comm::getRank()<<" local="<<local<<std::endl;
-            MPI::COMM_WORLD.Allreduce(&local, &global, 1, MPI::BOOL, MPI::LOR);
+            MPI_Allreduce(&local_tmp, &global, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
             //std::cerr<<"rank="<<Comm::getRank()<<" global="<<global<<std::endl;
             return global;
 #else
@@ -799,27 +781,27 @@ namespace ParticleSimulator{
         template<class T>
         static inline void broadcast(T * val, const int n, const int src=0){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-            MPI::COMM_WORLD.Bcast(val, n, GetDataType<T>(), src);
+	  MPI_Bcast(val, n, GetDataType<T>(), src, MPI_COMM_WORLD);
 #else
-            // NOP
+	  // NOP
 #endif
         }
 
         ///////////////////////////
         // MPI GATHER WRAPPER //
-        template<class T> static inline void gather(const T * val_send,
-                                                    const int n,
+        template<class T> static inline void gather(T * val_send,
+                                                    int n,
                                                     T * val_recv){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-            MPI::COMM_WORLD.Gather(val_send, n, GetDataType<T>(),
-				   val_recv, n, GetDataType<T>(), 0);
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Gather(val_send, n, GetDataType<T>(),
+		       val_recv, n, GetDataType<T>(), 0, MPI_COMM_WORLD);
 #else
             for(int i=0; i<n; i++)val_recv[i] = val_send[i];
 #endif	    
         }
 
-        template<class T> static inline void gatherV(const T * val_send,
-                                                     const int n_send,
+        template<class T> static inline void gatherV(T * val_send,
+                                                     int n_send,
                                                      T * val_recv){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
             const int n_proc = Comm::getNumberOfProc();
@@ -830,8 +812,8 @@ namespace ParticleSimulator{
             for(S32 i=0; i<n_proc; i++){
                 n_disp_recv[i+1] = n_disp_recv[i] + n_recv[i];
             }
-            MPI::COMM_WORLD.Gatherv(val_send, n_send, GetDataType<T>(),
-                                    val_recv, n_recv, n_disp_recv, GetDataType<T>(), 0);
+            MPI_Gatherv(val_send, n_send, GetDataType<T>(),
+			val_recv, n_recv, n_disp_recv, GetDataType<T>(), 0, MPI_COMM_WORLD);
             delete[] n_recv;
             delete[] n_disp_recv;
 #else
@@ -840,14 +822,15 @@ namespace ParticleSimulator{
 #endif
         }
 
-        template<class T> static inline void gatherV(const T * val_send,
-                                                     const int n_send,
-                                                     T * val_recv,
-                                                     const int * n_recv,
-                                                     const int * n_recv_disp){
+        template<class T> static inline void gatherV(T * val_send, // in
+                                                     int n_send,   // in
+                                                     T * val_recv, // out
+                                                     int * n_recv, // in
+                                                     int * n_recv_disp // in
+                                                     ){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-            MPI::COMM_WORLD.Gatherv(val_send, n_send, GetDataType<T>(),
-                                    val_recv, n_recv, n_recv_disp, GetDataType<T>(), 0);
+            MPI_Gatherv(val_send, n_send, GetDataType<T>(),
+			val_recv, n_recv, n_recv_disp, GetDataType<T>(), 0, MPI_COMM_WORLD);
 #else
             for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
             //n_recv[0] = n_recv_disp[1] = n_send; //not needed ?
@@ -877,25 +860,33 @@ namespace ParticleSimulator{
 
         ///////////////////////////
         // MPI ALLGATHER WRAPPER //
-        template<class T> static inline void allGather(const T * val_send,
-                                                       const int n,
-                                                       T * val_recv){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-            MPI::COMM_WORLD.Allgather(val_send, n, GetDataType<T>(),
-                                      val_recv, n, GetDataType<T>());
+        template<class T> static inline void allGather(const T * val_send, // in
+                                                       const int n,        // in
+                                                       T * val_recv  // out
+                                                       ){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            T * val_send_tmp = const_cast<T*>(val_send);
+            MPI_Allgather(val_send_tmp, n, GetDataType<T>(),
+			  val_recv, n, GetDataType<T>(), 
+                          MPI_COMM_WORLD);
 #else
             for(int i=0; i<n; i++)val_recv[i] = val_send[i];
 #endif	    
         }
 
-        template<class T> static inline void allGatherV(const T * val_send,
-                                                        const int n_send,
-                                                        T * val_recv,
-                                                        int * n_recv,
-                                                        int * n_recv_disp){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-            MPI::COMM_WORLD.Allgatherv(val_send, n_send, GetDataType<T>(),
-                                       val_recv, n_recv, n_recv_disp, GetDataType<T>());
+        template<class T> static inline void allGatherV(const T * val_send, // in
+                                                        const int n_send,   // in
+                                                        T * val_recv, // out
+                                                        int * n_recv, // in
+                                                        int * n_recv_disp //in
+                                                        ){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            T * val_send_tmp = const_cast<T*>(val_send);
+            int * n_recv_tmp = const_cast<int*>(n_recv);
+            int * n_recv_disp_tmp = const_cast<int*>(n_recv_disp);
+            MPI_Allgatherv(val_send_tmp, n_send, GetDataType<T>(),
+			   val_recv, n_recv_tmp, n_recv_disp_tmp, GetDataType<T>(), 
+                           MPI_COMM_WORLD);
 #else
             for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
             n_recv[0] = n_recv_disp[1] = n_send;
@@ -910,18 +901,29 @@ namespace ParticleSimulator{
         template<class T>
         static inline void allToAll(const T * val_send, const int n, T * val_recv){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            MPI::COMM_WORLD.Alltoall(val_send, n, GetDataType<T>(),
-                                     val_recv, n, GetDataType<T>());
+            T * val_send_tmp = const_cast<T*>(val_send);
+            MPI_Alltoall(val_send_tmp, n, GetDataType<T>(),
+			 val_recv, n, GetDataType<T>(), MPI_COMM_WORLD);
 #else
             for(int i=0; i<n; i++) val_recv[i] = val_send[i];
 #endif
         }
         template<class T>
-        static inline void allToAllV(const T * val_send, const int * n_send, const int * n_send_disp,
-                                     T * val_recv,       int * n_recv,       int * n_recv_disp){
+        static inline void allToAllV(const T * val_send,
+                                     const int * n_send,
+                                     const int * n_send_disp,
+                                     T * val_recv,
+                                     int * n_recv,
+                                     int * n_recv_disp){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            MPI::COMM_WORLD.Alltoallv(val_send, n_send, n_send_disp, GetDataType<T>(),
-                                      val_recv, n_recv, n_recv_disp, GetDataType<T>());
+            T * val_send_tmp = const_cast<T*>(val_send);
+            int * n_send_tmp = const_cast<int*>(n_send);
+            int * n_send_disp_tmp = const_cast<int*>(n_send_disp);
+            int * n_recv_tmp = const_cast<int*>(n_recv);
+            int * n_recv_disp_tmp = const_cast<int*>(n_recv_disp);
+            MPI_Alltoallv(val_send_tmp, n_send_tmp, n_send_disp_tmp, GetDataType<T>(),
+			  val_recv,     n_recv_tmp, n_recv_disp_tmp, GetDataType<T>(),
+                          MPI_COMM_WORLD);
 #else
             for(int i=0; i<n_send[0]; i++) val_recv[i] = val_send[i];
             n_recv[0] = n_send[0];
@@ -936,7 +938,7 @@ namespace ParticleSimulator{
     static inline void Initialize(int &argc, char **&argv){
 	
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        MPI::Init(argc, argv);
+        MPI_Init(&argc, &argv);
 #endif
 
 /*
@@ -963,7 +965,7 @@ namespace ParticleSimulator{
 			std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
 			std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
 			std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-			std::cerr << "     ||     Version 4.0 (2017/11)        ||" << std::endl;
+			std::cerr << "     ||     Version 4.0c (2018/05)       ||" << std::endl;
 			std::cerr << "     \\\\==================================//" << std::endl;
 			std::cerr << "" << std::endl;
 			std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
@@ -1009,8 +1011,7 @@ namespace ParticleSimulator{
 
     static inline void Finalize(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-
-        MPI::Finalize();
+        MPI_Finalize();
 #endif
         bool flag_monar = false;
         if(Comm::getRank() == 0) {
@@ -1047,8 +1048,7 @@ namespace ParticleSimulator{
     Vector2<float> Comm::getMinValue< Vector2<float> >(const Vector2<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<float> ret;
-        //MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 2, MPI::FLOAT, MPI::MIN);
-	MPI::COMM_WORLD.Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI::FLOAT, MPI::MIN);
+	MPI_Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1057,8 +1057,7 @@ namespace ParticleSimulator{
     template<> inline Vector2<double> Comm::getMinValue< Vector2<double> >(const Vector2<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<double> ret;
-        //MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 2, MPI::DOUBLE, MPI::MIN);
-	MPI::COMM_WORLD.Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI::DOUBLE, MPI::MIN);
+	MPI_Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1068,8 +1067,7 @@ namespace ParticleSimulator{
     Vector3<float> Comm::getMinValue< Vector3<float> >(const Vector3<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<float> ret;
-        //MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 3, MPI::FLOAT, MPI::MIN);
-	MPI::COMM_WORLD.Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI::FLOAT, MPI::MIN);
+	MPI_Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1079,8 +1077,7 @@ namespace ParticleSimulator{
     Vector3<double> Comm::getMinValue< Vector3<double> >(const Vector3<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<double> ret;
-        //MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 3, MPI::DOUBLE, MPI::MIN);
-	MPI::COMM_WORLD.Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI::DOUBLE, MPI::MIN);
+	MPI_Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1109,8 +1106,7 @@ namespace ParticleSimulator{
     Vector2<float> Comm::getMaxValue< Vector2<float> >(const Vector2<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<float> ret;
-        //MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 2, MPI::FLOAT, MPI::MAX);
-	MPI::COMM_WORLD.Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI::FLOAT, MPI::MAX);
+	MPI_Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1120,8 +1116,7 @@ namespace ParticleSimulator{
     Vector2<double> Comm::getMaxValue< Vector2<double> >(const Vector2<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<double> ret;
-        //MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 2, MPI::DOUBLE, MPI::MAX);
-	MPI::COMM_WORLD.Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI::DOUBLE, MPI::MAX);	
+	MPI_Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1131,8 +1126,7 @@ namespace ParticleSimulator{
     Vector3<float> Comm::getMaxValue< Vector3<float> >(const Vector3<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<float> ret;
-        //MPI::COMM_WORLD.Allreduce((float*)&val[0], (float*)&ret[0], 3, MPI::FLOAT, MPI::MAX);
-	MPI::COMM_WORLD.Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI::FLOAT, MPI::MAX);
+	MPI_Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1142,8 +1136,7 @@ namespace ParticleSimulator{
     Vector3<double> Comm::getMaxValue< Vector3<double> >(const Vector3<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<double> ret;
-        //MPI::COMM_WORLD.Allreduce((double*)&val[0], (double*)&ret[0], 3, MPI::DOUBLE, MPI::MAX);
-	MPI::COMM_WORLD.Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI::DOUBLE, MPI::MAX);
+	MPI_Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1465,19 +1458,19 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_BARRIER_FOR_PROFILE
 	Comm::barrier();
 #endif //PARTICLE_SIMULATOR_BARRIER_FOR_PROFILE
-        return MPI::Wtime();
+        return MPI_Wtime();
 #elif defined(PARTICLE_SIMULATOR_THREAD_PARALLEL)
         //PARTICLE_SIMULATOR_THREAD_PARALLEL
 	return omp_get_wtime();
 #else
-	return clock() / CLOCKS_PER_SEC;
+	return (F64)clock() / CLOCKS_PER_SEC;
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
     }
 
 
     inline F64 GetWtimeNoBarrier(){
 #if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
-        return MPI::Wtime();
+        return MPI_Wtime();
 #elif defined(PARTICLE_SIMULATOR_THREAD_PARALLEL)
         return omp_get_wtime();
 #else
@@ -1575,6 +1568,7 @@ namespace ParticleSimulator{
         F64 make_LET_2nd;
         F64 exchange_LET_1st;
         F64 exchange_LET_2nd;
+        F64 write_back; // new but default
 
         // not public
         F64 morton_sort_local_tree;
@@ -1587,6 +1581,10 @@ namespace ParticleSimulator{
         F64 exchange_LET_tot; // make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
 
         F64 calc_force__core__walk_tree;
+        F64 calc_force__core__keep_list;
+        F64 calc_force__core__copy_ep;
+        F64 calc_force__core__dispatch;
+        F64 calc_force__core__retrieve;
 
         F64 calc_force__make_ipgroup;
         F64 calc_force__core;
@@ -1613,6 +1611,9 @@ namespace ParticleSimulator{
         F64 exchange_LET_1st__icomm_ep;
         F64 exchange_LET_1st__a2a_ep;
 
+        F64 add_moment_as_sp_local;
+        F64 add_moment_as_sp_global;
+
         void dump(std::ostream & fout=std::cout) const {
             fout<<"collect_sample_particle= "<<collect_sample_particle<<std::endl;
             fout<<"decompose_domain= "<<decompose_domain<<std::endl;
@@ -1629,6 +1630,7 @@ namespace ParticleSimulator{
             fout<<"make_LET_2nd= "<<make_LET_2nd<<std::endl;
             fout<<"exchange_LET_1st= "<<exchange_LET_1st<<std::endl;
             fout<<"exchange_LET_2nd= "<<exchange_LET_2nd<<std::endl;
+            fout<<"write_back= "<<write_back<<std::endl;
         }
 
         TimeProfile () {
@@ -1646,7 +1648,11 @@ namespace ParticleSimulator{
             decompose_domain__setup = decompose_domain__determine_coord_1st = decompose_domain__migrae_particle_1st = decompose_domain__determine_coord_2nd 
                 = decompose_domain__determine_coord_3rd = decompose_domain__exchange_pos_domain = 0.0;
             exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ep = exchange_LET_1st__icomm_sp = exchange_LET_1st__a2a_ep = 0.0;
+
+            add_moment_as_sp_local = add_moment_as_sp_global = 0.0;
+            write_back = 0.0;
         }
+
         TimeProfile operator + (const TimeProfile & rhs) const{
             TimeProfile ret;
             ret.collect_sample_particle = this->collect_sample_particle + rhs.collect_sample_particle;
@@ -1675,6 +1681,10 @@ namespace ParticleSimulator{
             ret.exchange_LET_tot = this->exchange_LET_tot + rhs.exchange_LET_tot;
 
             ret.calc_force__core__walk_tree = this->calc_force__core__walk_tree + rhs.calc_force__core__walk_tree;
+	    ret.calc_force__core__keep_list = this->calc_force__core__keep_list + rhs.calc_force__core__keep_list;
+	    ret.calc_force__core__dispatch = this->calc_force__core__dispatch + rhs.calc_force__core__dispatch;
+	    ret.calc_force__core__copy_ep = this->calc_force__core__copy_ep + rhs.calc_force__core__copy_ep;
+	    ret.calc_force__core__retrieve = this->calc_force__core__retrieve + rhs.calc_force__core__retrieve;
 
             ret.calc_force__make_ipgroup = this->calc_force__make_ipgroup + rhs.calc_force__make_ipgroup;
             ret.calc_force__core = this->calc_force__core + rhs.calc_force__core;
@@ -1702,6 +1712,10 @@ namespace ParticleSimulator{
             ret.exchange_LET_1st__icomm_sp = this->exchange_LET_1st__icomm_sp + rhs.exchange_LET_1st__icomm_sp;
             ret.exchange_LET_1st__a2a_ep   = this->exchange_LET_1st__a2a_ep   + rhs.exchange_LET_1st__a2a_ep;
 
+            ret.add_moment_as_sp_local = this->add_moment_as_sp_local + rhs.add_moment_as_sp_local;
+            ret.add_moment_as_sp_global = this->add_moment_as_sp_global + rhs.add_moment_as_sp_global;
+
+            ret.write_back = this->write_back + rhs.write_back;
             return ret;
         }
         F64 getTotalTime() const {
@@ -1712,7 +1726,9 @@ namespace ParticleSimulator{
             return collect_sample_particle + decompose_domain + exchange_particle + set_particle_local_tree + set_particle_global_tree + make_local_tree + make_global_tree + set_root_cell
                 + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
                 + morton_sort_local_tree + link_cell_local_tree 
-                + morton_sort_global_tree + link_cell_global_tree;
+                + morton_sort_global_tree + link_cell_global_tree
+                + add_moment_as_sp_local + add_moment_as_sp_global
+                + write_back;
         }
         void clear(){
             collect_sample_particle = decompose_domain = exchange_particle = make_local_tree = make_global_tree = set_particle_local_tree = set_particle_global_tree = set_root_cell
@@ -1721,6 +1737,10 @@ namespace ParticleSimulator{
                 = morton_sort_global_tree = link_cell_global_tree = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
             calc_force__core__walk_tree = 0.0;
+	    calc_force__core__keep_list = 0.0;
+	    calc_force__core__copy_ep   = 0.0;
+	    calc_force__core__dispatch  = 0.0;
+	    calc_force__core__retrieve  = 0.0;
             calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
             exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
 
@@ -1729,6 +1749,9 @@ namespace ParticleSimulator{
             decompose_domain__setup = decompose_domain__determine_coord_1st = decompose_domain__migrae_particle_1st = decompose_domain__determine_coord_2nd 
                 = decompose_domain__determine_coord_3rd = decompose_domain__exchange_pos_domain = 0.0;
             exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ep = exchange_LET_1st__icomm_sp = exchange_LET_1st__a2a_ep = 0.0;
+
+            add_moment_as_sp_local = add_moment_as_sp_global = 0.0;
+            write_back = 0.0;
         }
     };
 

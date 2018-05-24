@@ -831,10 +831,10 @@ namespace ParticleSimulator{
             }
             // ****************************************************
             // *** broad cast pos_domain_ *************************
-            MPI::COMM_WORLD.Bcast(pos_domain_, nproc, GetDataType<F64ort>(), 0);
+            MPI_Bcast(pos_domain_, nproc, GetDataType<F64ort>(), 0, MPI_COMM_WORLD);
             if(first_call_by_decomposeDomain) {
                 first_call_by_decomposeDomain = false;            
-                MPI::COMM_WORLD.Bcast(&first_call_by_decomposeDomain, 1, GetDataType<bool>(), 0);
+                MPI_Bcast(&first_call_by_decomposeDomain, 1, GetDataType<bool>(), 0, MPI_COMM_WORLD);
             }
             //std::cout<<"end of bcast: "<<"time: "<<GetWtime() - Tbegin<<std::endl;
             //Comm::broadcast(pos_domain_, nproc);
@@ -898,7 +898,6 @@ namespace ParticleSimulator{
 #endif
 	
         void getPosDomainTotal(FILE *fp) {
-            //S32 nproc = MPI::COMM_WORLD.Get_size();
             S32 nproc = Comm::getNumberOfProc();
             for(S32 i = 0; i < nproc; i++) {
                 for(S32 k = 0; k < DIMENSION; k++)

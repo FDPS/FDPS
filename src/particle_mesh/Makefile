@@ -4,9 +4,7 @@ CC = mpicxx
 CFLAGS = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK #-Wall
 #CFLAGS = -O3 -Kfast
 
-#INCLUDE_FFTW = -I/nfshome/tanikawa/work3/mylib/include
-#INCLUDE_FFTW = -I/nfshome/tanikawa/work3/lib/mpich
-INCLUDE_FFTW = -I/home/masaki/opt/include
+INCLUDE_FFTW = -I/work4a/local/fftw/include
 
 FFTW3_IDENTIFIER = FFTW3_PARALLEL
 

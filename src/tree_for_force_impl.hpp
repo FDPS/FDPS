@@ -436,8 +436,9 @@ namespace ParticleSimulator{
         // for scatterEP
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        req_send_ = new MPI::Request[n_proc];
-        req_recv_ = new MPI::Request[n_proc];
+        req_send_ = new MPI_Request[n_proc];
+        req_recv_ = new MPI_Request[n_proc];
+	status_   = new MPI_Status[n_proc];
 #endif
 
         if( typeid(TSM) == typeid(SEARCH_MODE_SCATTER) 
@@ -1219,8 +1220,8 @@ namespace ParticleSimulator{
         tree_top_inner_pos_.resizeNoInitialize(n_proc);
         tree_top_outer_pos_.resizeNoInitialize(n_proc);
         for(S32 i=0; i<n_proc; i++){
-            tree_top_inner_pos_[i] = boundary_pos.first;
-            tree_top_outer_pos_[i] = boundary_pos.second;
+            tree_top_inner_pos_[i] = tree_top_boundary_pos[i].first;
+            tree_top_outer_pos_[i] = tree_top_boundary_pos[i].second;
         }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
 #pragma omp parallel
@@ -1791,15 +1792,15 @@ namespace ParticleSimulator{
         for(S32 i=0; i<n_proc_src_1st; i++){
             S32 id_proc = id_proc_src_[i];
             S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-            req_send_[i] = MPI::COMM_WORLD.Isend(n_ep_send_+id_proc, 1, GetDataType<S32>(), id_proc, tag);
+            MPI_Isend(n_ep_send_+id_proc, 1, GetDataType<S32>(), id_proc, tag, MPI_COMM_WORLD, &req_send_[i]);
         }
         for(S32 i=0; i<n_proc_dest_1st; i++){
             S32 id_proc = id_proc_dest_[i];
             S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-            req_recv_[i] = MPI::COMM_WORLD.Irecv(n_epj_recv_2nd_+id_proc, 1, GetDataType<S32>(), id_proc, tag);
+            MPI_Irecv(n_epj_recv_2nd_+id_proc, 1, GetDataType<S32>(), id_proc, tag, MPI_COMM_WORLD, &req_recv_[i]);
         }
-        MPI::Request::Waitall(n_proc_src_1st, req_send_);
-        MPI::Request::Waitall(n_proc_dest_1st, req_recv_);
+        MPI_Waitall(n_proc_src_1st,  req_send_, status_);
+        MPI_Waitall(n_proc_dest_1st, req_recv_, status_);
 #else
         n_epj_recv_2nd_[0] = n_ep_send_[0];
 #endif
@@ -1839,9 +1840,8 @@ namespace ParticleSimulator{
             if(n_ep_send_[id_proc] > 0){
                 S32 adr = n_ep_send_disp_[id_proc];
                 S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-                req_send_[n_cnt_send++] = MPI::COMM_WORLD.Isend
-                    (epjr_send_.getPointer()+adr, n_ep_send_[id_proc],
-                     GetDataType<EPJWithR>(), id_proc, tag);
+                MPI_Isend(epjr_send_.getPointer()+adr, n_ep_send_[id_proc],
+			  GetDataType<EPJWithR>(), id_proc, tag, MPI_COMM_WORLD, &req_send_[n_cnt_send++]);
             }
         }
         for(S32 i=0; i<n_proc_dest_1st; i++){
@@ -1849,13 +1849,12 @@ namespace ParticleSimulator{
             if(n_epj_recv_2nd_[id_proc] > 0){
                 S32 adr = n_epj_recv_disp_2nd_[id_proc];
                 S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-                req_recv_[n_cnt_recv++] = MPI::COMM_WORLD.Irecv
-                    (epjr_recv_2nd_buf_.getPointer()+adr, n_epj_recv_2nd_[id_proc],
-                     GetDataType<EPJWithR>(), id_proc, tag);
+                MPI_Irecv(epjr_recv_2nd_buf_.getPointer()+adr, n_epj_recv_2nd_[id_proc],
+			  GetDataType<EPJWithR>(), id_proc, tag, MPI_COMM_WORLD, &req_recv_[n_cnt_recv++]);
             }
         }
-        MPI::Request::Waitall(n_cnt_send, req_send_);
-        MPI::Request::Waitall(n_cnt_recv, req_recv_);
+        MPI_Waitall(n_cnt_send, req_send_, status_);
+        MPI_Waitall(n_cnt_recv, req_recv_, status_);
 #else
         S32 adr_send = n_ep_send_disp_[0];
         S32 adr_recv = n_epj_recv_disp_2nd_[0];
@@ -1929,8 +1928,9 @@ namespace ParticleSimulator{
         static ReallocatableArray<S32> * id_ptcl_send;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         const S32 my_rank = Comm::getRank();
-        static MPI::Request * req_send;
-        static MPI::Request * req_recv;
+        static MPI_Request * req_send;
+        static MPI_Request * req_recv;
+	static MPI_Status  * status;
 #endif
         static bool first = true;
         if(first){
@@ -1956,8 +1956,9 @@ namespace ParticleSimulator{
             //epj_recv_buf.reserve(1000);
             epj_recv_buf.reserve(n_surface_for_comm_);
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            req_send = new MPI::Request[n_proc];
-            req_recv = new MPI::Request[n_proc];
+            req_send = new MPI_Request[n_proc];
+            req_recv = new MPI_Request[n_proc];
+	    status   = new MPI_Status[n_proc];
 #endif
             first = false;
         }
@@ -2211,15 +2212,15 @@ namespace ParticleSimulator{
         for(S32 i=0; i<n_proc_src_1st; i++){
             S32 id_proc = id_proc_src[i];
             S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-            req_send[i] = MPI::COMM_WORLD.Isend(n_ep_send_+id_proc, 1, GetDataType<S32>(), id_proc, tag);
+            MPI_Isend(n_ep_send_+id_proc, 1, GetDataType<S32>(), id_proc, tag, MPI_COMM_WORLD, &req_send[i]);
         }
         for(S32 i=0; i<n_proc_dest_1st; i++){
             S32 id_proc = id_proc_dest[i];
             S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-            req_recv[i] = MPI::COMM_WORLD.Irecv( n_ep_recv_2nd+id_proc, 1, GetDataType<S32>(), id_proc, tag);
+            MPI_Irecv( n_ep_recv_2nd+id_proc, 1, GetDataType<S32>(), id_proc, tag, MPI_COMM_WORLD, &req_recv[i]);
         }
-        MPI::Request::Waitall(n_proc_src_1st, req_send);
-        MPI::Request::Waitall(n_proc_dest_1st, req_recv);
+        MPI_Waitall(n_proc_src_1st,  req_send, status);
+        MPI_Waitall(n_proc_dest_1st, req_recv, status);
 #else
         n_ep_recv_2nd[0] = n_ep_send_[0];
 #endif
@@ -2257,9 +2258,8 @@ namespace ParticleSimulator{
             if(n_ep_send_[id_proc] > 0){
                 S32 adr = n_ep_send_disp_[id_proc];
                 S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-                req_send[n_cnt_send++] = MPI::COMM_WORLD.Isend
-                    (epj_send_.getPointer()+adr, n_ep_send_[id_proc],
-                     GetDataType<Tepj>(), id_proc, tag);
+                MPI_Isend(epj_send_.getPointer()+adr, n_ep_send_[id_proc],
+			  GetDataType<Tepj>(), id_proc, tag, MPI_COMM_WORLD, &req_send[n_cnt_send++]);
             }
         }
         for(S32 i=0; i<n_proc_dest_1st; i++){
@@ -2267,13 +2267,12 @@ namespace ParticleSimulator{
             if(n_ep_recv_2nd[id_proc] > 0){
                 S32 adr = n_ep_recv_disp_2nd[id_proc];
                 S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-                req_recv[n_cnt_recv++] = MPI::COMM_WORLD.Irecv
-                    (epj_recv_buf.getPointer()+adr, n_ep_recv_2nd[id_proc],
-                     GetDataType<Tepj>(), id_proc, tag);
+                MPI_Irecv(epj_recv_buf.getPointer()+adr, n_ep_recv_2nd[id_proc],
+			  GetDataType<Tepj>(), id_proc, tag, MPI_COMM_WORLD, &req_recv[n_cnt_recv++]);
             }
         }
-        MPI::Request::Waitall(n_cnt_send, req_send);
-        MPI::Request::Waitall(n_cnt_recv, req_recv);
+        MPI_Waitall(n_cnt_send, req_send, status);
+        MPI_Waitall(n_cnt_recv, req_recv, status);
 #else
         S32 adr_send = n_ep_send_disp_[0];
         S32 adr_recv = n_ep_recv_disp_2nd[0];
@@ -2536,15 +2535,15 @@ namespace ParticleSimulator{
         for(S32 i=0; i<n_proc_src_1st; i++){
             S32 id_proc = id_proc_src_[i];
             S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-            req_send_[i] = MPI::COMM_WORLD.Isend(n_ep_send_+id_proc, 1, GetDataType<S32>(), id_proc, tag);
+            MPI_Isend(n_ep_send_+id_proc, 1, GetDataType<S32>(), id_proc, tag, MPI_COMM_WORLD, &req_send_[i]);
         }
         for(S32 i=0; i<n_proc_dest_1st; i++){
             S32 id_proc = id_proc_dest_[i];
             S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-            req_recv_[i] = MPI::COMM_WORLD.Irecv(n_epj_recv_2nd_+id_proc, 1, GetDataType<S32>(), id_proc, tag);
+            MPI_Irecv(n_epj_recv_2nd_+id_proc, 1, GetDataType<S32>(), id_proc, tag, MPI_COMM_WORLD, &req_recv_[i]);
         }
-        MPI::Request::Waitall(n_proc_src_1st, req_send_);
-        MPI::Request::Waitall(n_proc_dest_1st, req_recv_);
+        MPI_Waitall(n_proc_src_1st,  req_send_, status_);
+        MPI_Waitall(n_proc_dest_1st, req_recv_, status_);
 #else
         n_epj_recv_2nd_[0] = n_ep_send_[0];
 #endif
@@ -2580,9 +2579,8 @@ namespace ParticleSimulator{
             if(n_ep_send_[id_proc] > 0){
                 S32 adr = n_ep_send_disp_[id_proc];
                 S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-                req_send_[n_cnt_send++] = MPI::COMM_WORLD.Isend
-                    (epj_send_.getPointer()+adr, n_ep_send_[id_proc],
-                     GetDataType<Tepj>(), id_proc, tag);
+                MPI_Isend(epj_send_.getPointer()+adr, n_ep_send_[id_proc],
+			  GetDataType<Tepj>(), id_proc, tag, MPI_COMM_WORLD, &req_send_[n_cnt_send++]);
             }
         }
         for(S32 i=0; i<n_proc_dest_1st; i++){
@@ -2590,13 +2588,12 @@ namespace ParticleSimulator{
             if(n_epj_recv_2nd_[id_proc] > 0){
                 S32 adr = n_epj_recv_disp_2nd_[id_proc];
                 S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-                req_recv_[n_cnt_recv++] = MPI::COMM_WORLD.Irecv
-                    (epj_recv_2nd_buf_.getPointer()+adr, n_epj_recv_2nd_[id_proc],
-                     GetDataType<Tepj>(), id_proc, tag);
+                MPI_Irecv(epj_recv_2nd_buf_.getPointer()+adr, n_epj_recv_2nd_[id_proc],
+			  GetDataType<Tepj>(), id_proc, tag, MPI_COMM_WORLD, &req_recv_[n_cnt_recv++]);
             }
         }
-        MPI::Request::Waitall(n_cnt_send, req_send_);
-        MPI::Request::Waitall(n_cnt_recv, req_recv_);
+        MPI_Waitall(n_cnt_send, req_send_, status_);
+        MPI_Waitall(n_cnt_recv, req_recv_, status_);
 #else
         S32 adr_send = n_ep_send_disp_[0];
         S32 adr_recv = n_epj_recv_disp_2nd_[0];
@@ -2667,8 +2664,9 @@ namespace ParticleSimulator{
         static S32 * id_proc_dest;
         static ReallocatableArray<S32> * id_ptcl_send;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        static MPI::Request * req_send;
-        static MPI::Request * req_recv;
+        static MPI_Request * req_send;
+        static MPI_Request * req_recv;
+	static MPI_Status  * status;;
         const S32 my_rank = Comm::getRank();
 #endif
         static bool first = true;
@@ -2693,8 +2691,9 @@ namespace ParticleSimulator{
                 epj_send_buf[i].reserve(n_surface_for_comm_);
             }
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            req_send = new MPI::Request[n_proc];
-            req_recv = new MPI::Request[n_proc];
+            req_send = new MPI_Request[n_proc];
+            req_recv = new MPI_Request[n_proc];
+	    status   = new MPI_Status[n_proc];
 #endif
             first = false;
         }
@@ -2956,15 +2955,15 @@ namespace ParticleSimulator{
         for(S32 i=0; i<n_proc_src_1st; i++){
             S32 id_proc = id_proc_src[i];
             S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-            req_send[i] = MPI::COMM_WORLD.Isend(n_ep_send_+id_proc, 1, GetDataType<S32>(), id_proc, tag);
+            MPI_Isend(n_ep_send_+id_proc, 1, GetDataType<S32>(), id_proc, tag,MPI_COMM_WORLD, &req_send[i]);
         }
         for(S32 i=0; i<n_proc_dest_1st; i++){
             S32 id_proc = id_proc_dest[i];
             S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-            req_recv[i] = MPI::COMM_WORLD.Irecv(n_ep_recv_2nd+id_proc, 1, GetDataType<S32>(), id_proc, tag);
+            MPI_Irecv(n_ep_recv_2nd+id_proc, 1, GetDataType<S32>(), id_proc, tag,MPI_COMM_WORLD, &req_recv[i]);
         }
-        MPI::Request::Waitall(n_proc_src_1st, req_send);
-        MPI::Request::Waitall(n_proc_dest_1st, req_recv);
+        MPI_Waitall(n_proc_src_1st, req_send, status);
+        MPI_Waitall(n_proc_dest_1st, req_recv, status);
 #else
         n_ep_recv_2nd[0] = n_ep_send_[0];
 #endif
@@ -3000,9 +2999,8 @@ namespace ParticleSimulator{
             if(n_ep_send_[id_proc] > 0){
                 S32 adr = n_ep_send_disp_[id_proc];
                 S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-                req_send[n_cnt_send++] = MPI::COMM_WORLD.Isend
-                    (epj_send_.getPointer()+adr, n_ep_send_[id_proc],
-                     GetDataType<Tepj>(), id_proc, tag);
+                MPI_Isend(epj_send_.getPointer()+adr, n_ep_send_[id_proc],
+			  GetDataType<Tepj>(), id_proc, tag, MPI_COMM_WORLD, &req_send[n_cnt_send++]);
             }
         }
         for(S32 i=0; i<n_proc_dest_1st; i++){
@@ -3010,13 +3008,12 @@ namespace ParticleSimulator{
             if(n_ep_recv_2nd[id_proc] > 0){
                 S32 adr = n_ep_recv_disp_2nd[id_proc];
                 S32 tag = (my_rank < id_proc) ? my_rank : id_proc;
-                req_recv[n_cnt_recv++] = MPI::COMM_WORLD.Irecv
-                    (epj_recv_2nd_buf.getPointer()+adr, n_ep_recv_2nd[id_proc],
-                     GetDataType<Tepj>(), id_proc, tag);
+                MPI_Irecv(epj_recv_2nd_buf.getPointer()+adr, n_ep_recv_2nd[id_proc],
+			  GetDataType<Tepj>(), id_proc, tag, MPI_COMM_WORLD, &req_recv[n_cnt_recv++]);
             }
         }
-        MPI::Request::Waitall(n_cnt_send, req_send);
-        MPI::Request::Waitall(n_cnt_recv, req_recv);
+        MPI_Waitall(n_cnt_send, req_send, status);
+        MPI_Waitall(n_cnt_recv, req_recv, status);
 #else
         S32 adr_send = n_ep_send_disp_[0];
         S32 adr_recv = n_ep_recv_disp_2nd[0];
@@ -3984,16 +3981,21 @@ namespace ParticleSimulator{
         S64 n_interaction_ep_ep_tmp = 0;
         for(S32 i=0; i<Comm::getNumberOfThread(); i++) n_cell_open_[i] = 0;
         //PROFILE::Start(profile.calc_force);
+	F64 offset_walk_tree,offset_dispatch;
         if(n_ipg > 0){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
 #pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp)
-#endif	    
+#endif
             for(S32 i=0; i<n_ipg; i++){
-                makeInteractionList(i);
+  	        offset_walk_tree = GetWtime();
+	        makeInteractionList(i);
+		time_profile_.calc_force__core__walk_tree += GetWtime() - offset_walk_tree;
                 ni_tmp += ipg_[i].n_ptcl_;
                 nj_tmp += epj_for_force_[Comm::getThreadNum()].size();
                 n_interaction_ep_ep_tmp += ipg_[i].n_ptcl_ * epj_for_force_[Comm::getThreadNum()].size();
+		offset_dispatch = GetWtime();
                 calcForceOnly( pfunc_ep_ep, i, clear);
+		time_profile_.calc_force__core__dispatch += GetWtime() - offset_dispatch;
             }
             ni_ave_ = ni_tmp / n_ipg;
             nj_ave_ = nj_tmp / n_ipg;
@@ -4658,7 +4660,9 @@ namespace ParticleSimulator{
     exchangeLocalEssentialTreeReuseListImpl(TagSearchLong,
                                             const DomainInfo & dinfo,
                                             const bool flag_reuse){
+        F64 time_offset = GetWtime();
         exchangeLocalEssentialTreeReuseListLong(dinfo, flag_reuse);
+	time_profile_.exchange_LET_1st += GetWtime() - time_offset;
     }    
     template<class TSM, class Tforce, class Tepi, class Tepj,
     class Tmomloc, class Tmomglb, class Tspj>

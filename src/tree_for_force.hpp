@@ -73,8 +73,8 @@ namespace ParticleSimulator{
         S32 nj_ave_;
 
         RadixSort<U64, 8> rs_;
-        S32 n_loc_tot_; // # of all kinds of particles in local process
-        S64 n_glb_tot_; // # of all kinds of particles in all processes
+        S32 n_loc_tot_; // # of all kinds of assigned particles in local proc
+        S64 n_glb_tot_; // n_loc_tot_ + LETs
         S32 n_leaf_limit_;
         S32 n_group_limit_;
 
@@ -185,8 +185,9 @@ namespace ParticleSimulator{
         ReallocatableArray<F64ort> tree_top_inner_pos_;
         
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        MPI::Request * req_send_;
-        MPI::Request * req_recv_;
+        MPI_Request * req_send_;
+        MPI_Request * req_recv_;
+        MPI_Status  * status_;
 #endif
 
         template<class Tep2, class Tep3>
@@ -888,11 +889,9 @@ namespace ParticleSimulator{
                 mortonSortLocalTreeOnly();
                 linkCellLocalTreeOnly();
                 calcMomentLocalTreeOnly();
-                //exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
 		exchangeLocalEssentialTreeReuseList(dinfo);
-                //setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
 		setLocalEssentialTreeToGlobalTree2();
-                this->n_glb_tot_ = tp_glb_.size();
+                //this->n_glb_tot_ = tp_glb_.size();
                 mortonSortGlobalTreeOnly();
                 linkCellGlobalTreeOnly();
                 calcMomentGlobalTreeOnly();
@@ -902,7 +901,6 @@ namespace ParticleSimulator{
             }
             else if(list_mode == REUSE_LIST){
                 mortonSortLocalTreeOnly(true);
-                //exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo, true);
 		exchangeLocalEssentialTreeReuseList(dinfo, true);
 #if 1
                 setLocalEssentialTreeToGlobalTree2(true);
@@ -1038,8 +1036,9 @@ namespace ParticleSimulator{
                 spj_sorted_loc_.clearSize();
                 AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_, 0, spj_sorted_loc_);
                 exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
-                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
-                this->n_glb_tot_ = tp_glb_.size();
+                setLocalEssentialTreeToGlobalTree2(false);
+                //setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
+                //this->n_glb_tot_ = tp_glb_.size();
                 mortonSortGlobalTreeOnly();
                 for(S32 i=0; i<tc_glb_.size(); i++){
                     tc_glb_[i].clear();
@@ -1190,8 +1189,9 @@ namespace ParticleSimulator{
                 AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_,
                                   0, spj_sorted_loc_);
                 exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
-                setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
-                this->n_glb_tot_ = tp_glb_.size();
+                setLocalEssentialTreeToGlobalTree2(false);
+                //setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), false);
+                //this->n_glb_tot_ = tp_glb_.size();
                 mortonSortGlobalTreeOnly();
                 for(S32 i=0; i<tc_glb_.size(); i++){
                     tc_glb_[i].clear();
@@ -1268,6 +1268,7 @@ namespace ParticleSimulator{
         void setLocalEssentialTreeToGlobalTree2(const bool flag_reuse = false){
 	  F64 time_offset = GetWtime();
 	  setLocalEssentialTreeToGlobalTreeImpl2(typename TSM::force_type(), flag_reuse);
+          this->n_glb_tot_ = tp_glb_.size();
 	  time_profile_.set_particle_global_tree += GetWtime() - time_offset;
         } 
         void setLocalEssentialTreeToGlobalTreeImpl2(TagForceLong,
@@ -1322,7 +1323,7 @@ namespace ParticleSimulator{
                                   0, spj_sorted_loc_);
                 exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo);
                 setLocalEssentialTreeToGlobalTree2(false);
-                this->n_glb_tot_ = tp_glb_.size();
+                //this->n_glb_tot_ = tp_glb_.size();
                 mortonSortGlobalTreeOnly();
                 for(S32 i=0; i<tc_glb_.size(); i++){
                     tc_glb_[i].clear();
@@ -1346,20 +1347,54 @@ namespace ParticleSimulator{
 #endif
             }
             else if(list_mode == REUSE_LIST){
+                F64 wtime_0 = GetWtime();
                 mortonSortLocalTreeOnly(true);
+                F64 wtime_1 = GetWtime() - wtime_0;
+
                 calcMomentLocalTreeOnly();
+                F64 wtime_2 = GetWtime() - wtime_0;
+
+                F64 wtime_tmp = GetWtime();
                 AddMomentAsSpImpl(typename TSM::force_type(), tc_loc_,
                                   0, spj_sorted_loc_);
+                time_profile_.add_moment_as_sp_local += GetWtime() - wtime_tmp;
+                F64 wtime_3 = GetWtime() - wtime_0;
+
+
                 exchangeLocalEssentialTreeReuseListImpl(typename TSM::search_type(), dinfo, true);
+                F64 wtime_4 = GetWtime() - wtime_0;
+
                 setLocalEssentialTreeToGlobalTree2(true);
+                F64 wtime_5 = GetWtime() - wtime_0;
+
                 mortonSortGlobalTreeOnly(true);
+                F64 wtime_6 = GetWtime() - wtime_0;
+
                 calcMomentGlobalTreeOnly();
+                F64 wtime_7 = GetWtime() - wtime_0;
+
+                wtime_tmp = GetWtime();
                 S32 offset = epi_org_.size() + epj_recv_.size() + spj_recv_.size();
                 AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_,
                                   offset, spj_sorted_);
-                F64 wtime_tmp = GetWtime();
+                time_profile_.add_moment_as_sp_global += GetWtime() - wtime_tmp;
+                F64 wtime_8 = GetWtime() - wtime_0;
+
+                wtime_tmp = GetWtime();
                 calcForceNoWalkForMultiWalk(pfunc_dispatch, pfunc_retrieve, n_walk_limit, clear);
                 wtime_tmp = GetWtime() - wtime_tmp;
+                F64 wtime_9 = GetWtime() - wtime_0;
+
+                std::cerr<<"wtime_1= "<<wtime_1
+                         <<" wtime_2= "<<wtime_2
+                         <<" wtime_3= "<<wtime_3
+                         <<" wtime_4= "<<wtime_4
+                         <<" wtime_5= "<<wtime_5
+                         <<" wtime_6= "<<wtime_6
+                         <<" wtime_7= "<<wtime_7
+                         <<" wtime_8= "<<wtime_8
+                         <<" wtime_9= "<<wtime_9
+                         <<std::endl;
             }
             else{
                 PARTICLE_SIMULATOR_PRINT_ERROR("INVALID INTERACTION_LIST_MODE.");
@@ -1397,7 +1432,12 @@ namespace ParticleSimulator{
             S32 ret = 0;
             ret = calcForceAllMultiWalkIndex(pfunc_dispatch, pfunc_retrieve,
                                              tag_max, psys, dinfo, n_walk_limit, clear, list_mode);
+            F64 wtime_0 = GetWtime();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
+#pragma omp parallel for
+#endif
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
+            time_profile_.write_back += GetWtime() - wtime_0;
             return ret;
         }
 	

@@ -20,11 +20,12 @@ namespace ParticleSimulator{
               void Initialize() {
                  if (is_initialized == false) {
                     // Initialize private members
-                    S32 rank = MPI::COMM_WORLD.Get_rank();
-                    S32 size = MPI::COMM_WORLD.Get_size();
+                     S32 rank, size;
+                     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+                     MPI_Comm_size(MPI_COMM_WORLD,&size);
                     this_run_.inode = rank;
                     this_run_.nnode = size;
-                    this_run_.MPI_COMM_INTERNAL = MPI::COMM_WORLD;
+                    this_run_.MPI_COMM_INTERNAL = MPI_COMM_WORLD;
                     pm_ = new PMForce(&this_run_);                
                     assert(pm_);
                     pm_->mesh_density_local = NULL;
@@ -41,10 +42,9 @@ namespace ParticleSimulator{
               template<class Tdinfo>
               void setDomainInfoParticleMesh(const Tdinfo & dinfo) {
                  Initialize();
-
-                 S32 rank = MPI::COMM_WORLD.Get_rank();
+                 S32 rank;
+                 MPI_Comm_rank(MPI_COMM_WORLD,&rank);
                  F32ort pos_domain = dinfo.getPosDomain(rank);
-
                  this_run_.ndiv[0] = dinfo.getNDomain(0);
                  this_run_.ndiv[1] = dinfo.getNDomain(1);
                  this_run_.ndiv[2] = dinfo.getNDomain(2);

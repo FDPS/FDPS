@@ -1705,6 +1705,7 @@ namespace ParticleSimulator{
             n_disp_walk_ar[wg+1] = n_disp_walk_ar[wg] + n_walk_ar[wg];
         }
         bool first_loop = true;
+        //F64 time_offset = GetWtime();
         if(n_ipg > 0){
 #if 1
             S32 n_walk=-1, n_walk_prev=-1, lane_0=-1, lane_1=-1;
@@ -1797,6 +1798,7 @@ namespace ParticleSimulator{
         static ReallocatableArray<Tepi*> epi_ar;
         epi_ar.resizeNoInitialize(n_walk_limit);
 #if 1
+        // overlape version
         static ReallocatableArray<S32>  n_epi_ar[2];
         n_epi_ar[0].resizeNoInitialize(n_walk_limit);
         n_epi_ar[1].resizeNoInitialize(n_walk_limit);
@@ -1851,8 +1853,10 @@ namespace ParticleSimulator{
             n_disp_walk_ar[wg+1] = n_disp_walk_ar[wg] + n_walk_ar[wg];
         }
         bool first_loop = true;
+        //F64 time_offset = GetWtime();
         if(n_ipg > 0){
 #if 1
+            // overlape version
             S32 n_walk=-1, n_walk_prev=-1, lane_0=-1, lane_1=-1;
             for(int wg=0; wg<n_loop_max; wg++){
                 n_walk = n_walk_ar[wg];

@@ -45,10 +45,10 @@ namespace ParticleSimulator{
         Tspj   sp_top_;
         */
         /*
-        ReallocatableArray<MPI::Request> req_ep_send_;
-        ReallocatableArray<MPI::Request> req_ep_recv_;
-        ReallocatableArray<MPI::Request> req_sp_send_;
-        ReallocatableArray<MPI::Request> req_sp_recv_;
+        ReallocatableArray<MPI_Request> req_ep_send_;
+        ReallocatableArray<MPI_Request> req_ep_recv_;
+        ReallocatableArray<MPI_Request> req_sp_send_;
+        ReallocatableArray<MPI_Request> req_sp_recv_;
         */
         /*
         CountT n_proc_ep_send_;

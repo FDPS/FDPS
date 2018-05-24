@@ -54,9 +54,10 @@ namespace  ParticleSimulator{
         ReallocatableArray(int cap) : size_(0), capacity_(cap), capacity_org_(0), n_expand_(0) {
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+		int rank_tmp;
+		MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                 std::cerr<<"rank=0"<<std::endl;
 #endif
@@ -72,9 +73,10 @@ namespace  ParticleSimulator{
         ReallocatableArray(int cap) : size_(0), capacity_(cap), capacity_org_(0)  {
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+		int rank_tmp;
+		MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                 std::cerr<<"rank=0"<<std::endl;
 #endif
@@ -87,7 +89,7 @@ namespace  ParticleSimulator{
         }
 #endif
         ~ReallocatableArray(){
-            delete [] data_;
+            if(capacity_ > 0) delete [] data_;
             data_ = NULL;
         }
         void reserve(const int n){
@@ -100,9 +102,10 @@ namespace  ParticleSimulator{
                 capacity_ = n;
                 if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                    //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                    std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+		    int rank_tmp;
+		    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                    std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                     std::cerr<<"rank=0"<<std::endl;
 #endif
@@ -210,9 +213,10 @@ namespace  ParticleSimulator{
                 const int new_cap = (n+(n+3)/3) + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                    //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                    std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+		    int rank_tmp;
+		    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                    std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                     std::cerr<<"rank=0"<<std::endl;
 #endif
@@ -265,9 +269,10 @@ namespace  ParticleSimulator{
                 const int new_cap = (n+(n+3)/3) + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                    //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                    std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+		    int rank_tmp;
+		    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                    std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                     std::cerr<<"rank=0"<<std::endl;
 #endif
@@ -294,9 +299,10 @@ namespace  ParticleSimulator{
                 const int new_cap = (n+(n+3)/3) + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
-                    //std::cerr<<"rank="<<Comm::getRank()<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                    std::cerr<<"rank="<<MPI::COMM_WORLD.Get_rank()<<std::endl;
+		    int rank_tmp;
+		    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                    std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                     std::cerr<<"rank=0"<<std::endl;
 #endif
@@ -329,6 +335,12 @@ namespace  ParticleSimulator{
                 capacity_org_ = 0;
             }
         }
+
+        void setDataPointer(const void * _data){
+            if(capacity_ > 0) delete [] data_;
+            data_ = (T*)_data;
+        }
+        
     };
 }
 

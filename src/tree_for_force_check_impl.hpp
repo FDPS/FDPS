@@ -122,8 +122,7 @@ namespace ParticleSimulator{
             pos_cm_loc_direct += this->epj_sorted_[i].getCharge() * this->epj_sorted_[i].getPos();
         }
         F64 mass_cm_glb_direct = Comm::getSum(mass_cm_loc_direct);
-        F64vec pos_cm_glb_direct;
-        MPI::COMM_WORLD.Allreduce(&pos_cm_loc_direct[0], &pos_cm_glb_direct[0], 3, GetDataType<F64>(), MPI::SUM);
+        F64vec pos_cm_glb_direct = Comm::getSum(pos_cm_loc_direct);
         pos_cm_glb_direct /= mass_cm_glb_direct;
         F64 mass_cm_glb_tree = this->tc_loc_[0].mom_.mass;
         F64vec pos_cm_glb_tree = this->tc_loc_[0].mom_.pos * this->tc_loc_[0].mom_.mass;

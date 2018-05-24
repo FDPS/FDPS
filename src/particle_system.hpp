@@ -178,7 +178,7 @@ namespace ParticleSimulator{
                     }
                     n_ptcl[0] += n_ptcl_ % n_proc;
                     #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-                    MPI::COMM_WORLD.Scatter(n_ptcl, 1, GetDataType<S32>(), &n_ptcl_, 1, GetDataType<S32>(), 0);
+                    MPI_Scatter(n_ptcl, 1, GetDataType<S32>(), &n_ptcl_, 1, GetDataType<S32>(), 0, MPI_COMM_WORLD);
                     #endif
                     //allocate ptcl.
                     //First of all, Rank 0 reads its own particle.
@@ -196,7 +196,7 @@ namespace ParticleSimulator{
                             //buffer[i].readAscii(fp);
                             (buffer[i].*pFuncPtcl)(fp);
                         }
-                        MPI::COMM_WORLD.Send(buffer, n_ptcl[rank], GetDataType<Tptcl>(), rank, 0);
+                        MPI_Send(buffer, n_ptcl[rank], GetDataType<Tptcl>(), rank, 0, MPI_COMM_WORLD);
                         delete [] buffer;
                     }
                     #endif
@@ -208,12 +208,13 @@ namespace ParticleSimulator{
                     //Receive the # of ptcl from Rank 0
                     S32 n_ptcl_loc;
                     S32 *n_ptcl = new S32[Comm::getNumberOfProc()];
-                    MPI::COMM_WORLD.Scatter(n_ptcl, 1, GetDataType<S32>(), &n_ptcl_loc, 1, GetDataType<S32>(), 0);
+                    MPI_Scatter(n_ptcl, 1, GetDataType<S32>(), &n_ptcl_loc, 1, GetDataType<S32>(), 0, MPI_COMM_WORLD);
                     delete [] n_ptcl;
                     //allocate ptcl.
                     this->createParticle(n_ptcl_loc << 2);//Magic shift
                     ptcl_.resizeNoInitialize(n_ptcl_loc);
-                    MPI::COMM_WORLD.Recv(ptcl_.getPointer(), ptcl_.size(), GetDataType<Tptcl>(), 0, 0);
+                    MPI_Status stat;
+                    MPI_Recv(ptcl_.getPointer(), ptcl_.size(), GetDataType<Tptcl>(), 0, 0, MPI_COMM_WORLD, &stat);
                     #endif
                 }
             }else{//Read from multiple file
@@ -336,7 +337,8 @@ namespace ParticleSimulator{
                 //get # of ptcls in each process.
                 S32 *n_ptcl = new S32[n_proc];
                 //Gather # of particles.
-                MPI::COMM_WORLD.Allgather(&n_ptcl_, 1, GetDataType<S32>(), n_ptcl, 1, GetDataType<S32>());
+                //MPI_Allgather(&n_ptcl_, 1, GetDataType<S32>(), n_ptcl, 1, GetDataType<S32>(), MPI_COMM_WORLD);
+                MPI_Allgather(const_cast<S32*>(&n_ptcl_), 1, GetDataType<S32>(), n_ptcl, 1, GetDataType<S32>(), MPI_COMM_WORLD);
                 //set displacement
                 S32 *n_ptcl_displs = new S32[n_proc+1];
                 n_ptcl_displs[0] = 0;
@@ -346,7 +348,7 @@ namespace ParticleSimulator{
                 const S32 n_tot = n_ptcl_displs[n_proc];
                 Tptcl *ptcl = new Tptcl[n_tot];
                 //gather data
-                MPI::COMM_WORLD.Gatherv(ptcl_.getPointer(), n_ptcl_, GetDataType<Tptcl>(), ptcl, n_ptcl, n_ptcl_displs, GetDataType<Tptcl>(), 0);
+                MPI_Gatherv(ptcl_.getPointer(), n_ptcl_, GetDataType<Tptcl>(), ptcl, n_ptcl, n_ptcl_displs, GetDataType<Tptcl>(), 0, MPI_COMM_WORLD);
                 if(Comm::getRank() == 0){
                     FILE* fp = fopen(filename, open_format);
                     if(fp == NULL){
@@ -481,7 +483,7 @@ namespace ParticleSimulator{
             S64 *n_ptcl = new S64[n_proc];
             //Gather # of particles.
             S64 n_ptcl_ = ptcl_.size();
-            MPI::COMM_WORLD.Allgather(&n_ptcl_, 1, GetDataType<S64>(), n_ptcl, 1, GetDataType<S64>());
+            MPI_Allgather(&n_ptcl_, 1, GetDataType<S64>(), n_ptcl, 1, GetDataType<S64>(), MPI_COMM_WORLD);
             //set displacement
             S32 *n_ptcl_displs = new S32[n_proc+1];
             n_ptcl_displs[0] = 0;
@@ -512,8 +514,7 @@ namespace ParticleSimulator{
                 hl_max_loc = (hl_max_loc > hl_tmp) ? hl_max_loc : hl_tmp;
             }
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            F64 hl_max_glb;
-            MPI::COMM_WORLD.Allreduce(&hl_max_loc, &hl_max_glb, 1, GetDataType<F64>(), MPI::MAX);
+            const F64 hl_max_glb = Comm::getMaxValue(hl_max_loc);
             return hl_max_glb;
 #else
             return hl_max_loc;
@@ -610,8 +611,8 @@ namespace ParticleSimulator{
             F64 time_offset = GetWtime();
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             const S32 nloc  = ptcl_.size();
-            const S32 rank  = MPI::COMM_WORLD.Get_rank();
-            const S32 nproc = MPI::COMM_WORLD.Get_size();
+            const S32 rank  = Comm::getRank();
+            const S32 nproc = Comm::getNumberOfProc();
             const S32 * n_domain = dinfo.getPointerOfNDomain();
 
             const F64ort * pos_domain = dinfo.getPointerOfPosDomain();
@@ -621,8 +622,9 @@ namespace ParticleSimulator{
             S32 * nsend_disp  = new S32[nproc+1];
             S32 * nrecv  = new S32[nproc];
             S32 * nrecv_disp  = new S32[nproc+1];
-            MPI::Request * req_send = new MPI::Request[nproc];
-            MPI::Request * req_recv = new MPI::Request[nproc];
+            MPI_Request * req_send = new MPI_Request[nproc];
+            MPI_Request * req_recv = new MPI_Request[nproc];
+	    MPI_Status  * status   = new MPI_Status[nproc];
             for(S32 i = 0; i < nproc; i++) {
                 nsend[i] = nsend_disp[i] = nrecv[i] = nrecv_disp[i] = 0;
             }
@@ -692,17 +694,17 @@ namespace ParticleSimulator{
                     if(nsend[idsend] > 0) {
                         S32 adrsend = nsend_disp[idsend];
                         S32 tagsend = (rank < idsend) ? rank : idsend;
-                        req_send[n_proc_send++] = MPI::COMM_WORLD.Isend(ptcl_send_.getPointer(adrsend), nsend[idsend], GetDataType<Tptcl>(), idsend, tagsend);
+                        MPI_Isend(ptcl_send_.getPointer(adrsend), nsend[idsend], GetDataType<Tptcl>(), idsend, tagsend, MPI_COMM_WORLD, &req_send[n_proc_send++]);
                     }
                     S32 idrecv = (nproc + rank - ib) % nproc;
                     if(nrecv[idrecv] > 0) {
                         S32 adrrecv = nrecv_disp[idrecv];
                         S32 tagrecv = (rank < idrecv) ? rank : idrecv;
-                        req_recv[n_proc_recv++] = MPI::COMM_WORLD.Irecv(ptcl_recv_.getPointer(adrrecv), nrecv[idrecv], GetDataType<Tptcl>(), idrecv, tagrecv);
+                        MPI_Irecv(ptcl_recv_.getPointer(adrrecv), nrecv[idrecv], GetDataType<Tptcl>(), idrecv, tagrecv, MPI_COMM_WORLD, &req_recv[n_proc_recv++]);
                     }
                 }
-                MPI::Request::Waitall(n_proc_send, req_send);
-                MPI::Request::Waitall(n_proc_recv, req_recv);
+                MPI_Waitall(n_proc_send, req_send, status);
+                MPI_Waitall(n_proc_recv, req_recv, status);
             }
             else{
                 Comm::allToAllV(ptcl_send_.getPointer(), nsend, nsend_disp,
@@ -725,6 +727,7 @@ namespace ParticleSimulator{
             delete [] nrecv_disp;
             delete [] req_send;
             delete [] req_recv;
+	    delete [] status;
 #else
             n_ptcl_send_ = 0;
             n_ptcl_recv_ = 0;
@@ -739,8 +742,8 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             //const S32 nloc  = n_ptcl_;
             const S32 nloc  = ptcl_.size();
-            const S32 rank  = MPI::COMM_WORLD.Get_rank();
-            const S32 nproc = MPI::COMM_WORLD.Get_size();
+            const S32 rank  = Comm::getRank();
+            const S32 nproc = Comm::getNumberOfProc();
             const S32 * n_domain = dinfo.getPointerOfNDomain();
 
             /* AT_DEBUG
@@ -762,8 +765,9 @@ namespace ParticleSimulator{
                 nrecv0[i] = 0;
                 nrecv1[i] = 0;
             }
-            MPI::Request * req_send = new MPI::Request[nproc];
-            MPI::Request * req_recv = new MPI::Request[nproc];
+            MPI_Request * req_send = new MPI_Request[nproc];
+            MPI_Request * req_recv = new MPI_Request[nproc];
+	    MPI_Status  * status   = new MPI_Status[nproc];
             // *** count the number of send particles preliminary *
             for(S32 ip = 0; ip < nloc; ip++) {
                 if( dinfo.getPosRootDomain().notOverlapped(ptcl_[ip].getPos()) ){
@@ -833,7 +837,7 @@ namespace ParticleSimulator{
 */
             // ****************************************************
             // *** receive the number of receive particles ********
-            MPI::COMM_WORLD.Alltoall(nsend1, 1, GetDataType<S32>(), nrecv1, 1, GetDataType<S32>());
+            MPI_Alltoall(nsend1, 1, GetDataType<S32>(), nrecv1, 1, GetDataType<S32>(), MPI_COMM_WORLD);
 	    //std::cerr<<"check 2"<<std::endl;
             for(S32 i = 0; i < nproc; i++)
                 nrecvtot += nrecv1[i];
@@ -879,21 +883,19 @@ namespace ParticleSimulator{
                 if(nsend1[idsend] > 0) {
                     S32 adrsend = nsend0[idsend];                    
                     S32 tagsend = (rank < idsend) ? rank : idsend;                    
-                    //req_send[nsendnode] = MPI::COMM_WORLD.Isend(ptcl_send_+adrsend, nsend1[idsend]*sizeof(Tptcl), MPI::BYTE, idsend, tagsend);
-		    req_send[nsendnode] = MPI::COMM_WORLD.Isend(ptcl_send_.getPointer(adrsend), nsend1[idsend], GetDataType<Tptcl>(), idsend, tagsend);
+		    MPI_Isend(ptcl_send_.getPointer(adrsend), nsend1[idsend], GetDataType<Tptcl>(), idsend, tagsend,MPI_COMM_WORLD, &req_send[nsendnode]);
                     nsendnode++;
                 }                
                 S32 idrecv = (nproc + rank - ib) % nproc;
                 if(nrecv1[idrecv] > 0) {
                     S32 adrrecv = nrecv0[idrecv];
                     S32 tagrecv = (rank < idrecv) ? rank : idrecv;
-                    //req_recv[nrecvnode] = MPI::COMM_WORLD.Irecv(ptcl_recv_+adrrecv, nrecv1[idrecv]*sizeof(Tptcl), MPI::BYTE, idrecv, tagrecv);
-		    req_recv[nrecvnode] = MPI::COMM_WORLD.Irecv(ptcl_recv_.getPointer(adrrecv), nrecv1[idrecv], GetDataType<Tptcl>(), idrecv, tagrecv);
+		    MPI_Irecv(ptcl_recv_.getPointer(adrrecv), nrecv1[idrecv], GetDataType<Tptcl>(), idrecv, tagrecv, MPI_COMM_WORLD, &req_recv[nrecvnode]);
                     nrecvnode++;
                 }
             }
-            MPI::Request::Waitall(nsendnode, req_send);
-            MPI::Request::Waitall(nrecvnode, req_recv);
+            MPI_Waitall(nsendnode, req_send, status);
+            MPI_Waitall(nrecvnode, req_recv, status);
             //std::cerr<<"check 5"<<std::endl;
             // ****************************************************            
             // *** align particles ********************************
@@ -968,7 +970,11 @@ namespace ParticleSimulator{
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n; i++){
+#if __cplusplus < 201103L
                 F64vec pos_new = ptcl_[i].getPos() ;
+#else
+                auto pos_new = ptcl_[i].getPos() ;
+#endif
                 //if( pos_root.notOverlapped(pos_new) ){
                     while(pos_new.x < pos_root.low_.x){
                         pos_new.x += len_root.x;
@@ -1079,7 +1085,6 @@ namespace ParticleSimulator{
                 fout<<"ptcl_recv_.getMemSize()= "<<ptcl_recv_.getMemSize()<<std::endl;
                 fout<<"sum[GB]= " << sum_loc << std::endl;
             }
-            //MPI::COMM_WORLD.Allreduce(&sum_loc,&sum,1,MPI::DOUBLE,MPI::MAX);
             sum_max = Comm::getMaxValue(sum_loc);
             if (Comm::getRank() == 0) {
                fout << "sum[GB](psys,max.) = " << sum_max << std::endl;
