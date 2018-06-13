@@ -29,6 +29,8 @@ LDFLAGS = -lgfortran
 #FCFLAGS  += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 #CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
+
 #-----------------------------------------------------------------------
 #   Source files
 #-----------------------------------------------------------------------
@@ -81,3 +83,5 @@ clean:
 distclean: clean
 	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp 
 	rm -rf result
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

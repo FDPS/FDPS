@@ -10,6 +10,8 @@ CFLAGS = -O3
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 #CFLAGS += #-Wall -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wconversion -Wfloat-equal -Wpointer-arith
 
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
+
 CPPOBJS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
 CPPHDRS = $(wildcard *.h)
 PROGRAM = sph.out
@@ -28,3 +30,8 @@ all:	$(CPPOBJS) $(CPPHDRS)
 
 clean:
 	-rm *.out *.o
+
+distclean: clean
+	rm -rf result
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

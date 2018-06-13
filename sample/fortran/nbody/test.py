@@ -61,28 +61,30 @@ class Automatic_Tester:
         # Set test configurations
         candidates = []
         # (1) w/o MPI
-        CC = ["time g++"]
-        CFLAGS = ["", \
-                  "-DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
-        use_phantom_grape_x86 = ["no", "yes"]
-        use_gpu_cuda = ["no", "yes"]
+        FC = ["time gfortran"]
+        CXX = ["time g++"]
+        FCFLAGS = ["-std=f2003 -O3", \
+                   "-std=f2003 -O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CXXFLAGS = ["-O3", \
+                    "-O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        LDFLAGS = ["-lgfortran"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; ".format(self.__NTHRDS)]
-        listtmp = self.__get_dictlist(CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT)
+        listtmp = self.__get_dictlist(FC,CXX,FCFLAGS,CXXFLAGS,LDFLAGS,RUNOPT)
         candidates.extend(listtmp)
         # (2) w/ MPI
-        CC = ["time mpicxx"]
-        CFLAGS = ["-DPARTICLE_SIMULATOR_MPI_PARALLEL", \
-                  "-DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
-        use_phantom_grape_x86 = ["no", "yes"]
-        use_gpu_cuda = ["no"] # we do not have a multiple GPU machine.
+        FC = ["time mpif90"]
+        CXX = ["time mpicxx"]
+        FCFLAGS = ["-std=f2003 -O3", \
+                   "-std=f2003 -O3 "]
+        CFLAGS = ["-O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp", \
+                  "-O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        LDFLAGS = ["-lgfortran"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
-        listtmp = self.__get_dictlist(CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT)
+        listtmp = self.__get_dictlist(FC,CXX,FCFLAGS,CXXFLAGS,LDFLAGS,RUNOPT)
         candidates.extend(listtmp)
         # Remove exceptions
         for i in range(0,len(candidates)):
             item = candidates[i]
-            if (item["use_phantom_grape_x86"] == "yes") and  (item["use_gpu_cuda"] == "yes"):
-                continue
             self.__mkvars.append(item) 
         # Check [for debug]
         #for item in self.__mkvars:
@@ -126,15 +128,17 @@ class Automatic_Tester:
                     text = """
                     #---------------------------------------------------
                     # !!! Overwrite the makefile variable for test !!!
-                    CC = {CC}
-                    CFLAGS = {CFLAGS}
-                    use_phantom_grape_x86 = {PGFLAG}
-                    use_gpu_cuda = {GPUFLAG}
+                    FC = {FC}
+                    CXX = {CXX}
+                    FCFLAGS = {FCFLAGS}
+                    CXXFLAGS = {CXXFLAGS} $(FDPS_INC)
+                    LDFLAGS = {LDFLAGS}
                     #---------------------------------------------------
-                    """.format(CC=mkvars["CC"], \
-                               CFLAGS=mkvars["CFLAGS"], \
-                               PGFLAG=mkvars["use_phantom_grape_x86"], \
-                               GPUFLAG=mkvars["use_gpu_cuda"])
+                    """.format(FC=mkvars["FC"], \
+                               CXX=mkvars["CXX"], \
+                               FCFLAGS=mkvars["FCFLAGS"], \
+                               CXXFLAGS=mkvars["CXXFLAGS"], \
+                               LDFLAGS=mkvars["LDFLAGS"])
                     text = text[1:].rstrip()
                     text = textwrap.dedent(text)
                     text = text + "\n"
@@ -205,13 +209,10 @@ class Automatic_Tester:
             # Delete unnecessary files
             os.remove(mkfile_for_test)
             os.remove(logfile_for_test)
-        # Just in case, we again perform make distclean using the original Makefile
-        cmd = "make distclean"
-        subprocess.call(cmd,shell=True)
         # Output the summary of the tests
         text = """
         ###################################################
-           Summary of tests for sample/c++/nbody
+           Summary of tests for sample/fortran/nbody
         ###################################################
         """
         text = text[1:].rstrip()
@@ -225,12 +226,12 @@ class Automatic_Tester:
             else:
                 msg = self.__get_red_text("FAIL")
             text = """
-            {TESTNUM}) CC={CC}, CFLAGS={CFLAGS}, use_phantom_grape_x86={PGFLAG}, use_gpu_cuda={GPUFLAG}: {STATUS}
+            {TESTNUM}) FC={FC}, CXX={CXX}, FCFLAGS={FCFLAGS}, CXXFLAGS={CXXFLAGS}: {STATUS}
             """.format(TESTNUM=testnum, \
-                       CC=mkvars["CC"], \
-                       CFLAGS=mkvars["CFLAGS"], \
-                       PGFLAG=mkvars["use_phantom_grape_x86"], \
-                       GPUFLAG=mkvars["use_gpu_cuda"], \
+                       FC=mkvars["FC"], \
+                       CXX=mkvars["CXX"], \
+                       FCFLAGS=mkvars["FCFLAGS"], \
+                       CXXFLAGS=mkvars["CXXFLAGS"], \
                        STATUS=msg)
             text = text[1:].rstrip()
             text = textwrap.dedent(text)
@@ -238,19 +239,21 @@ class Automatic_Tester:
         # Check if all the tests are passed or not.
         return sum(results)
 
-    def __get_dictlist(self,CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT):
-        listtmp = list(itertools.product(CC, \
-                                         CFLAGS, \
-                                         use_phantom_grape_x86, \
-                                         use_gpu_cuda, \
+    def __get_dictlist(self,FC,CXX,FCFLAGS,CXXFLAGS,LDFLAGS,RUNOPT):
+        listtmp = list(itertools.product(FC, \
+                                         CXX, \
+                                         FCFLAGS, \
+                                         CXXFLAGS, \
+                                         LDFLAGS, \
                                          RUNOPT))
         dictlist = []
-        for cc,cflags,pgflag,gpuflag,runopt in listtmp:
+        for fc,cxx,fcflags,cxxflags,ldflags,runopt in listtmp:
             item = collections.OrderedDict()
-            item["CC"] = cc
-            item["CFLAGS"] = cflags
-            item["use_phantom_grape_x86"] = pgflag
-            item["use_gpu_cuda"] = gpuflag
+            item["FC"] = fc
+            item["CXX"] = cxx
+            item["FCFLAGS"] = fcflags
+            item["CXXFLAGS"] = cxxflags
+            item["LDFLAGS"] = ldflags
             item["RUNOPT"] = runopt
             dictlist.append(item)
         return dictlist

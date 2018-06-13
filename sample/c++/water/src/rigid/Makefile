@@ -25,6 +25,8 @@ CXXFLAGS = $(CXXFLAGS_COMMON)
 #CXX = mpicxx
 #CXXFLAGS = $(CXXFLAGS_COMMON) -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
+
 #----------------------------------------------------------------------
 #   Source and Object files
 #----------------------------------------------------------------------
@@ -39,3 +41,7 @@ $(TARGET): Makefile $(SRCS) $(HEDS)
 clean:
 	rm -f $(TARGET) *.o
 
+distclean: clean
+	rm -rf result
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

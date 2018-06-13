@@ -241,6 +241,7 @@ class Nbody_Objects {
             system[i].pot  += result.pot;
             system[i].agrv += result.agrv;
          }
+
       };
 };
 
@@ -445,6 +446,7 @@ int main(int argc, char* argv[]) {
       for (PS::S32 nstep=1; nstep <= numTrials; nstep++) {
          //if (PS::Comm::getRank() == 0)
          //   std::cout << "nstep = " << nstep << std::endl;
+         //PS::Comm::barrier();
 
          //* [1] Randomly choose a configuration of the grid
          NaCl_params.pos_vertex.x = PS::MT::genrand_res53();

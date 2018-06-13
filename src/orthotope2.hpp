@@ -8,37 +8,37 @@ namespace ParticleSimulator{
     template<class T>
     class Orthotope2{
     public:
-	Vector2<T> low_;
-	Vector2<T> high_;
+        Vector2<T> low_;
+        Vector2<T> high_;
 
-	Orthotope2(): low_(9999.9), high_(-9999.9){}
-	
-	Orthotope2(const Vector2<T> & _low, const Vector2<T> & _high)
-	    : low_(_low), high_(_high){}
-	
+        Orthotope2(): low_(9999.9), high_(-9999.9){}
+        
+        Orthotope2(const Vector2<T> & _low, const Vector2<T> & _high)
+            : low_(_low), high_(_high){}
+        
         Orthotope2(const Orthotope2 & src) : low_(src.low_), high_(src.high_){}
 
         Orthotope2(const Vector2<T> & center, const T length) :
-	    low_(center-(Vector2<T>)(length)), high_(center+(Vector2<T>)(length)) {
-	}
-	
+            low_(center-(Vector2<T>)(length)), high_(center+(Vector2<T>)(length)) {
+        }
+
         const Orthotope2 & operator = (const Orthotope2 & rhs){
             high_ = rhs.high_;
             low_ = rhs.low_;
             return (*this);
         }
 
-	void initNegativeVolume(){
+        void initNegativeVolume(){
             low_ = std::numeric_limits<float>::max() / 128;
             high_ = -low_;
         }
-	
-	void init(){
-	    initNegativeVolume();
-	}
+
+        void init(){
+            initNegativeVolume();
+        }
 
         Orthotope2 shift( const Vector2<T> & vec) const {
-	    return Orthotope2(low_ + vec, high_ + vec);
+            return Orthotope2(low_ + vec, high_ + vec);
         }
 
         void merge( const Orthotope2 & ort ){
@@ -63,39 +63,39 @@ namespace ParticleSimulator{
         }
 
 #if 0
-	/*
+/*
         unsigned int notOverlapped(const Orthotope2 & a) const {
             return (a.high_.x < low_.x) || (high_.x <= a.low_.x)
                 || (a.high_.y < low_.y) || (high_.y <= a.low_.y);
         }
-	*/
+*/
 
         unsigned int notOverlapped(const Orthotope2 & a) const {
             return (a.high_.x < low_.x) || (high_.x < a.low_.x)
                 || (a.high_.y < low_.y) || (high_.y < a.low_.y);
         }
-	
+
         unsigned int overlapped(const Orthotope2 & a) const {
             return notOverlapped(a) ^ 0x1;
         }
 
         unsigned int notOverlapped(const Vector2<T> & pos) const {
             return (pos.x < low_.x) || (high_.x <= pos.x)
-		|| (pos.y < low_.y) || (high_.y <= pos.y);
+                || (pos.y < low_.y) || (high_.y <= pos.y);
         }
 
         unsigned int overlapped(const Vector2<T> & pos) const {
-	    return notOverlapped(pos) ^ 0x1;
-	}
+            return notOverlapped(pos) ^ 0x1;
+        }
 
-	unsigned int notContains(const Orthotope2 & a) const {
-	    return (a.low_.x < low_.x) || (high_.x < a.high_.x)
-		|| (a.low_.y < low_.y) || (high_.y < a.high_.y);
-	}
-	
-	unsigned int contains(const Orthotope2 & a){
-	    return notContains(a) ^ 0x1;
-	}
+        unsigned int notContains(const Orthotope2 & a) const {
+            return (a.low_.x < low_.x) || (high_.x < a.high_.x)
+                || (a.low_.y < low_.y) || (high_.y < a.high_.y);
+        }
+
+        unsigned int contains(const Orthotope2 & a){
+            return notContains(a) ^ 0x1;
+        }
 #endif
 
         unsigned int notContained(const Vector2<T> & pos) const {
@@ -116,7 +116,7 @@ namespace ParticleSimulator{
             return (a_high.x < b_low.x) || (b_high.x < a_low.x)
                 || (a_high.y < b_low.y) || (b_high.y < a_low.y);
         }
-	
+
         unsigned int contained(const Orthotope2 & a) const {
             return notContained(a) ^ 0x1;
         }
@@ -133,7 +133,7 @@ namespace ParticleSimulator{
             return (a.high_.x < low_.x) || (high_.x < a.low_.x)
                 || (a.high_.y < low_.y) || (high_.y < a.low_.y);
         }
-	
+
         unsigned int overlapped(const Orthotope2 & a) const {
             return notOverlapped(a) ^ 0x1;
         }
@@ -168,12 +168,12 @@ namespace ParticleSimulator{
             return dx*dx + dy*dy;
         }
 
-	template <typename U>
+        template <typename U>
         operator Orthotope2<U> () const {
             return Orthotope2<U> (static_cast < Vector2<U> > (low_),
-				  static_cast < Vector2<U> > (high_));
+                                  static_cast < Vector2<U> > (high_));
         }
-	
+
         friend std::ostream & operator <<(std::ostream & c, const Orthotope2 & u){
             c<<std::setprecision(15)<<u.low_<<"   "<<u.high_;
             return c;

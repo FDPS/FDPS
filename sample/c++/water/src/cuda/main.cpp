@@ -421,7 +421,7 @@ int main(int argc, char *argv[]){
     CalcEnergy(system_water, Etot1, Ekin1, Epot1);
     if(PS::Comm::getRank() == 0){
       fout_eng<<time_sys<<"   "<< " " << Epot1 << " " << Ekin1 << " " <<(Etot1-Etot0)/Etot0<<std::endl;
-      fprintf(stdout, "%10.7f %lf %lf %+e\n",
+      fprintf(stdout, "Time: %10.7f, Epot: %lf, Ekin: %lf, Rel.Err.: %+e\n",
 	      time_sys, Epot1, Ekin1, (Etot1 - Etot0) / Etot0);
     }
     time_sys += dt;

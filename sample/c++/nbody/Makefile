@@ -2,8 +2,7 @@ PS_PATH = ../../../src/
 INC = -I$(PS_PATH)
 
 CC = time g++
-#CC = time CC
-#CC = mpicxx
+#CC = time mpicxx
 CFLAGS = -O3
 #CFLAGS += -Wall
 #CFLAGS += -ffast-math
@@ -40,10 +39,11 @@ nbody.out:nbody.cpp $(OBJS)
 	$(CC) $(INC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 clean:
-	rm -f nbody.out
+	rm -f *.o *~
 
-distclean:
-	rm -f nbody.out *.o *~
+distclean: clean
+	rm -f nbody.out
+	rm -rf result
 
 test: 
 	# This command is only for FDPS developers.

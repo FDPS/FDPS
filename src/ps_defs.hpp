@@ -11,6 +11,7 @@
 #include<cstdio>
 #include<cstring>
 #include<map>
+#include "time.h"
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #include"mpi.h"
@@ -304,8 +305,8 @@ namespace ParticleSimulator{
     inline MPI_Datatype GetDataType(){
       static MPI_Datatype type = MPI_DATATYPE_NULL;
       if( type == MPI_DATATYPE_NULL ){
-	MPI_Type_contiguous(sizeof(T),MPI_BYTE,&type);
-	MPI_Type_commit(&type);
+          MPI_Type_contiguous(sizeof(T),MPI_BYTE,&type);
+          MPI_Type_commit(&type);
       }
       return type;
     };
@@ -469,7 +470,7 @@ namespace ParticleSimulator{
                              val_recv, cnt*radix, GetDataType<T>(), comm_1d_[d]);
             }
         }
-	
+
         // alltoallv
         void executeV(const ReallocatableArray<T> & val_send,
                       ReallocatableArray<T> & val_recv,
@@ -578,17 +579,17 @@ namespace ParticleSimulator{
     private:
         Comm(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	  MPI_Comm_rank(MPI_COMM_WORLD,&rank_);
+          MPI_Comm_rank(MPI_COMM_WORLD,&rank_);
           MPI_Comm_size(MPI_COMM_WORLD,&n_proc_);
 #else
-	  rank_ = 0;
-	  n_proc_ = 1;
+          rank_ = 0;
+          n_proc_ = 1;
 #endif
-	  //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+          //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
-	  n_thread_ = omp_get_max_threads();
+          n_thread_ = omp_get_max_threads();
 #else
-	  n_thread_ = 1;
+          n_thread_ = 1;
 #endif
         }
         ~Comm(){}
@@ -605,130 +606,130 @@ namespace ParticleSimulator{
             return inst;
         }
 
-	template<class T>
-	static T allreduceMin(const T & val){
+    template<class T>
+    static T allreduceMin(const T & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    T ret;
-            T val_tmp = val;
-	    MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MIN, MPI_COMM_WORLD);
-	    return ret;
+        T ret;
+        T val_tmp = val;
+        MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MIN, MPI_COMM_WORLD);
+        return ret;
 #else
-	    return val;
+        return val;
 #endif
-	}
+}
 
-	template<class T>
-	static T allreduceMax(const T & val){
+    template<class T>
+    static T allreduceMax(const T & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    T ret;
-            T val_tmp = val;
-	    MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MAX, MPI_COMM_WORLD);
-	    return ret;
+        T ret;
+        T val_tmp = val;
+        MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MAX, MPI_COMM_WORLD);
+        return ret;
 #else
-	    return val;
+        return val;
 #endif
-	}
-	template<class T>
-	static T allreduceSum(const T & val){
+    }
+    template<class T>
+    static T allreduceSum(const T & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    T ret;
-            T val_tmp = val;
-	    MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_SUM, MPI_COMM_WORLD);
-	    return ret;
+        T ret;
+        T val_tmp = val;
+        MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_SUM, MPI_COMM_WORLD);
+        return ret;
 #else
-	    return val;
+        return val;
 #endif
-	}
+    }
 
 /*
-	template<class Tfloat, class Tint>
-	static void allreduceMin(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out){
+    template<class Tfloat, class Tint>
+    static void allreduceMin(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    struct{
+        struct{
             Tfloat x;
             Tint y;
-	    } loc, glb;
-	    loc.x = f_in;
-	    loc.y = i_in;
-	    MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI_MINLOC, MPI_COMM_WORLD);
-	    f_out = glb.x;
-	    i_out = glb.y;
+        } loc, glb;
+        loc.x = f_in;
+        loc.y = i_in;
+        MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI_MINLOC, MPI_COMM_WORLD);
+        f_out = glb.x;
+        i_out = glb.y;
 #else
-	    f_out = f_in;
-	    i_out = i_in;
+        f_out = f_in;
+        i_out = i_in;
 #endif
-	}
+    }
 */
-	template<class Tfloat>
-	static void allreduceMin(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out){
+    template<class Tfloat>
+    static void allreduceMin(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    struct{
+        struct{
             Tfloat x;
             int y;
-	    } loc, glb;
-	    loc.x = f_in;
-	    loc.y = i_in;
-	    MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MINLOC, MPI_COMM_WORLD);
-	    f_out = glb.x;
-	    i_out = glb.y;
+        } loc, glb;
+        loc.x = f_in;
+        loc.y = i_in;
+        MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MINLOC, MPI_COMM_WORLD);
+        f_out = glb.x;
+        i_out = glb.y;
 #else
-	    f_out = f_in;
-	    i_out = i_in;
+        f_out = f_in;
+        i_out = i_in;
 #endif
-	}
+    }
 
 /*
-	template<class Tfloat, class Tint>
-	static void allreduceMax(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out){
+    template<class Tfloat, class Tint>
+    static void allreduceMax(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    struct{
+        struct{
             Tfloat x;
             Tint y;
-	    } loc, glb;
-	    loc.x = f_in;
-	    loc.y = i_in;
-	    MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI_MAXLOC, MPI_COMM_WORLD);
-	    f_out = glb.x;
-	    i_out = glb.y;
+        } loc, glb;
+        loc.x = f_in;
+        loc.y = i_in;
+        MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI_MAXLOC, MPI_COMM_WORLD);
+        f_out = glb.x;
+        i_out = glb.y;
         //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
 #else
-	    f_out = f_in;
-	    i_out = i_in;
+        f_out = f_in;
+        i_out = i_in;
 #endif
-	}
+    }
 */
-	template<class Tfloat>
-	static void allreduceMax(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out){
+    template<class Tfloat>
+    static void allreduceMax(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	    struct{
+        struct{
             Tfloat x;
             int y;
-	    } loc, glb;
-	    loc.x = f_in;
-	    loc.y = i_in;
-	    MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MAXLOC, MPI_COMM_WORLD);
-	    f_out = glb.x;
-	    i_out = glb.y;
-	    //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
+        } loc, glb;
+        loc.x = f_in;
+        loc.y = i_in;
+        MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MAXLOC, MPI_COMM_WORLD);
+        f_out = glb.x;
+        i_out = glb.y;
+        //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
 #else
-	    f_out = f_in;
-	    i_out = i_in;
+        f_out = f_in;
+        i_out = i_in;
 #endif
-	}
+    }
     public:
-	static void setNumberOfProcMultiDim(const S32 id, const S32 n) {
-	    getInstance().n_proc_multi_dim_[id] = n;
-	}
-	static void setRankMultiDim(const S32 id, const S32 r) {
-	    getInstance().rank_multi_dim_[id] = r;
-	}	
+    static void setNumberOfProcMultiDim(const S32 id, const S32 n) {
+        getInstance().n_proc_multi_dim_[id] = n;
+    }
+    static void setRankMultiDim(const S32 id, const S32 r) {
+        getInstance().rank_multi_dim_[id] = r;
+    }
         static S32 getRank() { return getInstance().rank_; }
         static S32 getNumberOfProc() { return getInstance().n_proc_; }
         static S32 getRankMultiDim(const S32 id) { return getInstance().rank_multi_dim_[id]; }
         static S32 getNumberOfProcMultiDim(const S32 id) { return getInstance().n_proc_multi_dim_[id]; }
         static S32 getNumberOfThread() { return getInstance().n_thread_; }
         static S32 getThreadNum(){
-	    //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+        //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
             return omp_get_thread_num();
 #else
@@ -738,10 +739,10 @@ namespace ParticleSimulator{
 
         static void barrier(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-	  MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
 #endif
         }
-	
+
         static bool synchronizeConditionalBranchAND(const bool & local){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             bool global;
@@ -781,9 +782,9 @@ namespace ParticleSimulator{
         template<class T>
         static inline void broadcast(T * val, const int n, const int src=0){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-	  MPI_Bcast(val, n, GetDataType<T>(), src, MPI_COMM_WORLD);
+            MPI_Bcast(val, n, GetDataType<T>(), src, MPI_COMM_WORLD);
 #else
-	  // NOP
+            // NOP
 #endif
         }
 
@@ -794,10 +795,10 @@ namespace ParticleSimulator{
                                                     T * val_recv){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             MPI_Gather(val_send, n, GetDataType<T>(),
-		       val_recv, n, GetDataType<T>(), 0, MPI_COMM_WORLD);
+                       val_recv, n, GetDataType<T>(), 0, MPI_COMM_WORLD);
 #else
             for(int i=0; i<n; i++)val_recv[i] = val_send[i];
-#endif	    
+#endif
         }
 
         template<class T> static inline void gatherV(T * val_send,
@@ -813,7 +814,7 @@ namespace ParticleSimulator{
                 n_disp_recv[i+1] = n_disp_recv[i] + n_recv[i];
             }
             MPI_Gatherv(val_send, n_send, GetDataType<T>(),
-			val_recv, n_recv, n_disp_recv, GetDataType<T>(), 0, MPI_COMM_WORLD);
+                        val_recv, n_recv, n_disp_recv, GetDataType<T>(), 0, MPI_COMM_WORLD);
             delete[] n_recv;
             delete[] n_disp_recv;
 #else
@@ -828,9 +829,9 @@ namespace ParticleSimulator{
                                                      int * n_recv, // in
                                                      int * n_recv_disp // in
                                                      ){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             MPI_Gatherv(val_send, n_send, GetDataType<T>(),
-			val_recv, n_recv, n_recv_disp, GetDataType<T>(), 0, MPI_COMM_WORLD);
+                        val_recv, n_recv, n_recv_disp, GetDataType<T>(), 0, MPI_COMM_WORLD);
 #else
             for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
             //n_recv[0] = n_recv_disp[1] = n_send; //not needed ?
@@ -846,7 +847,7 @@ namespace ParticleSimulator{
                                                       T * val_recv, // output
                                                       int n_recv,
                                                       int root=0){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             MPI_Scatterv(val_send, n_send, n_send_disp, GetDataType<T>(),
                          val_recv, n_recv, GetDataType<T>(), 
                          root, MPI_COMM_WORLD);
@@ -867,11 +868,11 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             T * val_send_tmp = const_cast<T*>(val_send);
             MPI_Allgather(val_send_tmp, n, GetDataType<T>(),
-			  val_recv, n, GetDataType<T>(), 
+                          val_recv, n, GetDataType<T>(), 
                           MPI_COMM_WORLD);
 #else
             for(int i=0; i<n; i++)val_recv[i] = val_send[i];
-#endif	    
+#endif
         }
 
         template<class T> static inline void allGatherV(const T * val_send, // in
@@ -885,7 +886,7 @@ namespace ParticleSimulator{
             int * n_recv_tmp = const_cast<int*>(n_recv);
             int * n_recv_disp_tmp = const_cast<int*>(n_recv_disp);
             MPI_Allgatherv(val_send_tmp, n_send, GetDataType<T>(),
-			   val_recv, n_recv_tmp, n_recv_disp_tmp, GetDataType<T>(), 
+                           val_recv, n_recv_tmp, n_recv_disp_tmp, GetDataType<T>(), 
                            MPI_COMM_WORLD);
 #else
             for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
@@ -903,7 +904,7 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             T * val_send_tmp = const_cast<T*>(val_send);
             MPI_Alltoall(val_send_tmp, n, GetDataType<T>(),
-			 val_recv, n, GetDataType<T>(), MPI_COMM_WORLD);
+                         val_recv, n, GetDataType<T>(), MPI_COMM_WORLD);
 #else
             for(int i=0; i<n; i++) val_recv[i] = val_send[i];
 #endif
@@ -922,7 +923,7 @@ namespace ParticleSimulator{
             int * n_recv_tmp = const_cast<int*>(n_recv);
             int * n_recv_disp_tmp = const_cast<int*>(n_recv_disp);
             MPI_Alltoallv(val_send_tmp, n_send_tmp, n_send_disp_tmp, GetDataType<T>(),
-			  val_recv,     n_recv_tmp, n_recv_disp_tmp, GetDataType<T>(),
+                          val_recv,     n_recv_tmp, n_recv_disp_tmp, GetDataType<T>(),
                           MPI_COMM_WORLD);
 #else
             for(int i=0; i<n_send[0]; i++) val_recv[i] = val_send[i];
@@ -931,12 +932,12 @@ namespace ParticleSimulator{
             n_recv_disp[1] = n_send_disp[1];
 #endif
         }
-	
+
     }; // END OF Comm
 
 
     static inline void Initialize(int &argc, char **&argv){
-	
+
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         MPI_Init(&argc, &argv);
 #endif
@@ -955,28 +956,28 @@ namespace ParticleSimulator{
             if(strcmp(argv[i], "MONAR") == 0) flag_MONAR = true;
         }
 #endif
-	
-        if(Comm::getRank() == 0) {
-			std::cerr << "     //==================================\\\\" << std::endl;
-			std::cerr << "     ||                                  ||"   << std::endl;
-			std::cerr << "     || ::::::: ::::::. ::::::. .::::::. ||"   << std::endl;
-			std::cerr << "     || ::      ::    : ::    : ::       ||"   << std::endl;
-			std::cerr << "     || ::::::  ::    : ::::::'  `:::::. ||"   << std::endl;
-			std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
-			std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
-			std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-			std::cerr << "     ||     Version 4.0c (2018/05)       ||" << std::endl;
-			std::cerr << "     \\\\==================================//" << std::endl;
-			std::cerr << "" << std::endl;
-			std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
-			std::cerr << "       E-mail : fdps-support@mail.jmlab.jp" << std::endl;
-			std::cerr << "       Licence: MIT (see, https://github.com/FDPS/FDPS/blob/master/LICENSE)" << std::endl;
-			std::cerr << "       Note   : Please cite Iwasawa et al. (2016, Publications of the Astronomical Society of Japan, 68, 54)" << std::endl;
-			std::cerr << "" << std::endl;
-			std::cerr << "       Copyright (C) 2015 " << std::endl;
-			std::cerr << "         Masaki Iwasawa, Ataru Tanikawa, Natsuki Hosono," << std::endl;
-			std::cerr << "         Keigo Nitadori, Takayuki Muranushi, Daisuke Namekata," << std::endl;
-			std::cerr << "         Kentaro Nomura, Junichiro Makino and many others" << std::endl;
+
+        if (Comm::getRank() == 0) {
+            std::cerr << "     //==================================\\\\" << std::endl;
+            std::cerr << "     ||                                  ||"   << std::endl;
+            std::cerr << "     || ::::::: ::::::. ::::::. .::::::. ||"   << std::endl;
+            std::cerr << "     || ::      ::    : ::    : ::       ||"   << std::endl;
+            std::cerr << "     || ::::::  ::    : ::::::'  `:::::. ||"   << std::endl;
+            std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
+            std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
+            std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
+            std::cerr << "     ||     Version 4.1 (2018/06)        ||"   << std::endl;
+            std::cerr << "     \\\\==================================//" << std::endl;
+            std::cerr << "" << std::endl;
+            std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
+            std::cerr << "       E-mail : fdps-support@mail.jmlab.jp" << std::endl;
+            std::cerr << "       Licence: MIT (see, https://github.com/FDPS/FDPS/blob/master/LICENSE)" << std::endl;
+            std::cerr << "       Note   : Please cite Iwasawa et al. (2016, Publications of the Astronomical Society of Japan, 68, 54)" << std::endl;
+            std::cerr << "" << std::endl;
+            std::cerr << "       Copyright (C) 2015 " << std::endl;
+            std::cerr << "         Masaki Iwasawa, Ataru Tanikawa, Natsuki Hosono," << std::endl;
+            std::cerr << "         Keigo Nitadori, Takayuki Muranushi, Daisuke Namekata," << std::endl;
+            std::cerr << "         Kentaro Nomura, Junichiro Makino and many others" << std::endl;
 #ifdef MONAR
             if(flag_monar){
                 std::cerr<<"　　 ^__^　 ／‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"<<std::endl;
@@ -1004,7 +1005,7 @@ namespace ParticleSimulator{
                 fprintf(stderr, "******** FDPS has successfully begun. ********\n");
             }
 #else //MONAR
-	    fprintf(stderr, "******** FDPS has successfully begun. ********\n");
+        fprintf(stderr, "******** FDPS has successfully begun. ********\n");
 #endif //MONAR
         }
     }
@@ -1048,7 +1049,7 @@ namespace ParticleSimulator{
     Vector2<float> Comm::getMinValue< Vector2<float> >(const Vector2<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<float> ret;
-	MPI_Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1057,7 +1058,7 @@ namespace ParticleSimulator{
     template<> inline Vector2<double> Comm::getMinValue< Vector2<double> >(const Vector2<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<double> ret;
-	MPI_Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1067,7 +1068,7 @@ namespace ParticleSimulator{
     Vector3<float> Comm::getMinValue< Vector3<float> >(const Vector3<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<float> ret;
-	MPI_Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1077,7 +1078,7 @@ namespace ParticleSimulator{
     Vector3<double> Comm::getMinValue< Vector3<double> >(const Vector3<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<double> ret;
-	MPI_Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1106,7 +1107,7 @@ namespace ParticleSimulator{
     Vector2<float> Comm::getMaxValue< Vector2<float> >(const Vector2<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<float> ret;
-	MPI_Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1116,7 +1117,7 @@ namespace ParticleSimulator{
     Vector2<double> Comm::getMaxValue< Vector2<double> >(const Vector2<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector2<double> ret;
-	MPI_Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1126,7 +1127,7 @@ namespace ParticleSimulator{
     Vector3<float> Comm::getMaxValue< Vector3<float> >(const Vector3<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<float> ret;
-	MPI_Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1136,7 +1137,7 @@ namespace ParticleSimulator{
     Vector3<double> Comm::getMaxValue< Vector3<double> >(const Vector3<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
         Vector3<double> ret;
-	MPI_Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1170,7 +1171,7 @@ namespace ParticleSimulator{
     template<> inline Vector3<float> Comm::getSum(const Vector3<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         Vector3<float> ret;
-	    MPI_Allreduce((float*)&val, (float*)&ret, 3, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce((float*)&val, (float*)&ret, 3, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1179,7 +1180,7 @@ namespace ParticleSimulator{
     template<> inline Vector3<double> Comm::getSum(const Vector3<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         Vector3<double> ret;
-	    MPI_Allreduce((double*)&val, (double*)&ret, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce((double*)&val, (double*)&ret, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1188,7 +1189,7 @@ namespace ParticleSimulator{
     template<> inline Vector2<float> Comm::getSum(const Vector2<float> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         Vector2<float> ret;
-	    MPI_Allreduce((float*)&val, (float*)&ret, 2, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce((float*)&val, (float*)&ret, 2, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1197,7 +1198,7 @@ namespace ParticleSimulator{
     template<> inline Vector2<double> Comm::getSum(const Vector2<double> & val){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         Vector2<double> ret;
-	    MPI_Allreduce((double*)&val, (double*)&ret, 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce((double*)&val, (double*)&ret, 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         return ret;
 #else
         return val;
@@ -1395,32 +1396,32 @@ namespace ParticleSimulator{
     
     template<class Tp>
     inline F64ort GetMinBox(const Tp ptcl[], const S32 n){
-	F64ort box_loc;
+        F64ort box_loc;
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
 #endif //PARTICLE_SIMULATOR_THREAD_PARALLEL
-	{
-	    F64ort box_loc_tmp;
-	    box_loc_tmp.init();
+        {
+            F64ort box_loc_tmp;
+            box_loc_tmp.init();
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for nowait
 #endif
-	    for(S32 ip=0; ip<n; ip++){
-		box_loc_tmp.merge(ptcl[ip].getPos());
-	    }
+            for(S32 ip=0; ip<n; ip++){
+                box_loc_tmp.merge(ptcl[ip].getPos());
+            }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp critical
 #endif
-	    {
-		box_loc.merge(box_loc_tmp);
-	    }
-	}
-	//std::cerr<<"box_loc="<<box_loc<<std::endl;
-	const F64vec xlow_loc = box_loc.low_;
-	const F64vec xhigh_loc = box_loc.high_;
-	const F64vec xlow_glb = Comm::getMinValue(xlow_loc);
-	const F64vec xhigh_glb = Comm::getMaxValue(xhigh_loc);
-	return F64ort(xlow_glb, xhigh_glb);
+            {
+                box_loc.merge(box_loc_tmp);
+            }
+        }
+        //std::cerr<<"box_loc="<<box_loc<<std::endl;
+        const F64vec xlow_loc = box_loc.low_;
+        const F64vec xhigh_loc = box_loc.high_;
+        const F64vec xlow_glb = Comm::getMinValue(xlow_loc);
+        const F64vec xhigh_glb = Comm::getMaxValue(xhigh_loc);
+        return F64ort(xlow_glb, xhigh_glb);
     }
     
     
@@ -1456,14 +1457,14 @@ namespace ParticleSimulator{
     inline F64 GetWtime(){
 #if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
 #ifdef PARTICLE_SIMULATOR_BARRIER_FOR_PROFILE
-	Comm::barrier();
+        Comm::barrier();
 #endif //PARTICLE_SIMULATOR_BARRIER_FOR_PROFILE
         return MPI_Wtime();
 #elif defined(PARTICLE_SIMULATOR_THREAD_PARALLEL)
         //PARTICLE_SIMULATOR_THREAD_PARALLEL
-	return omp_get_wtime();
+        return omp_get_wtime();
 #else
-	return (F64)clock() / CLOCKS_PER_SEC;
+        return (F64)clock() / CLOCKS_PER_SEC;
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
     }
 
@@ -1482,34 +1483,34 @@ namespace ParticleSimulator{
     struct LessOPForVecX{
         bool operator() (const F64vec & left, const F64vec & right) const {
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
-	    return (left.x == right.x) ? ((left.y == right.y) ? true : right.y < right.y ) : left.x < right.x;
+            return (left.x == right.x) ? ((left.y == right.y) ? true : right.y < right.y ) : left.x < right.x;
 #else
-	    return (left.x == right.x) ? ((left.y == right.y) ? ((left.z == right.z) ? true : left.z < right.z) : left.y < right.y ) : left.x < right.x;
+            return (left.x == right.x) ? ((left.y == right.y) ? ((left.z == right.z) ? true : left.z < right.z) : left.y < right.y ) : left.x < right.x;
 #endif
         }
     };
 
     struct LessOPX{
-	template<class T> bool operator() (const T & left, const T & right) const {
-	    return left.x < right.x;
-	}
+        template<class T> bool operator() (const T & left, const T & right) const {
+            return left.x < right.x;
+        }
     };
     struct LessOPY{
-	template<class T> bool operator() (const T & left, const T & right) const {
-	    return left.y < right.y;
-	}
+        template<class T> bool operator() (const T & left, const T & right) const {
+            return left.y < right.y;
+        }
     };
 #ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
     struct LessOPZ{
-	template<class T> bool operator() (const T & left, const T & right) const {
-	    return left.z < right.z;
-	}
+        template<class T> bool operator() (const T & left, const T & right) const {
+            return left.z < right.z;
+        }
     };
 #endif
     struct LessOPKEY{
-	template<class T> bool operator() (const T & left, const T & right) const {
-	    return left.key_ < right.key_;
-	}
+        template<class T> bool operator() (const T & left, const T & right) const {
+            return left.key_ < right.key_;
+        }
     };
 
 
@@ -1681,10 +1682,10 @@ namespace ParticleSimulator{
             ret.exchange_LET_tot = this->exchange_LET_tot + rhs.exchange_LET_tot;
 
             ret.calc_force__core__walk_tree = this->calc_force__core__walk_tree + rhs.calc_force__core__walk_tree;
-	    ret.calc_force__core__keep_list = this->calc_force__core__keep_list + rhs.calc_force__core__keep_list;
-	    ret.calc_force__core__dispatch = this->calc_force__core__dispatch + rhs.calc_force__core__dispatch;
-	    ret.calc_force__core__copy_ep = this->calc_force__core__copy_ep + rhs.calc_force__core__copy_ep;
-	    ret.calc_force__core__retrieve = this->calc_force__core__retrieve + rhs.calc_force__core__retrieve;
+            ret.calc_force__core__keep_list = this->calc_force__core__keep_list + rhs.calc_force__core__keep_list;
+            ret.calc_force__core__dispatch = this->calc_force__core__dispatch + rhs.calc_force__core__dispatch;
+            ret.calc_force__core__copy_ep = this->calc_force__core__copy_ep + rhs.calc_force__core__copy_ep;
+            ret.calc_force__core__retrieve = this->calc_force__core__retrieve + rhs.calc_force__core__retrieve;
 
             ret.calc_force__make_ipgroup = this->calc_force__make_ipgroup + rhs.calc_force__make_ipgroup;
             ret.calc_force__core = this->calc_force__core + rhs.calc_force__core;
@@ -1719,10 +1720,10 @@ namespace ParticleSimulator{
             return ret;
         }
         F64 getTotalTime() const {
-	    /*
+            /*
             return collect_sample_particle + decompose_domain + exchange_particle + set_particle_local_tree + set_particle_global_tree + make_local_tree + make_global_tree + set_root_cell
                 + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd;
-	    */
+            */
             return collect_sample_particle + decompose_domain + exchange_particle + set_particle_local_tree + set_particle_global_tree + make_local_tree + make_global_tree + set_root_cell
                 + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
                 + morton_sort_local_tree + link_cell_local_tree 
@@ -1737,10 +1738,10 @@ namespace ParticleSimulator{
                 = morton_sort_global_tree = link_cell_global_tree = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
             calc_force__core__walk_tree = 0.0;
-	    calc_force__core__keep_list = 0.0;
-	    calc_force__core__copy_ep   = 0.0;
-	    calc_force__core__dispatch  = 0.0;
-	    calc_force__core__retrieve  = 0.0;
+            calc_force__core__keep_list = 0.0;
+            calc_force__core__copy_ep   = 0.0;
+            calc_force__core__dispatch  = 0.0;
+            calc_force__core__retrieve  = 0.0;
             calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
             exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
 
@@ -1852,6 +1853,33 @@ namespace ParticleSimulator{
         dis += dz*dz;
 #endif
         return dis;
+    }
+
+    template<class T>
+    inline std::string GetBinString(const T val);
+    inline std::string GetBinString(const U32 val)
+    {
+        if( !val ) return std::string("00000000000000000000000000000000");
+        U32 tmp = val;
+        std::string str;
+        for (S32 i=0; i<32; i++) {
+            if ( (tmp & 1) == 0 ) str.insert(str.begin(), '0');
+            else str.insert(str.begin(), '1');
+            tmp >>= 1;
+        }
+        return str;
+    }
+    inline std::string GetBinString(const U64 val)
+    {
+        if( !val ) return std::string("0000000000000000000000000000000000000000000000000000000000000000");
+        U64 tmp = val;
+        std::string str;
+        for (S32 i=0; i<64; i++) {
+            if ( (tmp & 1) == 0 ) str.insert(str.begin(), '0');
+            else str.insert(str.begin(), '1');
+            tmp >>= 1;
+        }
+        return str;
     }
     
 }

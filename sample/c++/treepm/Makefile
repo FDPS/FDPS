@@ -1,12 +1,15 @@
 CC := mpicc
 CXX := mpicxx
-#CC := cc
-#CXX := CC
-CFLAGS = -O3 -ffast-math -funroll-loops
+CFLAGS = -O3 
+# Note that in some environment, the options -ffast-math funroll-loops
+# results in an irreproducible error.
 CFLAGS += -Wall
 CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL
 CFLAGS += -fopenmp
 CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+# fdps-autotest-set-vars-1st
+# (DO NOT CHANGE THE LINE ABOVE AND ITS POSITION MUST BE
+#  JUST BEFORE THE LINE BELOW)
 CXXFLAGS := $(CFLAGS)
 CXXFLAGS += -std=c++11
 
@@ -15,19 +18,13 @@ all: treepm
 TREEPM_OBJ = treepm.o make_directory.o timing.o
 TREEPM_DEP := $(TREEPM_OBJ) treepm.hpp cosmology.hpp run_param.hpp
 
-#FDPS_ROOT=/home/iwaswams/project/fdps
-#FDPS_ROOT=/home/masaki/project/fdps
-#FDPS_ROOT=/nfshome/masaki/project/fdps
-FDPS_ROOT=../../../../../fdps
-#PM_ROOT=$(FDPS_ROOT)/src/particle_mesh_test
+FDPS_ROOT=../../../
 PM_ROOT=$(FDPS_ROOT)/src/particle_mesh
 
 CXXFLAGS += -I$(FDPS_ROOT)/src
 CXXFLAGS += -I$(PM_ROOT)
 
-#FFTW_ROOT = /usr/local/fftw-3
-FFTW_ROOT = /home/masaki/opt
-#FFTW_ROOT = /nfshome/masaki/opt/fftw-3.3.4-jenever0/
+FFTW_ROOT = /work4a/local/fftw
 FFTW_LIBS = -L$(FFTW_ROOT)/lib -lfftw3f_mpi -lfftw3f
 
 CXXFLAGS += -I$(FFTW_ROOT)/include
@@ -40,9 +37,12 @@ $(PM_ROOT)/libpm.a: $(PM_ROOT)/param_fdps.h
 	cd $(PM_ROOT) && $(MAKE) allclean libpm.a
 
 
-EXTERNAL_LIB = $(PM_ROOT)/param_fdps.h
+EXTERNAL_LIB = $(PM_ROOT)/param_fdps.h $(PM_ROOT)/libpm.a
 
-use_phantom_grape_x86 = yes
+use_phantom_grape_x86 = no
+# fdps-autotest-set-vars-2nd
+# (DO NOT CHANGE THE LINE ABOVE AND ITS POSITION MUST BE
+#  AFTER THE DEFINITION OF use_phantom_grape_x86)
 
 ifeq ($(use_phantom_grape_x86),yes)
 
@@ -67,10 +67,7 @@ libpg5.a:gravity_kernel_avx2.o phantom_g5.o pg5_table.o
 CLIBS   += -L./ -lpg5
 EXTERNAL_LIB += libpg5.a
 
-
 endif
-
-
 
 treepm.o: treepm.hpp cosmology.hpp run_param.hpp
 
@@ -85,9 +82,9 @@ treepm:  $(TREEPM_DEP) $(EXTERNAL_LIB)
 
 clean: 
 	-rm -rf treepm *.o *.a
+	cd $(PM_ROOT) && $(MAKE) allclean
 
 distclean: clean
 	-rm -rf *~
 
-
-
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

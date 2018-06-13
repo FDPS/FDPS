@@ -45,7 +45,7 @@ class Automatic_Tester:
         # These private variables stores the numbers of OpenMP threads
         # and MPI processes that are used for tests.
         self.__NTHRDS = 2
-        self.__NPROCS = 2
+        self.__NPROCS = 4
 
         # This private variable stores the values of CC, CFLAGS,
         # use_phantom_grape_x86, use_gpu_cuda in the original Makefile.
@@ -54,35 +54,21 @@ class Automatic_Tester:
         # This private variable stores the original Makefile.
         self.__mkfile_org = []
 
-        # This private variable stores an acceptable energy error
-        self.__engy_err_crit = 1.0e-2
-
     def create_tests(self):
         # Set test configurations
         candidates = []
-        # (1) w/o MPI
-        CC = ["time g++"]
-        CFLAGS = ["", \
-                  "-DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        # (1) w/ MPI
+        CC = ["time mpicc"]
+        CXX = ["time mpicxx"]
+        CFLAGS = ["-O3 -Wall -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
+                  "-O3 -Wall -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         use_phantom_grape_x86 = ["no", "yes"]
-        use_gpu_cuda = ["no", "yes"]
-        RUNOPT = ["export OMP_NUM_THREADS={0}; ".format(self.__NTHRDS)]
-        listtmp = self.__get_dictlist(CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT)
-        candidates.extend(listtmp)
-        # (2) w/ MPI
-        CC = ["time mpicxx"]
-        CFLAGS = ["-DPARTICLE_SIMULATOR_MPI_PARALLEL", \
-                  "-DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
-        use_phantom_grape_x86 = ["no", "yes"]
-        use_gpu_cuda = ["no"] # we do not have a multiple GPU machine.
         RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
-        listtmp = self.__get_dictlist(CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT)
+        listtmp = self.__get_dictlist(CC,CXX,CFLAGS,use_phantom_grape_x86,RUNOPT)
         candidates.extend(listtmp)
         # Remove exceptions
         for i in range(0,len(candidates)):
             item = candidates[i]
-            if (item["use_phantom_grape_x86"] == "yes") and  (item["use_gpu_cuda"] == "yes"):
-                continue
             self.__mkvars.append(item) 
         # Check [for debug]
         #for item in self.__mkvars:
@@ -104,8 +90,10 @@ class Automatic_Tester:
 
     def test(self):
         # Define various constants and declare lists
-        pat_set_vars = re.compile(r"^\s*#\s*fdps-autotest-set-vars")
-        pat_run_inst = re.compile(r"^\s*#\s*fdps-autotest-run")
+        pat_set_vars_1st = re.compile(r"^\s*#\s*fdps-autotest-set-vars-1")
+        pat_set_vars_2nd = re.compile(r"^\s*#\s*fdps-autotest-set-vars-2")
+        pat_run_inst     = re.compile(r"^\s*#\s*fdps-autotest-run")
+        param_file_for_test = "param_file_for_test.txt"
         mkfile_for_test  = "Makefile.test"
         logfile_for_test = "stdout-test.txt"
         results = []
@@ -122,19 +110,30 @@ class Automatic_Tester:
                 fp.write(line)
                 # Overwrite the makefile variables if this line
                 # corresponds to the insertion point.
-                if (pat_set_vars.match(line)):
+                # [1] CC,CXX,CFLAGS
+                if (pat_set_vars_1st.match(line)):
                     text = """
                     #---------------------------------------------------
                     # !!! Overwrite the makefile variable for test !!!
                     CC = {CC}
+                    CXX = {CXX}
                     CFLAGS = {CFLAGS}
-                    use_phantom_grape_x86 = {PGFLAG}
-                    use_gpu_cuda = {GPUFLAG}
                     #---------------------------------------------------
                     """.format(CC=mkvars["CC"], \
-                               CFLAGS=mkvars["CFLAGS"], \
-                               PGFLAG=mkvars["use_phantom_grape_x86"], \
-                               GPUFLAG=mkvars["use_gpu_cuda"])
+                               CXX=mkvars["CXX"], \
+                               CFLAGS=mkvars["CFLAGS"])
+                    text = text[1:].rstrip()
+                    text = textwrap.dedent(text)
+                    text = text + "\n"
+                    fp.write(text)
+                # [2] use_phantom_grape_x86
+                if (pat_set_vars_2nd.match(line)):
+                    text = """
+                    #---------------------------------------------------
+                    # !!! Overwrite the makefile variable for test !!!
+                    use_phantom_grape_x86 = {PGFLAG}
+                    #---------------------------------------------------
+                    """.format(PGFLAG=mkvars["use_phantom_grape_x86"])
                     text = text[1:].rstrip()
                     text = textwrap.dedent(text)
                     text = text + "\n"
@@ -145,9 +144,11 @@ class Automatic_Tester:
                     text = """
                     #---------------------------------------------------
                     run:
-                    \t{RUNOPT} ./nbody.out > {LOGFILE} 2>&1
+                    \t{RUNOPT} ./treepm {PARAM_FILE} > {LOGFILE} 2>&1
+                    \techo $$? >> {LOGFILE} 2>&1
                     #---------------------------------------------------
                     """.format(RUNOPT=mkvars["RUNOPT"], \
+                               PARAM_FILE=param_file_for_test, \
                                LOGFILE=logfile_for_test)
                     text = text[1:].rstrip()
                     text = textwrap.dedent(text)
@@ -170,48 +171,40 @@ class Automatic_Tester:
             # Run
             cmd = "make run -f {0}".format(mkfile_for_test)
             subprocess.call(cmd,shell=True)
-            # Obtain a string representing relative energy error
-            cmd = "grep -e \"energy error\" {0} | awk 'END {{print $NF}}'".format(logfile_for_test)
-            engy_err = subprocess.Popen(cmd, \
-                                        stdout=subprocess.PIPE, \
-                                        shell=True).communicate()[0]
-            # Delete all kinds of blank characters from engy_err
-            engy_err = engy_err.rstrip()    
-            engy_err = engy_err.strip()     
-            engy_err = engy_err.strip("\t") 
-            # Error handling for engy_err
-            if engy_err == "":
-                msg = self.__get_red_text("the program does not stop successfully.")
-                print("{0}".format(msg))
-                self.__end_processing(results,[mkfile_for_test,logfile_for_test])
-                continue # Move to next test
-            # Convert a string to a FP value 
+            # Obtain a string representing the termination status
+            cmd = "tail -n 1 {0}".format(logfile_for_test)
+            stat = subprocess.Popen(cmd, \
+                                    stdout=subprocess.PIPE, \
+                                    shell=True).communicate()[0]
+            # Delete all kinds of blank characters from stat
+            stat = stat.rstrip()    
+            stat = stat.strip()     
+            stat = stat.strip("\t")
+            # Convert a string to a INT value
             try:
-                engy_err = abs(float(engy_err))
-                #print(engy_err)
+                stat = int(stat)
             except ValueError:
-                msg = self.__get_red_text("engy_err is not a FP value.")
+                msg = self.__get_red_text("stat is not a INT value.")
                 print("{0}".format(msg))
                 self.__end_processing(results,[mkfile_for_test,logfile_for_test])
                 continue # Move to next test
             # Store the result
-            if (engy_err < self.__engy_err_crit):
-                results.append(0)
-            else:
-                results.append(1)
+            results.append(stat)
             # Clean
             cmd = "make distclean -f {0}".format(mkfile_for_test)
             subprocess.call(cmd,shell=True)
             # Delete unnecessary files
             os.remove(mkfile_for_test)
             os.remove(logfile_for_test)
+            cmd = "rm -rf autotest*"
+            subprocess.call(cmd,shell=True)
         # Just in case, we again perform make distclean using the original Makefile
         cmd = "make distclean"
         subprocess.call(cmd,shell=True)
         # Output the summary of the tests
         text = """
         ###################################################
-           Summary of tests for sample/c++/nbody
+           Summary of tests for sample/c++/treepm
         ###################################################
         """
         text = text[1:].rstrip()
@@ -225,12 +218,12 @@ class Automatic_Tester:
             else:
                 msg = self.__get_red_text("FAIL")
             text = """
-            {TESTNUM}) CC={CC}, CFLAGS={CFLAGS}, use_phantom_grape_x86={PGFLAG}, use_gpu_cuda={GPUFLAG}: {STATUS}
+            {TESTNUM}) CC={CC}, CXX={CXX}, CFLAGS={CFLAGS}, use_phantom_grape_x86={PGFLAG}: {STATUS}
             """.format(TESTNUM=testnum, \
                        CC=mkvars["CC"], \
+                       CXX=mkvars["CXX"], \
                        CFLAGS=mkvars["CFLAGS"], \
                        PGFLAG=mkvars["use_phantom_grape_x86"], \
-                       GPUFLAG=mkvars["use_gpu_cuda"], \
                        STATUS=msg)
             text = text[1:].rstrip()
             text = textwrap.dedent(text)
@@ -238,19 +231,19 @@ class Automatic_Tester:
         # Check if all the tests are passed or not.
         return sum(results)
 
-    def __get_dictlist(self,CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT):
+    def __get_dictlist(self,CC,CXX,CFLAGS,use_phantom_grape_x86,RUNOPT):
         listtmp = list(itertools.product(CC, \
+                                         CXX, \
                                          CFLAGS, \
                                          use_phantom_grape_x86, \
-                                         use_gpu_cuda, \
                                          RUNOPT))
         dictlist = []
-        for cc,cflags,pgflag,gpuflag,runopt in listtmp:
+        for cc,cxx,cflags,pgflag,runopt in listtmp:
             item = collections.OrderedDict()
             item["CC"] = cc
+            item["CXX"] = cxx
             item["CFLAGS"] = cflags
             item["use_phantom_grape_x86"] = pgflag
-            item["use_gpu_cuda"] = gpuflag
             item["RUNOPT"] = runopt
             dictlist.append(item)
         return dictlist

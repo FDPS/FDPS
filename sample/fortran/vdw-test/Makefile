@@ -10,10 +10,8 @@ FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
 
 # (ii) Variables to specify compilers and compile options
 # Serial or OpenMP cases
-#FC=gfortran
-#CXX=g++
-FC=gfortran-mp-6
-CXX=g++-mp-6
+FC=gfortran
+CXX=g++
 # MPI case
 #FC=mpif90
 #CXX=mpic++
@@ -30,6 +28,8 @@ LDFLAGS = -lgfortran
 # MPI options
 #FCFLAGS  += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 #CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
 
 #-----------------------------------------------------------------------
 #   Source files
@@ -83,3 +83,5 @@ clean:
 distclean: clean
 	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp 
 	rm -rf result
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

@@ -22,13 +22,13 @@ public:
     PS::S64 n_body;
     PS::F64 time;
     PS::S32 readAscii(FILE * fp){
-		fscanf(fp, "%lf\n", &time);
-		fscanf(fp, "%lld\n", &n_body);
-		return n_body;
+        fscanf(fp, "%lf\n", &time);
+        fscanf(fp, "%lld\n", &n_body);
+        return n_body;
     }
     void writeAscii(FILE* fp) const{
-	fprintf(fp, "%e\n", time);
-	fprintf(fp, "%lld\n", n_body);
+        fprintf(fp, "%e\n", time);
+        fprintf(fp, "%lld\n", n_body);
     }
 };
 
@@ -47,7 +47,7 @@ public:
         pot = 0.0;
     }
     PS::F64 getRSearch() const{
-	return this->search_radius;
+        return this->search_radius;
     }
     PS::F64vec getPos() const { return pos; }
     void setPos(const PS::F64vec & p) { pos = p; }
@@ -68,17 +68,17 @@ public:
         mass = fp.mass;
         pos = fp.pos;
         id = fp.id;
-	search_radius = fp.search_radius;
+        search_radius = fp.search_radius;
     }
     
 };
 
 
 void CalcForceFpFp(const FPLJ * ep_i,
-		   const PS::S32 n_ip,
-		   const FPLJ * ep_j,
-		   const PS::S32 n_jp,
-		   FPLJ * force){
+                   const PS::S32 n_ip,
+                   const FPLJ * ep_j,
+                   const PS::S32 n_jp,
+                   FPLJ * force){
     const PS::F64 r0 = 3;
     const PS::F64 r0sq = r0*r0;
     const PS::F64 r0inv = 1/r0;
@@ -87,33 +87,29 @@ void CalcForceFpFp(const FPLJ * ep_i,
     const PS::F64 foffset = -12.0*r0invp6*r0invp7+6*r0invp7;
     const PS::F64 poffset = -13.0*r0invp6*r0invp6+7*r0invp6;
     for(PS::S32 i=0; i<n_ip; i++){
-	PS::F64vec xi = ep_i[i].pos;
-	PS::F64vec ai = 0.0;
-	PS::F64 poti = 0.0;
-	PS::S64 idi = ep_i[i].id;
-	for(PS::S32 j=0; j<n_jp; j++){
-	    if( idi == ep_j[j].id ) continue;
-	    PS::F64vec rij = xi - ep_j[j].pos;
-	    PS::F64 r2 = rij * rij;
-	    if (r2 < r0sq){
-		PS::F64 r_inv = 1.0/sqrt(r2);
-		PS::F64 r = r2*r_inv;
-		PS::F64 r2_inv = r_inv * r_inv;
-		PS::F64 r6_inv = r2_inv * r2_inv * r2_inv;
-		PS::F64 r12_inv = r6_inv * r6_inv;
-		poti += r12_inv - r6_inv-foffset*r+poffset;
-		ai += (12*r12_inv*r2_inv - 6*r6_inv*r2_inv+ foffset*r_inv)
-		    * rij;
-	    }
-	}
-	force[i].acc += ai;
-	force[i].pot += poti;
+        PS::F64vec xi = ep_i[i].pos;
+        PS::F64vec ai = 0.0;
+        PS::F64 poti = 0.0;
+        PS::S64 idi = ep_i[i].id;
+        for(PS::S32 j=0; j<n_jp; j++){
+            if( idi == ep_j[j].id ) continue;
+            PS::F64vec rij = xi - ep_j[j].pos;
+            PS::F64 r2 = rij * rij;
+            if (r2 < r0sq){
+                PS::F64 r_inv = 1.0/sqrt(r2);
+                PS::F64 r = r2*r_inv;
+                PS::F64 r2_inv = r_inv * r_inv;
+                PS::F64 r6_inv = r2_inv * r2_inv * r2_inv;
+                PS::F64 r12_inv = r6_inv * r6_inv;
+                poti += r12_inv - r6_inv-foffset*r+poffset;
+                ai += (12*r12_inv*r2_inv - 6*r6_inv*r2_inv+ foffset*r_inv)
+                    * rij;
+            }
+        }
+        force[i].acc += ai;
+        force[i].pot += poti;
     }
 }
-
-
-
-
 
 
 template<class Tpsys>
@@ -216,16 +212,16 @@ void MakeUniformCube(const double mass_glb,
     PS::MTTS mt;
 
     if (n_loc != n_glb){
-	std::cerr << "MakeUniformCube: n_loc and n_glb must be the same" << n_loc << "!= " << n_glb <<std::endl;
-	PS::Abort();
+        std::cerr << "MakeUniformCube: n_loc and n_glb must be the same" << n_loc << "!= " << n_glb <<std::endl;
+        PS::Abort();
     }
     int n_1d = pow(n_loc+0.0,0.33333334)+0.1;
     std::cerr << "MakeUniformCube: n_loc="<<n_loc
-	      << " and n_1d="<<n_1d<<std::endl;
+              << " and n_1d="<<n_1d<<std::endl;
     if (n_loc != n_1d*n_1d*n_1d){
-	std::cerr << "MakeUniformCube: n_loc and n_1d^3 must be the same"
-		  << n_loc << "!= " << n_1d*n_1d*n_1d <<std::endl;
-	PS::Abort();
+        std::cerr << "MakeUniformCube: n_loc and n_1d^3 must be the same"
+                  << n_loc << "!= " << n_1d*n_1d*n_1d <<std::endl;
+        PS::Abort();
     }
     
     mt.init_genrand(PS::Comm::getRank()*PS::Comm::getNumberOfThread()+PS::Comm::getThreadNum());
@@ -233,24 +229,24 @@ void MakeUniformCube(const double mass_glb,
     //double offset = (n_1d -1.0)*0.5;
     int ip=0;
     for(int i=0; i<n_1d; i++){
-	for(int j=0; j<n_1d; j++){
-	    for(int k=0; k<n_1d; k++){
-		pos[ip][0] = i;
-		pos[ip][1] = j;
-		pos[ip][2] = k;
-		ip++;
-	    }
-	}
+        for(int j=0; j<n_1d; j++){
+            for(int k=0; k<n_1d; k++){
+                pos[ip][0] = i;
+                pos[ip][1] = j;
+                pos[ip][2] = k;
+                ip++;
+            }
+        }
     }
     
     for(int i=0; i<n_loc; i++){
-	mass[i] = mass_glb / n_glb;
-	const double v_max = 0.1;
-	do {
-	    vel[i][0] = (2. * mt.genrand_res53() - 1.) * v_max;
-	    vel[i][1] = (2. * mt.genrand_res53() - 1.) * v_max;
-	    vel[i][2] = (2. * mt.genrand_res53() - 1.) * v_max;
-	}while(vel[i] * vel[i] >= v_max * v_max);
+        mass[i] = mass_glb / n_glb;
+        const double v_max = 0.1;
+        do {
+            vel[i][0] = (2. * mt.genrand_res53() - 1.) * v_max;
+            vel[i][1] = (2. * mt.genrand_res53() - 1.) * v_max;
+            vel[i][2] = (2. * mt.genrand_res53() - 1.) * v_max;
+        } while(vel[i] * vel[i] >= v_max * v_max);
     }
 
     PS::F64vec cm_pos = 0.0;
@@ -424,34 +420,34 @@ int main(int argc, char *argv[]){
 
 
     struct stat st;
-    if(stat(dir_name, &st) != 0) {
-	PS::S32 rank = PS::Comm::getRank();
-	PS::S32 ret_loc=0, ret;
-	if(rank == 0)
-	    ret_loc = mkdir(dir_name, 0777);
-	ret=ret_loc;
-	PS::Comm::broadcast(&ret, 1);
-	if(ret == 0) {
-	    if(rank == 0)
-		fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
-	} else {
-	    fprintf(stderr, "Directory %s fails to be made.\n", dir_name);
-	    PS::Abort();
-	    exit(0);
-	}
+    if (stat(dir_name, &st) != 0) {
+        PS::S32 rank = PS::Comm::getRank();
+        PS::S32 ret_loc=0, ret;
+        if (rank == 0)
+            ret_loc = mkdir(dir_name, 0777);
+        ret=ret_loc;
+        PS::Comm::broadcast(&ret, 1);
+        if (ret == 0) {
+            if(rank == 0)
+                fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
+        } else {
+            fprintf(stderr, "Directory %s fails to be made.\n", dir_name);
+            PS::Abort();
+            exit(0);
+        }
     }
     
     std::ofstream fout_eng;
     std::ofstream fout_tcal;
     {
-	char sout_de[1024];
-	char sout_tcal[1024];
-	sprintf(sout_de, "%s/t-de.dat", dir_name);
-	sprintf(sout_tcal, "%s/t-tcal.dat", dir_name);
-	std::cerr<<sout_de<<std::endl;
-	std::cerr<<sout_tcal<<std::endl;
-	fout_eng.open(sout_de);
-	fout_tcal.open(sout_tcal);
+        char sout_de[1024];
+        char sout_tcal[1024];
+        sprintf(sout_de, "%s/t-de.dat", dir_name);
+        sprintf(sout_tcal, "%s/t-tcal.dat", dir_name);
+        std::cerr<<sout_de<<std::endl;
+        std::cerr<<sout_tcal<<std::endl;
+        fout_eng.open(sout_de);
+        fout_tcal.open(sout_tcal);
     }
 
 
@@ -473,7 +469,7 @@ int main(int argc, char *argv[]){
     dinfo.initialize(coef_ema);
     dinfo.setBoundaryCondition(PS::BOUNDARY_CONDITION_PERIODIC_XYZ);
     dinfo.setPosRootDomain(PS::F64vec(-boxdh,-boxdh,-boxdh),
-			   PS::F64vec(boxdh,boxdh,boxdh));
+                           PS::F64vec(boxdh,boxdh,boxdh));
     dinfo.collectSampleParticle(system_grav);
     dinfo.decomposeDomain();
     system_grav.exchangeParticle(dinfo);
@@ -505,17 +501,17 @@ int main(int argc, char *argv[]){
             FileHeader header;
             header.time = time_sys;
             header.n_body = system_grav.getNumberOfParticleLocal();
-			char filename[256];
-			sprintf(filename, "%s/%04d.dat", dir_name, snp_id++);
-			system_grav.writeParticleAscii(filename, header);
+            char filename[256];
+            sprintf(filename, "%s/%04d.dat", dir_name, snp_id++);
+            system_grav.writeParticleAscii(filename, header);
         }
         timer.restart("WriteNemoAscii");
-	
+
         time_sys += dt;
         Drift(system_grav, dt,boxdh);
 
         timer.restart("Drift");
-	
+
         if( fmod(time_sys, 1.0/32.0) == 0.0){
             dinfo.collectSampleParticle(system_grav, Tloop);
             timer.restart("collect");
@@ -526,42 +522,41 @@ int main(int argc, char *argv[]){
         }
 
         timer.restart("decompose");
-	
+
         system_grav.exchangeParticle(dinfo);
 
         timer.restart("exchangeParticle");
 
         Tloop = PS::GetWtime();
-	//	tree_grav.calcForceAllAndWriteBackWithTimer
-	//            (CalcForceEpEp(),  system_grav, dinfo, timer, true);
-		tree_grav.calcForceAllAndWriteBack
-	            (CalcForceFpFp,  system_grav, dinfo);
-	tree_grav.calcForceAllAndWriteBack
-	    (CalcForceFpFp,  system_grav, dinfo, true);
+        //tree_grav.calcForceAllAndWriteBackWithTimer
+        //            (CalcForceEpEp(),  system_grav, dinfo, timer, true);
+        tree_grav.calcForceAllAndWriteBack
+                    (CalcForceFpFp,  system_grav, dinfo);
+        tree_grav.calcForceAllAndWriteBack
+                    (CalcForceFpFp,  system_grav, dinfo, true);
         Tloop = PS::GetWtime() - Tloop;
-	
-	
+
+
         Kick(system_grav, dt*0.5);
 
         timer.stop("Kick");
-	
+
         fout_tcal<<"time_sys= "<<time_sys<<std::endl;
         fout_tcal<<"tree_grav.getMemSizeUsed()= "<<tree_grav.getMemSizeUsed()*1e-9<<" [Gbyte]";
         fout_tcal<<" system_grav.getMemSizeUsed()= "<<system_grav.getMemSizeUsed()*1e-9<<" [Gbyte]"<<std::endl;
-	//        tree_grav.dump_calc_cost(PS::Comm::getMaxValue(Tloop), fout_tcal);
+//      tree_grav.dump_calc_cost(PS::Comm::getMaxValue(Tloop), fout_tcal);
         fout_tcal<<"Tloop= "<<Tloop<<" Ttot="<<PS::GetWtime()-Tbegin<<std::endl;
         timer.dump(fout_tcal);
         fout_tcal<<std::endl;
 
         CalcEnergy(system_grav, Etot1, Ekin1, Epot1);
-        if(PS::Comm::getRank() == 0){
+        if (PS::Comm::getRank() == 0){
             fout_eng<<time_sys<<"   "<<(Etot1-Etot0)/Etot0<<std::endl;
-	    if(time_sys >= time_diag) {
+            if (time_sys >= time_diag) {
                 fprintf(stderr, "time: %10.7f energy error: %+e\n",
                         time_sys, (Etot1 - Etot0) / Etot0);
-		time_diag += dt_diag;
+                time_diag += dt_diag;
             }            
-
         }
         Kick(system_grav, dt*0.5);
     }

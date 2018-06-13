@@ -6,6 +6,8 @@ CFLAGS = -O3 -ffast-math -funroll-loops
 #CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
+
 CPPOBJS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
 CPPHDRS = $(wildcard *.h)
 PROGRAM = sph.out
@@ -24,3 +26,8 @@ all:	$(CPPOBJS) $(CPPHDRS)
 
 clean:
 	-rm *.out *.o
+
+distclean: clean
+	rm -rf result
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

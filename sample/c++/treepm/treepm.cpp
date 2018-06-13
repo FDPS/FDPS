@@ -207,6 +207,7 @@ int main(int argc, char **argv)
        if (PS::Comm::getRank() == 0)
            std::cerr <<  "this_run.step=" << this_run.step 
                      << " this_run.znow=" << this_run.znow
+                     << " this_run.zend=" << this_run.zend
                      << std::endl;
        treepm_tree.calcForceAllAndWriteBack
            (calc_pp_force<EPJtreepm>(),

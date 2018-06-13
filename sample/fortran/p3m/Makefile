@@ -4,15 +4,16 @@
 # Variables that must be specified by users
 # (i) Variables related to FDPS
 FDPS_LOC = ../../../
-FDPS_INC = -I$(FDPS_LOC)/src -I$(FDPS_LOC)/src/particle_mesh
-FDPS_LIB = -L$(FDPS_LOC)/src/particle_mesh -lpm
+PM_ROOT  = $(FDPS_LOC)/src/particle_mesh
+FDPS_INC = -I$(FDPS_LOC)/src -I$(PM_ROOT)
+FDPS_LIB = -L$(PM_ROOT) -lpm
 FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
 FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
 
 # (ii) Variables related to FFTW
 FFTW_LOC = /nfshome/namekata/gnu
 FFTW_INC = -I$(FFTW_LOC)/include
-FFTW_LIB = -L$(FFTW_LOC)/lib -lfftw3_mpi -lfftw3_omp -lfftw3 -lm
+FFTW_LIB = -L$(FFTW_LOC)/lib -lfftw3f_mpi -lfftw3f_omp -lfftw3f -lm
 
 # (iii) Variables to specify compilers and compile options
 FC=mpif90
@@ -35,6 +36,8 @@ CXXFLAGS += -DPARTICLE_SIMULATOR_USE_PM_MODULE
 # MPI options
 FCFLAGS  += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
 
 #-----------------------------------------------------------------------
 #   Source files
@@ -65,8 +68,11 @@ OBJ			= $(OBJ_FTN) $(OBJ_CXX)
 VPATH = $(FDPS_FTN_MOD_DIR)
 TARGET = p3m.out
 
-$(TARGET): $(OBJ)
+$(TARGET): $(OBJ) $(PM_ROOT)/libpm.a
 	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
+
+$(PM_ROOT)/libpm.a: $(PM_ROOT)/param_fdps.h
+	cd $(PM_ROOT) && $(MAKE) allclean libpm.a
 
 $(SRC_CXX) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
 	$(FDPS_FTN_IF_GENERATOR) $(SRC_USER_DEFINED_TYPE) --output ./ 
@@ -83,4 +89,7 @@ clean:
 	rm -f *.o *.s *.mod $(TARGET) *.dat
 
 distclean: clean
-	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp 
+	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp
+	cd $(PM_ROOT) && $(MAKE) allclean
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

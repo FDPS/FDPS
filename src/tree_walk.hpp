@@ -528,13 +528,25 @@ namespace ParticleSimulator{
                           const F64vec & len_peri,
                           TagWalkModeNormal){
         U32 open_bit = 0;
-        for(S32 i=0; i<N_CHILDREN; i++){
-            const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
-            const F64 dis = target_box.vertex_.getDistanceMinSq(pos);
-            open_bit |= (dis <= r_crit_sq) << i;
-            open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].mom_.getVertexOut()))
-                            && (tc_first[adr_tc+i].n_ptcl_ > 0) )
-                          << (i + N_CHILDREN) ); // if true, it should be checked
+        if (r_crit_sq >= 0.0) {
+            // theta_ > 0 case
+            for(S32 i=0; i<N_CHILDREN; i++){
+                const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
+                const F64 dis = target_box.vertex_.getDistanceMinSq(pos);
+                open_bit |= (dis <= r_crit_sq) << i;
+                open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].mom_.getVertexOut()))
+                                && (tc_first[adr_tc+i].n_ptcl_ > 0) )
+                              << (i + N_CHILDREN) ); // if true, it should be checked
+            }
+        }
+        else {
+            // theta_ = 0 case
+            for(S32 i=0; i<N_CHILDREN; i++){
+                open_bit |= 1 << i;
+                open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].mom_.getVertexOut()))
+                                && (tc_first[adr_tc+i].n_ptcl_ > 0) )
+                              << (i + N_CHILDREN) ); // if true, it should be checked
+            }
         }
         return open_bit;
     }
@@ -599,6 +611,7 @@ namespace ParticleSimulator{
     // GET OPEN BITS
     /////////////////
 
+    // for both long mode and short mode
     template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode, class Tchopleaf>
     inline void MakeListUsingTreeRecursive
     (const ReallocatableArray<Ttc> & tc_first,
@@ -652,6 +665,7 @@ namespace ParticleSimulator{
         }
     }
 
+    // for long mode 
     template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode, class Tchopleaf>
     inline void MakeListUsingTreeRecursiveTop
     (const ReallocatableArray<Ttc> & tc_first,
@@ -666,15 +680,26 @@ namespace ParticleSimulator{
      const S32 n_leaf_limit,
      const S32 adr_tree_sp_first, // adress of first sp coming from the (global) tree.
      const F64vec & len_peri){
-        if( IsOpen(typename TSM::search_type(), tc_first, adr_tc, target_box,
-                   r_crit_sq, len_peri, typename Twalkmode::walk_type()) ){
-            MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Twalkmode, Tchopleaf>
-                (tc_first, adr_tc, tp_first, ep_first, adr_ep_list, sp_first,
-                 adr_sp_list, target_box, r_crit_sq, n_leaf_limit,
-                 adr_tree_sp_first, len_peri);
+        if ((r_crit_sq >= 0.0) || (typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF))) {
+            // theta_ > 0 case or PS::SEARCH_MODE_LONG_CUTOFF
+            if( IsOpen(typename TSM::search_type(), tc_first, adr_tc, target_box,
+                       r_crit_sq, len_peri, typename Twalkmode::walk_type()) ){
+                MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Twalkmode, Tchopleaf>
+                    (tc_first, adr_tc, tp_first, ep_first, adr_ep_list, sp_first,
+                     adr_sp_list, target_box, r_crit_sq, n_leaf_limit,
+                     adr_tree_sp_first, len_peri);
+            } 
+        }
+        else {
+            // theta_ = 0 case with the modes other than PS::SEARCH_MODE_LONG_CUTOFF
+            const S32 n_ptcl = tc_first[0].n_ptcl_;
+            S32 adr_ptcl = tc_first[0].adr_ptcl_;
+            CopyInfoClose(typename TSM::force_type(), Tchopleaf(), tp_first, adr_ptcl, n_ptcl,
+                          ep_first, adr_ep_list, sp_first, adr_sp_list, target_box);
         }
     }
 
+    // for short mode
     template<class TSM, class Ttc, class Ttp, class Tep, class Twalkmode, class Tchopleaf>
     inline void MakeListUsingTreeRecursiveTop
     (const ReallocatableArray<Ttc> & tc_first,

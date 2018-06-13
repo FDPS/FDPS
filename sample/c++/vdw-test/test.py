@@ -55,34 +55,28 @@ class Automatic_Tester:
         self.__mkfile_org = []
 
         # This private variable stores an acceptable energy error
-        self.__engy_err_crit = 1.0e-2
+        self.__engy_err_crit = 1.0e-3
 
     def create_tests(self):
         # Set test configurations
         candidates = []
         # (1) w/o MPI
         CC = ["time g++"]
-        CFLAGS = ["", \
-                  "-DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
-        use_phantom_grape_x86 = ["no", "yes"]
-        use_gpu_cuda = ["no", "yes"]
+        CFLAGS = ["-O3", \
+                  "-O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; ".format(self.__NTHRDS)]
-        listtmp = self.__get_dictlist(CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT)
+        listtmp = self.__get_dictlist(CC,CFLAGS,RUNOPT)
         candidates.extend(listtmp)
-        # (2) w/ MPI
-        CC = ["time mpicxx"]
-        CFLAGS = ["-DPARTICLE_SIMULATOR_MPI_PARALLEL", \
-                  "-DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
-        use_phantom_grape_x86 = ["no", "yes"]
-        use_gpu_cuda = ["no"] # we do not have a multiple GPU machine.
-        RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
-        listtmp = self.__get_dictlist(CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT)
-        candidates.extend(listtmp)
+        # (2) w/ MPI ([NOTE] vdw-test.cpp does not assume the parallel execution)
+        #CC = ["time mpicxx"]
+        #CFLAGS = ["-O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
+        #          "-O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        #RUNOPT = ["export OMP_NUM_THREADS={0}; mpiexec -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
+        #listtmp = self.__get_dictlist(CC,CFLAGS,RUNOPT)
+        #candidates.extend(listtmp)
         # Remove exceptions
         for i in range(0,len(candidates)):
             item = candidates[i]
-            if (item["use_phantom_grape_x86"] == "yes") and  (item["use_gpu_cuda"] == "yes"):
-                continue
             self.__mkvars.append(item) 
         # Check [for debug]
         #for item in self.__mkvars:
@@ -128,13 +122,9 @@ class Automatic_Tester:
                     # !!! Overwrite the makefile variable for test !!!
                     CC = {CC}
                     CFLAGS = {CFLAGS}
-                    use_phantom_grape_x86 = {PGFLAG}
-                    use_gpu_cuda = {GPUFLAG}
                     #---------------------------------------------------
                     """.format(CC=mkvars["CC"], \
-                               CFLAGS=mkvars["CFLAGS"], \
-                               PGFLAG=mkvars["use_phantom_grape_x86"], \
-                               GPUFLAG=mkvars["use_gpu_cuda"])
+                               CFLAGS=mkvars["CFLAGS"])
                     text = text[1:].rstrip()
                     text = textwrap.dedent(text)
                     text = text + "\n"
@@ -145,7 +135,7 @@ class Automatic_Tester:
                     text = """
                     #---------------------------------------------------
                     run:
-                    \t{RUNOPT} ./nbody.out > {LOGFILE} 2>&1
+                    \t{RUNOPT} ./vdwtest.out > {LOGFILE} 2>&1
                     #---------------------------------------------------
                     """.format(RUNOPT=mkvars["RUNOPT"], \
                                LOGFILE=logfile_for_test)
@@ -205,9 +195,6 @@ class Automatic_Tester:
             # Delete unnecessary files
             os.remove(mkfile_for_test)
             os.remove(logfile_for_test)
-        # Just in case, we again perform make distclean using the original Makefile
-        cmd = "make distclean"
-        subprocess.call(cmd,shell=True)
         # Output the summary of the tests
         text = """
         ###################################################
@@ -225,12 +212,10 @@ class Automatic_Tester:
             else:
                 msg = self.__get_red_text("FAIL")
             text = """
-            {TESTNUM}) CC={CC}, CFLAGS={CFLAGS}, use_phantom_grape_x86={PGFLAG}, use_gpu_cuda={GPUFLAG}: {STATUS}
+            {TESTNUM}) CC={CC}, CFLAGS={CFLAGS}: {STATUS}
             """.format(TESTNUM=testnum, \
                        CC=mkvars["CC"], \
                        CFLAGS=mkvars["CFLAGS"], \
-                       PGFLAG=mkvars["use_phantom_grape_x86"], \
-                       GPUFLAG=mkvars["use_gpu_cuda"], \
                        STATUS=msg)
             text = text[1:].rstrip()
             text = textwrap.dedent(text)
@@ -238,19 +223,15 @@ class Automatic_Tester:
         # Check if all the tests are passed or not.
         return sum(results)
 
-    def __get_dictlist(self,CC,CFLAGS,use_phantom_grape_x86,use_gpu_cuda,RUNOPT):
+    def __get_dictlist(self,CC,CFLAGS,RUNOPT):
         listtmp = list(itertools.product(CC, \
                                          CFLAGS, \
-                                         use_phantom_grape_x86, \
-                                         use_gpu_cuda, \
                                          RUNOPT))
         dictlist = []
-        for cc,cflags,pgflag,gpuflag,runopt in listtmp:
+        for cc,cflags,runopt in listtmp:
             item = collections.OrderedDict()
             item["CC"] = cc
             item["CFLAGS"] = cflags
-            item["use_phantom_grape_x86"] = pgflag
-            item["use_gpu_cuda"] = gpuflag
             item["RUNOPT"] = runopt
             dictlist.append(item)
         return dictlist

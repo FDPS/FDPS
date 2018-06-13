@@ -28,6 +28,8 @@ CXXFLAGS = $(CXXFLAGS_COMMON)
 #CXX = mpicxx
 #CXXFLAGS = $(CXXFLAGS_COMMON) -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
+
 #----------------------------------------------------------------------
 #   Source and Object files
 #----------------------------------------------------------------------
@@ -45,6 +47,10 @@ reuse:	Makefile $(SRC) $(HED) kernel.o
 clean:
 	rm -f *.out *.o
 
+distclean: clean
+	rm -rf result
+
 kernel.o:	kernel.h kernel.cu
 	$(NVCC) $(NVCCFLAGS) kernel.cu -c -o kernel.o
 
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

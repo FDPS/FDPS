@@ -931,7 +931,7 @@ namespace ParticleSimulator{
         }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
-#endif	
+#endif
         {
             const S32 ith = Comm::getThreadNum();
             epj_sorted_tmp[ith].clearSize();
@@ -1292,7 +1292,7 @@ namespace ParticleSimulator{
         _spj.resizeNoInitialize(offset+_tc.size());
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
-#endif	//PARTICLE_SIMULATOR_THREAD_PARALLEL
+#endif //PARTICLE_SIMULATOR_THREAD_PARALLEL
         for(S32 i=0; i<_tc.size(); i++){
             _spj[offset+i].copyFromMoment(_tc[i].mom_);
         }
@@ -1313,7 +1313,7 @@ namespace ParticleSimulator{
         _spj.resizeNoInitialize(n_spj_prev+_tc.size());
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
-#endif	//PARTICLE_SIMULATOR_THREAD_PARALLEL
+#endif //PARTICLE_SIMULATOR_THREAD_PARALLEL
         for(S32 i=0; i<_tc.size(); i++){
             _spj[n_spj_prev+i].copyFromMoment(_tc[i].mom_);
         }
@@ -1356,20 +1356,20 @@ namespace ParticleSimulator{
             {
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for
-#endif	    
+#endif
                 for(S32 i=0; i<n_loc; i++){
                     tp_glb[i] = tp_loc[i]; // NOTE: need to keep tp_loc_[]?
                 }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for
-#endif	    
+#endif
                 for(S32 i=0; i<n_ep_add; i++){
                     epj_org[n_loc+i] = epj_recv[i];
                     tp_glb[n_loc+i].setFromEP(epj_recv[i], n_loc+i);
                 }
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for
-#endif	    
+#endif
                 for(S32 i=0; i<n_sp_add; i++){
                     spj_org[offset_sp+i] = spj_recv[i];
                     tp_glb[offset_sp+i].setFromSP(spj_recv[i], offset_sp+i);
@@ -1387,7 +1387,7 @@ namespace ParticleSimulator{
             */
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
-#endif	    
+#endif
             for(S32 i=0; i<n_ep_add; i++){
                 epj_org[n_loc+i] = epj_recv[i];
                 /*
@@ -1397,9 +1397,9 @@ namespace ParticleSimulator{
                 }
                 */
             }
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
-#endif	    
+#endif
             for(S32 i=0; i<n_sp_add; i++){
                 spj_org[offset_sp+i] = spj_recv[i];
             }
@@ -1420,19 +1420,19 @@ namespace ParticleSimulator{
         tp_glb.resizeNoInitialize( n_glb_tot );
         epj_org.resizeNoInitialize( n_glb_tot );
         if(!flag_reuse){
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
-#endif	
+#endif
             {
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for
-#endif	    
+#endif
                 for(S32 i=0; i<n_loc; i++){
                     tp_glb[i] = tp_loc[i];
                 }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for
-#endif	    
+#endif
                 for(S32 i=0; i<n_ep_add; i++){
                     epj_org[n_loc+i] = epj_recv[i];
                     tp_glb[n_loc+i].setFromEP(epj_recv[i], n_loc+i);
@@ -1442,7 +1442,7 @@ namespace ParticleSimulator{
         else{
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
-#endif	    
+#endif
             for(S32 i=0; i<n_ep_add; i++){
                 epj_org[n_loc+i] = epj_recv[i];
             }
@@ -1473,7 +1473,7 @@ namespace ParticleSimulator{
         for(S32 i=lev_max; i>=0; --i){
             const S32 head = adr_tc_level_partition[i];
             const S32 next = adr_tc_level_partition[i+1];
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL	    
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 j=head; j<next; j++){
@@ -1715,13 +1715,13 @@ namespace ParticleSimulator{
         ReallocatableArray<Tfp> fp_org(n_loc_tot);
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
-#endif	
+#endif
         for(S32 i=0; i<n_loc_tot; i++){
             fp_org[i] = sys[i];
         }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
-#endif	
+#endif
         for(S32 i=0; i<n_loc_tot; i++){
             const S32 adr = tp_loc[i].adr_ptcl_;
             sys[i] = fp_org[adr];

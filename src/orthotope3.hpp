@@ -10,9 +10,9 @@ namespace ParticleSimulator{
     public:
         Vector3<T> low_;
         Vector3<T> high_;
-	
+
         Orthotope3(): low_(9999.9), high_(-9999.9){}
-	
+
         Orthotope3(const Vector3<T> & _low, const Vector3<T> & _high)
             : low_(_low), high_(_high) {}
 
@@ -32,11 +32,11 @@ namespace ParticleSimulator{
             low_ = std::numeric_limits<float>::max() / 128;
             high_ = -low_;
         }
-	
+
         void init(){
             initNegativeVolume();
         }
-	
+
         Orthotope3 shift( const Vector3<T> & vec) const {
             return Orthotope3(low_ + vec, high_ + vec);
         }
@@ -107,7 +107,7 @@ namespace ParticleSimulator{
                 || (a.high_.y < low_.y) || (high_.y < a.low_.y)
                 || (a.high_.z < low_.z) || (high_.z < a.low_.z);
         }
-	
+
         unsigned int overlapped(const Orthotope3 & a) const {
             return notOverlapped(a) ^ 0x1;
         }

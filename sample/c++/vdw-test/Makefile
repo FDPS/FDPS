@@ -1,6 +1,4 @@
 PS_PATH = -I../../../src/
-#PS_PATH = -I../../fdps/fdps/src/
-#PS_PATH = -I../../sandbox/iwasawa_box/FDPS-master/src/
 
 CC = g++
 #CC = mpicxx
@@ -13,15 +11,18 @@ CFLAGS += -funroll-loops
 
 #MULEXP = -DMONOPOLE
 
+# fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
+
 SRC = vdwtest.cpp
 PROGRAM = $(SRC:%.cpp=%.out)
 
 $(PROGRAM):$(SRC)
 	$(CC) $(MULEXP) $(PS_PATH) $(CFLAGS) -o $@ $<
 
-a.out: test.cpp
-	$(CC) $(MULEXP) $(PS_PATH) $(CFLAGS) test.cpp
-
 clean:
-	rm $(PROGRAM)
+	rm -f $(PROGRAM)
 
+distclean: clean
+	rm -rf result
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

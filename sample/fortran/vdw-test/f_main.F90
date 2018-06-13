@@ -161,16 +161,21 @@ subroutine setup_IC(fdps_ctrl,psys_num,nptcl_glb,boxdh)
    type(fdps_f64vec) :: cm_pos,cm_vel,pos
    type(fplj), dimension(:), pointer :: ptcl
    character(len=64) :: fname
+   !* External routines
+   double precision, external :: cbrt
 
    !* Get # of MPI processes and rank number
    nprocs = fdps_ctrl%get_num_procs()
    myrank = fdps_ctrl%get_rank()
 
    !* Check if the number of particles is in the form of n^{3}
-   nptcl_1d = int((dble(nptcl_glb))**(1.0d0/3.0d0))
+  !nptcl_1d = int((dble(nptcl_glb))**(1.0d0/3.0d0))
+   nptcl_1d = int(cbrt(dble(nptcl_glb)))
    if (nptcl_1d*nptcl_1d*nptcl_1d /= nptcl_glb) then
       if (myrank == 0) then
          write(*,*)'nptcl_glb does not have a cubit root!'
+         write(*,*)'nptcl_glb = ',nptcl_glb
+         write(*,*)'nptcl_1d  = ',nptcl_1d
       end if
       call fdps_ctrl%PS_abort()
       stop 1
@@ -414,3 +419,24 @@ subroutine output(fdps_ctrl,psys_num)
    snap_num = snap_num + 1
 
 end subroutine output
+
+!-----------------------------------------------------------------------
+!///////////////////////// S U B R O U T I N E /////////////////////////
+!/////////////////////////     < C B R T >     /////////////////////////
+!-----------------------------------------------------------------------
+pure double precision function cbrt(a) result(ret)
+   implicit none
+   double precision, intent(in) :: a
+   !* Local variables
+   double precision :: x1,x2
+
+   x1 = a
+   x2 = a
+   do
+      x1 = x2
+      x2 = (a - x1*x1*x1) / (3*x1*x1) + x1;
+      if (abs((x2 - x1) / x1) < 1d-15) exit
+   end do
+   ret = x2
+
+end function cbrt
