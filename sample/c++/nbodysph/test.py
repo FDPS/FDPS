@@ -183,6 +183,9 @@ class Automatic_Tester:
             # Delete unnecessary files
             os.remove(mkfile_for_test)
             os.remove(logfile_for_test)
+        # Just in case, we again perform make distclean using the original Makefile
+        cmd = "make distclean"
+        subprocess.call(cmd,shell=True)
         # Output the summary of the tests
         text = """
         ###################################################

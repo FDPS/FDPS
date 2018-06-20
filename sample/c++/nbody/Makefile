@@ -18,9 +18,15 @@ CFLAGS = -O3
 all:nbody.out
 
 ifeq ($(use_phantom_grape_x86),yes)
-INC += -I$(PS_PATH)/phantom_grape_x86/G5/newton/libpg5/
+PG_ROOT = $(PS_PATH)/phantom_grape_x86/G5/newton/libpg5
+INC += -I$(PG_ROOT)
 CFLAGS  += -DENABLE_PHANTOM_GRAPE_X86
-CLIBS   = -L$(PS_PATH)/phantom_grape_x86/G5/newton/libpg5/ -lpg5
+CLIBS   = -L$(PG_ROOT) -lpg5
+PG_BUILD = cd $(PG_ROOT) && $(MAKE) distclean libpg5.a
+PG_CLEAN = cd $(PG_ROOT) && $(MAKE) distclean
+else
+PG_BUILD =
+PG_CLEAN = 
 endif
 
 ifeq ($(use_gpu_cuda),yes)
@@ -36,12 +42,14 @@ OBJS = force_gpu_cuda.o
 endif
 
 nbody.out:nbody.cpp $(OBJS)
+	$(PG_BUILD)
 	$(CC) $(INC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 clean:
 	rm -f *.o *~
 
 distclean: clean
+	$(PG_CLEAN)
 	rm -f nbody.out
 	rm -rf result
 

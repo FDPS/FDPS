@@ -125,7 +125,7 @@ class Automatic_Tester:
                     text = """
                     #---------------------------------------------------
                     run:
-                    \t{RUNOPT} ./p3m.x > {LOGFILE} 2>&1
+                    \t{RUNOPT} ./$(WORKDIR)/p3m.x > {LOGFILE} 2>&1
                     \techo $$? >> {LOGFILE} 2>&1
                     #---------------------------------------------------
                     """.format(RUNOPT=mkvars["RUNOPT"], \
