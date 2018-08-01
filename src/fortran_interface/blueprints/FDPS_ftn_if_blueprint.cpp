@@ -197,6 +197,16 @@ long long int fdps_get_num_tree_walk_glb(const int tree_num) {
 }
 
 //------------------------------------------------------------------
+// [Comment] A place where fdps_set_particle_local_tree_*() are generated.
+// fdps-autogen:set_particle_local_tree;
+//------------------------------------------------------------------
+
+//------------------------------------------------------------------
+// [Comment] A place where fdps_get_force_*() are generated.
+// fdps-autogen:get_force;
+//------------------------------------------------------------------
+
+//------------------------------------------------------------------
 // [Comment] A place where fdps_calc_force_*() are generated.
 // fdps-autogen:calc_force_all_and_write_back;
 // fdps-autogen:calc_force_all;

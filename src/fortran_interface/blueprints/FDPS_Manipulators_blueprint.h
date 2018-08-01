@@ -124,6 +124,8 @@ namespace FDPS_Manipulators {
    extern void clear_num_interact(const int tree_num);
    extern long long int get_num_tree_walk_loc(const int tree_num);
    extern long long int get_num_tree_walk_glb(const int tree_num);
+   // fdps-autogen:set_particle_local_tree;
+   // fdps-autogen:get_force;
    // fdps-autogen:calc_force_all_and_write_back;
    // fdps-autogen:calc_force_all;
    // fdps-autogen:calc_force_making_tree;

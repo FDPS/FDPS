@@ -106,6 +106,13 @@ module FDPS_module
       procedure :: clear_num_interact
       procedure :: get_num_tree_walk_loc
       procedure :: get_num_tree_walk_glb
+      procedure :: set_particle_local_tree
+      !-----------------------------------------------
+      ! [Comment] A place where private procedures 
+      !           and generic procedure of get_force*()
+      !           are generated.
+      ! fdps-autogen:get_force:method;
+      !-----------------------------------------------
       procedure, private :: calc_force_all_and_write_back_s
       procedure, private :: calc_force_all_and_write_back_l
       generic   :: calc_force_all_and_write_back => calc_force_all_and_write_back_s, &
@@ -249,6 +256,12 @@ module FDPS_module
    private :: clear_num_interact
    private :: get_num_tree_walk_loc
    private :: get_num_tree_walk_glb
+   private :: set_particle_local_tree
+   !-------------------------------------------
+   ! [Comment] A place where private procedures 
+   !           get_force*() are declared.
+   ! fdps-autogen:get_force:decl;
+   !-------------------------------------------
    private :: calc_force_all_and_write_back_s
    private :: calc_force_all_and_write_back_l
    private :: calc_force_all_s
@@ -628,6 +641,18 @@ module FDPS_module
          integer(kind=c_long_long) :: fdps_get_num_tree_walk_glb
          integer(kind=c_int), value, intent(in) :: tree_num
       end function fdps_get_num_tree_walk_glb
+
+      !----------------------------------------------------------
+      ! [Comment] A place where the interface statements for 
+      !           fdps_set_particle_local_tree_*() are generated.
+      ! fdps-autogen:set_particle_local_tree:if;
+      !----------------------------------------------------------
+
+      !----------------------------------------------------------
+      ! [Comment] A place where the interface statements for
+      !           fdps_get_force*() are generated.
+      ! fdps-autogen:get_force:if;
+      !----------------------------------------------------------
 
       !----------------------------------------------------------
       ! [Comment] A place where the interface statements for 
@@ -1454,6 +1479,53 @@ module FDPS_module
       get_num_tree_walk_glb = fdps_get_num_tree_walk_glb(tree_num)
       
    end function get_num_tree_walk_glb
+
+   !----------------------------------------------------------
+   subroutine set_particle_local_tree(this,        &
+                                      tree_num,    &
+                                      psys_num,    &
+                                      clear)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: tree_num,psys_num
+      logical(kind=c_bool), optional, intent(IN) :: clear
+      !* Local parameters
+      integer, parameter :: bufsize=256
+      !* Local variables
+      logical(kind=c_bool) :: clear_
+      character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
+      !-(To throw errors)
+      character(len=64) :: errmsg,func_name
+
+      !* Process Optional arguments
+      if (present(clear)) then
+         clear_ = clear
+      else
+         clear_ = .true. ! default value
+      end if
+
+      call get_psys_info(this,psys_num,psys_info)
+      call get_tree_info(this,tree_num,tree_info)
+      info = trim(psys_info) // ',' // trim(tree_info)
+
+      select case (trim(info))
+      !--------------
+      ! fdps-autogen:set_particle_local_tree:impl;
+      !--------------
+      case default
+         errmsg = "The combination psys_num and tree_num is invalid"
+         func_name = "set_particle_local_tree"
+         call print_errmsg(errmsg,func_name)
+         call PS_abort(this)
+         stop 1
+      end select
+
+   end subroutine set_particle_local_tree
+
+   !----------------------------------------------------------
+   ! [Comment] A place where the implementations of
+   !           get_force*() are generated.
+   ! fdps-autogen:get_force:impl;
 
    !----------------------------------------------------------
    subroutine calc_force_all_and_write_back_s(this,        &
