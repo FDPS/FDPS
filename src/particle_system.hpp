@@ -454,10 +454,10 @@ namespace ParticleSimulator{
             writeParticleImpl(filename, NULL, &header, pFunc, &Theader::writeBinary, "wb");
         }
         void writeParticleBinary(const char * const filename, const char * format, void (Tptcl::*pFunc)(FILE*)const){
-            writeParticleImpl<DummyHeader>(filename, format, NULL, pFunc, &Tptcl::writeBinary, &DummyHeader::writeBinary, "wb");
+            writeParticleImpl<DummyHeader>(filename, format, NULL, pFunc, &DummyHeader::writeBinary, "wb");
         }
         void writeParticleBinary(const char * const filename, void (Tptcl::*pFunc)(FILE*)const){
-            writeParticleImpl<DummyHeader>(filename, NULL, NULL, pFunc, &Tptcl::writeBinary, &DummyHeader::writeBinary, "wb");
+            writeParticleImpl<DummyHeader>(filename, NULL, NULL, pFunc, &DummyHeader::writeBinary, "wb");
         }
         
 

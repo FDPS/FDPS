@@ -5076,6 +5076,9 @@ class Automatic_Generator:
                     if (search_t in targets_for_epi):
                         if (self.__getRSearch_existence_check(epi_t)): # check for EPI
                             __tree_kinds_short.append(item)
+                    else:
+                        __tree_kinds_short.append(item)
+                        
             else:
                 if (search_t in targets_for_epi):
                     if (self.__getRSearch_existence_check(epi_t)): # check for EPI
