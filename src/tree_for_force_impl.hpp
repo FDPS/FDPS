@@ -4474,7 +4474,18 @@ namespace ParticleSimulator{
     getNeighborListOneParticle(const Tptcl & ptcl, Tepj * & epj){
         return getNeighborListOneParticleImpl(typename TSM::search_type(), ptcl, epj);
     }
-    
+
+    //--- wrapper for returning <Tepj*>
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj>
+    template<class Tptcl>
+    Tepj* TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    getNeighborListOneParticle(const Tptcl &ptcl, S32 &n){
+        Tepj* ptr;
+        n = getNeighborListOneParticleImpl(typename TSM::search_type(), ptcl, ptr);
+        return ptr;
+    }
+
     // 2016 02/05
     /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
