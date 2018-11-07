@@ -6,57 +6,23 @@ namespace ParticleSimulator{
     template<class Tepj, class Tspj>
     class CommTable{
     public:
+        S32 n_ep_send_tot_, n_ep_recv_tot_, n_sp_send_tot_, n_sp_recv_tot_;
         ReallocatableArray<S32> n_ep_send_;
         ReallocatableArray<S32> n_ep_recv_;
         ReallocatableArray<S32> adr_ep_send_;
-        ReallocatableArray<S32> adr_ep_recv_;
-
+        //ReallocatableArray<S32> adr_ep_recv_;
+        
         ReallocatableArray<S32> n_sp_send_;
         ReallocatableArray<S32> n_sp_recv_;
         ReallocatableArray<S32> adr_sp_send_;
-        ReallocatableArray<S32> adr_sp_recv_;
+        //ReallocatableArray<S32> adr_sp_recv_;
 
-        //ReallocatableArray<F64vec> shift_image_domain_;
         ReallocatableArray<F64vec> shift_per_image_;
         ReallocatableArray<S32> n_image_per_proc_;
 
         ReallocatableArray<S32> n_ep_per_image_;
         ReallocatableArray<S32> n_sp_per_image_;
         
-        //ReallocatableArray<S32> n_disp_ep_send_;
-        //ReallocatableArray<S32> n_disp_ep_recv_;
-        /*
-        ReallocatableArray<S32> n_sp_send_;
-        ReallocatableArray<S32> n_sp_recv_;
-        ReallocatableArray<S32> n_disp_sp_send_;
-        ReallocatableArray<S32> n_disp_sp_recv_;
-        ReallocatableArray<Tepj> ep_send_;
-        ReallocatableArray<Tspj> sp_send_;
-        ReallocatableArray<Tepj> ep_recv_;
-        ReallocatableArray<Tspj> sp_recv_;
-        S32 * n_ep_sp_send_;
-        S32 * n_ep_sp_recv_;
-        ReallocatableArray<S32>  rank_sp_isend_;
-        ReallocatableArray<S32>  rank_sp_irecv_;
-        ReallocatableArray<S32>  rank_sp_top_recv_;
-        ReallocatableArray<S32>  rank_ep_send_;
-        ReallocatableArray<S32>  rank_ep_recv_;
-        Tspj * sp_top_recv_;
-        Tspj   sp_top_;
-        */
-        /*
-        ReallocatableArray<MPI_Request> req_ep_send_;
-        ReallocatableArray<MPI_Request> req_ep_recv_;
-        ReallocatableArray<MPI_Request> req_sp_send_;
-        ReallocatableArray<MPI_Request> req_sp_recv_;
-        */
-        /*
-        CountT n_proc_ep_send_;
-        CountT n_proc_ep_recv_;
-        CountT n_proc_sp_isend_;
-        CountT n_proc_sp_irecv_;
-        ReallocatableArray<F64ort> tree_outer_pos_;
-        */
     public:
         void initialize(){
             const S32 n_proc = Comm::getNumberOfProc();
@@ -64,53 +30,17 @@ namespace ParticleSimulator{
             n_ep_recv_.resizeNoInitialize(n_proc);
             n_sp_send_.resizeNoInitialize(n_proc);
             n_sp_recv_.resizeNoInitialize(n_proc);
-            
-            //n_disp_ep_send_.resizeNoInitialize(n_proc+1);
-            //n_disp_ep_recv_.resizeNoInitialize(n_proc+1);
-            /*
-            n_ep_send_ = new S32[n_proc];
-            n_sp_send_ = new S32[n_proc];
-            n_ep_recv_ = new S32[n_proc];
-            n_sp_recv_ = new S32[n_proc];
-            n_disp_ep_send_ = new S32[n_proc+1];
-            n_disp_sp_send_ = new S32[n_proc+1];
-            n_disp_ep_recv_ = new S32[n_proc+1];
-            n_disp_sp_recv_ = new S32[n_proc+1];
-            n_ep_sp_send_   = new S32[n_proc*2];
-            n_ep_sp_recv_   = new S32[n_proc*2];
-            rank_sp_isend_.reserve(n_proc);
-            rank_sp_irecv_.reserve(n_proc);
-            rank_sp_top_recv_.reserve(n_proc);
-            rank_ep_send_.reserve(n_proc);
-            rank_ep_recv_.reserve(n_proc);
-            sp_top_recv_ = new Tspj[n_proc];
-            tree_outer_pos_.reserve(n_proc);
-            */
-            /*
-            req_ep_send_.reserve(n_proc);
-            req_sp_send_.reserve(n_proc);
-            req_ep_recv_.reserve(n_proc);
-            req_sp_recv_.reserve(n_proc);
-            */
+            n_ep_send_tot_ = n_ep_recv_tot_ = n_sp_send_tot_ = n_sp_recv_tot_ = 0;
         }
 
         void clearSize(){
             adr_ep_send_.clearSize();
-            adr_ep_recv_.clearSize();
+            //adr_ep_recv_.clearSize();
             adr_sp_send_.clearSize();
-            adr_sp_recv_.clearSize();
-            //shift_image_domain_.clearSize();
+            //adr_sp_recv_.clearSize();
             shift_per_image_.clearSize();
             n_ep_per_image_.clearSize();
             n_sp_per_image_.clearSize();
-            /*
-            rank_sp_isend_.clearSize();
-            rank_sp_irecv_.clearSize();
-            ep_send_.clearSize();
-            sp_send_.clearSize();
-            ep_recv_.clearSize();
-            sp_recv_.clearSize();
-            */
         }
 #if 0
         void setDispSend(){

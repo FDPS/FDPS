@@ -80,6 +80,7 @@ module FDPS_module
       procedure :: clear_dinfo_time_prof
       procedure :: set_nums_domain
       procedure :: set_boundary_condition
+      procedure :: get_boundary_condition
       procedure, private :: set_pos_root_domain_a32
       procedure, private :: set_pos_root_domain_a64
       procedure, private :: set_pos_root_domain_v32
@@ -148,24 +149,71 @@ module FDPS_module
       procedure :: get_num_procs_multi_dim
       procedure :: get_logical_and
       procedure :: get_logical_or
-      !-----------------------------------------------
-      ! [Comment] A place where private procedures 
-      !           and generic procedure of reduction
-      !           routines such as get_min_value*
-      !           are generated.
-      ! fdps-autogen:get_min_value:method;
-      ! fdps-autogen:get_max_value:method;
-      ! fdps-autogen:get_sum:method;
-      ! fdps-autogen:broadcast:method;
-      !-----------------------------------------------
+      procedure, private :: get_min_value_s32
+      procedure, private :: get_min_value_s64
+      procedure, private :: get_min_value_f32
+      procedure, private :: get_min_value_f64
+      procedure, private :: get_min_value_w_id_f32
+      procedure, private :: get_min_value_w_id_f64
+      generic :: get_min_value => get_min_value_s32, &
+                                  get_min_value_s64, &
+                                  get_min_value_f32, &
+                                  get_min_value_f64, &
+                                  get_min_value_w_id_f32, &
+                                  get_min_value_w_id_f64
+      procedure, private :: get_max_value_s32
+      procedure, private :: get_max_value_s64
+      procedure, private :: get_max_value_f32
+      procedure, private :: get_max_value_f64
+      procedure, private :: get_max_value_w_id_f32
+      procedure, private :: get_max_value_w_id_f64
+      generic :: get_max_value => get_max_value_s32, &
+                                  get_max_value_s64, &
+                                  get_max_value_f32, &
+                                  get_max_value_f64, &
+                                  get_max_value_w_id_f32, &
+                                  get_max_value_w_id_f64
+      procedure, private :: get_sum_s32
+      procedure, private :: get_sum_s64
+      procedure, private :: get_sum_f32
+      procedure, private :: get_sum_f64
+      generic :: get_sum => get_sum_s32, &
+                            get_sum_s64, &
+                            get_sum_f32, &
+                            get_sum_f64
+      procedure, private :: broadcast_scalar_s32
+      procedure, private :: broadcast_array_s32
+      procedure, private :: broadcast_scalar_s64
+      procedure, private :: broadcast_array_s64
+      procedure, private :: broadcast_scalar_f32
+      procedure, private :: broadcast_array_f32
+      procedure, private :: broadcast_scalar_f64
+      procedure, private :: broadcast_array_f64
+      generic :: broadcast => broadcast_scalar_s32, &
+                              broadcast_array_s32, &
+                              broadcast_scalar_s64, &
+                              broadcast_array_s64, &
+                              broadcast_scalar_f32, &
+                              broadcast_array_f32, &
+                              broadcast_scalar_f64, &
+                              broadcast_array_f64
       procedure :: get_wtime
+      procedure :: barrier
 
       !-(Utility functions)
-      procedure :: MT_init_genrand
-      procedure :: MT_genrand_int31
-      procedure :: MT_genrand_real1
-      procedure :: MT_genrand_real2
-      procedure :: MT_genrand_res53
+      procedure :: mt_init_genrand
+      procedure :: mt_genrand_int31
+      procedure :: mt_genrand_real1
+      procedure :: mt_genrand_real2
+      procedure :: mt_genrand_res53
+
+      procedure :: create_mtts
+      procedure :: delete_mtts
+      procedure :: mtts_init_genrand
+      procedure :: mtts_genrand_int31
+      procedure :: mtts_genrand_real1
+      procedure :: mtts_genrand_real2
+      procedure :: mtts_genrand_res53
 
       !-(Particle Mesh functions)
 #if PARTICLE_SIMULATOR_USE_PM_MODULE
@@ -234,6 +282,7 @@ module FDPS_module
    private :: clear_dinfo_time_prof
    private :: set_nums_domain
    private :: set_boundary_condition
+   private :: get_boundary_condition
    private :: set_pos_root_domain_a32
    private :: set_pos_root_domain_a64
    private :: set_pos_root_domain_v32
@@ -287,21 +336,45 @@ module FDPS_module
    private :: get_num_procs_multi_dim
    private :: get_logical_and
    private :: get_logical_or
-   !-------------------------------------------
-   ! [Comment] A place where private procedures 
-   !           for reduction operations are declared.
-   ! fdps-autogen:get_min_value:decl;
-   ! fdps-autogen:get_max_value:decl;
-   ! fdps-autogen:get_sum:decl;
-   ! fdps-autogen:broadcast:decl;
-   !-------------------------------------------
+   private :: get_min_value_s32
+   private :: get_min_value_s64
+   private :: get_min_value_f32
+   private :: get_min_value_f64
+   private :: get_min_value_w_id_f32
+   private :: get_min_value_w_id_f64
+   private :: get_max_value_s32
+   private :: get_max_value_s64
+   private :: get_max_value_f32
+   private :: get_max_value_f64
+   private :: get_max_value_w_id_f32
+   private :: get_max_value_w_id_f64
+   private :: get_sum_s32
+   private :: get_sum_s64
+   private :: get_sum_f32
+   private :: get_sum_f64
+   private :: broadcast_scalar_s32
+   private :: broadcast_array_s32
+   private :: broadcast_scalar_s64
+   private :: broadcast_array_s64
+   private :: broadcast_scalar_f32
+   private :: broadcast_array_f32
+   private :: broadcast_scalar_f64
+   private :: broadcast_array_f64
    private :: get_wtime
+   private :: barrier
    !-(Utility functions)
-   private :: MT_init_genrand
-   private :: MT_genrand_int31
-   private :: MT_genrand_real1
-   private :: MT_genrand_real2
-   private :: MT_genrand_res53
+   private :: mt_init_genrand
+   private :: mt_genrand_int31
+   private :: mt_genrand_real1
+   private :: mt_genrand_real2
+   private :: mt_genrand_res53
+   private :: create_mtts
+   private :: delete_mtts
+   private :: mtts_init_genrand
+   private :: mtts_genrand_int31
+   private :: mtts_genrand_real1
+   private :: mtts_genrand_real2
+   private :: mtts_genrand_res53
    !-(ParticleMesh functions)
 #ifdef PARTICLE_SIMULATOR_USE_PM_MODULE
    private :: create_pm
@@ -324,7 +397,7 @@ module FDPS_module
    !-(Error)
    private :: print_errmsg
 
-   !* C++ function interfaces
+   !* C function interfaces
    interface
       !--------------------------
       !  Initializer/Finalizer
@@ -422,12 +495,12 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: psys_num
       end function fdps_get_nptcl_glb
 
-      subroutine fdps_get_psys_cptr(psys_num,cptr) bind(c)
+      function fdps_get_psys_cptr(psys_num) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
+         type(c_ptr) :: fdps_get_psys_cptr
          integer(kind=c_int), value, intent(in) :: psys_num
-         type(c_ptr), intent(inout) :: cptr
-      end subroutine fdps_get_psys_cptr
+      end function fdps_get_psys_cptr
 
       subroutine fdps_exchange_particle(psys_num,dinfo_num) bind(c)
          use, intrinsic :: iso_c_binding
@@ -435,11 +508,12 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: psys_num,dinfo_num
       end subroutine fdps_exchange_particle
 
-      !----------------------------------------------------------
-      ! [Comment] A place where the interface statements for 
-      !           fdps_add_particle*() are generated.
-      ! fdps-autogen:add_particle:if;
-      !----------------------------------------------------------
+      subroutine fdps_add_particle(psys_num,cptr_to_fp) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: psys_num
+         type(c_ptr), value, intent(in) :: cptr_to_fp
+      end subroutine fdps_add_particle
 
       subroutine fdps_remove_particle(psys_num,nptcl,ptcl_indx) bind(c)
          use, intrinsic :: iso_c_binding
@@ -454,11 +528,12 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: psys_num,dinfo_num
       end subroutine fdps_adjust_pos_into_root_domain
 
-      !----------------------------------------------------------
-      ! [Comment] A place where the interface statements for 
-      !           fdps_sort_particle*() are generated.
-      ! fdps-autogen:sort_particle:if;
-      !----------------------------------------------------------
+      subroutine fdps_sort_particle(psys_num,pfunc_comp) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: psys_num
+         type(c_funptr), value, intent(in) :: pfunc_comp
+      end subroutine fdps_sort_particle
 
       !----------------------
       !  Domain Info
@@ -508,6 +583,13 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: dinfo_num
          integer(kind=c_int), value, intent(in) :: bc
       end subroutine fdps_set_boundary_condition
+
+      function fdps_get_boundary_condition(dinfo_num) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_get_boundary_condition
+         integer(kind=c_int), value, intent(in) :: dinfo_num
+      end function fdps_get_boundary_condition
 
       subroutine fdps_set_pos_root_domain(dinfo_num,low,high) bind(c)
          use, intrinsic :: iso_c_binding
@@ -642,38 +724,99 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: tree_num
       end function fdps_get_num_tree_walk_glb
 
-      !----------------------------------------------------------
-      ! [Comment] A place where the interface statements for 
-      !           fdps_set_particle_local_tree_*() are generated.
-      ! fdps-autogen:set_particle_local_tree:if;
-      !----------------------------------------------------------
+      subroutine fdps_set_particle_local_tree(tree_num, &
+                                              psys_num, &
+                                              clear) bind(c)
+          use, intrinsic :: iso_c_binding
+          implicit none
+          integer(kind=c_int), value, intent(in) :: tree_num,psys_num
+          logical(kind=c_bool), value, intent(in) :: clear
+      end subroutine fdps_set_particle_local_tree
 
-      !----------------------------------------------------------
-      ! [Comment] A place where the interface statements for
-      !           fdps_get_force*() are generated.
-      ! fdps-autogen:get_force:if;
-      !----------------------------------------------------------
+      subroutine fdps_get_force(tree_num,i,cptr_to_force) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: tree_num,i
+         type(c_ptr), value, intent(in) :: cptr_to_force
+      end subroutine fdps_get_force
 
-      !----------------------------------------------------------
-      ! [Comment] A place where the interface statements for 
-      !           fdps_calc_force_*() are generated.
-      ! fdps-autogen:calc_force_all_and_write_back:if;
-      ! fdps-autogen:calc_force_all:if;
-      ! fdps-autogen:calc_force_making_tree:if;
-      ! fdps-autogen:calc_force_and_write_back:if;
-      !----------------------------------------------------------
+      subroutine fdps_calc_force_all_and_write_back(tree_num,    &
+                                                    pfunc_ep_ep, &
+                                                    pfunc_ep_sp, &
+                                                    psys_num,    &
+                                                    dinfo_num,   &
+                                                    clear,       &
+                                                    list_mode) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: tree_num,psys_num,dinfo_num
+         type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+         logical(kind=c_bool), value, intent(in) :: clear
+         integer(kind=c_int), value, intent(in) :: list_mode
+      end subroutine fdps_calc_force_all_and_write_back
 
-      !----------------------------------------------------------
-      ! [Comment] A place where the interface statements for
-      !           fdps_get_neighbor_list*() are generated.
-      ! fdps-autogen:get_neighbor_list:if;
-      !----------------------------------------------------------
+      subroutine fdps_calc_force_all(tree_num,    &
+                                     pfunc_ep_ep, &
+                                     pfunc_ep_sp, &
+                                     psys_num,    &
+                                     dinfo_num,   &
+                                     clear,       &
+                                     list_mode) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: tree_num,psys_num,dinfo_num
+         type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+         logical(kind=c_bool), value, intent(in) :: clear
+         integer(kind=c_int), value, intent(in) :: list_mode
+      end subroutine fdps_calc_force_all
+      
+      subroutine fdps_calc_force_making_tree(tree_num,    &
+                                             pfunc_ep_ep, &
+                                             pfunc_ep_sp, &
+                                             dinfo_num,   &
+                                             clear) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: tree_num,dinfo_num
+         type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+         logical(kind=c_bool), value, intent(in) :: clear
+      end subroutine fdps_calc_force_making_tree
 
-      !----------------------------------------------------------
-      ! [Comment] A place where the interface statements for
-      !           fdps_get_epj_from_id*() are generated.
-      ! fdps-autogen:get_epj_from_id:if;
-      !----------------------------------------------------------
+      subroutine fdps_calc_force_and_write_back(tree_num,    &
+                                                pfunc_ep_ep, &
+                                                pfunc_ep_sp, &
+                                                psys_num,    &
+                                                clear) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: tree_num,psys_num
+         type(c_funptr), value, intent(in) :: pfunc_ep_ep,pfunc_ep_sp
+         logical(kind=c_bool), value, intent(in) :: clear
+      end subroutine fdps_calc_force_and_write_back
+
+      subroutine fdps_get_neighbor_list(tree_num, &
+                                        pos,      &
+                                        r_search, &
+                                        num_epj,  &
+                                        cptr_to_epj) bind(c)
+         use, intrinsic :: iso_c_binding
+         use fdps_vector
+         implicit none
+         integer(kind=c_int), value, intent(in) :: tree_num
+         type(fdps_f64vec), intent(in) :: pos
+         real(kind=c_double), value, intent(in) :: r_search
+         integer(kind=c_int), intent(inout) :: num_epj
+         type(c_ptr), intent(inout) :: cptr_to_epj
+      end subroutine fdps_get_neighbor_list
+
+      function fdps_get_epj_from_id(tree_num,id) bind(c)
+         use, intrinsic :: iso_c_binding
+         use fdps_vector
+         implicit none
+         type(c_ptr) :: fdps_get_epj_from_id
+         integer(kind=c_int), value, intent(in) :: tree_num
+         integer(kind=c_long_long), value, intent(in) :: id
+      end function fdps_get_epj_from_id
 
       !----------------------
       !  MPI comm. 
@@ -704,34 +847,181 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: id
       end function fdps_get_num_procs_multi_dim
 
-      subroutine fdps_get_logical_and(f_in,f_out) bind(c)
+      function fdps_get_logical_and(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
+         logical(kind=c_bool) :: fdps_get_logical_and
          logical(kind=c_bool), value, intent(in) :: f_in
-         logical(kind=c_bool), intent(inout) :: f_out
-      end subroutine fdps_get_logical_and
+      end function fdps_get_logical_and
 
-      subroutine fdps_get_logical_or(f_in,f_out) bind(c)
+      function fdps_get_logical_or(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
+         logical(kind=c_bool) :: fdps_get_logical_or
          logical(kind=c_bool), value, intent(in) :: f_in
-         logical(kind=c_bool), intent(inout) :: f_out
-      end subroutine fdps_get_logical_or
+      end function fdps_get_logical_or
 
-      !-------------------------------------------
-      ! [Comment] A place where the interface statements for 
-      !           reduction functions are generated.
-      ! fdps-autogen:get_min_value:ftn_if;
-      ! fdps-autogen:get_max_value:ftn_if;
-      ! fdps-autogen:get_sum:ftn_if;
-      ! fdps-autogen:broadcast:ftn_if;
-      !-------------------------------------------
+      function fdps_get_min_value_s32(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_get_min_value_s32
+         integer(kind=c_int), value, intent(in) :: f_in
+      end function fdps_get_min_value_s32
+
+      function fdps_get_min_value_s64(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_long_long) :: fdps_get_min_value_s64
+         integer(kind=c_long_long), value, intent(in) :: f_in
+      end function fdps_get_min_value_s64
+
+      function fdps_get_min_value_f32(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float) :: fdps_get_min_value_f32
+         real(kind=c_float), value, intent(in) :: f_in
+      end function fdps_get_min_value_f32
+
+      function fdps_get_min_value_f64(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_get_min_value_f64
+         real(kind=c_double), value, intent(in) :: f_in
+      end function fdps_get_min_value_f64
+
+      subroutine fdps_get_min_value_w_id_f32(f_in,i_in,f_out,i_out) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float), value, intent(in) :: f_in
+         real(kind=c_float), intent(inout) :: f_out
+         integer(kind=c_int), value, intent(in) :: i_in
+         integer(kind=c_int), intent(inout) :: i_out
+      end subroutine fdps_get_min_value_w_id_f32
+
+      subroutine fdps_get_min_value_w_id_f64(f_in,i_in,f_out,i_out) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double), value, intent(in) :: f_in
+         real(kind=c_double), intent(inout) :: f_out
+         integer(kind=c_int), value, intent(in) :: i_in
+         integer(kind=c_int), intent(inout) :: i_out
+      end subroutine fdps_get_min_value_w_id_f64
+
+      function fdps_get_max_value_s32(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_get_max_value_s32
+         integer(kind=c_int), value, intent(in) :: f_in
+      end function fdps_get_max_value_s32
+
+      function fdps_get_max_value_s64(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_long_long) :: fdps_get_max_value_s64
+         integer(kind=c_long_long), value, intent(in) :: f_in
+      end function fdps_get_max_value_s64
+
+      function fdps_get_max_value_f32(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float) :: fdps_get_max_value_f32
+         real(kind=c_float), value, intent(in) :: f_in
+      end function fdps_get_max_value_f32
+
+      function fdps_get_max_value_f64(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_get_max_value_f64
+         real(kind=c_double), value, intent(in) :: f_in
+      end function fdps_get_max_value_f64
+
+      subroutine fdps_get_max_value_w_id_f32(f_in,i_in,f_out,i_out) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float), value, intent(in) :: f_in
+         real(kind=c_float), intent(inout) :: f_out
+         integer(kind=c_int), value, intent(in) :: i_in
+         integer(kind=c_int), intent(inout) :: i_out
+      end subroutine fdps_get_max_value_w_id_f32
+
+      subroutine fdps_get_max_value_w_id_f64(f_in,i_in,f_out,i_out) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double), value, intent(in) :: f_in
+         real(kind=c_double), intent(inout) :: f_out
+         integer(kind=c_int), value, intent(in) :: i_in
+         integer(kind=c_int), intent(inout) :: i_out
+      end subroutine fdps_get_max_value_w_id_f64
+
+      function fdps_get_sum_s32(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_get_sum_s32
+         integer(kind=c_int), value, intent(in) :: f_in
+      end function fdps_get_sum_s32
+
+      function fdps_get_sum_s64(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_long_long) :: fdps_get_sum_s64
+         integer(kind=c_long_long), value, intent(in) :: f_in
+      end function fdps_get_sum_s64
+
+      function fdps_get_sum_f32(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float) :: fdps_get_sum_f32
+         real(kind=c_float), value, intent(in) :: f_in
+      end function fdps_get_sum_f32
+
+      function fdps_get_sum_f64(f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_get_sum_f64
+         real(kind=c_double), value, intent(in) :: f_in
+      end function fdps_get_sum_f64
+
+      subroutine fdps_broadcast_s32(vals,n,src) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: n
+         integer(kind=c_int), dimension(n), intent(inout) :: vals
+         integer(kind=c_int), value, intent(in) :: src
+      end subroutine fdps_broadcast_s32
+
+      subroutine fdps_broadcast_s64(vals,n,src) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: n
+         integer(kind=c_long_long), dimension(n), intent(inout) :: vals
+         integer(kind=c_int), value, intent(in) :: src
+      end subroutine fdps_broadcast_s64
+
+      subroutine fdps_broadcast_f32(vals,n,src) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: n
+         real(kind=c_float), dimension(n), intent(inout) :: vals
+         integer(kind=c_int), value, intent(in) :: src
+      end subroutine fdps_broadcast_f32
+
+      subroutine fdps_broadcast_f64(vals,n,src) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: n
+         real(kind=c_double), dimension(n), intent(inout) :: vals
+         integer(kind=c_int), value, intent(in) :: src
+      end subroutine fdps_broadcast_f64
 
       function fdps_get_wtime() bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          real(kind=c_double) :: fdps_get_wtime
       end function fdps_get_wtime
+
+      subroutine fdps_barrier() bind(c)
+         implicit none
+      end subroutine fdps_barrier
 
       !----------------------
       !  Utility
@@ -771,6 +1061,60 @@ module FDPS_module
          implicit none
          real(kind=c_double) :: fdps_mt_genrand_res53
       end function fdps_mt_genrand_res53
+
+
+      subroutine fdps_create_mtts(mtts_num) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), intent(in) :: mtts_num
+      end subroutine fdps_create_mtts
+
+      subroutine fdps_delete_mtts(mtts_num) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: mtts_num
+      end subroutine fdps_delete_mtts
+
+      subroutine fdps_mtts_init_genrand(mtts_num,s) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: mtts_num,s 
+      end subroutine fdps_mtts_init_genrand
+
+      function fdps_mtts_genrand_int31(mtts_num) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_mtts_genrand_int31
+         integer(kind=c_int), value, intent(in) :: mtts_num
+      end function fdps_mtts_genrand_int31
+
+      function fdps_mtts_genrand_real1(mtts_num) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_mtts_genrand_real1
+         integer(kind=c_int), value, intent(in) :: mtts_num
+      end function fdps_mtts_genrand_real1
+
+      function fdps_mtts_genrand_real2(mtts_num) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_mtts_genrand_real2
+         integer(kind=c_int), value, intent(in) :: mtts_num
+      end function fdps_mtts_genrand_real2
+
+      function fdps_mtts_genrand_real3(mtts_num) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_mtts_genrand_real3
+         integer(kind=c_int), value, intent(in) :: mtts_num
+      end function fdps_mtts_genrand_real3
+
+      function fdps_mtts_genrand_res53(mtts_num) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_mtts_genrand_res53
+         integer(kind=c_int), value, intent(in) :: mtts_num
+      end function fdps_mtts_genrand_res53
 
       !----------------------
       !  Particle Mesh
@@ -1067,26 +1411,8 @@ module FDPS_module
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: psys_num
       type(c_funptr), intent(in) :: pfunc_comp
-      !* Local parameters
-      integer, parameter :: bufsize=256
-      !* Local variables
-      character(len=bufsize,kind=c_char) :: psys_info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
 
-      call get_psys_info(this,psys_num,psys_info)
-
-      select case (trim(psys_info)) 
-      !--------------
-      ! fdps-autogen:sort_particle:impl;
-      !--------------
-      case default
-         errmsg = "Unknow psys_num is specified"
-         func_name = "sort_particle"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_sort_particle(psys_num,pfunc_comp)
 
    end subroutine sort_particle
 
@@ -1173,6 +1499,17 @@ module FDPS_module
    end subroutine set_boundary_condition
 
    !----------------------------------------------------------
+   function get_boundary_condition(this,dinfo_num)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int) :: get_boundary_condition
+      integer(kind=c_int), intent(IN) :: dinfo_num
+      
+      get_boundary_condition = fdps_get_boundary_condition(dinfo_num)
+
+   end function get_boundary_condition
+
+   !----------------------------------------------------------
    subroutine set_pos_root_domain_a32(this,dinfo_num,low,high)
       use fdps_vector
       implicit none
@@ -1249,7 +1586,8 @@ module FDPS_module
       if (present(weight)) then
          weight_ = weight
       else
-         weight_ = 1.0_c_float ! default value
+         weight_ = real(fdps_get_nptcl_loc(psys_num), kind=c_float)
+         ! default value
       end if
       call fdps_collect_sample_particle(dinfo_num,psys_num, &
                                         clear_,weight_)
@@ -1489,13 +1827,8 @@ module FDPS_module
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,psys_num
       logical(kind=c_bool), optional, intent(IN) :: clear
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
-      character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
 
       !* Process Optional arguments
       if (present(clear)) then
@@ -1504,21 +1837,7 @@ module FDPS_module
          clear_ = .true. ! default value
       end if
 
-      call get_psys_info(this,psys_num,psys_info)
-      call get_tree_info(this,tree_num,tree_info)
-      info = trim(psys_info) // ',' // trim(tree_info)
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:set_particle_local_tree:impl;
-      !--------------
-      case default
-         errmsg = "The combination psys_num and tree_num is invalid"
-         func_name = "set_particle_local_tree"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_set_particle_local_tree(tree_num,psys_num,clear_)
 
    end subroutine set_particle_local_tree
 
@@ -1539,14 +1858,9 @@ module FDPS_module
       integer(kind=c_int), intent(IN) :: tree_num,psys_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep
       integer(kind=c_int), optional, intent(IN) :: list_mode
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
       integer(kind=c_int) :: list_mode_
-      character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
 
       !* Process Optional arguments
       clear_ = .true.
@@ -1556,21 +1870,13 @@ module FDPS_module
          list_mode_ = fdps_make_list ! default value
       end if
 
-      call get_psys_info(this,psys_num,psys_info)
-      call get_tree_info(this,tree_num,tree_info)
-      info = trim(psys_info) // ',' // trim(tree_info)
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:calc_force_all_and_write_back:impl:short;
-      !--------------
-      case default
-         errmsg = "The combination psys_num and tree_num is invalid"
-         func_name = "calc_force_all_and_write_back_s"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_calc_force_all_and_write_back(tree_num,      &
+                                              pfunc_ep_ep,   &
+                                              c_null_funptr, &
+                                              psys_num,      &
+                                              dinfo_num,     &
+                                              clear_,        &
+                                              list_mode_)
 
    end subroutine calc_force_all_and_write_back_s
 
@@ -1587,12 +1893,9 @@ module FDPS_module
       integer(kind=c_int), intent(IN) :: tree_num,psys_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep,pfunc_ep_sp
       integer(kind=c_int), optional, intent(IN) :: list_mode
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
       integer(kind=c_int) :: list_mode_
-      character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
       !-(To throw errors)
       character(len=64) :: errmsg,func_name
 
@@ -1604,21 +1907,13 @@ module FDPS_module
          list_mode_ = fdps_make_list ! default value
       end if
 
-      call get_psys_info(this,psys_num,psys_info)
-      call get_tree_info(this,tree_num,tree_info) 
-      info = trim(psys_info) // ',' // trim(tree_info)
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:calc_force_all_and_write_back:impl:long;
-      !--------------
-      case default
-         errmsg = "The combination psys_num and tree_num is invalid"
-         func_name = "calc_force_all_and_write_back_l"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_calc_force_all_and_write_back(tree_num,    &
+                                              pfunc_ep_ep, &
+                                              pfunc_ep_sp, &
+                                              psys_num,    &
+                                              dinfo_num,   &
+                                              clear_,      &
+                                              list_mode_)
 
    end subroutine calc_force_all_and_write_back_l
 
@@ -1634,14 +1929,9 @@ module FDPS_module
       integer(kind=c_int), intent(IN) :: tree_num,psys_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep
       integer(kind=c_int), optional, intent(IN) :: list_mode
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
       integer(kind=c_int) :: list_mode_
-      character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
 
       !* Process optional arguments
       clear_ = .true.
@@ -1651,21 +1941,13 @@ module FDPS_module
          list_mode_ = fdps_make_list ! default value
       end if
 
-      call get_psys_info(this,psys_num,psys_info)
-      call get_tree_info(this,tree_num,tree_info)
-      info = trim(psys_info) // ',' // trim(tree_info)
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:calc_force_all:impl:short;
-      !--------------
-      case default
-         errmsg = "The combination psys_num and tree_num is invalid"
-         func_name = "calc_force_all_s"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_calc_force_all(tree_num,      &
+                               pfunc_ep_ep,   &
+                               c_null_funptr, &
+                               psys_num,      &
+                               dinfo_num,     &
+                               clear_,        &
+                               list_mode_)
 
    end subroutine calc_force_all_s
 
@@ -1682,14 +1964,9 @@ module FDPS_module
       integer(kind=c_int), intent(IN) :: tree_num,psys_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep,pfunc_ep_sp
       integer(kind=c_int), optional, intent(IN) :: list_mode
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
       integer(kind=c_int) :: list_mode_
-      character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
 
       !* Process optional arguments
       clear_ = .true.
@@ -1699,21 +1976,13 @@ module FDPS_module
          list_mode_ = fdps_make_list ! default value
       end if
 
-      call get_psys_info(this,psys_num,psys_info)
-      call get_tree_info(this,tree_num,tree_info) 
-      info = trim(psys_info) // ',' // trim(tree_info)
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:calc_force_all:impl:long;
-      !--------------
-      case default
-         errmsg = "The combination psys_num and tree_num is invalid"
-         func_name = "calc_force_all_l"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_calc_force_all(tree_num,    &
+                               pfunc_ep_ep, &
+                               pfunc_ep_sp, &
+                               psys_num,    &
+                               dinfo_num,   &
+                               clear_,      &
+                               list_mode_)
 
    end subroutine calc_force_all_l
 
@@ -1726,30 +1995,17 @@ module FDPS_module
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
-      character(len=bufsize,kind=c_char) :: info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
       
       !* Process optioanl arguments
       clear_ = .true.
 
-      call get_tree_info(this,tree_num,info)
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:calc_force_making_tree:impl:short;
-      !--------------
-      case default
-         errmsg = "tree_num passed is invalid"
-         func_name = "calc_force_making_tree_s"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_calc_force_making_tree(tree_num,      &
+                                       pfunc_ep_ep,   &
+                                       c_null_funptr, &
+                                       dinfo_num,     &
+                                       clear_)
 
    end subroutine calc_force_making_tree_s
 
@@ -1763,30 +2019,17 @@ module FDPS_module
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,dinfo_num
       type(c_funptr), intent(in) :: pfunc_ep_ep,pfunc_ep_sp
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
-      character(len=bufsize,kind=c_char) :: info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
 
       !* Process optional arguments
       clear_ = .true.
 
-      call get_tree_info(this,tree_num,info) 
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:calc_force_making_tree:impl:long;
-      !--------------
-      case default
-         errmsg = "tree_num passed is invalid"
-         func_name = "calc_force_making_tree_l"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_calc_force_making_tree(tree_num,    &
+                                       pfunc_ep_ep, &
+                                       pfunc_ep_sp, &
+                                       dinfo_num,   &
+                                       clear_)
 
    end subroutine calc_force_making_tree_l
 
@@ -1799,32 +2042,17 @@ module FDPS_module
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,psys_num
       type(c_funptr), intent(in) :: pfunc_ep_ep
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
-      character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
 
       !* Process optional arguments
       clear_ = .true.
 
-      call get_psys_info(this,psys_num,psys_info)
-      call get_tree_info(this,tree_num,tree_info)
-      info = trim(psys_info) // ',' // trim(tree_info)
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:calc_force_and_write_back:impl:short;
-      !--------------
-      case default
-         errmsg = "The combination psys_num and tree_num is invalid"
-         func_name = "calc_force_and_write_back_s"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_calc_force_and_write_back(tree_num,      &
+                                          pfunc_ep_ep,   &
+                                          c_null_funptr, &
+                                          psys_num,      &
+                                          clear_)
 
    end subroutine calc_force_and_write_back_s
 
@@ -1838,32 +2066,17 @@ module FDPS_module
       class(FDPS_controller) :: this
       integer(kind=c_int), intent(IN) :: tree_num,psys_num
       type(c_funptr), intent(in) :: pfunc_ep_ep,pfunc_ep_sp
-      !* Local parameters
-      integer, parameter :: bufsize=256
       !* Local variables
       logical(kind=c_bool) :: clear_
-      character(len=bufsize,kind=c_char) :: psys_info,tree_info,info
-      !-(To throw errors)
-      character(len=64) :: errmsg,func_name
 
       !* Process optional arguments
       clear_ = .true.
 
-      call get_psys_info(this,psys_num,psys_info)
-      call get_tree_info(this,tree_num,tree_info) 
-      info = trim(psys_info) // ',' // trim(tree_info)
-
-      select case (trim(info))
-      !--------------
-      ! fdps-autogen:calc_force_and_write_back:impl:long;
-      !--------------
-      case default
-         errmsg = "The combination psys_num and tree_num is invalid"
-         func_name = "calc_force_and_write_back_l"
-         call print_errmsg(errmsg,func_name)
-         call PS_abort(this)
-         stop 1
-      end select
+      call fdps_calc_force_and_write_back(tree_num,    &
+                                          pfunc_ep_ep, &
+                                          pfunc_ep_sp, &
+                                          psys_num,    &
+                                          clear_)
 
    end subroutine calc_force_and_write_back_l
 
@@ -1926,7 +2139,7 @@ module FDPS_module
       logical(kind=c_bool), intent(IN) :: f_in
       logical(kind=c_bool), intent(INOUT) :: f_out
 
-      call fdps_get_logical_and(f_in,f_out)
+      f_out = fdps_get_logical_and(f_in)
 
    end subroutine get_logical_and
 
@@ -1937,18 +2150,341 @@ module FDPS_module
       logical(kind=c_bool), intent(IN) :: f_in
       logical(kind=c_bool), intent(INOUT) :: f_out
 
-      call fdps_get_logical_or(f_in,f_out)
+      f_out = fdps_get_logical_or(f_in)
 
    end subroutine get_logical_or
 
    !----------------------------------------------------------
-   ! [Comment] A place where the implementations of
-   !           reduction functions are generated.
-   ! fdps-autogen:get_min_value:ftn_impl;
-   ! fdps-autogen:get_max_value:ftn_impl;
-   ! fdps-autogen:get_sum:ftn_impl;
-   ! fdps-autogen:broadcast:ftn_impl;
+   subroutine get_min_value_s32(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: f_in
+      integer(kind=c_int), intent(INOUT) :: f_out
+
+       f_out = fdps_get_min_value_s32(f_in)
+
+   end subroutine get_min_value_s32
+
+   subroutine get_min_value_s64(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_long_long), intent(IN) :: f_in
+      integer(kind=c_long_long), intent(INOUT) :: f_out
+
+       f_out = fdps_get_min_value_s64(f_in)
+
+   end subroutine get_min_value_s64
+
+   subroutine get_min_value_f32(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+
+       f_out = fdps_get_min_value_f32(f_in)
+
+   end subroutine get_min_value_f32
+
+   subroutine get_min_value_f64(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+
+       f_out = fdps_get_min_value_f64(f_in)
+
+   end subroutine get_min_value_f64
+
+   subroutine get_min_value_w_id_f32(this,f_in,i_in,f_out,i_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+      integer(kind=c_int), intent(IN) :: i_in
+      integer(kind=c_int), intent(INOUT) :: i_out
+
+      call fdps_get_min_value_w_id_f32(f_in,i_in,f_out,i_out)
+
+   end subroutine get_min_value_w_id_f32
+
+   subroutine get_min_value_w_id_f64(this,f_in,i_in,f_out,i_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+      integer(kind=c_int), intent(IN) :: i_in
+      integer(kind=c_int), intent(INOUT) :: i_out
+
+      call fdps_get_min_value_w_id_f64(f_in,i_in,f_out,i_out)
+
+   end subroutine get_min_value_w_id_f64
+
    !----------------------------------------------------------
+   subroutine get_max_value_s32(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: f_in
+      integer(kind=c_int), intent(INOUT) :: f_out
+
+       f_out = fdps_get_max_value_s32(f_in)
+
+   end subroutine get_max_value_s32
+
+   subroutine get_max_value_s64(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_long_long), intent(IN) :: f_in
+      integer(kind=c_long_long), intent(INOUT) :: f_out
+
+       f_out = fdps_get_max_value_s64(f_in)
+
+   end subroutine get_max_value_s64
+
+   subroutine get_max_value_f32(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+
+       f_out = fdps_get_max_value_f32(f_in)
+
+   end subroutine get_max_value_f32
+
+   subroutine get_max_value_f64(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+
+       f_out = fdps_get_max_value_f64(f_in)
+
+   end subroutine get_max_value_f64
+
+   subroutine get_max_value_w_id_f32(this,f_in,i_in,f_out,i_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+      integer(kind=c_int), intent(IN) :: i_in
+      integer(kind=c_int), intent(INOUT) :: i_out
+
+      call fdps_get_max_value_w_id_f32(f_in,i_in,f_out,i_out)
+
+   end subroutine get_max_value_w_id_f32
+
+   subroutine get_max_value_w_id_f64(this,f_in,i_in,f_out,i_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+      integer(kind=c_int), intent(IN) :: i_in
+      integer(kind=c_int), intent(INOUT) :: i_out
+
+      call fdps_get_max_value_w_id_f64(f_in,i_in,f_out,i_out)
+
+   end subroutine get_max_value_w_id_f64
+
+   !----------------------------------------------------------
+   subroutine get_sum_s32(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: f_in
+      integer(kind=c_int), intent(INOUT) :: f_out
+
+       f_out = fdps_get_sum_s32(f_in)
+
+   end subroutine get_sum_s32
+
+   subroutine get_sum_s64(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_long_long), intent(IN) :: f_in
+      integer(kind=c_long_long), intent(INOUT) :: f_out
+
+       f_out = fdps_get_sum_s64(f_in)
+
+   end subroutine get_sum_s64
+
+   subroutine get_sum_f32(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+
+       f_out = fdps_get_sum_f32(f_in)
+
+   end subroutine get_sum_f32
+
+   subroutine get_sum_f64(this,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+
+       f_out = fdps_get_sum_f64(f_in)
+
+   end subroutine get_sum_f64
+
+   !----------------------------------------------------------
+   subroutine broadcast_scalar_s32(this,val,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(INOUT) :: val
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), optional, intent(IN) :: src
+      !* Local variables
+      integer(kind=c_int), dimension(1) :: vals
+
+      vals(1) = val
+      if (present(src)) then
+         call fdps_broadcast_s32(vals,1,src)
+      else
+         call fdps_broadcast_s32(vals,1,0)
+      end if
+      val = vals(1)
+
+   end subroutine broadcast_scalar_s32
+
+   subroutine broadcast_array_s32(this,vals,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), dimension(n), intent(INOUT) :: vals
+      integer(kind=c_int), optional, intent(IN) :: src
+
+      if (present(src)) then
+         call fdps_broadcast_s32(vals,n,src)
+      else
+         call fdps_broadcast_s32(vals,n,0)
+      end if
+
+   end subroutine broadcast_array_s32
+
+   subroutine broadcast_scalar_s64(this,val,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_long_long), intent(INOUT) :: val
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), optional, intent(IN) :: src
+      !* Local variables
+      integer(kind=c_long_long), dimension(1) :: vals
+
+      vals(1) = val
+      if (present(src)) then
+         call fdps_broadcast_s64(vals,1,src)
+      else
+         call fdps_broadcast_s64(vals,1,0)
+      end if
+      val = vals(1)
+
+   end subroutine broadcast_scalar_s64
+
+   subroutine broadcast_array_s64(this,vals,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_long_long), dimension(n), intent(INOUT) :: vals
+      integer(kind=c_int), optional, intent(IN) :: src
+
+      if (present(src)) then
+         call fdps_broadcast_s64(vals,n,src)
+      else
+         call fdps_broadcast_s64(vals,n,0)
+      end if
+
+   end subroutine broadcast_array_s64
+
+   subroutine broadcast_scalar_f32(this,val,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_float), intent(INOUT) :: val
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), optional, intent(IN) :: src
+      !* Local variables
+      real(kind=c_float), dimension(1) :: vals
+ 
+      vals(1) = val
+      if (present(src)) then
+         call fdps_broadcast_f32(vals,1,src)
+      else
+         call fdps_broadcast_f32(vals,1,0)
+      end if
+      val = vals(1)
+
+   end subroutine broadcast_scalar_f32
+
+   subroutine broadcast_array_f32(this,vals,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(in) :: n
+      real(kind=c_float), dimension(n), intent(INOUT) :: vals
+      integer(kind=c_int), optional, intent(IN) :: src
+
+      if (present(src)) then
+         call fdps_broadcast_f32(vals,n,src)
+      else
+         call fdps_broadcast_f32(vals,n,0)
+      end if
+
+   end subroutine broadcast_array_f32
+
+   subroutine broadcast_scalar_f64(this,val,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double), intent(INOUT) :: val
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), optional, intent(IN) :: src
+      !* Local variables
+      real(kind=c_double), dimension(1) :: vals
+
+      vals(1) = val
+      if (present(src)) then
+         call fdps_broadcast_f64(vals,1,src)
+      else
+         call fdps_broadcast_f64(vals,1,0)
+      end if
+      val = vals(1)
+
+   end subroutine broadcast_scalar_f64
+
+   subroutine broadcast_array_f64(this,vals,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(in) :: n
+      real(kind=c_double), dimension(n), intent(INOUT) :: vals
+      integer(kind=c_int), optional, intent(IN) :: src
+
+      if (present(src)) then
+         call fdps_broadcast_f64(vals,n,src)
+      else
+         call fdps_broadcast_f64(vals,n,0)
+      end if
+
+   end subroutine broadcast_array_f64
 
    !----------------------------------------------------------
    function get_wtime(this)
@@ -1959,6 +2495,15 @@ module FDPS_module
       get_wtime = fdps_get_wtime()
 
    end function get_wtime
+
+   !----------------------------------------------------------
+   subroutine barrier(this)
+      implicit none
+      class(FDPS_controller) :: this 
+
+      call fdps_barrier()
+
+   end subroutine barrier
 
    !##########################################################
    subroutine MT_init_genrand(this,s)
@@ -2019,6 +2564,91 @@ module FDPS_module
       MT_genrand_res53 = fdps_mt_genrand_res53()
 
    end function MT_genrand_res53
+
+   !----------------------------------------------------------
+   subroutine create_mtts(this,mtts_num)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(inout) :: mtts_num
+
+      call fdps_create_mtts(mtts_num)
+
+   end subroutine create_mtts
+
+   !----------------------------------------------------------
+   subroutine delete_mtts(this,mtts_num)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(in) :: mtts_num
+
+      call fdps_delete_mtts(mtts_num)
+
+   end subroutine delete_mtts
+
+   !----------------------------------------------------------
+   subroutine mtts_init_genrand(this,mtts_num,s)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: mtts_num,s
+
+      call fdps_mtts_init_genrand(mtts_num,s)
+      
+   end subroutine mtts_init_genrand
+
+   !----------------------------------------------------------
+   function mtts_genrand_int31(this,mtts_num)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int) :: mtts_genrand_int31
+      integer(kind=c_int), intent(in) :: mtts_num
+
+      mtts_genrand_int31 = fdps_mtts_genrand_int31(mtts_num)
+
+   end function mtts_genrand_int31
+
+   !----------------------------------------------------------
+   function mtts_genrand_real1(this,mtts_num)
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double) :: mtts_genrand_real1
+      integer(kind=c_int), intent(in) :: mtts_num
+
+      mtts_genrand_real1 = fdps_mtts_genrand_real1(mtts_num)
+
+   end function mtts_genrand_real1
+
+   !----------------------------------------------------------
+   function mtts_genrand_real2(this,mtts_num)
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double) :: mtts_genrand_real2
+      integer(kind=c_int), intent(in) :: mtts_num
+
+      mtts_genrand_real2 = fdps_mtts_genrand_real2(mtts_num)
+
+   end function mtts_genrand_real2
+
+   !----------------------------------------------------------
+   function mtts_genrand_real3(this,mtts_num)
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double) :: mtts_genrand_real3
+      integer(kind=c_int), intent(in) :: mtts_num
+
+      mtts_genrand_real3 = fdps_mtts_genrand_real3(mtts_num)
+
+   end function mtts_genrand_real3
+
+   !----------------------------------------------------------
+   function mtts_genrand_res53(this,mtts_num)
+      implicit none
+      class(FDPS_controller) :: this
+      real(kind=c_double) :: mtts_genrand_res53
+      integer(kind=c_int), intent(in) :: mtts_num
+
+      mtts_genrand_res53 = fdps_mtts_genrand_res53(mtts_num)
+
+   end function mtts_genrand_res53
 
    !##########################################################
 #if PARTICLE_SIMULATOR_USE_PM_MODULE

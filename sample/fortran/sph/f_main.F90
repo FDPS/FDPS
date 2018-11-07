@@ -19,7 +19,7 @@ subroutine f_main()
    integer :: i,j,k,ierr
    integer :: nstep
    integer :: psys_num,dinfo_num
-   integer :: dens_tree_num,hydro_tree_num
+   integer :: tree_num_dens,tree_num_hydro
    integer :: ntot,nloc
    logical :: clear
    double precision :: time,dt,end_time
@@ -55,26 +55,26 @@ subroutine f_main()
    !* Make two tree structures
    ntot = fdps_ctrl%get_nptcl_glb(psys_num)
    !** dens_tree (used for the density calculation)
-   call fdps_ctrl%create_tree(dens_tree_num, &
-                              "Short,dens_force,essential_particle,essential_particle,Gather")
-   call fdps_ctrl%init_tree(dens_tree_num,3*ntot,theta, &
+   call fdps_ctrl%create_tree(tree_num_dens, &
+                              "Short,force_dens,essential_particle,essential_particle,Gather")
+   call fdps_ctrl%init_tree(tree_num_dens,3*ntot,theta, &
                             n_leaf_limit,n_group_limit)
 
    !** hydro_tree (used for the force calculation)
-   call fdps_ctrl%create_tree(hydro_tree_num, &
-                              "Short,hydro_force,essential_particle,essential_particle,Symmetry")
-   call fdps_ctrl%init_tree(hydro_tree_num,3*ntot,theta, &
+   call fdps_ctrl%create_tree(tree_num_hydro, &
+                              "Short,force_hydro,essential_particle,essential_particle,Symmetry")
+   call fdps_ctrl%init_tree(tree_num_hydro,3*ntot,theta, &
                             n_leaf_limit,n_group_limit)
 
    !* Compute density, pressure, acceleration due to pressure gradient
    pfunc_ep_ep = c_funloc(calc_density)
-   call fdps_ctrl%calc_force_all_and_write_back(dens_tree_num, &
+   call fdps_ctrl%calc_force_all_and_write_back(tree_num_dens, &
                                                 pfunc_ep_ep,   &
                                                 psys_num,      &
                                                 dinfo_num)
    call set_pressure(fdps_ctrl,psys_num)
    pfunc_ep_ep = c_funloc(calc_hydro_force)
-   call fdps_ctrl%calc_force_all_and_write_back(hydro_tree_num, &
+   call fdps_ctrl%calc_force_all_and_write_back(tree_num_hydro, &
                                                 pfunc_ep_ep,   &
                                                 psys_num,      &
                                                 dinfo_num)
@@ -101,13 +101,13 @@ subroutine f_main()
 
       !* Compute density, pressure, acceleration due to pressure gradient
       pfunc_ep_ep = c_funloc(calc_density)
-      call fdps_ctrl%calc_force_all_and_write_back(dens_tree_num, &
+      call fdps_ctrl%calc_force_all_and_write_back(tree_num_dens, &
                                                    pfunc_ep_ep,   &
                                                    psys_num,      &
                                                    dinfo_num)
       call set_pressure(fdps_ctrl,psys_num)
       pfunc_ep_ep = c_funloc(calc_hydro_force)
-      call fdps_ctrl%calc_force_all_and_write_back(hydro_tree_num, &
+      call fdps_ctrl%calc_force_all_and_write_back(tree_num_dens, &
                                                    pfunc_ep_ep,   &
                                                    psys_num,      &
                                                    dinfo_num)

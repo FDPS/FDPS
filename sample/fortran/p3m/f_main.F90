@@ -8,7 +8,6 @@ subroutine f_main()
    !* Local parameters
    !-(# of error measurements)
    integer(kind=c_int), parameter :: num_trials = 512
-  !integer(kind=c_int), parameter :: num_trials = 1
    !-(tree)
    real(kind=c_float), parameter :: theta = 0.0
    integer(kind=c_int), parameter :: n_leaf_limit = 8
@@ -18,7 +17,7 @@ subroutine f_main()
    !* Local variables
    integer(kind=c_int) :: i,nstep
    integer(kind=c_int) :: nptcl_1d,nptcl_loc
-   integer(kind=c_int) :: psys_num,dinfo_num,tree_num,pm_num
+   integer(kind=c_int) :: psys_num,dinfo_num,tree_num,pm_num,mtts_num
    character(len=64) :: fname
    real(kind=c_double) :: relerr,relerr1
    type(fdps_f32vec) :: pos32
@@ -45,7 +44,8 @@ subroutine f_main()
    call fdps_ctrl%create_pm(pm_num)
 
    !* Initialize Mersenne twister pseudo-random number generator
-   call fdps_ctrl%MT_init_genrand(0)
+   call fdps_ctrl%create_mtts(mtts_num)
+   call fdps_ctrl%mtts_init_genrand(mtts_num,0)
 
    !==================================================================
    !* Compute relative energy errors of the Madelung energy
@@ -63,9 +63,9 @@ subroutine f_main()
       relerr = 0.0d0
       do nstep=1,num_trials
          !* [1] Randomly choose a configuration of the grid
-         NaCl_params%pos_vertex%x = fdps_ctrl%MT_genrand_res53()
-         NaCl_params%pos_vertex%y = fdps_ctrl%MT_genrand_res53()
-         NaCl_params%pos_vertex%z = fdps_ctrl%MT_genrand_res53()
+         NaCl_params%pos_vertex%x = fdps_ctrl%mtts_genrand_res53(mtts_num)
+         NaCl_params%pos_vertex%y = fdps_ctrl%mtts_genrand_res53(mtts_num)
+         NaCl_params%pos_vertex%z = fdps_ctrl%mtts_genrand_res53(mtts_num)
 
          !* [2] Make a NaCl crystal
          call setup_NaCl_crystal(fdps_ctrl, &

@@ -7,14 +7,16 @@ module user_defined_types
    use fdps_super_particle
    implicit none
 
+   !* Public variables
+   real(kind=c_double), public :: eps_grav ! gravitational softening
+
    !**** Full particle type
    type, public, bind(c) :: full_particle !$fdps FP,EPI,EPJ,Force
       !$fdps copyFromForce full_particle (pot,pot) (acc,acc)
-      !$fdps copyFromFP full_particle (id,id) (mass,mass) (eps,eps) (pos,pos) 
-      !$fdps clear id=keep, mass=keep, eps=keep, pos=keep, vel=keep
+      !$fdps copyFromFP full_particle (id,id) (mass,mass) (pos,pos) 
+      !$fdps clear id=keep, mass=keep, pos=keep, vel=keep
       integer(kind=c_long_long) :: id
       real(kind=c_double)  mass !$fdps charge
-      real(kind=c_double) :: eps
       type(fdps_f64vec) :: pos !$fdps position
       type(fdps_f64vec) :: vel !$fdps velocity
       real(kind=c_double) :: pot
@@ -24,7 +26,123 @@ module user_defined_types
    contains
 
    !**** Interaction function (particle-particle)
-   subroutine calc_gravity_pp(ep_i,n_ip,ep_j,n_jp,f) bind(c)
+#if defined(ENABLE_PHANTOM_GRAPE_X86)
+   subroutine calc_gravity_ep_ep(ep_i,n_ip,ep_j,n_jp,f) bind(c)
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
+      use omp_lib
+#endif
+      use phantom_grape_g5_x86
+      implicit none
+      integer(c_int), intent(in), value :: n_ip,n_jp
+      type(full_particle), dimension(n_ip), intent(in) :: ep_i
+      type(full_particle), dimension(n_jp), intent(in) :: ep_j
+      type(full_particle), dimension(n_ip), intent(inout) :: f
+      !* Local variables
+      integer(c_int) :: i,j
+      integer(c_int) :: nipipe,njpipe,devid
+      real(c_double), dimension(3,n_ip) :: xi,ai
+      real(c_double), dimension(n_ip) :: pi
+      real(c_double), dimension(3,n_jp) :: xj
+      real(c_double), dimension(n_jp) :: mj
+
+      nipipe = n_ip
+      njpipe = n_jp
+      do i=1,n_ip
+         xi(1,i) = ep_i(i)%pos%x
+         xi(2,i) = ep_i(i)%pos%y
+         xi(3,i) = ep_i(i)%pos%z
+         ai(1,i) = 0.0d0
+         ai(2,i) = 0.0d0
+         ai(3,i) = 0.0d0
+         pi(i)   = 0.0d0
+      end do
+      do j=1,n_jp
+         xj(1,j) = ep_j(j)%pos%x
+         xj(2,j) = ep_j(j)%pos%y
+         xj(3,j) = ep_j(j)%pos%z
+         mj(j)   = ep_j(j)%mass
+      end do
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
+      devid = omp_get_thread_num()
+      ! [IMPORTANT NOTE]
+      !   The subroutine calc_gravity_pp is called by a OpenMP thread
+      !   in the FDPS. This means that here is already in the parallel region.
+      !   So, you can use omp_get_thread_num() without !$OMP parallel directives.
+      !   If you use them, a nested parallel resions is made and the gravity
+      !   calculation will not be performed correctly.
+#else
+      devid = 0
+#endif
+      call g5_set_xmjMC(devid, 0, n_jp, xj, mj)
+      call g5_set_nMC(devid, n_jp)
+      call g5_calculate_force_on_xMC(devid, xi, ai, pi, n_ip)
+      do i=1,n_ip
+         f(i)%acc%x = f(i)%acc%x + ai(1,i)
+         f(i)%acc%y = f(i)%acc%y + ai(2,i)
+         f(i)%acc%z = f(i)%acc%z + ai(3,i)
+         f(i)%pot   = f(i)%pot   - pi(i)
+      end do
+   end subroutine calc_gravity_ep_ep
+
+   subroutine calc_gravity_ep_sp(ep_i,n_ip,ep_j,n_jp,f) bind(c)
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
+      use omp_lib
+#endif
+      use phantom_grape_g5_x86
+      implicit none
+      integer(c_int), intent(in), value :: n_ip,n_jp
+      type(full_particle), dimension(n_ip), intent(in) :: ep_i
+      type(fdps_spj_monopole), dimension(n_jp), intent(in) :: ep_j
+      type(full_particle), dimension(n_ip), intent(inout) :: f
+      !* Local variables
+      integer(c_int) :: i,j
+      integer(c_int) :: nipipe,njpipe,devid
+      real(c_double), dimension(3,n_ip) :: xi,ai
+      real(c_double), dimension(n_ip) :: pi
+      real(c_double), dimension(3,n_jp) :: xj
+      real(c_double), dimension(n_jp) :: mj
+
+      nipipe = n_ip
+      njpipe = n_jp
+      do i=1,n_ip
+         xi(1,i) = ep_i(i)%pos%x
+         xi(2,i) = ep_i(i)%pos%y
+         xi(3,i) = ep_i(i)%pos%z
+         ai(1,i) = 0.0d0
+         ai(2,i) = 0.0d0
+         ai(3,i) = 0.0d0
+         pi(i)   = 0.0d0
+      end do
+      do j=1,n_jp
+         xj(1,j) = ep_j(j)%pos%x
+         xj(2,j) = ep_j(j)%pos%y
+         xj(3,j) = ep_j(j)%pos%z
+         mj(j)   = ep_j(j)%mass
+      end do
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
+      devid = omp_get_thread_num()
+      ! [IMPORTANT NOTE]
+      !   The subroutine calc_gravity_psp is called by a OpenMP thread
+      !   in the FDPS. This means that here is already in the parallel region.
+      !   So, you can use omp_get_thread_num() without !$OMP parallel directives.
+      !   If you use them, a nested parallel resions is made and the gravity
+      !   calculation will not be performed correctly.
+#else
+      devid = 0
+#endif
+      call g5_set_xmjMC(devid, 0, n_jp, xj, mj)
+      call g5_set_nMC(devid, n_jp)
+      call g5_calculate_force_on_xMC(devid, xi, ai, pi, n_ip)
+      do i=1,n_ip
+         f(i)%acc%x = f(i)%acc%x + ai(1,i)
+         f(i)%acc%y = f(i)%acc%y + ai(2,i)
+         f(i)%acc%z = f(i)%acc%z + ai(3,i)
+         f(i)%pot   = f(i)%pot   - pi(i)
+      end do
+   end subroutine calc_gravity_ep_sp
+#else
+   subroutine calc_gravity_ep_ep(ep_i,n_ip,ep_j,n_jp,f) bind(c)
+      implicit none
       integer(c_int), intent(in), value :: n_ip,n_jp
       type(full_particle), dimension(n_ip), intent(in) :: ep_i
       type(full_particle), dimension(n_jp), intent(in) :: ep_j
@@ -35,8 +153,8 @@ module user_defined_types
       type(fdps_f64vec) :: xi,ai,rij
 
       !* Compute force
+      eps2 = eps_grav * eps_grav
       do i=1,n_ip
-         eps2 = ep_i(i)%eps * ep_i(i)%eps
          xi = ep_i(i)%pos
          ai = 0.0d0
          poti = 0.0d0
@@ -70,10 +188,11 @@ module user_defined_types
          f(i)%acc = f(i)%acc + ai
       end do
 
-   end subroutine calc_gravity_pp
+   end subroutine calc_gravity_ep_ep
 
    !**** Interaction function (particle-super particle)
-   subroutine calc_gravity_psp(ep_i,n_ip,ep_j,n_jp,f) bind(c)
+   subroutine calc_gravity_ep_sp(ep_i,n_ip,ep_j,n_jp,f) bind(c)
+      implicit none
       integer(c_int), intent(in), value :: n_ip,n_jp
       type(full_particle), dimension(n_ip), intent(in) :: ep_i
       type(fdps_spj_monopole), dimension(n_jp), intent(in) :: ep_j
@@ -83,8 +202,8 @@ module user_defined_types
       real(c_double) :: eps2,poti,r3_inv,r_inv
       type(fdps_f64vec) :: xi,ai,rij
 
+      eps2 = eps_grav * eps_grav
       do i=1,n_ip
-         eps2 = ep_i(i)%eps * ep_i(i)%eps
          xi = ep_i(i)%pos
          ai = 0.0d0
          poti = 0.0d0
@@ -109,6 +228,7 @@ module user_defined_types
          f(i)%acc = f(i)%acc + ai
       end do
 
-   end subroutine calc_gravity_psp
+   end subroutine calc_gravity_ep_sp
+#endif
 
 end module user_defined_types

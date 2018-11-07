@@ -21,6 +21,7 @@
 #include<omp.h>
 #endif
 
+#include"memory_pool.hpp"
 #include"vector2.hpp"
 #include"vector3.hpp"
 #include"orthotope2.hpp"
@@ -206,6 +207,9 @@ namespace ParticleSimulator{
         };
     };
 
+    struct TagSearchBoundaryConditionOpenOnly{};
+    struct TagSearchBoundaryConditionOpenPeriodic{};
+    
     struct TagSearchLong{};
     struct TagSearchLongCutoff{};
     struct TagSearchLongScatter{};
@@ -214,10 +218,20 @@ namespace ParticleSimulator{
     struct TagSearchShortGather{};
     struct TagSearchShortScatter{};
     struct TagSearchShortSymmetry{};
+
+    struct TagIpgLongNormal{};
+    struct TagIpgIn{};
+    struct TagIpgInAndOut{};
+    struct TagIpgOut{};
+
+    struct TagWithoutCutoff{};
+    struct TagWithCutoff{};
     
     struct SEARCH_MODE_LONG{
         typedef TagForceLong force_type;
         typedef TagSearchLong search_type;
+        typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
+        typedef TagIpgLongNormal ipg_type;
         enum{
             search_type_id = LONG_NO_CUTOFF,
         };
@@ -225,6 +239,8 @@ namespace ParticleSimulator{
     struct SEARCH_MODE_LONG_CUTOFF{
         typedef TagForceLong force_type;
         typedef TagSearchLongCutoff search_type;
+        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
+        typedef TagIpgLongNormal ipg_type;
         enum{
             search_type_id = LONG_CUTOFF,
         };
@@ -232,6 +248,8 @@ namespace ParticleSimulator{
     struct SEARCH_MODE_GATHER{
         typedef TagForceShort force_type;
         typedef TagSearchShortGather search_type;
+        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
+        typedef TagIpgOut ipg_type;
         enum{
             search_type_id = SHORT_GATHER,
         };
@@ -239,6 +257,8 @@ namespace ParticleSimulator{
     struct SEARCH_MODE_SCATTER{
         typedef TagForceShort force_type;
         typedef TagSearchShortScatter search_type;
+        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
+        typedef TagIpgIn ipg_type;
         enum{
             search_type_id = SHORT_SCATTER,
         };
@@ -246,6 +266,8 @@ namespace ParticleSimulator{
     struct SEARCH_MODE_SYMMETRY{
         typedef TagForceShort force_type;
         typedef TagSearchShortSymmetry search_type;
+        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
+        typedef TagIpgInAndOut ipg_type;
         enum{
             search_type_id = SHORT_SYMMETRY,
         };
@@ -255,6 +277,8 @@ namespace ParticleSimulator{
     struct SEARCH_MODE_LONG_SCATTER{
         typedef TagForceLong force_type;
         typedef TagSearchLongScatter search_type;
+        typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
+        typedef TagIpgIn ipg_type;
         enum{
             search_type_id = LONG_SCATTER,
         };
@@ -262,18 +286,23 @@ namespace ParticleSimulator{
     struct SEARCH_MODE_LONG_SYMMETRY{
         typedef TagForceLong force_type;
         typedef TagSearchLongSymmetry search_type;
+        typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
+        typedef TagIpgInAndOut ipg_type;
         enum{
             search_type_id = LONG_SYMMETRY,
         };
     };
+    /*
     struct SEARCH_MODE_LONG_CUTOFF_SCATTER{
         typedef TagForceLong force_type;
         typedef TagSearchLongCutoffScatter search_type;
+        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
+        typedef TagIpgInAndOut ipg_type;
         enum{
             search_type_id = LONG_CUTOFF_SCATTER,
         };
     };
-
+    */
 
     template<class T> class ValueTypeReduction;
     template<> class ValueTypeReduction<float>{};
@@ -331,8 +360,6 @@ namespace ParticleSimulator{
     template<> inline MPI_Datatype GetDataType<double, int>(){return MPI_DOUBLE_INT;}
 #endif
 
-
-// #if 1
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     template<class T, int DIM_COMM=2>
     class CommForAllToAll{
@@ -521,60 +548,9 @@ namespace ParticleSimulator{
                               val_recv.getPointer(), n_recv_1d_, n_recv_disp_1d_, GetDataType<T>(), comm_1d_[d]);
             }
         }
-/*
-        void executeV(const ReallocatableArray<T> & val_send,
-                      ReallocatableArray<T> & val_recv,
-                      const int n_send[],
-                      int n_recv[]){
-            int cnt = 0;
-            val_recv.reserveAtLeast( val_send.capacity() );
-            val_recv.clearSize();
-            for(int ib=0; ib<n_proc_glb_; ib++){
-                n_recv[ib] = n_send[ib];
-                for(int ip=0; ip<n_recv[ib]; ip++, cnt++){
-                    val_recv.pushBackNoCheck(val_send[cnt]);
-                }
-            }
-            
-            for(int d=DIM_COMM-1; d>=0; d--){
-                int radix = n_proc_glb_ / n_proc_1d_[d];
-                n_recv_disp_glb_[0] = 0;
-                for(int i=0; i<n_proc_glb_; i++){
-                    n_recv_disp_glb_[i+1] = n_recv_disp_glb_[i] + n_recv[i];
-                }
-                val_send_glb_.clearSize();
-                for(int ib0=0; ib0<n_proc_glb_; ib0++){
-                    int id_send = (ib0 % radix) * n_proc_1d_[d] + ib0 / radix;
-                    n_send_glb_[ib0] = n_recv[id_send];
-                    int offset = n_recv_disp_glb_[id_send];
-                    val_send_glb_.reserveEmptyAreaAtLeast(n_send_glb_[ib0]);
-                    for(int ib1=0; ib1<n_send_glb_[ib0]; ib1++){
-                        val_send_glb_.pushBackNoCheck(val_recv[ib1 + offset]);
-                    }
-                }
-                MPI_Alltoall(n_send_glb_, radix, MPI_INT,
-                             n_recv, radix, MPI_INT, comm_1d_[d]);
-                n_send_disp_1d_[0] = n_recv_disp_1d_[0] = 0;
-                for(int ib0=0; ib0<n_proc_1d_[d]; ib0++){
-                    n_send_1d_[ib0] = n_recv_1d_[ib0] = 0;
-                    int offset = ib0 * radix;
-                    for(int ib1=0; ib1<radix; ib1++){
-                        n_send_1d_[ib0] += n_send_glb_[offset + ib1];
-                        n_recv_1d_[ib0] += n_recv[offset + ib1];
-                    }
-                    n_send_disp_1d_[ib0+1] = n_send_disp_1d_[ib0] + n_send_1d_[ib0];
-                    n_recv_disp_1d_[ib0+1] = n_recv_disp_1d_[ib0] + n_recv_1d_[ib0];
-                }
-                val_recv.resizeNoInitialize( n_recv_disp_1d_[n_proc_1d_[d]] );
-                MPI_Alltoallv(val_send_glb_.getPointer(), n_send_1d_, n_send_disp_1d_, GetDataType<T>(),
-                              val_recv.getPointer(), n_recv_1d_, n_recv_disp_1d_, GetDataType<T>(), comm_1d_[d]);
-            }
-            //n_recv_tot = n_recv_disp_1d_[ n_proc_1d_[0] ];
-        }
-*/
     }; //CommForAllToAll
 #endif
-
+    
     class Comm{
     private:
         Comm(){
@@ -935,19 +911,13 @@ namespace ParticleSimulator{
 
     }; // END OF Comm
 
-
-    static inline void Initialize(int &argc, char **&argv){
-
+    static inline void Initialize(int &argc,
+                                  char **&argv,
+                                  const S64 mpool_size=100000000){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         MPI_Init(&argc, &argv);
 #endif
-
-/*
-        std::cerr<<"argc="<<argc<<std::endl;
-        for(S32 i=0; i<argc; i++){
-            std::cerr<<"argv[i]"<<argv[i]<<std::endl;
-        }
-*/
+        MemoryPool::initialize(mpool_size);
 #ifdef MONAR
         bool flag_monar = false;
         bool flag_MONAR = false;
@@ -966,13 +936,15 @@ namespace ParticleSimulator{
             std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
             std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
             std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-            std::cerr << "     ||     Version 4.1b (2018/08)       ||"   << std::endl;
+            std::cerr << "     ||     Version 5.0 (2018/11)        ||"   << std::endl;
             std::cerr << "     \\\\==================================//" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
             std::cerr << "       E-mail : fdps-support@mail.jmlab.jp" << std::endl;
             std::cerr << "       Licence: MIT (see, https://github.com/FDPS/FDPS/blob/master/LICENSE)" << std::endl;
-            std::cerr << "       Note   : Please cite Iwasawa et al. (2016, Publications of the Astronomical Society of Japan, 68, 54)" << std::endl;
+            std::cerr << "       Note   : Please cite the following papers." << std::endl;
+            std::cerr << "                - Iwasawa et al. (2016, Publications of the Astronomical Society of Japan, 68, 54)" << std::endl;
+            std::cerr << "                - Namekata et al. (2018, Publications of the Astronomical Society of Japan, 70, 70)" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Copyright (C) 2015 " << std::endl;
             std::cerr << "         Masaki Iwasawa, Ataru Tanikawa, Natsuki Hosono," << std::endl;
@@ -1042,6 +1014,12 @@ namespace ParticleSimulator{
     template<> inline long long Comm::getMinValue<long long>(const long long & val){
         return allreduceMin(val);
     }
+    template<> inline unsigned int Comm::getMinValue<unsigned int>(const unsigned int & val){
+        return allreduceMin(val);
+    }    
+    template<> inline unsigned long Comm::getMinValue<unsigned long>(const unsigned long & val){
+        return allreduceMin(val);
+    }    
     template<> inline unsigned long long Comm::getMinValue<unsigned long long>(const unsigned long long & val){
         return allreduceMin(val);
     }    
@@ -1100,6 +1078,12 @@ namespace ParticleSimulator{
     template<> inline long long Comm::getMaxValue<long long>(const long long & val){
         return allreduceMax(val);
     }
+    template<> inline unsigned int Comm::getMaxValue<unsigned int>(const unsigned int & val){
+        return allreduceMax(val);
+    }    
+    template<> inline unsigned long Comm::getMaxValue<unsigned long>(const unsigned long & val){
+        return allreduceMax(val);
+    }    
     template<> inline unsigned long long Comm::getMaxValue<unsigned long long>(const unsigned long long & val){
         return allreduceMax(val);
     }    
@@ -1881,7 +1865,25 @@ namespace ParticleSimulator{
         }
         return str;
     }
-    
+
+#ifdef TEST_VARIADIC_TEMPLATE
+    template<class T>
+    class IsParticleSystem{
+        template<class T2>
+        static auto check(T2 x) -> decltype(x.ParticleSystemDummyFunc(), std::true_type());
+        static auto check(...)  -> decltype(std::false_type());
+    public:
+        typedef decltype(check(std::declval<T>())) value;
+    };
+    template<class T>
+    class IsDomainInfo{
+        template<class T2>
+        static auto check(T2 x) -> decltype(x.DomainInfoDummyFunc(), std::true_type());
+        static auto check(...)  -> decltype(std::false_type());
+    public:
+        typedef decltype(check(std::declval<T>())) value;
+    };
+#endif
 }
 
 #include"util.hpp"

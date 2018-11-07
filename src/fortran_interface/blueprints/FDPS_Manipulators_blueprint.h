@@ -59,17 +59,18 @@ namespace FDPS_Manipulators {
                              const int numPtcl);
    extern int get_nptcl_loc(const int psys_num);
    extern int get_nptcl_glb(const int psys_num);
-   extern void get_psys_cptr(const int psys_num,
-                             void **cptr);
+   extern void * get_psys_cptr(const int psys_num);
    extern void exchange_particle(const int psys_num,
                                  const int dinfo_num);
-   // fdps-autogen:add_particle; 
+   extern void add_particle(const int psys_num,
+                            const void *cptr_to_fp);
    extern void remove_particle(const int psys_num, 
                                const int numPtcl,
                                int *ptcl_indx);
    extern void adjust_pos_into_root_domain(const int psys_num,
                                            const int dinfo_num);
-   // fdps-autogen:sort_particle;
+   extern void sort_particle(const int psys_num,
+                             bool (*pfunc_comp)(const void *, const void *));
 
    //----------------------------
    // DomainInfo manipulators
@@ -87,6 +88,7 @@ namespace FDPS_Manipulators {
                                const int nz);
    extern void set_boundary_condition(const int dinfo_num, 
                                       const enum PS_BOUNDARY_CONDITION bc);
+   extern int get_boundary_condition(const int dinfo_num);
    extern void set_pos_root_domain(const int dinfo_num,
                                    const PS::F32vec *low,
                                    const PS::F32vec *high);
@@ -124,14 +126,44 @@ namespace FDPS_Manipulators {
    extern void clear_num_interact(const int tree_num);
    extern long long int get_num_tree_walk_loc(const int tree_num);
    extern long long int get_num_tree_walk_glb(const int tree_num);
-   // fdps-autogen:set_particle_local_tree;
-   // fdps-autogen:get_force;
-   // fdps-autogen:calc_force_all_and_write_back;
-   // fdps-autogen:calc_force_all;
-   // fdps-autogen:calc_force_making_tree;
-   // fdps-autogen:calc_force_and_write_back;
-   // fdps-autogen:get_neighbor_list;
-   // fdps-autogen:get_epj_from_id;
+   extern void set_particle_local_tree(const int tree_num, 
+                                       const int psys_num,
+                                       const bool clear);
+   extern void get_force(const int tree_num, 
+                         const PS::S32 i,
+                         const void *cptr_to_force);
+   extern void calc_force_all_and_write_back(const int tree_num,
+                                             void *(pfunc_ep_ep)(void *, int, void *, int, void *),
+                                             void *(pfunc_ep_sp)(void *, int, void *, int, void *),
+                                             const int psys_num,
+                                             const int dinfo_num,
+                                             const bool clear,
+                                             const enum PS_INTERACTION_LIST_MODE list_mode);
+   extern void calc_force_all(const int tree_num,
+                              void *(pfunc_ep_ep)(void *, int, void *, int, void *),
+                              void *(pfunc_ep_sp)(void *, int, void *, int, void *),
+                              const int psys_num,
+                              const int dinfo_num,
+                              const bool clear,
+                              const enum PS_INTERACTION_LIST_MODE list_mode);
+   extern void calc_force_making_tree(const int tree_num,
+                                      void *(pfunc_ep_ep)(void *, int, void *, int, void *),
+                                      void *(pfunc_ep_sp)(void *, int, void *, int, void *),
+                                      const int dinfo_num,
+                                      const bool clear);
+   extern void calc_force_and_write_back(const int tree_num,
+                                         void *(pfunc_ep_ep)(void *, int, void *, int, void *),
+                                         void *(pfunc_ep_sp)(void *, int, void *, int, void *),
+                                         const int psys_num,
+                                         const bool clear);
+   extern void get_neighbor_list(const int tree_num,
+                                 const PS::F64vec *pos,
+                                 const PS::F64 r_search,
+                                 int *num_epj,
+                                 void **cptr_to_epj);
+   extern void * get_epj_from_id(const int tree_num,
+                                 const PS::S64 id);
+
 
    //----------------------------
    // Utility functions
@@ -142,6 +174,15 @@ namespace FDPS_Manipulators {
    extern double mt_genrand_real2(void);
    extern double mt_genrand_real3(void);
    extern double mt_genrand_res53(void);
+
+   extern void create_mtts(int* mtts_num);
+   extern void delete_mtts(const int mtts_num);
+   extern void mtts_init_genrand(const int mtts_num, const int s);
+   extern int mtts_genrand_int31(const int mtts_num);
+   extern double mtts_genrand_real1(const int mtts_num);
+   extern double mtts_genrand_real2(const int mtts_num);
+   extern double mtts_genrand_real3(const int mtts_num);
+   extern double mtts_genrand_res53(const int mtts_num);
 
    //----------------------------
    // Particle Mesh
@@ -167,13 +208,4 @@ namespace FDPS_Manipulators {
                                                 const int psys_num,
                                                 const int dinfo_num);
 #endif
-
-   //----------------------------
-   // Other utility functions
-   //----------------------------
-   static void print_errmsg(const std::string& errmsg,
-                            const std::string& func_name);
-   static std::vector<std::string> split(const std::string& s,
-                                         const std::string& delim);
-   static void check_split(void);
 }

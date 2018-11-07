@@ -3,6 +3,9 @@
 !-----------------------------------------------------------------------
 subroutine f_main()
    use fdps_module
+#if defined(ENABLE_PHANTOM_GRAPE_X86)
+   use phantom_grape_g5_x86
+#endif
    use user_defined_types
    implicit none
    !* Local parameters
@@ -32,6 +35,7 @@ subroutine f_main()
    type(c_funptr) :: pfunc_ep_ep,pfunc_ep_sp
    !-(IO)
    character(len=64) :: fname
+   integer(c_int) :: np
 
    !* Initialize FDPS
    call fdps_ctrl%PS_Initialize()
@@ -57,9 +61,14 @@ subroutine f_main()
    call fdps_ctrl%decompose_domain_all(dinfo_num,psys_num)
    call fdps_ctrl%exchange_particle(psys_num,dinfo_num)
 
+#if defined(ENABLE_PHANTOM_GRAPE_X86)
+    call g5_open()
+    call g5_set_eps_to_all(eps_grav);
+#endif
+
    !* Compute force at the initial time
-   pfunc_ep_ep = c_funloc(calc_gravity_pp)
-   pfunc_ep_sp = c_funloc(calc_gravity_psp)
+   pfunc_ep_ep = c_funloc(calc_gravity_ep_ep)
+   pfunc_ep_sp = c_funloc(calc_gravity_ep_sp)
    call fdps_ctrl%calc_force_all_and_write_back(tree_num,    &
                                                 pfunc_ep_ep, &
                                                 pfunc_ep_sp, &
@@ -110,8 +119,8 @@ subroutine f_main()
       call fdps_ctrl%exchange_particle(psys_num,dinfo_num)
 
       !* Force calculation
-      pfunc_ep_ep = c_funloc(calc_gravity_pp)
-      pfunc_ep_sp = c_funloc(calc_gravity_psp)
+      pfunc_ep_ep = c_funloc(calc_gravity_ep_ep)
+      pfunc_ep_sp = c_funloc(calc_gravity_ep_sp)
       call fdps_ctrl%calc_force_all_and_write_back(tree_num,    &
                                                    pfunc_ep_ep, &
                                                    pfunc_ep_sp, &
@@ -128,6 +137,10 @@ subroutine f_main()
          exit
       end if
    end do
+
+#if defined(ENABLE_PHANTOM_GRAPE_X86)
+   call g5_close()
+#endif
 
    !* Finalize FDPS
    call fdps_ctrl%PS_Finalize()
@@ -181,7 +194,6 @@ subroutine setup_IC(fdps_ctrl,psys_num,nptcl_glb)
             if ( r2 < r2max ) exit
          end do
          ptcl(i)%vel = 0.0d0
-         ptcl(i)%eps = 1.0d0/32.0d0
       end do
 
       !* Correction
@@ -217,6 +229,9 @@ subroutine setup_IC(fdps_ctrl,psys_num,nptcl_glb)
    else
       call fdps_ctrl%set_nptcl_loc(psys_num,0)
    end if
+
+   !* Set the gravitational softening
+   eps_grav = 1.0d0/32.0d0
 
 end subroutine setup_IC
 
@@ -310,7 +325,7 @@ subroutine calc_energy(fdps_ctrl,psys_num,etot,ekin,epot,clear)
    epot_loc = 0.0d0 
    do i=1,nptcl_loc
       ekin_loc = ekin_loc + ptcl(i)%mass * ptcl(i)%vel * ptcl(i)%vel
-      epot_loc = epot_loc + ptcl(i)%mass * (ptcl(i)%pot + ptcl(i)%mass/ptcl(i)%eps)
+      epot_loc = epot_loc + ptcl(i)%mass * (ptcl(i)%pot + ptcl(i)%mass/eps_grav)
    end do
    ekin_loc = ekin_loc * 0.5d0
    epot_loc = epot_loc * 0.5d0

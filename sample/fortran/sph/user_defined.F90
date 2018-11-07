@@ -12,23 +12,23 @@ module user_defined_types
    real(kind=c_double), parameter, public :: kernel_support_radius=2.5d0
 
    !**** Force types
-   type, public, bind(c) :: dens_force !$fdps Force
+   type, public, bind(c) :: force_dens !$fdps Force
       !$fdps clear smth=keep
       real(kind=c_double) :: dens
       real(kind=c_double) :: smth
-   end type dens_force
+   end type force_dens
 
-   type, public, bind(c) :: hydro_force !$fdps Force
+   type, public, bind(c) :: force_hydro !$fdps Force
       !$fdps clear 
       type(fdps_f64vec) :: acc
       real(kind=c_double) :: eng_dot
       real(kind=c_double) :: dt
-   end type hydro_force
+   end type force_hydro
 
    !**** Full particle type
    type, public, bind(c) :: full_particle !$fdps FP
-      !$fdps copyFromForce dens_force (dens,dens)
-      !$fdps copyFromForce hydro_force (acc,acc) (eng_dot,eng_dot) (dt,dt)
+      !$fdps copyFromForce force_dens (dens,dens)
+      !$fdps copyFromForce force_hydro (acc,acc) (eng_dot,eng_dot) (dt,dt)
       real(kind=c_double) :: mass !$fdps charge
       type(fdps_f64vec) :: pos !$fdps position
       type(fdps_f64vec) :: vel 
@@ -48,7 +48,7 @@ module user_defined_types
    !**** Essential particle type
    type, public, bind(c) :: essential_particle !$fdps EPI,EPJ
       !$fdps copyFromFP full_particle (id,id) (pos,pos) (vel,vel) (mass,mass) (smth,smth) (dens,dens) (pres,pres) (snds,snds)
-      integer(kind=c_long_long) :: id
+      integer(kind=c_long_long) :: id !$fdps id
       type(fdps_f64vec) :: pos !$fdps position
       type(fdps_f64vec) :: vel
       real(kind=c_double) :: mass !$fdps charge
@@ -118,7 +118,7 @@ module user_defined_types
       integer(kind=c_int), intent(in), value :: n_ip,n_jp
       type(essential_particle), dimension(n_ip), intent(in) :: ep_i
       type(essential_particle), dimension(n_jp), intent(in) :: ep_j
-      type(dens_force), dimension(n_ip), intent(inout) :: f
+      type(force_dens), dimension(n_ip), intent(inout) :: f
       !* Local variables
       integer(kind=c_int) :: i,j
       type(fdps_f64vec) :: dr
@@ -141,7 +141,7 @@ module user_defined_types
       integer(kind=c_int), intent(in), value :: n_ip,n_jp
       type(essential_particle), dimension(n_ip), intent(in) :: ep_i
       type(essential_particle), dimension(n_jp), intent(in) :: ep_j
-      type(hydro_force), dimension(n_ip), intent(inout) :: f
+      type(force_hydro), dimension(n_ip), intent(inout) :: f
       !* Local parameters
       real(kind=c_double), parameter :: C_CFL=0.3d0
       !* Local variables

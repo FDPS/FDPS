@@ -265,6 +265,67 @@ namespace ParticleSimulator{
         }
     };
 
+#if 1
+    template<class Tipg>
+    class IPGroup{};
+    
+    template<>
+    class IPGroup<TagIpgLongNormal>{
+    public:
+        S32 n_ptcl_;
+        S32 adr_ptcl_;
+        F64ort vertex_in_;
+        template<class Ttc>
+        void copyFromTC(const Ttc & tc){
+            n_ptcl_ = tc.n_ptcl_;
+            adr_ptcl_ = tc.adr_ptcl_;
+        }
+    };
+
+    template<>
+    class IPGroup<TagIpgIn>{
+    public:
+        S32 n_ptcl_;
+        S32 adr_ptcl_;
+        F64ort vertex_in_;
+        template<class Ttc>
+        void copyFromTC(const Ttc & tc){
+            n_ptcl_ = tc.n_ptcl_;
+            adr_ptcl_ = tc.adr_ptcl_;
+            vertex_in_ = tc.mom_.vertex_in_;
+        }
+    };
+    
+    template<>
+    class IPGroup<TagIpgInAndOut>{
+    public:
+        S32 n_ptcl_;
+        S32 adr_ptcl_;
+        F64ort vertex_in_;
+        F64ort vertex_out_;
+        template<class Ttc>
+        void copyFromTC(const Ttc & tc){
+            n_ptcl_ = tc.n_ptcl_;
+            adr_ptcl_ = tc.adr_ptcl_;
+            vertex_in_ = tc.mom_.vertex_in_;
+            vertex_out_ = tc.mom_.vertex_out_;
+        }
+    };
+    
+    template<>
+    class IPGroup<TagIpgOut>{
+    public:
+        S32 n_ptcl_;
+        S32 adr_ptcl_;
+        F64ort vertex_out_;
+        template<class Ttc>
+        void copyFromTC(const Ttc & tc){
+            n_ptcl_ = tc.n_ptcl_;
+            adr_ptcl_ = tc.adr_ptcl_;
+            vertex_out_ = tc.mom_.vertex_out_;
+        }
+    };
+#else
     template<class TSM>
     class IPGroup{
     public:
@@ -323,20 +384,20 @@ namespace ParticleSimulator{
         S32 n_ptcl_;
         S32 adr_ptcl_;
         F64ort vertex_;
-        F64ort vertex_in;
+        F64ort vertex_in_;
         template<class Ttc> 
         void copyFromTC(const Ttc & tc){
             // for SYMMETRY
             n_ptcl_ = tc.n_ptcl_;
             adr_ptcl_ = tc.adr_ptcl_;
             vertex_ = tc.mom_.vertex_out_;
-            vertex_in = tc.mom_.vertex_in_;
+            vertex_in_ = tc.mom_.vertex_in_;
         }
         // for DEBUG
         void dump(std::ostream & fout = std::cout){
             fout<<"n_ptcl_="<<n_ptcl_<<std::endl;
             fout<<"adr_ptcl_="<<adr_ptcl_<<std::endl;
-            fout<<"vertex_="<<vertex_<<std::endl;
+            fout<<"vertex_ing_="<<vertex_in_<<std::endl;
         }
     };
 
@@ -363,7 +424,8 @@ namespace ParticleSimulator{
             fout<<"vertex_out_="<<vertex_out_<<std::endl;
         }
     };    
-
+#endif
+    
     ////////////////////////
     // ESSENTIAL PARTICLE //
     class EPXROnly{

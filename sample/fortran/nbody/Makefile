@@ -14,7 +14,7 @@ FC=gfortran
 CXX=g++
 # MPI case
 #FC=mpif90
-#CXX=mpic++
+#CXX=mpicxx
 # [Option 1] w/o optimization
 #FCFLAGS = -std=f2003 -O0 -Wall
 #CXXFLAGS = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
@@ -29,7 +29,25 @@ LDFLAGS = -lgfortran
 #FCFLAGS  += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 #CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
+#use_phantom_grape_x86 = yes
+
 # fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
+
+ifeq ($(use_phantom_grape_x86),yes)
+PG_ROOT = $(FDPS_LOC)/src//phantom_grape_x86/G5/newton/libpg5
+SRC_PG  = $(PG_ROOT)/phantom_grape_g5_x86.F90
+OBJ_PG  = $(notdir $(SRC_PG:F90=o))
+FCFLAGS  += -DENABLE_PHANTOM_GRAPE_X86
+LDFLAGS  += -L$(PG_ROOT) -lpg5
+PG_BUILD = cd $(PG_ROOT) && $(MAKE) distclean libpg5.a
+PG_CLEAN = cd $(PG_ROOT) && $(MAKE) distclean
+else
+PG_ROOT  = 
+SRC_PG   = 
+OBJ_PG   = 
+PG_BUILD =
+PG_CLEAN = 
+endif
 
 #-----------------------------------------------------------------------
 #   Source files
@@ -55,23 +73,24 @@ OBJ_USER		= $(SRC_USER:F90=o)
 OBJ_FDPS_MOD		= $(notdir $(SRC_FDPS_MOD:F90=o))
 OBJ_FTN			= $(notdir $(SRC_FTN:F90=o))
 OBJ_CXX			= $(SRC_CXX:cpp=o)
-OBJ			= $(OBJ_FTN) $(OBJ_CXX)
+OBJ			= $(OBJ_FTN) $(OBJ_CXX) $(OBJ_PG)
 
-VPATH = $(FDPS_FTN_MOD_DIR)
+VPATH = $(FDPS_FTN_MOD_DIR) $(PG_ROOT)
 TARGET = nbody.out
 
 $(TARGET): $(OBJ) result
+	$(PG_BUILD)
 	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
 
 result:
-	mkdir result
+	mkdir -p result
 
 $(SRC_CXX) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
 	$(FDPS_FTN_IF_GENERATOR) $(SRC_USER_DEFINED_TYPE) --output ./ 
 
 FDPS_super_particle.o: FDPS_vector.o FDPS_matrix.o
 
-$(OBJ_USER_DEFINED_TYPE): $(OBJ_FDPS_MOD)
+$(OBJ_USER_DEFINED_TYPE): $(OBJ_FDPS_MOD) $(OBJ_PG)
 
 FDPS_module.o: $(OBJ_USER_DEFINED_TYPE)
 
@@ -81,6 +100,7 @@ clean:
 	rm -f *.o *.s *.mod $(TARGET) *.dat
 
 distclean: clean
+	$(PG_CLEAN)
 	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp 
 	rm -rf result
 

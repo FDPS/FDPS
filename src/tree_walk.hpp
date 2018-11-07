@@ -1,14 +1,5 @@
 #pragma once
 
-/*
-リスト長がMAKE_LISTとMAKE_LIST_FOR_REUSEで異なる問題について。Leaf
-Cellの粒子を全部送るかどうかが原因。TargetBoxにメンバ関数isInEpList(粒
-子を追加するかを切り捨てるかを記述)を追加することで対処しようとしたが、
-Scatterモードで粒子の切り捨てを行った場合、EXLETではGATHERでもSYMMETRY
-でも第一段階通信でScatterモードでツリーウォークを行うので、第二段階通
-信と
- */
-
 #include<particle_simulator.hpp>
 
 namespace ParticleSimulator{
@@ -34,6 +25,14 @@ namespace ParticleSimulator{
     ////////////
 
     ////////////
+    // copy info close mode
+    struct TagCopyInfoCloseNormal{};
+    struct TagCopyInfoCloseNoSp{};
+    struct TagCopyInfoCloseWithTpAdrptcl{};
+    // copy info close mode
+    ////////////
+    
+    ////////////
     // targe box class
     template<class TSM>
     struct TargetBox{
@@ -42,19 +41,53 @@ namespace ParticleSimulator{
     template<>
     struct TargetBox<SEARCH_MODE_LONG>{
         F64ort vertex_;
+        template<class Tipg>
+        void set(const Tipg & ipg){
+            vertex_ = ipg.vertex_in_;
+        }
+        void dump(std::ostream & fout=std::cerr){
+            fout<<"vertex_= "<<vertex_<<std::endl;
+        }
     };
     template<>
     struct TargetBox<SEARCH_MODE_LONG_SYMMETRY>{
         F64ort vertex_in_;
         F64ort vertex_out_;
+        template<class Tipg>
+        void set(const Tipg & ipg){
+            vertex_in_  = ipg.vertex_in_;
+            vertex_out_ = ipg.vertex_out_;
+        }
     };
+
+    template<>
+    struct TargetBox<SEARCH_MODE_LONG_SCATTER>{
+        F64ort vertex_;
+        template<class Tipg>
+        void set(const Tipg & ipg){
+            vertex_ = ipg.vertex_in_;
+        }
+    };
+    
     template<>
     struct TargetBox<SEARCH_MODE_LONG_CUTOFF>{
         F64ort vertex_;
+        template<class Tipg>
+        void set(const Tipg & ipg){
+            vertex_ = ipg.vertex_in_;
+        }
+        void dump(std::ostream & fout=std::cerr){
+            fout<<"vertex_= "<<vertex_<<std::endl;
+        }
     };
+    
     template<>
     struct TargetBox<SEARCH_MODE_SCATTER>{
         F64ort vertex_in_;
+        template<class Tipg>
+        void set(const Tipg & ipg){
+            vertex_in_ = ipg.vertex_in_;
+        }
         template<class Tep>
         inline bool isInEpList(const ReallocatableArray<Tep> & ep_first,
                                const S32 adr) const {
@@ -63,14 +96,19 @@ namespace ParticleSimulator{
             return dis_sq <= r_crit_sq;
         }
     };
+    
     template<>
     struct TargetBox<SEARCH_MODE_SYMMETRY>{
         F64ort vertex_out_;
         F64ort vertex_in_;
+        template<class Tipg>
+        void set(const Tipg & ipg){
+            vertex_out_ = ipg.vertex_out_;
+            vertex_in_ = ipg.vertex_in_;
+        }
         template<class Tep>
         inline bool isInEpList(const ReallocatableArray<Tep> & ep_first,
                                const S32 adr) const {
-            //std::cerr<<"symmetry"<<std::endl;
             const F64 dis_sq = vertex_in_.getDistanceMinSQ(ep_first[adr].getPos());
             const F64 r_crit_sq = ep_first[adr].getRSearch() * ep_first[adr].getRSearch();
             return (dis_sq <= r_crit_sq) || (vertex_out_.overlapped(ep_first[adr].getPos()));
@@ -79,14 +117,14 @@ namespace ParticleSimulator{
     template<>
     struct TargetBox<SEARCH_MODE_GATHER>{
         F64ort vertex_out_;
+        template<class Tipg>
+        void set(const Tipg & ipg){
+            vertex_out_ = ipg.vertex_out_;
+        }
         template<class Tep>
         inline bool isInEpList(const ReallocatableArray<Tep> & ep_first,
                                const S32 adr) const {
-            //std::cerr<<"gather"<<std::endl;
-            //std::cout<<"ep_first[adr].mass= "<<ep_first[adr].mass<<std::endl;
-            //std::cout<<"ep_first[adr].pos= "<<ep_first[adr].pos<<std::endl;
             return vertex_out_.overlapped(ep_first[adr].getPos());
-            //return true;
         }
     };
     // targe box class
@@ -132,149 +170,88 @@ namespace ParticleSimulator{
     }
     // set target box for exching let
     /////////////
-
-    /////////////
-    // set target box for interaction list
-    template<class TSM>
-    inline void GetTargetBox(const IPGroup<TSM> & ipg,
-                      TargetBox<TSM> & target_box){
-        assert(0);
-    }
-    template<>
-    inline void GetTargetBox<SEARCH_MODE_SYMMETRY>(const IPGroup<SEARCH_MODE_SYMMETRY> & ipg,
-                                                   TargetBox<SEARCH_MODE_SYMMETRY> & target_box){
-        target_box.vertex_in_  = ipg.vertex_in;
-        target_box.vertex_out_ = ipg.vertex_;
-    }
-    template<>
-    inline void GetTargetBox<SEARCH_MODE_SCATTER>(const IPGroup<SEARCH_MODE_SCATTER> & ipg,
-                                                  TargetBox<SEARCH_MODE_SCATTER> & target_box){
-        target_box.vertex_in_ = ipg.vertex_;
-    }
-    template<>
-    inline void GetTargetBox<SEARCH_MODE_GATHER>(const IPGroup<SEARCH_MODE_GATHER> & ipg,
-                                                 TargetBox<SEARCH_MODE_GATHER> & target_box){
-        target_box.vertex_out_ = ipg.vertex_;
-    }
-    template<>
-    inline void GetTargetBox<SEARCH_MODE_LONG>(const IPGroup<SEARCH_MODE_LONG> & ipg,
-                                               TargetBox<SEARCH_MODE_LONG> & target_box){
-        target_box.vertex_ = ipg.vertex_;
-    }
-    template<>
-    inline void GetTargetBox<SEARCH_MODE_LONG_CUTOFF>(const IPGroup<SEARCH_MODE_LONG_CUTOFF> & ipg,
-                                                      TargetBox<SEARCH_MODE_LONG_CUTOFF> & target_box){
-        target_box.vertex_ = ipg.vertex_;
-    }
-    template<>
-    inline void GetTargetBox<SEARCH_MODE_LONG_SCATTER>(const IPGroup<SEARCH_MODE_LONG_SCATTER> & ipg,
-                                                TargetBox<SEARCH_MODE_LONG_SCATTER> & target_box){
-        target_box.vertex_ = ipg.vertex_;
-    }
-    template<>
-    inline void GetTargetBox<SEARCH_MODE_LONG_SYMMETRY>(const IPGroup<SEARCH_MODE_LONG_SYMMETRY> & ipg,
-                                                 TargetBox<SEARCH_MODE_LONG_SYMMETRY> & target_box){
-        target_box.vertex_in_  = ipg.vertex_;
-        target_box.vertex_out_ = ipg.vertex_out_;
-    }
-    // set target box for interaction list
-    /////////////
     
     ///////////
     // IS OPEN
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchLong,
-                const ReallocatableArray<Ttc> & tc_first,
-                const S32 adr_tc,
-                const TargetBox<TSM> & target_box,
-                const F64 r_crit_sq,
-                const F64vec & len_peri,
-                TagWalkModeNormal){
+                       const ReallocatableArray<Ttc> & tc_first,
+                       const S32 adr_tc,
+                       const TargetBox<TSM> & target_box,
+                       const F64 r_crit_sq,
+                       const F64vec & len_peri,
+                       TagWalkModeNormal){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
     
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchLongScatter,
-                const ReallocatableArray<Ttc> & tc_first,
-                const S32 adr_tc,
-                const TargetBox<TSM> & target_box,
-                const F64 r_crit_sq,
-                const F64vec & len_peri,
-                TagWalkModeNormal){
+                       const ReallocatableArray<Ttc> & tc_first,
+                       const S32 adr_tc,
+                       const TargetBox<TSM> & target_box,
+                       const F64 r_crit_sq,
+                       const F64vec & len_peri,
+                       TagWalkModeNormal){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
 
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchLongSymmetry,
-                const ReallocatableArray<Ttc> & tc_first,
-                const S32 adr_tc,
-                const TargetBox<TSM> & target_box,
-                const F64 r_crit_sq,
-                const F64vec & len_peri,
-                TagWalkModeNormal){
+                       const ReallocatableArray<Ttc> & tc_first,
+                       const S32 adr_tc,
+                       const TargetBox<TSM> & target_box,
+                       const F64 r_crit_sq,
+                       const F64vec & len_peri,
+                       TagWalkModeNormal){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
     
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchLongCutoff,
-                const ReallocatableArray<Ttc> & tc_first,
-                const S32 adr_tc,
-                const TargetBox<TSM> & target_box,
-                const F64 r_crit_sq,
-                const F64vec & len_peri,
-                TagWalkModeNormal){
+                       const ReallocatableArray<Ttc> & tc_first,
+                       const S32 adr_tc,
+                       const TargetBox<TSM> & target_box,
+                       const F64 r_crit_sq,
+                       const F64vec & len_peri,
+                       TagWalkModeNormal){
         return ( (target_box.vertex_.overlapped(tc_first[adr_tc].mom_.getVertexOut()))
                  &&  (tc_first[adr_tc].n_ptcl_ > 0) );
     }
     
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortScatter,
-                const ReallocatableArray<Ttc> & tc_first,
-                const S32 adr_tc,
-                //const F64ort & pos_target_box,
-                const TargetBox<TSM> & target_box,
-                const F64 r_crit_sq,
-                const F64vec & len_peri,
-                TagWalkModeNormal){
+                       const ReallocatableArray<Ttc> & tc_first,
+                       const S32 adr_tc,
+                       const TargetBox<TSM> & target_box,
+                       const F64 r_crit_sq,
+                       const F64vec & len_peri,
+                       TagWalkModeNormal){
         return ( (target_box.vertex_in_.overlapped(tc_first[adr_tc].mom_.getVertexOut()))
                  &&  (tc_first[adr_tc].n_ptcl_ > 0) );
     }
     
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortSymmetry,
-                const ReallocatableArray<Ttc> & tc_first,
-                const S32 adr_tc,
-                //const F64ort & pos_target_box,
-                const TargetBox<TSM> & target_box,
-                const F64 r_crit_sq,
-                const F64vec & len_peri,
-                TagWalkModeNormal){
+                       const ReallocatableArray<Ttc> & tc_first,
+                       const S32 adr_tc,
+                       const TargetBox<TSM> & target_box,
+                       const F64 r_crit_sq,
+                       const F64vec & len_peri,
+                       TagWalkModeNormal){
         return ( ( (target_box.vertex_in_.overlapped(tc_first[adr_tc].mom_.getVertexOut()))
                  || (target_box.vertex_out_.overlapped(tc_first[adr_tc].mom_.getVertexIn())) )
                  &&  (tc_first[adr_tc].n_ptcl_ > 0) );
-        /*
-        F64 dis = std::min(target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc].mom_.getVertexOut()),
-                           target_box.vertex_out_.getDistanceMinSq(tc_first[adr_tc].mom_.getVertexIn())); 
-        bool ret = ( dis <= 0.0 );
-        return ret;
-        */
     }
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortGather,
-                const ReallocatableArray<Ttc> & tc_first,
-                const S32 adr_tc,
-                //const F64ort & pos_target_box,
-                const TargetBox<TSM> & target_box,
-                const F64 r_crit_sq,
-                const F64vec & len_peri,
-                TagWalkModeNormal){
+                       const ReallocatableArray<Ttc> & tc_first,
+                       const S32 adr_tc,
+                       const TargetBox<TSM> & target_box,
+                       const F64 r_crit_sq,
+                       const F64vec & len_peri,
+                       TagWalkModeNormal){
         return ( target_box.vertex_out_.overlapped(tc_first[adr_tc].mom_.getVertexIn())
                  &&  (tc_first[adr_tc].n_ptcl_ > 0) );
-        /*
-        F64 dis = target_box.vertex_out_.getDistanceMinSq(tc_first[adr_tc].mom_.getVertexIn());
-        bool ret = ( dis <= 0.0 );
-        return ret;
-        */
     }    
     // IS OPEN
     ///////////
@@ -299,6 +276,7 @@ namespace ParticleSimulator{
     template<class TSM, class Ttp, class Tep, class Tsp>
     inline void CopyInfoClose(TagForceLong,
                               TagChopLeafTrue,
+                              TagCopyInfoCloseNoSp,
                               const ReallocatableArray<Ttp> & tp_first,
                               const S32 adr_ptcl,
                               const S32 n_ptcl,
@@ -309,20 +287,35 @@ namespace ParticleSimulator{
                               const TargetBox<TSM> & target_box){
         S32 cnt_adr_ptcl = adr_ptcl;
         adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
-        adr_sp_list.reserveEmptyAreaAtLeast(n_ptcl);
         for(S32 ip=0; ip<n_ptcl; ip++, cnt_adr_ptcl++){
-            if( GetMSB(tp_first[cnt_adr_ptcl].adr_ptcl_) == 0){
-                adr_ep_list.pushBackNoCheck(cnt_adr_ptcl);
-            }
-            else{
-                adr_sp_list.pushBackNoCheck(cnt_adr_ptcl);
-            }
+            assert(GetMSB(tp_first[cnt_adr_ptcl].adr_ptcl_)==0);
+            adr_ep_list.pushBackNoCheck(cnt_adr_ptcl);
         }
     }
-    
     template<class TSM, class Ttp, class Tep, class Tsp>
     inline void CopyInfoClose(TagForceLong,
                               TagChopLeafFalse,
+                              TagCopyInfoCloseNoSp,
+                              const ReallocatableArray<Ttp> & tp_first,
+                              const S32 adr_ptcl,
+                              const S32 n_ptcl,
+                              const ReallocatableArray<Tep> & ep_first,
+                              ReallocatableArray<S32> & adr_ep_list,
+                              const ReallocatableArray<Tsp> & sp_first,
+                              ReallocatableArray<S32> & adr_sp_list,
+                              const TargetBox<TSM> & target_box){
+        S32 cnt_adr_ptcl = adr_ptcl;
+        adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
+        for(S32 ip=0; ip<n_ptcl; ip++, cnt_adr_ptcl++){
+            assert(GetMSB(tp_first[cnt_adr_ptcl].adr_ptcl_)==0);
+            adr_ep_list.pushBackNoCheck(cnt_adr_ptcl);
+        }
+    }
+
+    template<class TSM, class Ttp, class Tep, class Tsp>
+    inline void CopyInfoClose(TagForceLong,
+                              TagChopLeafTrue,
+                              TagCopyInfoCloseWithTpAdrptcl,
                               const ReallocatableArray<Ttp> & tp_first,
                               const S32 adr_ptcl,
                               const S32 n_ptcl,
@@ -336,18 +329,46 @@ namespace ParticleSimulator{
         adr_sp_list.reserveEmptyAreaAtLeast(n_ptcl);
         for(S32 ip=0; ip<n_ptcl; ip++, cnt_adr_ptcl++){
             if( GetMSB(tp_first[cnt_adr_ptcl].adr_ptcl_) == 0){
-                adr_ep_list.pushBackNoCheck(cnt_adr_ptcl);
+                const S32 adr_ep = tp_first[cnt_adr_ptcl].adr_ptcl_;
+                adr_ep_list.pushBackNoCheck(adr_ep);
             }
             else{
-                adr_sp_list.pushBackNoCheck(cnt_adr_ptcl);
+                const S32 adr_sp = ClearMSB(tp_first[cnt_adr_ptcl].adr_ptcl_);
+                adr_sp_list.pushBackNoCheck(adr_sp);
+            }
+        }
+    }
+    template<class TSM, class Ttp, class Tep, class Tsp>
+    inline void CopyInfoClose(TagForceLong,
+                              TagChopLeafFalse,
+                              TagCopyInfoCloseWithTpAdrptcl,
+                              const ReallocatableArray<Ttp> & tp_first,
+                              const S32 adr_ptcl,
+                              const S32 n_ptcl,
+                              const ReallocatableArray<Tep> & ep_first,
+                              ReallocatableArray<S32> & adr_ep_list,
+                              const ReallocatableArray<Tsp> & sp_first,
+                              ReallocatableArray<S32> & adr_sp_list,
+                              const TargetBox<TSM> & target_box){
+        S32 cnt_adr_ptcl = adr_ptcl;
+        adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
+        adr_sp_list.reserveEmptyAreaAtLeast(n_ptcl);
+        for(S32 ip=0; ip<n_ptcl; ip++, cnt_adr_ptcl++){
+            if( GetMSB(tp_first[cnt_adr_ptcl].adr_ptcl_) == 0){
+                const S32 adr_ep = tp_first[cnt_adr_ptcl].adr_ptcl_;
+                adr_ep_list.pushBackNoCheck(adr_ep);
+            }
+            else{
+                const S32 adr_sp = ClearMSB(tp_first[cnt_adr_ptcl].adr_ptcl_);
+                adr_sp_list.pushBackNoCheck(adr_sp);
             }
         }
     }
 
-    
     template<class TSM, class Ttp, class Tep, class Tsp>
     inline void CopyInfoClose(TagForceShort,
                               TagChopLeafTrue,
+                              TagCopyInfoCloseNoSp,
                               const ReallocatableArray<Ttp> & tp_first,
                               const S32 adr_ptcl,
                               const S32 n_ptcl,
@@ -367,6 +388,7 @@ namespace ParticleSimulator{
     template<class TSM, class Ttp, class Tep, class Tsp>
     inline void CopyInfoClose(TagForceShort,
                               TagChopLeafFalse,
+                              TagCopyInfoCloseNoSp,
                               const ReallocatableArray<Ttp> & tp_first,
                               const S32 adr_ptcl,
                               const S32 n_ptcl,
@@ -379,9 +401,7 @@ namespace ParticleSimulator{
         for(S32 ip=0; ip<n_ptcl; ip++){
             const S32 adr = adr_ptcl + ip;
             adr_ep_list.pushBackNoCheck(adr);
-            //if( target_box.isInEpList(ep_first, adr) ) adr_ep_list.pushBackNoCheck(adr);
         }
-
     }
     // COPY INFO CLOSE
     ///////////
@@ -555,7 +575,6 @@ namespace ParticleSimulator{
     inline U32 GetOpenBit(TagSearchShortScatter,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
-                          //const F64ort & pos_target_box,
                           const TargetBox<TSM> & target_box,
                           const F64 r_crit_sq,
                           const F64vec & len_peri,
@@ -612,7 +631,7 @@ namespace ParticleSimulator{
     /////////////////
 
     // for both long mode and short mode
-    template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode, class Tchopleaf>
+    template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode, class Tchopleaf, class Tcopyinfoclose>
     inline void MakeListUsingTreeRecursive
     (const ReallocatableArray<Ttc> & tc_first,
      const S32 adr_tc,
@@ -638,7 +657,7 @@ namespace ParticleSimulator{
             for(S32 i=0; i<N_CHILDREN; i++){
                 if( !((open_bit>>(i+N_CHILDREN)) & 0x1) ) continue;
                 else if( (open_bit>>i) & 0x1 ){ // close
-                    MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Twalkmode, Tchopleaf>
+                    MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Twalkmode, Tchopleaf, Tcopyinfoclose>
                         (tc_first, adr_tc_child+i, tp_first, ep_first, adr_ep_list, sp_first, adr_sp_list,
                          target_box, r_crit_sq*0.25, n_leaf_limit, adr_tree_sp_first, len_peri);
                 }
@@ -659,14 +678,14 @@ namespace ParticleSimulator{
                 adr_ep_list.pushBackNoCheck(adr_ptcl_child+ip);
             }
 #else
-            CopyInfoClose(typename TSM::force_type(), Tchopleaf(), tp_first, adr_ptcl_child, n_ptcl,
+            CopyInfoClose(typename TSM::force_type(), Tchopleaf(), Tcopyinfoclose(), tp_first, adr_ptcl_child, n_ptcl,
                           ep_first, adr_ep_list, sp_first, adr_sp_list, target_box);
 #endif
         }
     }
 
-    // for long mode 
-    template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode, class Tchopleaf>
+    // for long mode
+    template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode, class Tchopleaf, class Tcopyinfoclose>
     inline void MakeListUsingTreeRecursiveTop
     (const ReallocatableArray<Ttc> & tc_first,
      const S32 adr_tc,
@@ -684,7 +703,7 @@ namespace ParticleSimulator{
             // theta_ > 0 case or PS::SEARCH_MODE_LONG_CUTOFF
             if( IsOpen(typename TSM::search_type(), tc_first, adr_tc, target_box,
                        r_crit_sq, len_peri, typename Twalkmode::walk_type()) ){
-                MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Twalkmode, Tchopleaf>
+                MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Twalkmode, Tchopleaf, Tcopyinfoclose>
                     (tc_first, adr_tc, tp_first, ep_first, adr_ep_list, sp_first,
                      adr_sp_list, target_box, r_crit_sq, n_leaf_limit,
                      adr_tree_sp_first, len_peri);
@@ -694,7 +713,7 @@ namespace ParticleSimulator{
             // theta_ = 0 case with the modes other than PS::SEARCH_MODE_LONG_CUTOFF
             const S32 n_ptcl = tc_first[0].n_ptcl_;
             S32 adr_ptcl = tc_first[0].adr_ptcl_;
-            CopyInfoClose(typename TSM::force_type(), Tchopleaf(), tp_first, adr_ptcl, n_ptcl,
+            CopyInfoClose(typename TSM::force_type(), Tchopleaf(), Tcopyinfoclose(), tp_first, adr_ptcl, n_ptcl,
                           ep_first, adr_ep_list, sp_first, adr_sp_list, target_box);
         }
     }
@@ -712,12 +731,14 @@ namespace ParticleSimulator{
      const S32 n_leaf_limit,
      const F64vec & len_peri){
         S32 adr_tree_sp_first = 0;
-        const ReallocatableArray<SuperParticleBase> sp_first;
+        ReallocatableArray<SuperParticleBase> sp_first;
         ReallocatableArray<S32> adr_sp_list;
-        MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, SuperParticleBase, Twalkmode, Tchopleaf>
+        MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, SuperParticleBase, Twalkmode, Tchopleaf, TagCopyInfoCloseNoSp>
             (tc_first, adr_tc, tp_first, ep_first, adr_ep_list, sp_first,
              adr_sp_list, target_box, r_crit_sq, n_leaf_limit,
              adr_tree_sp_first, len_peri);
+        //adr_sp_list.freeMem();
+        //sp_first.freeMem();
     }
 
 
@@ -757,7 +778,7 @@ namespace ParticleSimulator{
             }
         }
     }
-    
+
     template<class Ttc>
     inline U32 IsOverlappedTop(const ReallocatableArray<Ttc> & tc_first,
                                const F64ort & pos_box,
@@ -785,15 +806,6 @@ namespace ParticleSimulator{
                          || IsOverlappedTop(tc_first_A, tc_first_B[adr_tc_B+i].mom_.getVertexIn(), n_leaf_limit_A)) << i;
             open_bit |= (tc_first_B[adr_tc_B+i].n_ptcl_ > 0) << (i + N_CHILDREN); // if false, just skip
         }
-        /*
-        for(S32 i=0; i<N_CHILDREN; i++){
-            open_bit |= (tc_first_B[adr_tc_B+i].mom_.getVertexOut().overlapped(pos_domain)) << i;
-            if( !(tc_first_B[adr_tc_B+i].mom_.getVertexOut().overlapped(pos_domain)) ){
-                open_bit |= IsOverlappedTop(tc_first_A, tc_first_B[adr_tc_B+i].mom_.getVertexIn(), n_leaf_limit_A) << i;
-            }
-            open_bit |= (tc_first_B[adr_tc_B+i].n_ptcl_ > 0) << (i + N_CHILDREN); // if false, just skip
-        }
-        */
         return open_bit;
     }
     

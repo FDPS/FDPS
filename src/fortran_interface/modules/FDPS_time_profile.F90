@@ -22,6 +22,7 @@ module fdps_time_profile
       real(kind=c_double) :: make_LET_2nd
       real(kind=c_double) :: exchange_LET_1st
       real(kind=c_double) :: exchange_LET_2nd
+      real(kind=c_double) :: write_back
 
       real(kind=c_double) :: morton_sort_local_tree
       real(kind=c_double) :: link_cell_local_tree
@@ -35,6 +36,10 @@ module fdps_time_profile
       ! = make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
 
       real(kind=c_double) :: calc_force__core__walk_tree
+      real(kind=c_double) :: calc_force__core__keep_list
+      real(kind=c_double) :: calc_force__core__copy_ep
+      real(kind=c_double) :: calc_force__core__dispatch
+      real(kind=c_double) :: calc_force__core__retrieve
 
       real(kind=c_double) :: calc_force__make_ipgroup
       real(kind=c_double) :: calc_force__core
@@ -60,6 +65,9 @@ module fdps_time_profile
       real(kind=c_double) :: exchange_LET_1st__a2a_sp
       real(kind=c_double) :: exchange_LET_1st__icomm_ep
       real(kind=c_double) :: exchange_LET_1st__a2a_ep
+
+      real(kind=c_double) :: add_moment_as_sp_local
+      real(kind=c_double) :: add_moment_as_sp_global
    end type fdps_time_prof
 
 end module fdps_time_profile

@@ -1,0 +1,94 @@
+#-----------------------------------------------------------------------
+#   Configuration of compile
+#-----------------------------------------------------------------------
+# Variables that must be specified by users
+# (i) Variables related to FDPS
+FDPS_LOC = ../../../
+PM_ROOT  = $(FDPS_LOC)/src/particle_mesh
+FDPS_INC = -I$(FDPS_LOC)/src -I$(PM_ROOT)
+FDPS_LIB = -L$(PM_ROOT) -lpm
+FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
+FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
+
+# (ii) Variables related to FFTW
+FFTW_INC =
+FFTW_LIB = -lfftw3f_mpi -lfftw3f -lm
+
+# (iii) Variables to specify compilers and compile options 
+FC=mpiifort
+CXX=mpiicpc
+# [Option 1] w/o optimization
+#FCFLAGS = -O0 -check all -fpe0 -gen_interfaces -ftrapuv -traceback -g
+#CXXFLAGS = -ftrapuv -debug all -g -I/opt/intel/include $(FDPS_INC) 
+# [Option 2] w/ optimization 
+FCFLAGS = -O3 -ipo 
+CXXFLAGS = -O3 -ipo $(FFTW_INC) $(FDPS_INC)
+LDFLAGS = -lifport -lifcore -limf -lsvml -lm -lipgo -lirc -lirc_s $(FFTW_LIB) $(FDPS_LIB)
+# Activate PM module
+FCFLAGS  += -DPARTICLE_SIMULATOR_USE_PM_MODULE
+CXXFLAGS += -DPARTICLE_SIMULATOR_USE_PM_MODULE
+# MPI options
+FCFLAGS  += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+
+# Job submission variables
+QSUB = pjsub
+JOB_FILE_NAME = job.ofp.sh
+WORKDIR = /work/xg18i070/x10225/p3m-ftn/
+
+#-----------------------------------------------------------------------
+#   Source files
+#-----------------------------------------------------------------------
+%.o : %.F90
+	$(FC) $(FCFLAGS) -c $<
+%.o : %.cpp
+	$(CXX) $(CXXFLAGS) -c $<
+
+SRC_USER_DEFINED_TYPE = user_defined.F90
+SRC_USER = f_main.F90
+SRC_FDPS_MOD = $(wildcard $(FDPS_FTN_MOD_DIR)/*.F90)
+SRC_FTN = $(SRC_FDPS_MOD) \
+	  $(SRC_USER_DEFINED_TYPE) \
+	  FDPS_module.F90 \
+	  $(SRC_USER)
+SRC_CXX = FDPS_ftn_if.cpp \
+	  FDPS_Manipulators.cpp \
+	  main.cpp
+
+OBJ_USER_DEFINED_TYPE	= $(SRC_USER_DEFINED_TYPE:F90=o)
+OBJ_USER		= $(SRC_USER:F90=o)
+OBJ_FDPS_MOD		= $(notdir $(SRC_FDPS_MOD:F90=o))
+OBJ_FTN			= $(notdir $(SRC_FTN:F90=o))
+OBJ_CXX			= $(SRC_CXX:cpp=o)
+OBJ			= $(OBJ_FTN) $(OBJ_CXX)
+
+VPATH = $(FDPS_FTN_MOD_DIR)
+TARGET = p3m.out
+
+$(TARGET): Makefile $(OBJ) $(PM_ROOT)/libpm.a
+	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
+	mkdir -p $(WORKDIR)
+	mv $(TARGET) $(WORKDIR)
+	cp $(JOB_FILE_NAME) $(WORKDIR)
+	cd $(WORKDIR); $(QSUB) $(JOB_FILE_NAME)
+
+$(PM_ROOT)/libpm.a: $(PM_ROOT)/param_fdps.h
+	cd $(PM_ROOT) && $(MAKE) allclean libpm.a
+
+$(SRC_CXX) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
+	$(FDPS_FTN_IF_GENERATOR) $(SRC_USER_DEFINED_TYPE) --output ./ 
+
+FDPS_super_particle.o: FDPS_vector.o FDPS_matrix.o
+
+$(OBJ_USER_DEFINED_TYPE): $(OBJ_FDPS_MOD)
+
+FDPS_module.o: $(OBJ_USER_DEFINED_TYPE)
+
+$(OBJ_USER): $(OBJ_USER_DEFINED_TYPE) FDPS_module.o
+
+clean:
+	rm -f *.o *.s *.mod $(TARGET) *.dat
+
+distclean: clean
+	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp 
+	cd $(PM_ROOT) && $(MAKE) allclean

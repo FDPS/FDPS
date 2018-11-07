@@ -1,6 +1,7 @@
 #pragma once
 
 #include<iostream>
+#include<fstream>
 #include<functional>
 #include<algorithm>
 
@@ -133,7 +134,9 @@ namespace ParticleSimulator{
         }	
 #endif
     public:
-
+#ifdef TEST_VARIADIC_TEMPLATE
+        void DomainInfoDummyFunc(){}
+#endif
         TimeProfile getTimeProfile() const {
             return time_profile_;
         }
@@ -164,7 +167,7 @@ namespace ParticleSimulator{
             delete [] pos_sample_loc_;
         }
 
-        void initialize(const F32 coef_ema = 1.0){
+        void initialize(const F32 coef_ema = FDPS_DFLT_VAL_COEF_EMA){
             if( coef_ema < 0.0 || coef_ema > 1.0){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The smoothing factor of an exponential moving average is must between 0 and 1.");
                 std::cerr<<"The smoothing factor of an exponential moving average is must between 0 and 1."<<std::endl;
@@ -267,6 +270,13 @@ namespace ParticleSimulator{
                                    const F32 weight) {
             F64 time_offset = GetWtime();
             if(psys.getFirstCallByDomainInfoCollectSampleParticle()) {
+                //if (Comm::getRank() == 0) {
+                //    std::cout << "weight = " << weight << std::endl;
+                //    std::cout << "target_number_of_sample_particle_ = " 
+                //              << target_number_of_sample_particle_ 
+                //              << " RANK = " << Comm::getRank()
+                //              << std::endl;
+                //}
                 F64vec *temp_loc = new F64vec[target_number_of_sample_particle_];
                 for(S32 i = 0; i < number_of_sample_particle_loc_; i++)
                     temp_loc[i] = pos_sample_loc_[i];
@@ -277,7 +287,7 @@ namespace ParticleSimulator{
                 pos_sample_tot_ = new F64vec[target_number_of_sample_particle_];
                 pos_sample_loc_ = new F64vec[target_number_of_sample_particle_];
                 for(S32 i = 0; i < number_of_sample_particle_loc_; i++)
-                    pos_sample_loc_[i] = temp_loc[i];                                
+                    pos_sample_loc_[i] = temp_loc[i];
                 delete [] temp_loc;
             }
             if(clear) {
@@ -286,6 +296,27 @@ namespace ParticleSimulator{
             S32 number_of_sample_particle = 0;
             psys.getSampleParticle(number_of_sample_particle, &pos_sample_loc_[number_of_sample_particle_loc_], weight);
             number_of_sample_particle_loc_ += number_of_sample_particle;
+            //if (Comm::getRank() == 0) {
+            //    std::cout << "number_of_sample_particle_loc_ = " 
+            //              << number_of_sample_particle_loc_
+            //              << " number_of_sample_particle = "
+            //              << number_of_sample_particle
+            //              << " RANK = " << Comm::getRank()
+            //              << std::endl;
+            //    const std::string filename = "pos_sample_loc_.txt";
+            //    std::ofstream output_file;
+            //    output_file.open(filename.c_str(),std::ios::trunc);
+            //    output_file.setf(std::ios_base::scientific,
+            //                     std::ios_base::floatfield);
+            //    output_file << std::setprecision(15) << std::showpos;
+            //    for(S32 i = 0; i < number_of_sample_particle_loc_; i++) {
+            //        output_file << pos_sample_loc_[i].x << " "
+            //                    << pos_sample_loc_[i].y << " "
+            //                    << pos_sample_loc_[i].z << " "
+            //                    << std::endl;
+            //    }
+            //    output_file.close();
+            //}
             time_profile_.collect_sample_particle += GetWtime() - time_offset;
             return;
         }
@@ -432,7 +463,6 @@ namespace ParticleSimulator{
             //std::cout<<"rank_glb="<<rank_glb<<" number_of_sample_particle_loc_="<<number_of_sample_particle_loc_<<std::endl;
             ///////////// sort particles along x direction
             std::sort(pos_sample_loc_, pos_sample_loc_+number_of_sample_particle_loc_, LessOPX());
-
 
             ///////////// migrate particles along x direction
             for(S32 i=0; i<n_domain_[0]; i++) n_send[i] = n_recv[i] = 0;
@@ -661,7 +691,7 @@ namespace ParticleSimulator{
 	    }
 */
 	    //////////////////////////////////////////////
-        ///////////// exchange pos_domain_tmp
+            ///////////// exchange pos_domain_tmp
 	    MPI_Allgather(pos_domain_temp_buf, n_proc_sub_[0], GetDataType<F64ort>(),
                       pos_domain_temp_, n_proc_sub_[0], GetDataType<F64ort>(), comm_1d_[0]);
 
@@ -850,7 +880,163 @@ namespace ParticleSimulator{
             time_profile_.decompose_domain += GetWtime() - time_offset;
         }
 
+//#if __cplusplus <= 201112L
+#ifdef TEST_VARIADIC_TEMPLATE
 
+    #if 0 // variadic template version
+        F32 sample_weight_;
+        bool flag_sample_weight_;
+        bool flag_first_sample_;
+        // variadic template version
+        template<class Tail>
+        void checkWeightLast(const Tail & tail, std::true_type){
+            // sample_weight is defined
+            sample_weight_ = tail;
+            flag_sample_weight_ = true;
+        }
+        template<class Tail>
+        void checkWeightLast(Tail & tail, std::false_type){
+            // sample_weight is not defined
+            flag_sample_weight_ = false;
+        }
+        template<class Tail>
+        void checkWeight(const Tail & tail){
+            checkWeightLast(tail, typename std::is_convertible<Tail, F32>::type() );
+        }
+        template<class Head, class... Tail>
+        void checkWeight(const Head & head, const Tail&... tail){
+            checkWeight(tail...);
+        }
+        template<class Tail>
+        void collectSampleParticleLast(const Tail & tail, std::true_type){
+            // last argument is not a particle_system class
+            // do nothing
+            //std::cerr<<"weight is defined"<<std::endl;
+        }
+        template<class Tail>
+        void collectSampleParticleLast(Tail & tail, std::false_type){
+            // last argument is a particle_system class
+            //std::cerr<<"no weight"<<std::endl;
+            collectSampleParticle(tail, false);
+        }
+        template<class Tail>
+        void collectSampleParticleRecursive(Tail & tail){
+            collectSampleParticleLast(tail, typename std::is_convertible<Tail, F32>::type() );
+        }
+        template<class Head, class ... Tail>
+        void collectSampleParticleRecursive(Head & head, Tail& ... tail){
+            bool flag_clear = false;
+            if(!flag_sample_weight_){sample_weight_ = head.getNumberOfParticleLocal();}
+            if(flag_first_sample_){
+                flag_clear = true;
+                flag_first_sample_ = false;
+            }
+            collectSampleParticle(head, flag_clear, sample_weight_);
+            collectSampleParticleRecursive(tail ...);
+        }
+        template<class ... Args>
+        void decomposeDomainAll(Args & ... args){
+            checkWeight(args ...);
+            flag_first_sample_ = true;
+            collectSampleParticleRecursive(args...);
+            decomposeDomain();
+        }
+    #endif // variadic template version        
+        // tuple version
+    #if 0
+        // use class
+        template<int N, class Ttpl, class Head, class ... Tail>
+        class CollectSampleParticleTplRecursive{
+        public:
+            void operator () (Ttpl & sys_tpl, F32 wgh, bool & flag_first_sample, DomainInfo * dinfo){
+                std::cerr<<"wgh= "<<wgh<<std::endl;
+                bool flag_clear = false;
+                if(flag_first_sample){
+                    flag_clear = true;
+                    flag_first_sample = false;
+                }
+                dinfo->collectSampleParticle(*(std::get<N>(sys_tpl)), flag_clear, wgh);
+                CollectSampleParticleTplRecursive<N+1, Ttpl, Tail...>()(sys_tpl, wgh, flag_first_sample, dinfo);
+            }
+            void operator () (Ttpl & sys_tpl, bool & flag_first_sample, DomainInfo * dinfo){
+                bool flag_clear = false;
+                if(flag_first_sample){
+                    flag_clear = true;
+                    flag_first_sample = false;
+                }
+                F32 wgh = std::get<N>(sys_tpl)->getNumberOfParticleLocal();
+                dinfo->collectSampleParticle(*(std::get<N>(sys_tpl)), flag_clear, wgh);
+                CollectSampleParticleTplRecursive<N+1, Ttpl, Tail...>()(sys_tpl, flag_first_sample, dinfo);
+            }
+        };
+        template<int N, class Ttpl, class Tail>
+        class CollectSampleParticleTplRecursive<N, Ttpl, Tail>{
+        public:
+            void operator () (Ttpl & sys_tpl, F32 wgh, bool & flag_first_sample, DomainInfo * dinfo){}
+            void operator () (Ttpl & sys_tpl, bool & flag_first_sample, DomainInfo * dinfo){}
+        };
+        template<class ... Args>
+        void decomposeDomainAll(std::tuple<Args...> & sys_tpl,
+                                F32 wgh){
+            flag_first_sample_ = true;
+            CollectSampleParticleTplRecursive<0, std::tuple<Args...>, Args... >()(sys_tpl, wgh, flag_first_sample_, this);
+            decomposeDomain();
+        }
+        template<class ... Args>
+        void decomposeDomainAll(std::tuple<Args...> & sys_tpl){
+            flag_first_sample_ = true;
+            CollectSampleParticleTplRecursive<0, std::tuple<Args...>, Args... >()(sys_tpl, flag_first_sample_, this);
+            decomposeDomain();
+        }
+    #else
+        template<int N, class Ttpl>
+        void collectSampleParticleTplRecursive(Ttpl & sys_tpl, F32 wgh){}
+        template<int N, class Ttpl, class Head, class ... Tail>
+        void collectSampleParticleTplRecursive(Ttpl & sys_tpl, F32 wgh){
+            bool flag_clear = false;
+            if(N==0){ flag_clear = true; }
+            collectSampleParticle(std::get<N>(sys_tpl), flag_clear, wgh);
+            collectSampleParticleTplRecursive<N+1, Ttpl, Tail...>(sys_tpl, wgh);
+        }
+        template<int N, class Ttpl>
+        void collectSampleParticleTplRecursive(Ttpl & sys_tpl){}
+        template<int N, class Ttpl, class Head, class ... Tail>
+        void collectSampleParticleTplRecursive(Ttpl & sys_tpl){
+            bool flag_clear = false;
+            if(N==0){ flag_clear = true; }
+            F32 wgh = std::get<N>(sys_tpl).getNumberOfParticleLocal();
+            collectSampleParticle(std::get<N>(sys_tpl), flag_clear, wgh);
+            collectSampleParticleTplRecursive<N+1, Ttpl, Tail...>(sys_tpl);
+        }
+        template<class ... Args>
+        void decomposeDomainAll(std::tuple<Args...> & sys_tpl,
+                                F32 wgh){
+            collectSampleParticleTplRecursive<0, std::tuple<Args...>, Args... >(sys_tpl, wgh);
+            decomposeDomain();
+        }
+        template<class ... Args>
+        void decomposeDomainAll(std::tuple<Args...> & sys_tpl){
+            collectSampleParticleTplRecursive<0, std::tuple<Args...>, Args... >(sys_tpl);
+            decomposeDomain();
+        }
+    #endif
+        /*
+        template<class Tpsys>
+        void decomposeDomainAll(Tpsys & psys,
+                                const F32 wgh){
+            const bool clear = true;
+            collectSampleParticle(psys, clear, wgh);
+            decomposeDomain();
+        }
+        template<class Tpsys>
+        void decomposeDomainAll(Tpsys & psys){
+            const F32 wgh = psys.getNumberOfParticleLocal();
+            const bool clear = true;
+            collectSampleParticle(psys, clear, wgh);
+            decomposeDomain();
+        }
+        */
+#endif
         template<class Tpsys>
         void decomposeDomainAll(Tpsys & psys,
                                 const F32 wgh){
@@ -866,7 +1052,7 @@ namespace ParticleSimulator{
             collectSampleParticle(psys, clear, wgh);
             decomposeDomain();
         }
-
+        
         void getRootDomain(FILE *fp) {
             fprintf(fp, "%+e %+e %+e\n",
                 pos_root_domain_.low_[0],

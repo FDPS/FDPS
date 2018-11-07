@@ -11,7 +11,7 @@ FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
 FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
 
 # (ii) Variables related to FFTW
-FFTW_LOC = /nfshome/namekata/gnu
+FFTW_LOC = /work4a/local/fftw
 FFTW_INC = -I$(FFTW_LOC)/include
 FFTW_LIB = -L$(FFTW_LOC)/lib -lfftw3f_mpi -lfftw3f_omp -lfftw3f -lm
 

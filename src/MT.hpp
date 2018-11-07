@@ -235,9 +235,10 @@ namespace ParticleSimulator{
         int mti; /* mti==MT_N+1 means mt[MT_N] is not initialized */
         unsigned long mt[MT_N]; /* the array for the state vector  */
 
-
+#if 0
         MTTS(const MTTS &){};
         MTTS & operator=(const MTTS &);
+#endif
 
 /* initializes mt[MT_N] with a seed */
 #if 0

@@ -4,6 +4,7 @@
 #include <cstring>
 #include <vector>
 #include <typeinfo>
+#include <time.h>
 /* FDPS headers */
 #include <particle_simulator.hpp>
 #ifdef PARTICLE_SIMULATOR_USE_PM_MODULE
@@ -15,7 +16,17 @@
 /* User-defined headers */
 #include "FDPS_Manipulators.h"
 
+
 namespace FDPS_Manipulators {
+   //===============================================
+   // Prototype declarations for static functions
+   //===============================================
+   static void print_errmsg(const std::string& errmsg,
+                            const std::string& func_name);
+   static void idle(const time_t tv_sec = 0, const long tv_nsec = 100000);
+   static std::vector<std::string> split(const std::string& s,
+                                         const std::string& delim);
+   static void check_split(void);
    //===================
    // Private classes 
    //===================
@@ -65,6 +76,12 @@ namespace FDPS_Manipulators {
       }
    };
 
+   class MTTS_Data {
+   public:
+      int id;
+      PS::MTTS mtts;
+   };
+
    //===================
    // Private variables 
    //===================
@@ -87,6 +104,10 @@ namespace FDPS_Manipulators {
    static int num_pm;
    static int num_pm_creation;
    static std::vector<PM_Data> pm_vector;
+   // -(MTTS class)
+   static int num_mtts;
+   static int num_mtts_creation;
+   static std::vector<MTTS_Data> mtts_vector;
 
    //=======================
    // Functions
@@ -99,10 +120,12 @@ namespace FDPS_Manipulators {
       num_dinfo = 0;
       num_tree  = 0;
       num_pm    = 0;
+      num_mtts  = 0;
       num_psys_creation = 0;
       num_dinfo_creation = 0;
       num_tree_creation = 0;
       num_pm_creation = 0;
+      num_mtts_creation = 0;
    }
    //-(FDPS initilizer/finalizer)
    void PS_Initialize() {
@@ -235,8 +258,7 @@ namespace FDPS_Manipulators {
          }
       }
    }
-   void get_psys_cptr(const int psys_num,
-                      void **cptr) {
+   void * get_psys_cptr(const int psys_num) {
       for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {
          if (it->id == psys_num) {
             //-----------------------------------------------
@@ -264,9 +286,16 @@ namespace FDPS_Manipulators {
          }
       }
    }
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:add_particle;
-   //-----------------------------------------------------------------------------------
+   void add_particle(const int psys_num,
+                     const void *cptr_to_fp) {
+      for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {
+         if (it->id == psys_num) {
+            //-----------------------------------------------
+            // fdps-autogen:add_particle;
+            //-----------------------------------------------
+         }
+      }
+   }
    void remove_particle(const int psys_num, 
                         const int numPtcl,
                         int *ptcl_indx) {
@@ -297,9 +326,16 @@ namespace FDPS_Manipulators {
          }
       }
    }
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:sort_particle;
-   //-----------------------------------------------------------------------------------
+   void sort_particle(const int psys_num,
+                      bool (*pfunc_comp)(const void *, const void *)) {
+      for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {
+         if (it->id == psys_num) {
+            //-----------------------------------------------
+            // fdps-autogen:sort_particle;
+            //-----------------------------------------------
+         }
+      }
+   }
 
 
    //----------------------------
@@ -402,6 +438,48 @@ namespace FDPS_Manipulators {
                   std::string errmsg,func_name;
                   errmsg = "Unknown boundary condition is specified.";
                   func_name = "set_boundary_condition";
+                  print_errmsg(errmsg,func_name);
+               } 
+               PS::Abort(-1);
+               std::exit(EXIT_FAILURE);
+            }
+            break;
+         }
+      }
+   }
+   int get_boundary_condition(const int dinfo_num) {
+      for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {
+         if (it->id == dinfo_num) {
+            PS::DomainInfo *dinfo;
+            dinfo = (PS::DomainInfo *) it->ptr;
+            PS::BOUNDARY_CONDITION bc;
+            bc = (PS::BOUNDARY_CONDITION) dinfo->getBoundaryCondition();
+            if (bc == PS::BOUNDARY_CONDITION_OPEN) {
+               return BC_OPEN;
+            } else if (bc == PS::BOUNDARY_CONDITION_PERIODIC_X) {
+               return BC_PERIODIC_X;
+            } else if (bc == PS::BOUNDARY_CONDITION_PERIODIC_Y) {
+               return BC_PERIODIC_Y;
+            } else if (bc == PS::BOUNDARY_CONDITION_PERIODIC_Z) {
+               return BC_PERIODIC_Z;
+            } else if (bc == PS::BOUNDARY_CONDITION_PERIODIC_XY) {
+               return BC_PERIODIC_XY;
+            } else if (bc == PS::BOUNDARY_CONDITION_PERIODIC_XZ) {
+               return BC_PERIODIC_XZ;
+            } else if (bc == PS::BOUNDARY_CONDITION_PERIODIC_YZ) {
+               return BC_PERIODIC_YZ;
+            } else if (bc == PS::BOUNDARY_CONDITION_PERIODIC_XYZ) {
+               return BC_PERIODIC_XYZ;
+            } else if (bc == PS::BOUNDARY_CONDITION_SHEARING_BOX) {
+               return BC_SHEARING_BOX;
+            } else if (bc == PS::BOUNDARY_CONDITION_USER_DEFINED) {
+               return BC_USER_DEFINED;
+            } else {
+               PS::S32 myrank = PS::Comm::getRank();
+               if (myrank == 0) {
+                  std::string errmsg,func_name;
+                  errmsg = "Unknown boundary condition is obtained.";
+                  func_name = "get_boundary_condition";
                   print_errmsg(errmsg,func_name);
                } 
                PS::Abort(-1);
@@ -613,22 +691,399 @@ namespace FDPS_Manipulators {
          }
       }
    }
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:set_particle_local_tree;
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:get_force;
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:calc_force_all_and_write_back;
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:calc_force_all;
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:calc_force_making_tree;
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:calc_force_and_write_back;
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:get_neighbor_list;
-   //-----------------------------------------------------------------------------------
-   // fdps-autogen:get_epj_from_id;
+   void set_particle_local_tree(const int tree_num, 
+                                const int psys_num,
+                                const bool clear) {
+      std::string info = "";
+      bool is_exist = false;
+      void * psys_ptr;
+      for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {
+         if (it->id == psys_num) {
+            psys_ptr = it->ptr;
+            info = it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for psys_num.";
+            func_name = "set_particle_local_tree";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      void * tree_ptr;
+      is_exist = false;
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            tree_ptr = it->ptr;
+            info += ",";
+            info += it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist = false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for tree_num.";
+            func_name = "set_particle_local_tree";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      //-----------------------------------------------------
+      // fdps-autogen:set_particle_local_tree;
+      //-----------------------------------------------------
+   }
+   void get_force(const int tree_num, 
+                  const PS::S32 i,
+                  const void *cptr_to_force) {
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            //------------------------------------------------------
+            // fdps-autogen:get_force;
+            //------------------------------------------------------
+         }
+      }
+   }
+   void calc_force_all_and_write_back(const int tree_num, 
+                                      void *(pfunc_ep_ep)(void *, int, void *, int, void *),
+                                      void *(pfunc_ep_sp)(void *, int, void *, int, void *),
+                                      const int psys_num,
+                                      const int dinfo_num,
+                                      const bool clear,
+                                      const enum PS_INTERACTION_LIST_MODE list_mode) {
+      std::string info = "";
+      bool is_exist = false;
+      // Get a void pointer to psys
+      void * psys_ptr;
+      for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {
+         if (it->id == psys_num) {
+            psys_ptr = it->ptr;
+            info = it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for psys_num.";
+            func_name = "calc_force_all_and_write_back";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      // Get a void pointer to tree
+      void * tree_ptr;
+      is_exist = false;
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            tree_ptr = it->ptr;
+            info += ",";
+            info += it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for tree_num.";
+            func_name = "calc_force_all_and_write_back";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      // Get dinfo pointer
+      PS::DomainInfo *dinfo;
+      is_exist = false;
+      for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {
+         if (it->id == dinfo_num) {
+            dinfo = (PS::DomainInfo *) it->ptr;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for dinfo_num.";
+            func_name = "calc_force_all_and_write_back";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      //-----------------------------------------------------
+      // fdps-autogen:calc_force_all_and_write_back;
+      //-----------------------------------------------------
+   }
+   void calc_force_all(const int tree_num, 
+                       void *(pfunc_ep_ep)(void *, int, void *, int, void *),
+                       void *(pfunc_ep_sp)(void *, int, void *, int, void *),
+                       const int psys_num,
+                       const int dinfo_num,
+                       const bool clear,
+                       const enum PS_INTERACTION_LIST_MODE list_mode) {
+      std::string info = "";
+      bool is_exist = false;
+      // Get a void pointer to psys
+      void * psys_ptr;
+      for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {
+         if (it->id == psys_num) {
+            psys_ptr = it->ptr;
+            info = it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for psys_num.";
+            func_name = "calc_force_all";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      // Get a void pointer to tree
+      void * tree_ptr;
+      is_exist = false;
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            tree_ptr = it->ptr;
+            info += ",";
+            info += it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for tree_num.";
+            func_name = "calc_force_all";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      // Get dinfo pointer
+      PS::DomainInfo *dinfo;
+      is_exist = false;
+      for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {
+         if (it->id == dinfo_num) {
+            dinfo = (PS::DomainInfo *) it->ptr;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for dinfo_num.";
+            func_name = "calc_force_all";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      //-----------------------------------------------------
+      // fdps-autogen:calc_force_all;
+      //-----------------------------------------------------
+   }
+   void calc_force_making_tree(const int tree_num, 
+                               void *(pfunc_ep_ep)(void *, int, void *, int, void *),
+                               void *(pfunc_ep_sp)(void *, int, void *, int, void *),
+                               const int dinfo_num,
+                               const bool clear) {
+      std::string info;
+      bool is_exist = false;
+      // Get a void pointer to tree
+      void * tree_ptr;
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            tree_ptr = it->ptr;
+            info = it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for tree_num.";
+            func_name = "calc_force_making_tree";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      // Get dinfo pointer
+      PS::DomainInfo *dinfo;
+      is_exist = false;
+      for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {
+         if (it->id == dinfo_num) {
+            dinfo = (PS::DomainInfo *) it->ptr;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for dinfo_num.";
+            func_name = "calc_force_making_tree";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      //-----------------------------------------------------
+      // fdps-autogen:calc_force_making_tree;
+      //-----------------------------------------------------
+   }
+   void calc_force_and_write_back(const int tree_num, 
+                                  void *(pfunc_ep_ep)(void *, int, void *, int, void *),
+                                  void *(pfunc_ep_sp)(void *, int, void *, int, void *),
+                                  const int psys_num,
+                                  const bool clear) {
+      std::string info = "";
+      bool is_exist = false;
+      // Get a void pointer to psys
+      void * psys_ptr;
+      for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {
+         if (it->id == psys_num) {
+            psys_ptr = it->ptr;
+            info = it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for psys_num.";
+            func_name = "calc_force_and_write_back";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      // Get a void pointer to tree
+      void * tree_ptr;
+      is_exist = false;
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            tree_ptr = it->ptr;
+            info += ",";
+            info += it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for tree_num.";
+            func_name = "calc_force_and_write_back";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      //-----------------------------------------------------
+      // fdps-autogen:calc_force_and_write_back;
+      //-----------------------------------------------------
+   }
+   void get_neighbor_list(const int tree_num,
+                          const PS::F64vec *pos,
+                          const PS::F64 r_search,
+                          int *num_epj,
+                          void **cptr_to_epj) {
+      // Get a void pointer to tree
+      void * tree_ptr;
+      std::string tree_info;
+      bool is_exist = false;
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            tree_ptr  = it->ptr;
+            tree_info = it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for tree_num";
+            func_name = "get_neighbor_list";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      // Set field of search
+      struct NBS_Target_Data ptcl;
+      ptcl.pos = *pos;
+      ptcl.r_search = r_search;
+      // Get neighbor list
+      //-----------------------------------------------
+      // fdps-autogen:get_neighbor_list;
+      //-----------------------------------------------
+   }
+   void * get_epj_from_id(const int tree_num,
+                          const PS::S64 id) {
+      // Get a void pointer to tree
+      void * tree_ptr;
+      std::string tree_info;
+      bool is_exist = false; 
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            tree_ptr  = it->ptr;
+            tree_info = it->info;
+            is_exist = true;
+            break;
+         }
+      }
+      if (is_exist == false) {
+         if (PS::Comm::getRank() == 0) {
+            std::string errmsg,func_name;
+            errmsg = "An invalid value is specified for tree_num";
+            func_name = "get_epj_from_id";
+            print_errmsg(errmsg,func_name);
+         }
+         idle();
+         PS::Abort(-1);
+         std::exit(EXIT_FAILURE);
+      }
+      // Get EPJ
+      //-----------------------------------------------
+      // fdps-autogen:get_epj_from_id;
+      //-----------------------------------------------
+   }
 
    //----------------------------
    // Utility functions
@@ -652,6 +1107,69 @@ namespace FDPS_Manipulators {
    }
    double mt_genrand_res53(void) {
       return PS::MT::genrand_res53();
+   }
+
+   void create_mtts(int *mtts_num) {
+       MTTS_Data mtts_data;
+       mtts_data.id = num_mtts_creation;
+       mtts_vector.push_back(mtts_data);
+       *mtts_num = mtts_data.id;
+       num_mtts_creation++;
+       num_mtts++;
+   }
+   void delete_mtts(const int mtts_num) {
+      for (std::vector<MTTS_Data>::iterator it = mtts_vector.begin(); it != mtts_vector.end(); ++it) {
+         if (it->id == mtts_num) {
+            it = mtts_vector.erase(it);
+            num_mtts--;
+            break;
+         }
+      }
+   }
+   void mtts_init_genrand(const int mtts_num, const int s) {
+      unsigned long seed;
+      seed = (unsigned long) s;
+      for (std::vector<MTTS_Data>::iterator it = mtts_vector.begin(); it != mtts_vector.end(); ++it) {
+         if (it->id == mtts_num) {
+            it->mtts.init_genrand(seed);
+            break;
+         }
+      }
+   }
+   int mtts_genrand_int31(const int mtts_num) {
+      for (std::vector<MTTS_Data>::iterator it = mtts_vector.begin(); it != mtts_vector.end(); ++it) {
+         if (it->id == mtts_num) {
+            return (int) it->mtts.genrand_int31();
+         }
+      }
+   }
+   double mtts_genrand_real1(const int mtts_num){
+      for (std::vector<MTTS_Data>::iterator it = mtts_vector.begin(); it != mtts_vector.end(); ++it) {
+         if (it->id == mtts_num) {
+            return it->mtts.genrand_real1();
+         }
+      }
+   } 
+   double mtts_genrand_real2(const int mtts_num) {
+      for (std::vector<MTTS_Data>::iterator it = mtts_vector.begin(); it != mtts_vector.end(); ++it) {
+         if (it->id == mtts_num) {
+            return it->mtts.genrand_real2(); 
+         }
+      }
+   } 
+   double mtts_genrand_real3(const int mtts_num) {
+      for (std::vector<MTTS_Data>::iterator it = mtts_vector.begin(); it != mtts_vector.end(); ++it) {
+         if (it->id == mtts_num) {
+            return it->mtts.genrand_real3();
+         }
+      }
+   }
+   double mtts_genrand_res53(const int mtts_num) {
+      for (std::vector<MTTS_Data>::iterator it = mtts_vector.begin(); it != mtts_vector.end(); ++it) {
+         if (it->id == mtts_num) {
+            return it->mtts.genrand_res53();
+         }
+      }
    }
 
    //----------------------------
@@ -806,6 +1324,17 @@ namespace FDPS_Manipulators {
       std::cout << "function: " << func_name << std::endl;
       std::cout << "file:      FDPS_Manipulators.cpp" << std::endl;
 
+   }
+
+   void idle(const time_t tv_sec, const long tv_nsec) {
+      struct timespec ts;
+      ts.tv_sec = tv_sec;
+      ts.tv_nsec = tv_nsec;
+      nanosleep(&ts,NULL);
+      // Note that on macOS High Sierra (10.13.6) 
+      // we cannot use clock_nanosleep() function.
+      // So, we used nanosleep() function.
+      // clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
    }
 
    std::vector<std::string> split(const std::string& s,

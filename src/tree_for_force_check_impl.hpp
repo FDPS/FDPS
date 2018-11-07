@@ -7,7 +7,8 @@ namespace ParticleSimulator{
 	     class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     checkMortonSortLocalTreeOnly(std::ostream & fout){
-        CheckMortonSort(n_loc_tot_, tp_loc_.getPointer(), epj_sorted_.getPointer(), fout);
+        //CheckMortonSort(n_loc_tot_, tp_loc_.getPointer(), epj_sorted_.getPointer(), fout);
+        CheckMortonSort(n_loc_tot_, tp_glb_.getPointer(), epj_sorted_.getPointer(), fout);
     }
     
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -85,6 +86,7 @@ namespace ParticleSimulator{
              center,  length_*0.5, n_leaf_limit_, tolerance, err, fout);
     }
 
+    /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -94,8 +96,8 @@ namespace ParticleSimulator{
         fout<<"checkExchangeLocalEssentialTree..."<<std::endl;
         checkExchangeLocalEssentialTreeImpl(typename TSM::force_type(), dinfo, tolerance, fout);
     }
-    
-
+    */
+    /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -105,7 +107,8 @@ namespace ParticleSimulator{
                                         std::ostream & fout){
         checkExchangeLocalEssentialTreeForLongImpl(typename TSM::search_type(), dinfo, tolerance, fout);
     }
-
+    */
+    /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -153,7 +156,8 @@ namespace ParticleSimulator{
         fout<<"pos_cm_glb_direct="<<pos_cm_glb_direct<<" pos_cm_glb_tree="<<pos_cm_glb_tree<<std::endl;
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL	    
     }
-
+    */
+    /*
     // compare neighbouring mass(include own mass).
     // this function has NOT been checked in the case of PERIODIC BOUNDARY CONDITION
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -255,10 +259,11 @@ namespace ParticleSimulator{
         delete [] mass_direct;
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL 	    
     }
-
+    */
     
     /////////////////
     /// FOR SHORT ///
+    /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
@@ -373,7 +378,8 @@ namespace ParticleSimulator{
         delete [] outer_boundary_of_tree;
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
     }
-
+    */
+    /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tep2>
@@ -405,7 +411,8 @@ namespace ParticleSimulator{
         }
 #endif	    
     }
-
+    */
+    /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tep2>
@@ -443,7 +450,8 @@ namespace ParticleSimulator{
         }
 #endif	    
     }
-
+    */
+    /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
 	     class Tmomloc, class Tmomglb, class Tspj>
     template<class Tep2>
@@ -482,7 +490,7 @@ namespace ParticleSimulator{
         }
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL	    
     }
-
+    */
 
     /////////////////
     // CALC MOMENT //
