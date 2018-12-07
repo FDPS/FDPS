@@ -609,6 +609,15 @@ namespace ParticleSimulator{
         template<class Tptcl>
         S32 getNeighborListOneParticle(const Tptcl & ptcl, Tepj * & epj);
         template<class Tptcl>
+        S32 getNeighborListOneParticleImpl(TagNeighborSearchScatter, const Tptcl & ptcl, Tepj * & epj);
+        template<class Tptcl>
+        S32 getNeighborListOneParticleImpl(TagNeighborSearchGather, const Tptcl & ptcl, Tepj * & epj);
+        template<class Tptcl>
+        S32 getNeighborListOneParticleImpl(TagNeighborSearchSymmetry, const Tptcl & ptcl, Tepj * & epj);
+        template<class Tptcl>
+        S32 getNeighborListOneParticleImpl(TagNeighborSearchNo, const Tptcl & ptcl, Tepj * & epj);
+        /*
+        template<class Tptcl>
         S32 getNeighborListOneParticleImpl(TagSearchShortScatter, const Tptcl & ptcl, Tepj * & epj);
         template<class Tptcl>
         S32 getNeighborListOneParticleImpl(TagSearchShortGather, const Tptcl & ptcl, Tepj * & epj);
@@ -618,7 +627,7 @@ namespace ParticleSimulator{
         S32 getNeighborListOneParticleImpl(TagSearchLongScatter, const Tptcl & ptcl, Tepj * & epj);
         template<class Tptcl>
         S32 getNeighborListOneParticleImpl(TagSearchLongSymmetry, const Tptcl & ptcl, Tepj * & epj);
-
+        */
 
         F64ort getOuterBoundaryOfLocalTree(){
             return getOuterBoundaryOfLocalTreeImpl(typename TSM::search_type());
@@ -1510,6 +1519,11 @@ namespace ParticleSimulator{
          Tforce, Tepi, Tepj,
          Tmom, Tmom, Tsp> WithScatterSearch; // for P^3T
 
+        typedef TreeForForce
+        <SEARCH_MODE_LONG_SYMMETRY,
+         Tforce, Tepi, Tepj,
+         Tmom, Tmom, Tsp> WithSymmetrySearch; // added by D.N. at 2018/11/28.
+
         //typedef TreeForForce
         //<SEARCH_MODE_LONG_CUTOFF_SCATTER,
         // Tforce, Tepi, Tepj,
@@ -1537,16 +1551,16 @@ namespace ParticleSimulator{
         typedef TreeForForce
         <SEARCH_MODE_LONG_SYMMETRY,
          Tforce, Tepi, Tepj,
-         MomentMonopoleInAndOut,
-         MomentMonopoleInAndOut,
-         SPJMonopoleInAndOut> MonopoleWithSymmetrySearch;
+         MomentMonopoleSymmetry,
+         MomentMonopoleSymmetry,
+         SPJMonopoleSymmetry> MonopoleWithSymmetrySearch;
 
         typedef TreeForForce
         <SEARCH_MODE_LONG_SYMMETRY,
          Tforce, Tepi, Tepj,
-         MomentQuadrupoleInAndOut,
-         MomentQuadrupoleInAndOut,
-         SPJQuadrupoleInAndOut> QuadrupoleWithSymmetrySearch;
+         MomentQuadrupoleSymmetry,
+         MomentQuadrupoleSymmetry,
+         SPJQuadrupoleSymmetry> QuadrupoleWithSymmetrySearch;
 
         // for P^3T + PM
         //typedef TreeForForce

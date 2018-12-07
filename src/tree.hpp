@@ -512,6 +512,7 @@ namespace ParticleSimulator{
             fout<<"vertex_in.high_="<<vertex_in_.high_<<std::endl;
         }
     };
+    typedef MomentMonopoleInAndOut MomentMonopoleSymmetry;
 
 
     class MomentQuadrupoleInAndOut{
@@ -609,6 +610,7 @@ namespace ParticleSimulator{
             fout<<"vertex_in.high_="<<vertex_in_.high_<<std::endl;
         }
     };
+    typedef MomentQuadrupoleInAndOut MomentQuadrupoleSymmetry;
     
     
     // for P^3T
@@ -1311,6 +1313,7 @@ namespace ParticleSimulator{
             return MomentMonopoleInAndOut(mass, pos);
         }
     };
+    typedef SPJMonopoleInAndOut SPJMonopoleSymmetry;
 
     class SPJQuadrupoleInAndOut{
     public:
@@ -1348,6 +1351,7 @@ namespace ParticleSimulator{
 	    fout<<"pos="<<pos<<std::endl;
 	}
     };
+    typedef SPJQuadrupoleInAndOut SPJQuadrupoleSymmetry;
     
     
     class SPJMonopole{

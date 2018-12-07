@@ -29,7 +29,7 @@ all:	$(CPPOBJS) $(CPPHDRS)
 	@echo "[$< OK]"
 
 clean:
-	-rm *.out *.o
+	-rm -f *.out *.o
 
 distclean: clean
 	rm -rf result

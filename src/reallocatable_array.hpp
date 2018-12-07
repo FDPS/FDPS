@@ -2,6 +2,8 @@
 #include<cassert>
 #include<iostream>
 
+//#define PARTICLE_SIMULATOR_ROUND_UP_CAPACITY
+
 namespace  ParticleSimulator{
     template<class T>
         class ReallocatableArray{
@@ -14,7 +16,17 @@ namespace  ParticleSimulator{
         int capacity_org_;
         int id_mpool_;
         int alloc_mode_;
-
+        int roundUp(const int cap_prev, 
+                    const int factor=8){
+            return ((cap_prev + factor) / factor) * factor;
+        }
+        int getNewCapacity(const int cap_prev){
+#ifdef PARTICLE_SIMULATOR_ROUND_UP_CAPACITY
+            return roundUp(cap_prev);
+#else
+            return cap_prev;
+#endif
+        }
         void checkCapacityOverInConstructor(){
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
@@ -29,9 +41,10 @@ namespace  ParticleSimulator{
                 std::cerr<<"capacity_="<<capacity_<<std::endl;
                 std::cerr<<"LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE="<<LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE<<std::endl;
                 Abort(-1);
-            }            
+            }
         }
-        void constructorFunction(){
+        void constructorFunction(const int cap){
+            capacity_ = getNewCapacity(cap);
             checkCapacityOverInConstructor();
             if(alloc_mode_ == 0){
                 data_ = new T[capacity_];
@@ -85,7 +98,8 @@ namespace  ParticleSimulator{
 #else
         void ReallocInner(const int new_cap){
 #endif
-            capacity_ = new_cap;
+            //capacity_ = new_cap;
+            capacity_ = getNewCapacity(new_cap);
             T * data_old = data_;
             if(alloc_mode_ == 0){
                 T * data_new = new T[capacity_];
@@ -100,7 +114,7 @@ namespace  ParticleSimulator{
 #pragma omp critical
 #endif
                 {
-                    capacity_ = new_cap;
+                    //capacity_ = new_cap;
                     int id_old = id_mpool_;
                     void * ret = NULL;
                     MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret);
@@ -114,29 +128,28 @@ namespace  ParticleSimulator{
                 }
             }
         }
-	
     public:
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
         ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {}
-        ReallocatableArray(int cap) : data_(NULL), size_(0), capacity_(cap), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {
-            constructorFunction();
+        ReallocatableArray(int cap) : data_(NULL), size_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {
+            constructorFunction(cap);
         }
-        ReallocatableArray(int cap, int size) : data_(NULL), size_(size), capacity_(cap), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {
-            constructorFunction();
+        ReallocatableArray(int cap, int size) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {
+            constructorFunction(cap);
         }
-        ReallocatableArray(int cap, int size, int alloc_mode) : data_(NULL), size_(size), capacity_(cap), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode), n_expand_(0) {
-            constructorFunction();
+        ReallocatableArray(int cap, int size, int alloc_mode) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode), n_expand_(0) {
+            constructorFunction(cap);
         }
 #else
         ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {}
-        ReallocatableArray(int cap) : data_(NULL), size_(0), capacity_(cap), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {
-            constructorFunction();
+        ReallocatableArray(int cap) : data_(NULL), size_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {
+            constructorFunction(cap);
         }
-        ReallocatableArray(int cap, int size) : data_(NULL), size_(size), capacity_(cap), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {
-            constructorFunction();
+        ReallocatableArray(int cap, int size) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {
+            constructorFunction(cap);
         }
-        ReallocatableArray(int cap, int size, int alloc_mode) : data_(NULL), size_(size), capacity_(cap), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode) {
-            constructorFunction();
+        ReallocatableArray(int cap, int size, int alloc_mode) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode) {
+            constructorFunction(cap);
         }
 #endif
         ~ReallocatableArray(){
@@ -153,33 +166,35 @@ namespace  ParticleSimulator{
             }
             data_ = NULL;
         }
-
+        
         void setAllocMode(const int alloc_mode){
             alloc_mode_ = alloc_mode;
         }
-
+        
         void initialize(int cap, int size, int alloc_mode){
-            capacity_ = cap;
+            //capacity_ = cap;
+            capacity_ = getNewCapacity(cap);
             size_ = size;
             alloc_mode_ = alloc_mode;
-            constructorFunction();
+            constructorFunction(capacity_);
         }
         
         void reserve(const int n){
-            if( n > capacity_){
+            if( n > capacity_ ){
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
-                capacity_ = n;
+                //capacity_ = n;
+                capacity_ = getNewCapacity(n);
                 if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 		    int rank_tmp;
-		    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
-                    std::cerr<<"rank="<<rank_tmp<<std::endl;
+		    MPI_Comm_rank(MPI_COMM_WORLD, &rank_tmp);
+                    std::cerr<<"rank= "<<rank_tmp<<std::endl;
 #else
-                    std::cerr<<"rank=0"<<std::endl;
+                    std::cerr<<"rank= 0"<<std::endl;
 #endif
                     std::cerr<<"typeid(T).name():"<<typeid(T).name()<<std::endl;
                     std::cerr<<"capacity_="<<capacity_<<std::endl;
@@ -188,7 +203,6 @@ namespace  ParticleSimulator{
                 }
                 ReallocInner(n);
             }
-            
         }
 
         int size() const {return size_; }
@@ -275,7 +289,7 @@ namespace  ParticleSimulator{
             }
             assert(n <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
 #endif
-            const int new_cap = std::max((n+(n+3)/3)+100, capacity_org_);
+            const int new_cap = std::max(getNewCapacity((n+(n+10)/10)+100), capacity_org_);
             if(data_ == NULL){
                 if(alloc_mode_ == 0){data_ = new T[new_cap];}
                 else if(alloc_mode_ == 1){
@@ -336,9 +350,7 @@ namespace  ParticleSimulator{
 #endif
             data_[size_++] = val;
         }
-
         void clearSize() {size_ = 0;}
-
         void increaseSize(const int n=1){ resizeNoInitialize(size_+n); }
         void decreaseSize(const int n=1){ resizeNoInitialize(size_-n); } // no check
         void reserveAtLeast(const int n){
@@ -348,7 +360,7 @@ namespace  ParticleSimulator{
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
-                const int new_cap = (n+(n+3)/3) + 100;
+                const int new_cap = (n+(n+10)/10)+100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -377,7 +389,7 @@ namespace  ParticleSimulator{
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
-                const int new_cap = (n+(n+3)/3) + 100;
+                const int new_cap = (n+(n+10)/10) + 100;
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -395,7 +407,6 @@ namespace  ParticleSimulator{
                 ReallocInner(new_cap);
             }
         }
-
         void freeMem(const int free_alloc_mode = -1){
             if( alloc_mode_ == 0 && (free_alloc_mode == -1  || free_alloc_mode == 0) ){
                 if(capacity_ > 0){
@@ -424,8 +435,6 @@ namespace  ParticleSimulator{
                 }
             }
         }
-
-        
     };
 }
 

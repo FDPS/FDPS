@@ -58,6 +58,19 @@ module fdps_super_particle
       type(fdps_f32mat)  :: quad
    end type fdps_spj_quadrupole_scatter
 
+   !**** PS::SPJMonopoleSymmetry
+   type, public, bind(c) :: fdps_spj_monopole_symmetry
+      real(kind=c_float) :: mass
+      type(fdps_f32vec) :: pos
+   end type fdps_spj_monopole_symmetry
+
+   !**** PS::SPJQuadrupoleSymmetry
+   type, public, bind(c) :: fdps_spj_quadrupole_symmetry
+      real(kind=c_float) :: mass
+      type(fdps_f32vec) :: pos
+      type(fdps_f32mat) :: quad
+   end type fdps_spj_quadrupole_symmetry
+
    !**** PS::SPJMonopoleCutoff
    type, public, bind(c) :: fdps_spj_monopole_cutoff
       real(kind=c_float) :: mass
@@ -113,6 +126,19 @@ module fdps_super_particle
       type(fdps_f64vec)  :: pos
       type(fdps_f64mat)  :: quad
    end type fdps_spj_quadrupole_scatter
+
+   !**** PS::SPJMonopoleSymmetry
+   type, public, bind(c) :: fdps_spj_monopole_symmetry
+      real(kind=c_double) :: mass
+      type(fdps_f64vec) :: pos
+   end type fdps_spj_monopole_symmetry
+
+   !**** PS::SPJQuadrupoleSymmetry
+   type, public, bind(c) :: fdps_spj_quadrupole_symmetry
+      real(kind=c_double) :: mass
+      type(fdps_f64vec) :: pos
+      type(fdps_f64mat) :: quad
+   end type fdps_spj_quadrupole_symmetry
 
    !**** PS::SPJMonopoleCutoff
    type, public, bind(c) :: fdps_spj_monopole_cutoff

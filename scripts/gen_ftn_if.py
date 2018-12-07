@@ -307,6 +307,8 @@ class Automatic_Generator:
                            "fdps_spj_quadrupole_geomcen", \
                            "fdps_spj_monopole_scatter", \
                            "fdps_spj_quadrupole_scatter", \
+                           "fdps_spj_monopole_symmetry", \
+                           "fdps_spj_quadrupole_symmetry", \
                            "fdps_spj_monopole_cutoff"]
         self.__SPJs_cpp = ["PS::SPJMonopole", \
                            "PS::SPJQuadrupole", \
@@ -315,6 +317,8 @@ class Automatic_Generator:
                            "PS::SPJQuadrupoleGeometricCenter", \
                            "PS::SPJMonopoleScatter", \
                            "PS::SPJQuadrupoleScatter", \
+                           "PS::SPJMonopoleInSymmetry", \
+                           "PS::SPJQuadrupoleSymmetry", \
                            "PS::SPJMonopoleCutoff"]
         # A list of the modes of tree with PS::SEARCH_MODE_LONG*
         self.__multipole_kinds = ["Monopole", \
@@ -324,6 +328,8 @@ class Automatic_Generator:
                                   "QuadrupoleGeometricCenter", \
                                   "MonopoleWithScatterSearch", \
                                   "QuadrupoleWithScatterSearch", \
+                                  "MonopoleWithSymmetrySearch", \
+                                  "QuadrupoleWithSymmetrySearch", \
                                   "MonopoleWithCutoff"]
         # A list of the modes of tree with short-range interaction
         self.__neighbor_kinds = ["Gather", \
@@ -1616,7 +1622,9 @@ class Automatic_Generator:
             # Skip if the generable condition is not satisfied.
             if (tree_t == "Long"):
                 if ((mode_t != "MonopoleWithScatterSearch") and \
-                    (mode_t != "QuadrupoleWithScatterSearch")):
+                    (mode_t != "QuadrupoleWithScatterSearch") and \
+                    (mode_t != "MonopoleWithSymmetrySearch") and \
+                    (mode_t != "QuadrupoleWithSymmetrySearch")):
                     continue
             # Set if_chars
             if (is_first):
@@ -2893,17 +2901,25 @@ class Automatic_Generator:
                                             self.__EPIs, \
                                             self.__EPJs, \
                                             self.__multipole_kinds))
-        targets = ["MonopoleWithScatterSearch", \
-                   "QuadrupoleWithScatterSearch", \
-                   "MonopoleWithCutoff"]
+        targets_for_epi = ["MonopoleWithSymmetrySearch", \
+                           "QuadrupoleWithSymmetrySearch"]
+        targets_for_epj = ["MonopoleWithScatterSearch", \
+                           "QuadrupoleWithScatterSearch", \
+                           "MonopoleWithSymmetrySearch", \
+                           "QuadrupoleWithSymmetrySearch", \
+                           "MonopoleWithCutoff"]
         __tree_kinds_long = []
         for tree_t,force_t,epi_t,epj_t,multipole_t in candidates:
             item = [tree_t,force_t,epi_t,epj_t,multipole_t]
-            if (multipole_t in targets):
-                if (self.__getRSearch_existence_check(epj_t)):
-                    __tree_kinds_long.append(item)
+            if (multipole_t in targets_for_epj):
+                if (self.__getRSearch_existence_check(epj_t)): # check for EPJ
+                    if (multipole_t in targets_for_epi):
+                        if (self.__getRSearch_existence_check(epi_t)): # check for EPI
+                            __tree_kinds_long.append(item)
             else:
-                __tree_kinds_long.append(item)
+                if (multipole_t in targets_for_epi):
+                    if (self.__getRSearch_existence_check(epi_t)): # check for EPI
+                        __tree_kinds_long.append(item)
         # (2) treeForForceShort
         candidates = list(itertools.product(["Short"], \
                                              self.__Forces, \

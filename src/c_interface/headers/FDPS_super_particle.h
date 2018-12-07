@@ -65,6 +65,19 @@ typedef struct {
    fdps_fSPmat quad;
 } fdps_spj_quadrupole_scatter;
 
+//**** PS::SPJMonopoleSymmetry
+typedef struct {
+   fdps_fSP mass;
+   fdps_fSPvec pos;
+} fdps_spj_monopole_symmetry;
+
+//**** PS::SPJQuadrupoleSymmetry
+typedef struct {
+   fdps_fSP mass;
+   fdps_fSPvec pos;
+   fdps_fSPmat quad;
+} fdps_spj_quadrupole_symmetry;
+
 //**** PS::SPJMonopoleCutoff
 typedef struct {
    fdps_fSP mass;

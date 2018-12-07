@@ -15,7 +15,7 @@ namespace ParticleSimulator{
         TimeProfile time_profile_;
         static const S32 n_smp_ave_ = 30;
         ReallocatableArray<Tptcl> ptcl_;
-	ReallocatableArray<S32> idx_remove_ptcl_; // add 2016/09/14
+        ReallocatableArray<S32> idx_remove_ptcl_; // add 2016/09/14
         S32 n_smp_ptcl_tot_;
         bool first_call_by_initialize;
         bool first_call_by_setAverageTargetNumberOfSampleParticlePerProcess;
@@ -23,10 +23,10 @@ namespace ParticleSimulator{
         inline bool determineWhetherParticleIsInDomain(const F64vec & pos,
                                                        const F64ort & domain) {
             bool ret = true;
-	    ret *= (domain.low_.x <= pos.x) * (pos.x < domain.high_.x);
-	    ret *= (domain.low_.y <= pos.y) * (pos.y < domain.high_.y);
+            ret *= (domain.low_.x <= pos.x) * (pos.x < domain.high_.x);
+            ret *= (domain.low_.y <= pos.y) * (pos.y < domain.high_.y);
 #ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
-	    ret *= (domain.low_.z <= pos.z) * (pos.z < domain.high_.z);
+            ret *= (domain.low_.z <= pos.z) * (pos.z < domain.high_.z);
 #endif
             //for(S32 k = 0; k < DIMENSION; k++) ret *= (domain.low_[k] <= pos[k]) * (pos[k] < domain.high_[k]);
             return ret;
@@ -76,7 +76,7 @@ namespace ParticleSimulator{
             first_call_by_DomainInfo_collect_sample_particle = true;
             //n_smp_ptcl_tot_ = n_smp_ave_ * Comm::getNumberOfProc();
         }
-	
+
         void initialize(const S32 cap=10000) {
             assert(first_call_by_initialize);
             first_call_by_initialize = false;
@@ -114,7 +114,7 @@ namespace ParticleSimulator{
             ptcl_.resizeNoInitialize(0);
         }
 
-	
+
         //void setNumberOfParticleLocal(const S32 n){ n_ptcl_ = n; }
         void setNumberOfParticleLocal(const S32 n){
             //15/02/20 Hosono bug(?) fix.
@@ -138,6 +138,24 @@ namespace ParticleSimulator{
                 return -1;
             }
         };
+
+        // fp must points to the head address of the first partticle
+        S32 countPtclAscii(FILE * fp){
+            S32 n = 0;
+            for(int c ; (c = getc(fp)) != EOF ; n += '\n' == c ? 1 : 0){}
+            return n;
+        }
+        S32 countPtclBinary(FILE * fp,
+                            void (Tptcl::*pFuncPtcl)(FILE*)){
+            S32 n = 0;
+            long end_of_header = ftell(fp);
+            Tptcl ptcl_tmp;
+            (ptcl_tmp.*pFuncPtcl)(fp);
+            long size_ptcl = ftell(fp) - end_of_header;
+            fseek(fp, 0, SEEK_END);
+            n = (ftell(fp)-end_of_header) / size_ptcl;
+            return n;
+        }
         //2016_11_03 modified IO functions to handle multiple file formats
         //read
         template <class Theader>
@@ -147,7 +165,6 @@ namespace ParticleSimulator{
                               void (Tptcl::*pFuncPtcl)(FILE*),
                               S32 (Theader::*pFuncHead)(FILE*),
                               const char * open_format){
-
             if(format == NULL){//Read from single file
                 if(Comm::getRank() == 0){
                     FILE* fp = fopen(filename, open_format);
@@ -156,34 +173,23 @@ namespace ParticleSimulator{
                         std::cerr<<"filename: "<<filename<<std::endl;
                         Abort(-1);
                     }
-                    //S32 n_ptcl_ = header->readAscii(fp);
                     S32 n_ptcl_ = (header->*pFuncHead)(fp);
                     while('\n' == getc(fp));
                     fseek(fp, -1, SEEK_CUR);
                     if(n_ptcl_ < 0){//User does NOT return # of ptcl
-                        n_ptcl_ = 0;
+                        //n_ptcl_ = 0;
                         if(strcmp(open_format, "rb")==0){
-                            Tptcl ptcl_tmp;
-                            ptcl_tmp.readBinary(fp);
-                            long size_ptcl = ftell(fp);
-                            //std::cerr<<"ftell0(fp)="<<ftell(fp)<<std::endl;
-                            fseek(fp, 0, SEEK_END);
-                            n_ptcl_ = ftell(fp) / size_ptcl;
-                            //std::cerr<<"n_ptcl_="<<n_ptcl_<<std::endl;
-                            fclose(fp);
-                            fp = fopen(filename, "rb");
+                            n_ptcl_ = countPtclBinary(fp, pFuncPtcl);
                         }
                         else{
                             //count # of lines
                             //KN
-                            for(int c ; (c = getc(fp)) != EOF ; n_ptcl_ += '\n' == c ? 1 : 0){}
-                            fclose(fp);
-                            fp = fopen(filename, "r");
-                            //header->readAscii(fp);
-                            (header->*pFuncHead)(fp);
-                            while('\n' == getc(fp));
-                            fseek(fp, -1, SEEK_CUR);
-                        } 
+                            n_ptcl_ = countPtclAscii(fp);
+                        }
+                        fseek(fp, 0, SEEK_SET);
+                        (header->*pFuncHead)(fp);
+                        while('\n' == getc(fp));
+                        fseek(fp, -1, SEEK_CUR);
                     }
                     //Inform the # of ptcl for each process.
                     const S32 n_proc = Comm::getNumberOfProc();
@@ -200,7 +206,6 @@ namespace ParticleSimulator{
                     this->createParticle(n_ptcl_ << 2);//Magic shift
                     ptcl_.resizeNoInitialize(n_ptcl_);
                     for(int i = 0 ; i < n_ptcl_ ; ++ i){
-                        //ptcl_[i].readAscii(fp);
                         (ptcl_[i].*pFuncPtcl)(fp);
                     }
                     //Read remaining data to buffer and send them to appropriate process.
@@ -208,7 +213,6 @@ namespace ParticleSimulator{
                     for(S32 rank = 1 ; rank < n_proc ; ++ rank){
                         Tptcl * buffer = new Tptcl[n_ptcl[rank]];
                         for(int i = 0 ; i < n_ptcl[rank] ; ++ i){
-                            //buffer[i].readAscii(fp);
                             (buffer[i].*pFuncPtcl)(fp);
                         }
                         MPI_Send(buffer, n_ptcl[rank], GetDataType<Tptcl>(), rank, 0, MPI_COMM_WORLD);
@@ -233,48 +237,46 @@ namespace ParticleSimulator{
                     #endif
                 }
             }else{//Read from multiple file
-                char input[256];
+               char input[256];
                 sprintf(input, format, filename, Comm::getNumberOfProc(), Comm::getRank());
-                FILE* fp = fopen(input, "r");
+                FILE* fp = fopen(input, open_format);
                 if(fp == NULL){
                     PARTICLE_SIMULATOR_PRINT_ERROR("can not open input file");
                     std::cerr<<"filename: "<<input<<std::endl;
                     Abort(-1);
                 }
-                //S32 n_ptcl_ = header->readAscii(fp);
                 S32 n_ptcl_ = (header->*pFuncHead)(fp);
                 while('\n' == getc(fp));
                 fseek(fp, -1, SEEK_CUR);
-                if(n_ptcl_ >= 0){
+                if(n_ptcl_ < 0){//User does NOT return # of ptcl
+                    if(strcmp(open_format, "rb")==0){
+                        n_ptcl_ = countPtclBinary(fp, pFuncPtcl);
+                    }
+                    else{
+                        n_ptcl_ = countPtclAscii(fp);
+                    }
+                    this->createParticle(n_ptcl_ << 2);//Magic shift
+                    ptcl_.resizeNoInitialize(n_ptcl_);
+                    fseek(fp, 0, SEEK_SET);
+                    S32 tmp = (header->*pFuncHead)(fp);
+                    while('\n' == getc(fp));
+                    fseek(fp, -1, SEEK_CUR);                    
+                    for(S32 i = 0 ; i < ptcl_.size() ; ++ i){
+                        (ptcl_[i].*pFuncPtcl)(fp);
+                    }
+                    fclose(fp);
+                }
+                else{
                     //User returns # of ptcl.
                     this->createParticle(n_ptcl_ << 2);//Magic shift
                     ptcl_.resizeNoInitialize(n_ptcl_);
                     for(S32 i = 0 ; i < n_ptcl_ ; ++ i){
-                        //ptcl_[i].readAscii(fp);
-                        (ptcl_[i].*pFuncPtcl)(fp);
-                    }
-                    fclose(fp);
-                }else{//User does NOT return # of ptcl
-                    //count # of lines
-                    n_ptcl_ = 0;
-                    for(int c ; (c = getc(fp)) != EOF ; n_ptcl_ += c == '\n' ? 1 : 0){}
-                    fclose(fp);
-                    //
-                    FILE* fp = fopen(input, "r");
-                    //header->readAscii(fp);
-                    (header->*pFuncHead)(fp);
-                    while('\n' == getc(fp));
-		    fseek(fp, -1, SEEK_CUR);
-                    this->createParticle(n_ptcl_ << 2);//Magic shift
-                    ptcl_.resizeNoInitialize(n_ptcl_);
-                    for(S32 i = 0 ; i < ptcl_.size() ; ++ i){
-                        //ptcl_[i].readAscii(fp);
                         (ptcl_[i].*pFuncPtcl)(fp);
                     }
                     fclose(fp);
                 }
             }
-        }
+        }        
 
         template <class Theader>
         void readParticleAscii(const char * const filename, const char * const format, Theader& header){
@@ -401,7 +403,7 @@ namespace ParticleSimulator{
                 FILE* fp = fopen(output, open_format);
                 if(fp == NULL){
                     PARTICLE_SIMULATOR_PRINT_ERROR("can not open output file");
-		    std::cerr<<"output file: "<<output<<std::endl;
+                    std::cerr<<"output file: "<<output<<std::endl;
                     Abort(-1);
                 }
                 //header->writeAscii(fp);
@@ -477,7 +479,7 @@ namespace ParticleSimulator{
         
 
         
-	
+
         Tptcl & operator [] (const S32 id) {return ptcl_[id];}
         const Tptcl & operator [] (const S32 id) const {return ptcl_[id];}
         Tptcl & getParticle(const S32 id=0) {return ptcl_[id];}
@@ -635,7 +637,7 @@ namespace ParticleSimulator{
             ReallocatableArray<S32> nrecv_disp(nproc+1, nproc+1, 1);
             ReallocatableArray<MPI_Request> req_send(nproc, nproc, 1);
             ReallocatableArray<MPI_Request> req_recv(nproc, nproc, 1);
-	    ReallocatableArray<MPI_Status> status(nproc, nproc, 1);
+            ReallocatableArray<MPI_Status> status(nproc, nproc, 1);
             ReallocatableArray<Tptcl> ptcl_send(0, 0, 1);
             
             for(S32 i = 0; i < nproc; i++) {
@@ -742,7 +744,7 @@ namespace ParticleSimulator{
             //delete [] nrecv_disp;
             //delete [] req_send;
             //delete [] req_recv;
-	    //delete [] status;
+            //delete [] status;
 
             nsend.freeMem();
             nsend_disp.freeMem();
@@ -750,7 +752,7 @@ namespace ParticleSimulator{
             nrecv_disp.freeMem();
             req_send.freeMem();
             req_recv.freeMem();
-	    status.freeMem();
+            status.freeMem();
             ptcl_send.freeMem();
 #else
             n_ptcl_send_ = 0;
@@ -851,47 +853,47 @@ namespace ParticleSimulator{
             time_profile_.clear();
         }
 
-	//////////
-	// add and remove particles
-	void addOneParticle(const Tptcl & fp){
-	    ptcl_.push_back(fp);
-	}
-	void removeParticle(const S32 * idx, const S32 n_remove){
-	    idx_remove_ptcl_.resizeNoInitialize(n_remove);
-	    for(S32 i=0; i<n_remove; i++){
-		idx_remove_ptcl_[i] = idx[i];
-	    }
-	    std::sort(idx_remove_ptcl_.getPointer(), idx_remove_ptcl_.getPointer(n_remove));
-	    S32 * ptr_end = std::unique(idx_remove_ptcl_.getPointer(), idx_remove_ptcl_.getPointer(n_remove));
-	    const S32 n_remove_tmp = ptr_end - idx_remove_ptcl_.getPointer();
-	    const S32 n_prev = ptcl_.size();
-	    S32 i_loc = n_prev-1;
-	    for(S32 i=n_remove_tmp-1; i>=0; i--){
-		std::swap(ptcl_[idx_remove_ptcl_[i]], ptcl_[i_loc]);
-		i_loc--;
-	    }
-	    ptcl_.resizeNoInitialize(i_loc+1);
-	    /*
-	    // original
-	    const S32 n_prev = ptcl_.size();
-	    flag_remove.resizeNoInitialize(n_prev);
-	    for(S32 i=0; i<n_prev; i++){
-		flag_remove[i] = false;
-	    }
-	    for(S32 i=0; i<n_remove; i++){
-		S32 idx_tmp = idx[i];
-		flag_remove[idx_tmp] = true;
-	    }
-	    S32 i_loc = n_prev-1;
-	    for(S32 i=n_prev-1; i>=0; i--){
-		if(flag_remove[i] == true){
-		    std::swap(ptcl_[i], ptcl_[i_loc]);
-		    i_loc--;
-		}
-	    }
-	    ptcl_.resizeNoInitialize(i_loc+1);
-	    */
-	}
+        //////////
+        // add and remove particles
+        void addOneParticle(const Tptcl & fp){
+            ptcl_.push_back(fp);
+        }
+        void removeParticle(const S32 * idx, const S32 n_remove){
+            idx_remove_ptcl_.resizeNoInitialize(n_remove);
+            for(S32 i=0; i<n_remove; i++){
+                idx_remove_ptcl_[i] = idx[i];
+            }
+            std::sort(idx_remove_ptcl_.getPointer(), idx_remove_ptcl_.getPointer(n_remove));
+            S32 * ptr_end = std::unique(idx_remove_ptcl_.getPointer(), idx_remove_ptcl_.getPointer(n_remove));
+            const S32 n_remove_tmp = ptr_end - idx_remove_ptcl_.getPointer();
+            const S32 n_prev = ptcl_.size();
+            S32 i_loc = n_prev-1;
+            for(S32 i=n_remove_tmp-1; i>=0; i--){
+                std::swap(ptcl_[idx_remove_ptcl_[i]], ptcl_[i_loc]);
+                i_loc--;
+            }
+            ptcl_.resizeNoInitialize(i_loc+1);
+            /*
+            // original
+            const S32 n_prev = ptcl_.size();
+            flag_remove.resizeNoInitialize(n_prev);
+            for(S32 i=0; i<n_prev; i++){
+                flag_remove[i] = false;
+            }
+            for(S32 i=0; i<n_remove; i++){
+                S32 idx_tmp = idx[i];
+                flag_remove[idx_tmp] = true;
+            }
+            S32 i_loc = n_prev-1;
+            for(S32 i=n_prev-1; i>=0; i--){
+                if(flag_remove[i] == true){
+                    std::swap(ptcl_[i], ptcl_[i_loc]);
+                    i_loc--;
+                }
+            }
+            ptcl_.resizeNoInitialize(i_loc+1);
+            */
+        }
 
         void dumpMemSizeUsed(std::ostream & fout){
             F64 sum_loc,sum_max;

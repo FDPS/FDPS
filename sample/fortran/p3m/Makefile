@@ -26,7 +26,7 @@ MPI_LIB  = -L$(MPI_LOC)/lib -lmpi -lmpi_f77 -lmpi_f90
 # [Option 2] w/ optimization 
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
 CXXFLAGS = -O3 -ffast-math -funroll-loops $(FFTW_INC) $(FDPS_INC)
-LDFLAGS = -lgfortran $(MPI_LIB) $(FFTW_LIB) $(FDPS_LIB)
+LDFLAGS = -lgfortran $(FDPS_LIB) $(FFTW_LIB) $(MPI_LIB) 
 # Activate PM module
 FCFLAGS  += -DPARTICLE_SIMULATOR_USE_PM_MODULE
 CXXFLAGS += -DPARTICLE_SIMULATOR_USE_PM_MODULE

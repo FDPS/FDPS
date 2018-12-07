@@ -226,12 +226,18 @@ namespace ParticleSimulator{
 
     struct TagWithoutCutoff{};
     struct TagWithCutoff{};
+
+    struct TagNeighborSearchSymmetry{};
+    struct TagNeighborSearchGather{};
+    struct TagNeighborSearchScatter{};
+    struct TagNeighborSearchNo{};
     
     struct SEARCH_MODE_LONG{
         typedef TagForceLong force_type;
         typedef TagSearchLong search_type;
         typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
         typedef TagIpgLongNormal ipg_type;
+        typedef TagNeighborSearchNo neighbor_search_type;
         enum{
             search_type_id = LONG_NO_CUTOFF,
         };
@@ -241,6 +247,7 @@ namespace ParticleSimulator{
         typedef TagSearchLongCutoff search_type;
         typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
         typedef TagIpgLongNormal ipg_type;
+        typedef TagNeighborSearchNo neighbor_search_type;
         enum{
             search_type_id = LONG_CUTOFF,
         };
@@ -250,6 +257,7 @@ namespace ParticleSimulator{
         typedef TagSearchShortGather search_type;
         typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
         typedef TagIpgOut ipg_type;
+        typedef TagNeighborSearchGather neighbor_search_type;
         enum{
             search_type_id = SHORT_GATHER,
         };
@@ -259,6 +267,7 @@ namespace ParticleSimulator{
         typedef TagSearchShortScatter search_type;
         typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
         typedef TagIpgIn ipg_type;
+        typedef TagNeighborSearchScatter neighbor_search_type;
         enum{
             search_type_id = SHORT_SCATTER,
         };
@@ -268,6 +277,7 @@ namespace ParticleSimulator{
         typedef TagSearchShortSymmetry search_type;
         typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
         typedef TagIpgInAndOut ipg_type;
+        typedef TagNeighborSearchSymmetry neighbor_search_type;
         enum{
             search_type_id = SHORT_SYMMETRY,
         };
@@ -279,6 +289,7 @@ namespace ParticleSimulator{
         typedef TagSearchLongScatter search_type;
         typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
         typedef TagIpgIn ipg_type;
+        typedef TagNeighborSearchScatter neighbor_search_type;
         enum{
             search_type_id = LONG_SCATTER,
         };
@@ -288,6 +299,7 @@ namespace ParticleSimulator{
         typedef TagSearchLongSymmetry search_type;
         typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
         typedef TagIpgInAndOut ipg_type;
+        typedef TagNeighborSearchSymmetry neighbor_search_type;
         enum{
             search_type_id = LONG_SYMMETRY,
         };
@@ -936,7 +948,7 @@ namespace ParticleSimulator{
             std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
             std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
             std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-            std::cerr << "     ||     Version 5.0 (2018/11)        ||"   << std::endl;
+            std::cerr << "     ||     Version 5.0a (2018/12)       ||"   << std::endl;
             std::cerr << "     \\\\==================================//" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
