@@ -2916,10 +2916,14 @@ class Automatic_Generator:
                     if (multipole_t in targets_for_epi):
                         if (self.__getRSearch_existence_check(epi_t)): # check for EPI
                             __tree_kinds_long.append(item)
+                    else:
+                        __tree_kinds_long.append(item)
             else:
                 if (multipole_t in targets_for_epi):
                     if (self.__getRSearch_existence_check(epi_t)): # check for EPI
                         __tree_kinds_long.append(item)
+                else:
+                    __tree_kinds_long.append(item)
         # (2) treeForForceShort
         candidates = list(itertools.product(["Short"], \
                                              self.__Forces, \
@@ -2943,6 +2947,8 @@ class Automatic_Generator:
                 if (search_t in targets_for_epi):
                     if (self.__getRSearch_existence_check(epi_t)): # check for EPI
                         __tree_kinds_short.append(item)
+                else:
+                    __tree_kinds_short.append(item)
         # (3) Pack
         self.__tree_kinds = __tree_kinds_long + __tree_kinds_short
         # [Option] check the content

@@ -948,7 +948,7 @@ namespace ParticleSimulator{
             std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
             std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
             std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-            std::cerr << "     ||     Version 5.0b (2018/12)       ||"   << std::endl;
+            std::cerr << "     ||     Version 5.0c (2019/01)       ||"   << std::endl;
             std::cerr << "     \\\\==================================//" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
