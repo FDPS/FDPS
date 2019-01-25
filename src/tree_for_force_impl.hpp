@@ -238,7 +238,7 @@ namespace ParticleSimulator{
             calcCenterAndLengthOfRootCellOpenImpl(typename TSM::search_type());
         }
         else{
-            calcCenterAndLengthOfRootCellPeriodicImpl(typename TSM::search_type());
+            calcCenterAndLengthOfRootCellPeriodicImpl(typename TSM::search_type(), dinfo);
         }
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
             PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -847,53 +847,84 @@ namespace ParticleSimulator{
         pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
     }
 
+    static void CalcNumShift(const F64ort root_domain,
+                             const F64ort my_outer_boundary,
+                             const F64vec shift,
+                             S32 & n_shift){
+        F64ort root_domain_tmp = root_domain;
+        root_domain_tmp.high_ += shift;
+        root_domain_tmp.low_ += shift;
+        //std::cerr<<"root_domain_tmp= "<<root_domain_tmp
+        //         <<" my_outer_boundary= "<<my_outer_boundary
+        //         <<std::endl;
+        while(my_outer_boundary.overlapped(root_domain_tmp)){
+            root_domain_tmp.high_ += shift;
+            root_domain_tmp.low_ += shift;
+            n_shift++;
+        }        
+    }
+
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tep2>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    calcCenterAndLengthOfRootCellPeriodicImpl2(const Tep2 ep[]){
-        //F64 rsearch_max_loc = std::numeric_limits<F64>::max() * -0.25;
-        F64 rsearch_max_loc = -LARGE_FLOAT;
+    calcCenterAndLengthOfRootCellPeriodicImpl2(const Tep2 ep[],
+                                               const DomainInfo & dinfo){
+        //F64 rsearch_max_loc = -LARGE_FLOAT;
         F64ort box_loc;
         box_loc.initNegativeVolume();
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
 #endif
         {
-            //F64 rsearch_max_loc_tmp = std::numeric_limits<F64>::max() * -0.25;
-            F64 rsearch_max_loc_tmp = -LARGE_FLOAT;
+            //F64 rsearch_max_loc_tmp = -LARGE_FLOAT;
             F64ort box_loc_tmp;
             box_loc_tmp.init();
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for nowait
 #endif
             for(S32 ip=0; ip<n_loc_tot_; ip++){
-                rsearch_max_loc_tmp = (rsearch_max_loc_tmp > ep[ip].getRSearch()) ? rsearch_max_loc_tmp : ep[ip].getRSearch();
-                box_loc_tmp.merge(ep[ip].getPos());
+                box_loc_tmp.merge(ep[ip].getPos(), ep[ip].getRSearch()*1.000001);
             }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp critical
 #endif
             {
-                rsearch_max_loc = rsearch_max_loc > rsearch_max_loc_tmp ? rsearch_max_loc : rsearch_max_loc_tmp;
                 box_loc.merge(box_loc_tmp);
             }
         }
-        F64 rsearch_max_glb = 1.001 * Comm::getMaxValue(rsearch_max_loc);
-        // The factor 1.001 is for the safety.
-        F64vec xlow_loc = box_loc.low_;
+        F64vec xlow_loc  = box_loc.low_;
         F64vec xhigh_loc = box_loc.high_;
-        F64vec xlow_glb = Comm::getMinValue(xlow_loc);
+        F64vec xlow_glb  = Comm::getMinValue(xlow_loc);
         F64vec xhigh_glb = Comm::getMaxValue(xhigh_loc);
-
-        xlow_glb -= F64vec(rsearch_max_glb);
-        xhigh_glb += F64vec(rsearch_max_glb);
-        center_ = (xhigh_glb + xlow_glb) * 0.5;
-        F64 tmp0 = (xlow_glb - center_).applyEach(Abs<F64>()).getMax();
-        F64 tmp1 = (xhigh_glb - center_).applyEach(Abs<F64>()).getMax();
-        length_ = std::max(tmp0, tmp1) * 2.0 * 2.0;
+        const F64ort my_outer_boundary(xlow_glb, xhigh_glb);
+        const F64ort root_domain = dinfo.getPosRootDomain();
+        const F64vec shift = root_domain.high_ - root_domain.low_;
+        S32 num_shift_p[DIMENSION_LIMIT];
+        S32 num_shift_n[DIMENSION_LIMIT];
+        S32 num_shift_max[DIMENSION_LIMIT];
+        //std::cerr<<"my_outer_boundary= "<<my_outer_boundary<<std::endl;
+        for(S32 cid=0; cid<DIMENSION_LIMIT; cid++){
+            num_shift_p[cid] = num_shift_n[cid] = 0;
+            F64vec shift_tmp(0.0);
+            shift_tmp[cid] = shift[cid];
+            CalcNumShift(root_domain, my_outer_boundary, shift_tmp, num_shift_p[cid]);
+            CalcNumShift(root_domain, my_outer_boundary, -shift_tmp, num_shift_n[cid]);
+            //std::cerr<<"num_shift_p[cid]= "<<num_shift_p[cid]
+            //         <<" num_shift_n[cid]= "<<num_shift_n[cid]
+            //         <<std::endl;
+            num_shift_max[cid] = std::max(num_shift_p[cid], num_shift_n[cid]);
+        }
+        length_ = 0.0;
+        for(S32 cid=0; cid<DIMENSION_LIMIT; cid++){
+            F64 length_tmp = (2*num_shift_max[cid]+1)*shift[cid];
+            if(length_tmp > length_) length_ = length_tmp;
+        }
+        length_ *= 1.000001;
+        center_ = root_domain.getCenter();
         pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
         pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
+        //std::cerr<<"pos_root_cell_= "<<pos_root_cell_<<std::endl;
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -1017,6 +1048,7 @@ namespace ParticleSimulator{
         epj = epj_neighbor_[id_thread].getPointer();
         return nnp;
     }
+    #ifdef PARTICLE_SIMULATOR_CHECK_SEARCH_MODE
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tptcl>
@@ -1025,6 +1057,7 @@ namespace ParticleSimulator{
         return -1;
         // std::cerr<<"not implemented"<<std::endl;
     }
+    #endif
 
 #else
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -1291,7 +1324,7 @@ namespace ParticleSimulator{
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    exchangeLocalEssentialTreeReuseList(const DomainInfo & dinfo,const bool flag_reuse){
+    exchangeLocalEssentialTreeReuseList(const DomainInfo & dinfo, const bool flag_reuse){
         if(typeid(TSM) == typeid(SEARCH_MODE_LONG)
            && dinfo.getBoundaryCondition() != BOUNDARY_CONDITION_OPEN){
             PARTICLE_SIMULATOR_PRINT_ERROR("The forces w/o cutoff can be evaluated only under the open boundary condition");

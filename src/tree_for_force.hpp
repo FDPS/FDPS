@@ -273,29 +273,34 @@ namespace ParticleSimulator{
         /////////////
         //// PERIODIC
         // for P^3T
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongCutoffScatter){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer());
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongCutoffScatter,
+                                                       const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer(), dinfo);
         }
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortScatter){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer());
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortScatter,
+                                                       const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer(), dinfo);
         }
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortGather){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epi_org_.getPointer());
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortGather,
+                                                       const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellPeriodicImpl2(epi_org_.getPointer(), dinfo);
         }
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortSymmetry){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epi_org_.getPointer());
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortSymmetry,
+                                                       const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellPeriodicImpl2(epi_org_.getPointer(), dinfo);
         }
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongCutoff){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer());
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongCutoff,
+                                                       const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer(), dinfo);
         }
         ///////////////
         // for compile 
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLong){}
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongScatter){}
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongSymmetry){}
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLong, const DomainInfo & dinfo){}
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongScatter, const DomainInfo & dinfo){}
+        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongSymmetry, const DomainInfo & dinfo){}
 
         template<class Tep2>
-        void calcCenterAndLengthOfRootCellPeriodicImpl2(const Tep2 ep[]);
+        void calcCenterAndLengthOfRootCellPeriodicImpl2(const Tep2 ep[], const DomainInfo & dinfo);
 
         void checkMortonSortGlobalTreeOnlyImpl(TagForceLong, std::ostream & fout);
         void checkMortonSortGlobalTreeOnlyImpl(TagForceShort, std::ostream & fout);
@@ -614,8 +619,10 @@ namespace ParticleSimulator{
         S32 getNeighborListOneParticleImpl(TagNeighborSearchGather, const Tptcl & ptcl, Tepj * & epj);
         template<class Tptcl>
         S32 getNeighborListOneParticleImpl(TagNeighborSearchSymmetry, const Tptcl & ptcl, Tepj * & epj);
+#ifdef PARTICLE_SIMULATOR_CHECK_SEARCH_MODE
         template<class Tptcl>
         S32 getNeighborListOneParticleImpl(TagNeighborSearchNo, const Tptcl & ptcl, Tepj * & epj);
+#endif
         /*
         template<class Tptcl>
         S32 getNeighborListOneParticleImpl(TagSearchShortScatter, const Tptcl & ptcl, Tepj * & epj);

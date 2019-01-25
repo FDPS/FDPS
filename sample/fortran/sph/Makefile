@@ -5,10 +5,8 @@
 # (i) Variables related to FDPS
 FDPS_LOC = ../../../
 FDPS_INC = -I$(FDPS_LOC)/src 
-#FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
-#FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
-FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface-v2-prealpha/modules
-FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if-v2-prealpha.py
+FDPS_FTN_MOD_DIR = $(FDPS_LOC)/src/fortran_interface/modules
+FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
 
 # (iii) Variables to specify compilers and compile options
 # Serial or OpenMP cases
