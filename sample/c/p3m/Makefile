@@ -20,10 +20,10 @@ CC=mpicc
 CXX=mpic++
 # [Option 1] w/o optimization
 #CFLAGS   = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
-#CXXFLAGS = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
+#CXXFLAGS = -std=c++11 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 # [Option 2] w/ optimization 
 CFLAGS   = -O3 -ffast-math -funroll-loops -finline-functions $(FDPS_INC)
-CXXFLAGS = -O3 -ffast-math -funroll-loops $(FFTW_INC) $(FDPS_INC)
+CXXFLAGS = -std=c++11 -O3 -ffast-math -funroll-loops $(FFTW_INC) $(FDPS_INC)
 LDFLAGS  = $(FFTW_LIB) $(FDPS_LIB)
 # Activate PM module
 FCFLAGS  += -DPARTICLE_SIMULATOR_USE_PM_MODULE

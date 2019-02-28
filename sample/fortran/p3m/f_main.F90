@@ -7,7 +7,7 @@ subroutine f_main()
    implicit none
    !* Local parameters
    !-(# of error measurements)
-   integer(kind=c_int), parameter :: num_trials = 512
+   integer(kind=c_int), parameter :: num_trials = 64
    !-(tree)
    real(kind=c_float), parameter :: theta = 0.0
    integer(kind=c_int), parameter :: n_leaf_limit = 8

@@ -3,7 +3,7 @@ INC = -I$(PS_PATH)
 
 #CXX = g++
 CXX = mpicxx
-CXXFLAGS = -O3 -ffast-math -funroll-loops
+CXXFLAGS = -std=c++11 -O3 -ffast-math -funroll-loops
 #CXXFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 

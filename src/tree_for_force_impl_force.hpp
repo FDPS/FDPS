@@ -1512,7 +1512,7 @@ namespace ParticleSimulator{
             CopyPjForForceST(adr_spj_for_force_[ith], spj_sorted_, n_spj_head, n_spj_tail, spj_for_force_[ith]);
         } else {
             // theta_ = 0 case
-            makeInteractionListLongForZeroTheta(typename TraitsForCutoff<typename TSM::force_type>::type_cutoff(), adr_ipg);
+            makeInteractionListLongForZeroTheta(typename TraitsForCutoff<typename TSM::search_type>::type_cutoff(), adr_ipg);
         }
     }
 

@@ -621,7 +621,12 @@ namespace ParticleSimulator{
         // for search, use tree with level 3(x, y, z) 
         // must be consistend with geometry of domains.
         template<class Tdinfo>
-        void exchangeParticle(Tdinfo & dinfo) {
+        void exchangeParticle(Tdinfo & dinfo,
+                              const bool flag_serialize=false) {
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             F64 time_offset = GetWtime();
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             const S32 nloc  = ptcl_.size();
@@ -807,7 +812,7 @@ namespace ParticleSimulator{
                     while(pos_new.x < pos_root.low_.x){
                         pos_new.x += len_root.x;
                     }
-                    while(pos_new.x > pos_root.high_.x){
+                    while(pos_new.x >= pos_root.high_.x){
                         pos_new.x -= len_root.x;
                     }
                     if(pos_new.x == pos_root.high_.x){

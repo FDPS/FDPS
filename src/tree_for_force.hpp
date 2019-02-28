@@ -237,70 +237,45 @@ namespace ParticleSimulator{
         void checkCalcMomentGlobalTreeImpl(TagSearchShortGather, const F64 tolerance, std::ostream & fout);
         void checkCalcMomentGlobalTreeImpl(TagSearchShortSymmetry, const F64 tolerance, std::ostream & fout);
 
-        ///////////////////////
-        ///// for open boundary
-        // for P^3T
-        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchLongScatter){
-            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
-        }
-        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchLongSymmetry){
-            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
-        }
-        // for P^3T
-        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchLongCutoffScatter){
-            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
-        }
-        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchShortScatter){
-            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
-        }
-        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchShortGather){
-            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epi_org_.getPointer());
-        }
-        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchShortSymmetry){
-            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epi_org_.getPointer());
-        }
-        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchLongCutoff){
-            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
-        }
-        void calcCenterAndLengthOfRootCellOpenImpl(TagSearchLong){
-            calcCenterAndLengthOfRootCellOpenNoMargenImpl(epj_org_.getPointer());
-        }
-        template<class Tep2>
-        void calcCenterAndLengthOfRootCellOpenNoMargenImpl(const Tep2 ep[]);
-        template<class Tep2>
-        void calcCenterAndLengthOfRootCellOpenWithMargenImpl(const Tep2 ep[]);
 
-        /////////////
-        //// PERIODIC
-        // for P^3T
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongCutoffScatter,
-                                                       const DomainInfo & dinfo){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer(), dinfo);
+        // for short
+        void calcCenterAndLengthOfRootCell(TagSearchShortGather,
+                                           const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellImpl(epi_org_.getPointer(), dinfo);
         }
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortScatter,
-                                                       const DomainInfo & dinfo){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer(), dinfo);
+        void calcCenterAndLengthOfRootCell(TagSearchShortScatter,
+                                           const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellImpl(epj_org_.getPointer(), dinfo);
         }
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortGather,
-                                                       const DomainInfo & dinfo){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epi_org_.getPointer(), dinfo);
+        void calcCenterAndLengthOfRootCell(TagSearchShortSymmetry,
+                                           const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellImpl(epi_org_.getPointer(), dinfo);
         }
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchShortSymmetry,
-                                                       const DomainInfo & dinfo){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epi_org_.getPointer(), dinfo);
+        // for long
+        void calcCenterAndLengthOfRootCell(TagSearchLong,
+                                           const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellImpl(epj_org_.getPointer(), dinfo);
         }
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongCutoff,
-                                                       const DomainInfo & dinfo){
-            calcCenterAndLengthOfRootCellPeriodicImpl2(epj_org_.getPointer(), dinfo);
+        void calcCenterAndLengthOfRootCell(TagSearchLongCutoff,
+                                               const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellImpl(epj_org_.getPointer(), dinfo);
         }
-        ///////////////
-        // for compile 
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLong, const DomainInfo & dinfo){}
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongScatter, const DomainInfo & dinfo){}
-        void calcCenterAndLengthOfRootCellPeriodicImpl(TagSearchLongSymmetry, const DomainInfo & dinfo){}
-
+        void calcCenterAndLengthOfRootCell(TagSearchLongScatter,
+                                           const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellImpl(epj_org_.getPointer(), dinfo);
+        }
+        void calcCenterAndLengthOfRootCell(TagSearchLongSymmetry,
+                                           const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellImpl(epj_org_.getPointer(), dinfo);
+        }
+        void calcCenterAndLengthOfRootCell(TagSearchLongCutoffScatter,
+                                           const DomainInfo & dinfo){
+            calcCenterAndLengthOfRootCellImpl(epj_org_.getPointer(), dinfo);
+        }
+        // for compile
         template<class Tep2>
-        void calcCenterAndLengthOfRootCellPeriodicImpl2(const Tep2 ep[], const DomainInfo & dinfo);
+        void calcCenterAndLengthOfRootCellImpl(const Tep2 ep[], const DomainInfo & dinfo);
+
 
         void checkMortonSortGlobalTreeOnlyImpl(TagForceLong, std::ostream & fout);
         void checkMortonSortGlobalTreeOnlyImpl(TagForceShort, std::ostream & fout);
@@ -505,7 +480,7 @@ namespace ParticleSimulator{
             const int n_loc = psys.getNumberOfParticleLocal();
             epi_sorted_.resizeNoInitialize(n_loc);
             setParticleLocalTreeImpl(psys, clear);
-        };
+        }
         void setRootCell(const DomainInfo & dinfo);
         void setRootCell(const F64 l, const F64vec & c=F64vec(0.0));
         template<class Ttree>  void copyRootCell(const Ttree & tree);
@@ -560,7 +535,12 @@ namespace ParticleSimulator{
         template<class Tfunc_ep_ep, class Tpsys>
         void calcForceAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
                                    Tpsys & psys,
-                                   const bool clear=true){
+                                   const bool clear=true,
+                                   const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             calcForce(pfunc_ep_ep, clear);
             const F64 time_offset = GetWtime();
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
@@ -571,7 +551,12 @@ namespace ParticleSimulator{
         void calcForceAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
                                    Tfunc_ep_sp pfunc_ep_sp,
                                    Tpsys & psys,
-                                   const bool clear=true){
+                                   const bool clear=true,
+                                   const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             calcForce(pfunc_ep_ep, pfunc_ep_sp, clear);
             const F64 time_offset = GetWtime();
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
@@ -774,7 +759,12 @@ namespace ParticleSimulator{
         void calcForceMakingTree(Tfunc_ep_ep pfunc_ep_ep, 
                                  DomainInfo & dinfo,
                                  const bool clear_force=true,
-                                 const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
+                                 const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE,
+                                 const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             if(list_mode == MAKE_LIST || list_mode == MAKE_LIST_FOR_REUSE){
                 setRootCell(dinfo);
                 
@@ -840,9 +830,14 @@ namespace ParticleSimulator{
                           Tpsys & psys,
                           DomainInfo & dinfo,
                           const bool clear_force=true,
-                          const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
+                          const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE,
+                          const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             setParticleLocalTree(psys, true);
-            calcForceMakingTree(pfunc_ep_ep, dinfo, clear_force, list_mode);
+            calcForceMakingTree(pfunc_ep_ep, dinfo, clear_force, list_mode, flag_serialize);
         }
 
         template<class Tfunc_ep_ep, class Tpsys>
@@ -850,8 +845,13 @@ namespace ParticleSimulator{
                                       Tpsys & psys,
                                       DomainInfo & dinfo,
                                       const bool clear_force = true,
-                                      const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
-            calcForceAll(pfunc_ep_ep, psys, dinfo, clear_force, list_mode); 
+                                      const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE,
+                                      const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
+            calcForceAll(pfunc_ep_ep, psys, dinfo, clear_force, list_mode, flag_serialize); 
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
         }
 
@@ -880,7 +880,12 @@ namespace ParticleSimulator{
                                  Tfunc_ep_sp pfunc_ep_sp,  
                                  DomainInfo & dinfo,
                                  const bool clear_force=true,
-                                 const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
+                                 const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE,
+                                 const bool flag_serialize=false){
+            if (flag_serialize==true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             if(list_mode == MAKE_LIST || list_mode == MAKE_LIST_FOR_REUSE){
                 setRootCell(dinfo);
 
@@ -1086,9 +1091,14 @@ namespace ParticleSimulator{
                           Tpsys & psys,
                           DomainInfo & dinfo,
                           const bool clear_force=true,
-                          const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
+                          const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE,
+                          const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             setParticleLocalTree(psys, true);
-            calcForceMakingTree(pfunc_ep_ep, pfunc_ep_sp, dinfo, clear_force, list_mode);
+            calcForceMakingTree(pfunc_ep_ep, pfunc_ep_sp, dinfo, clear_force, list_mode, flag_serialize);
         }
 
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
@@ -1097,9 +1107,14 @@ namespace ParticleSimulator{
                                       Tpsys & psys,
                                       DomainInfo & dinfo,
                                       const bool clear_force=true,
-                                      const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
+                                      const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE,
+                                      const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             if(list_mode != REUSE_LIST){ clearSizeOfArray(); }
-            calcForceAll(pfunc_ep_ep, pfunc_ep_sp, psys, dinfo, clear_force, list_mode);
+            calcForceAll(pfunc_ep_ep, pfunc_ep_sp, psys, dinfo, clear_force, list_mode, flag_serialize);
             for(S32 i=0; i<n_loc_tot_; i++) psys[i].copyFromForce(force_org_[i]);
         }
 
@@ -1221,7 +1236,12 @@ namespace ParticleSimulator{
                                               DomainInfo & dinfo,
                                               const S32 n_walk_limit,
                                               const bool clear=true,
-                                              const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
+                                              const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE,
+                                              const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             S32 ret = 0;
             ret = calcForceAllMultiWalk(pfunc_dispatch, pfunc_retrieve,
                                         tag_max, psys, dinfo, n_walk_limit, clear, list_mode);
@@ -1398,7 +1418,12 @@ namespace ParticleSimulator{
                                                    DomainInfo & dinfo,
                                                    const S32 n_walk_limit,
                                                    const bool clear=true,
-                                                   const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
+                                                   const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE,
+                                                   const bool flag_serialize=false){
+            if (flag_serialize == true) {
+                PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
+                Abort(-1);
+            }
             S32 ret = 0;
             ret = calcForceAllMultiWalkIndex(pfunc_dispatch, pfunc_retrieve,
                                              tag_max, psys, dinfo, n_walk_limit, clear, list_mode);

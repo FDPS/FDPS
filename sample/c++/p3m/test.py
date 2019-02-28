@@ -59,8 +59,8 @@ class Automatic_Tester:
         candidates = []
         # (1) w/ MPI
         CXX = ["time mpicxx"]
-        CXXFLAGS = ["-O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
-                    "-O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CXXFLAGS = ["-std=c++11 -O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
+                    "-std=c++11 -O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
         listtmp = self.__get_dictlist(CXX,CXXFLAGS,RUNOPT)
         candidates.extend(listtmp)

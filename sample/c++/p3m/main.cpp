@@ -416,7 +416,7 @@ PS::F64 calc_energy_error(PS::ParticleSystem<Nbody_FP>& system,
 int main(int argc, char* argv[]) {
 
    //* Local parameters
-   const PS::S32 numTrials=512;
+   const PS::S32 numTrials=64;
 
    //* Local variables
    Nbody_Objects Nbody_objs;

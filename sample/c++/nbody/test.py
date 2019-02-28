@@ -62,8 +62,8 @@ class Automatic_Tester:
         candidates = []
         # (1) w/o MPI
         CC = ["time g++"]
-        CFLAGS = ["", \
-                  "-DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CFLAGS = ["-std=c++11 -O3", \
+                  "-std=c++11 -O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         use_phantom_grape_x86 = ["no", "yes"]
         use_gpu_cuda = ["no", "yes"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; ".format(self.__NTHRDS)]
@@ -71,8 +71,8 @@ class Automatic_Tester:
         candidates.extend(listtmp)
         # (2) w/ MPI
         CC = ["time mpicxx"]
-        CFLAGS = ["-DPARTICLE_SIMULATOR_MPI_PARALLEL", \
-                  "-DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CFLAGS = ["-std=c++11 -O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
+                  "-std=c++11 -O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         use_phantom_grape_x86 = ["no", "yes"]
         use_gpu_cuda = ["no"] # we do not have a multiple GPU machine.
         RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]

@@ -412,10 +412,11 @@ class Automatic_Generator:
             for mod in f.modules:
                 for s in mod.structures:
                     if (class_name == s.name):
-                        # First, we check if class_name is either EPJ or FP
+                        # First, we check if class_name is either FP, EPI, or EPJ.
                         if ((s.attrib["FP"] == False) and \
+                            (s.attrib["EPI"] == False) and \
                             (s.attrib["EPJ"] == False)):
-                            msg = "{0} is neither EPJ nor FP!".format(class_name)
+                            msg = "{0} is neither EPI, nor EPJ, nor FP!".format(class_name)
                             self.__print_error(msg)
                             sys.exit()
                         else:

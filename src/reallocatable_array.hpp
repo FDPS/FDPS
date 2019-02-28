@@ -31,8 +31,8 @@ namespace  ParticleSimulator{
             if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-		int rank_tmp;
-		MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                int rank_tmp;
+                MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
                 std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                 std::cerr<<"rank=0"<<std::endl;
@@ -99,9 +99,9 @@ namespace  ParticleSimulator{
         void ReallocInner(const int new_cap){
 #endif
             //capacity_ = new_cap;
-            capacity_ = getNewCapacity(new_cap);
-            T * data_old = data_;
             if(alloc_mode_ == 0){
+                capacity_ = getNewCapacity(new_cap);
+                T * data_old = data_;
                 T * data_new = new T[capacity_];
                 for( int i=0; i<size_; i++){
                     data_new[i] = data_old[i];
@@ -114,17 +114,22 @@ namespace  ParticleSimulator{
 #pragma omp critical
 #endif
                 {
-                    //capacity_ = new_cap;
-                    int id_old = id_mpool_;
-                    void * ret = NULL;
-                    MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret);
-                    data_ = (T*)ret;
-                    for( int i=0; i<size_; i++){
-                        data_[i] = data_old[i];
-                    }
-                    if(id_old != id_mpool_){
-                        MemoryPool::freeMem(id_old);
-                    }
+                    // Save old data                                                        
+                    T * data_old = new T[capacity_];                                        
+                    memcpy((void *)data_old, (void *)data_, (size_t)sizeof(T)*capacity_);   
+                    // Set new capacity                                                     
+                    capacity_ = getNewCapacity(new_cap);                                    
+                    int id_old = id_mpool_;                                                 
+                    void * ret = NULL;                                                      
+                    MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret);         
+                    data_ = (T*)ret;                                                        
+                    if(id_old != id_mpool_){                                                
+                        MemoryPool::freeMem(id_old);                                        
+                    }                                                                       
+                    // Copy old data                                                        
+                    memcpy((void *)data_, (void *)data_old, (size_t)sizeof(T)*size_);               
+                    // Release memory of temporal buffer                                    
+                    delete [] data_old; 
                 }
             }
         }
@@ -190,8 +195,8 @@ namespace  ParticleSimulator{
                 if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-		    int rank_tmp;
-		    MPI_Comm_rank(MPI_COMM_WORLD, &rank_tmp);
+                    int rank_tmp;
+                    MPI_Comm_rank(MPI_COMM_WORLD, &rank_tmp);
                     std::cerr<<"rank= "<<rank_tmp<<std::endl;
 #else
                     std::cerr<<"rank= 0"<<std::endl;
@@ -313,8 +318,8 @@ namespace  ParticleSimulator{
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-		    int rank_tmp;
-		    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                    int rank_tmp;
+                    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
                     std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                     std::cerr<<"rank=0"<<std::endl;
@@ -337,7 +342,7 @@ namespace  ParticleSimulator{
         size_t getMemSize() const { return capacity_ * sizeof(T); }
 
         T * getPointer(const int i=0) const { return data_+i; }
-	
+
         void pushBackNoCheck(const T & val){
 //#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
@@ -364,8 +369,8 @@ namespace  ParticleSimulator{
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-		    int rank_tmp;
-		    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                    int rank_tmp;
+                    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
                     std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                     std::cerr<<"rank=0"<<std::endl;
@@ -393,8 +398,8 @@ namespace  ParticleSimulator{
                 if(new_cap >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-		    int rank_tmp;
-		    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
+                    int rank_tmp;
+                    MPI_Comm_rank(MPI_COMM_WORLD,&rank_tmp);
                     std::cerr<<"rank="<<rank_tmp<<std::endl;
 #else
                     std::cerr<<"rank=0"<<std::endl;

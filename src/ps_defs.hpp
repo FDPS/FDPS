@@ -26,6 +26,8 @@
 #include"vector3.hpp"
 #include"orthotope2.hpp"
 #include"orthotope3.hpp"
+#include"orthotope2i.hpp"
+#include"orthotope3i.hpp"
 #include"matrix_sym2.hpp"
 #include"matrix_sym3.hpp"
 #include"matrix2.hpp"
@@ -113,6 +115,8 @@ namespace ParticleSimulator{
     typedef MatrixSym3<F32> F32mat3;
     typedef MatrixSym2<F64> F64mat2;
     typedef MatrixSym3<F64> F64mat3;
+    typedef Orthotope2i<S32> S32ort2;
+    typedef Orthotope3i<S32> S32ort3;
     typedef Orthotope2<F32> F32ort2;
     typedef Orthotope3<F32> F32ort3;
     typedef Orthotope2<F64> F64ort2;
@@ -125,6 +129,7 @@ namespace ParticleSimulator{
     typedef F64vec2 F64vec;
     typedef F32mat2 F32mat;
     typedef F64mat2 F64mat;
+    typedef S32ort2 S32ort;
     typedef F32ort2 F32ort;
     typedef F64ort2 F64ort;
     static const S32 DIMENSION = 2;
@@ -139,6 +144,7 @@ namespace ParticleSimulator{
     typedef F64vec3 F64vec;
     typedef F32mat3 F32mat;
     typedef F64mat3 F64mat;
+    typedef S32ort3 S32ort;
     typedef F32ort3 F32ort;
     typedef F64ort3 F64ort;
     static const S32 DIMENSION = 3;
@@ -716,6 +722,13 @@ namespace ParticleSimulator{
         static S32 getRankMultiDim(const S32 id) { return getInstance().rank_multi_dim_[id]; }
         static S32 getNumberOfProcMultiDim(const S32 id) { return getInstance().n_proc_multi_dim_[id]; }
         static S32 getNumberOfThread() { return getInstance().n_thread_; }
+        static S32 getNumThreads() {
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
+            return omp_get_num_threads();
+#else
+            return 1;
+#endif
+        }
         static S32 getThreadNum(){
         //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
@@ -948,7 +961,7 @@ namespace ParticleSimulator{
             std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
             std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
             std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-            std::cerr << "     ||     Version 5.0c (2019/01)       ||"   << std::endl;
+            std::cerr << "     ||     Version 5.0d (2019/02)       ||"   << std::endl;
             std::cerr << "     \\\\==================================//" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
@@ -1547,6 +1560,34 @@ namespace ParticleSimulator{
         typedef typename HasRSearchInner< sizeof(Func<T>(NULL)) == 1 >::type type;
     };
 
+    template<typename Tptcl>
+    struct HasgetRSearchMethod
+    {
+       template<typename U, F32(U::*)() > struct SFINAE0 {};
+       template<typename U, F32(U::*)() const > struct SFINAE1 {};
+       template<typename U, F64(U::*)() > struct SFINAE2 {};
+       template<typename U, F64(U::*)() const > struct SFINAE3 {};
+       template<typename U> static char Test(SFINAE0<U, &U::getRSearch> *);
+       template<typename U> static char Test(SFINAE1<U, &U::getRSearch> *);
+       template<typename U> static char Test(SFINAE2<U, &U::getRSearch> *);
+       template<typename U> static char Test(SFINAE3<U, &U::getRSearch> *);
+       template<typename U> static int Test(...);
+       static const bool value = sizeof(Test<Tptcl>(0)) == sizeof(char);
+    };
+    template<class Tptcl>
+    F64 GetMyRSearch(Tptcl ptcl, std::true_type)
+    {
+       return ptcl.getRSearch();
+    }
+    template<class Tptcl>
+    F64 GetMyRSearch(Tptcl ptcl, std::false_type)
+    {
+       return 0.0;
+    }
+    template <class Tptcl>
+    F64 GetMyRSearch(Tptcl ptcl) {
+       return GetMyRSearch(ptcl, std::integral_constant<bool, HasgetRSearchMethod<Tptcl>::value>());
+    }
     
     class TimeProfile{
     public:
@@ -1851,8 +1892,6 @@ namespace ParticleSimulator{
         return dis;
     }
 
-    template<class T>
-    inline std::string GetBinString(const T val);
     inline std::string GetBinString(const U32 val)
     {
         if( !val ) return std::string("00000000000000000000000000000000");
@@ -1865,10 +1904,34 @@ namespace ParticleSimulator{
         }
         return str;
     }
+    inline std::string GetBinString(const U32 *val)
+    {
+        if( !*val ) return std::string("00000000000000000000000000000000");
+        U32 tmp = *val;
+        std::string str;
+        for (S32 i=0; i<32; i++) {
+            if ( (tmp & 1) == 0 ) str.insert(str.begin(), '0');
+            else str.insert(str.begin(), '1');
+            tmp >>= 1;
+        }
+        return str;
+    }
     inline std::string GetBinString(const U64 val)
     {
         if( !val ) return std::string("0000000000000000000000000000000000000000000000000000000000000000");
         U64 tmp = val;
+        std::string str;
+        for (S32 i=0; i<64; i++) {
+            if ( (tmp & 1) == 0 ) str.insert(str.begin(), '0');
+            else str.insert(str.begin(), '1');
+            tmp >>= 1;
+        }
+        return str;
+    }
+    inline std::string GetBinString(const U64 *val)
+    {
+        if( !*val ) return std::string("0000000000000000000000000000000000000000000000000000000000000000");
+        U64 tmp = *val;
         std::string str;
         for (S32 i=0; i<64; i++) {
             if ( (tmp & 1) == 0 ) str.insert(str.begin(), '0');

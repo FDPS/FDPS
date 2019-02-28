@@ -22,10 +22,10 @@ MPI_LOC  = /usr/lib64/openmpi
 MPI_LIB  = -L$(MPI_LOC)/lib -lmpi -lmpi_f77 -lmpi_f90
 # [Option 1] w/o optimization
 #FCFLAGS = -std=f2003 -O0 -Wall
-#CXXFLAGS = -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
+#CXXFLAGS = -std=c++11 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 # [Option 2] w/ optimization 
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
-CXXFLAGS = -O3 -ffast-math -funroll-loops $(FFTW_INC) $(FDPS_INC)
+CXXFLAGS = -std=c++11 -O3 -ffast-math -funroll-loops $(FFTW_INC) $(FDPS_INC)
 LDFLAGS = -lgfortran $(FDPS_LIB) $(FFTW_LIB) $(MPI_LIB) 
 # Activate PM module
 FCFLAGS  += -DPARTICLE_SIMULATOR_USE_PM_MODULE

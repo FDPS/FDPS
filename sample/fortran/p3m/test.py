@@ -65,8 +65,8 @@ class Automatic_Tester:
         CXX = ["time mpicxx"]
         FCFLAGS = ["-std=f2003 -O3 -DPARTICLE_SIMULATOR_USE_PM_MODULE -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
                    "-std=f2003 -O3 -DPARTICLE_SIMULATOR_USE_PM_MODULE -DPARTICLE_SIMULATOR_MPI_PARALLEL  -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
-        CXXFLAGS = ["-O3 -DPARTICLE_SIMULATOR_USE_PM_MODULE -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
-                    "-O3 -DPARTICLE_SIMULATOR_USE_PM_MODULE -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CXXFLAGS = ["-std=c++11 -O3 -DPARTICLE_SIMULATOR_USE_PM_MODULE -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
+                    "-std=c++11 -O3 -DPARTICLE_SIMULATOR_USE_PM_MODULE -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         LDFLAGS = ["-lgfortran"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
         listtmp = self.__get_dictlist(FC,CXX,FCFLAGS,CXXFLAGS,LDFLAGS,RUNOPT)
@@ -138,7 +138,8 @@ class Automatic_Tester:
                     CXX = {CXX}
                     FCFLAGS = {FCFLAGS}
                     CXXFLAGS = {CXXFLAGS} $(FFTW_INC) $(FDPS_INC)
-                    LDFLAGS = {LDFLAGS} $(MPI_LIB) $(FFTW_LIB) $(FDPS_LIB)
+                    #LDFLAGS = {LDFLAGS} $(FDPS_LIB) $(FFTW_LIB) $(MPI_LIB)
+                    LDFLAGS = {LDFLAGS} $(FDPS_LIB) $(FFTW_LIB) $(MPI_LIB)
                     #---------------------------------------------------
                     """.format(FC=mkvars["FC"], \
                                CXX=mkvars["CXX"], \

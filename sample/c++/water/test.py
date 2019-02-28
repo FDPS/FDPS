@@ -87,15 +87,15 @@ class Automatic_Tester:
         candidates = []
         # (1) w/o MPI
         CXX = ["time g++"]
-        CXXFLAGS = ["", \
-                    "-DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CXXFLAGS = ["-std=c++11 -O3", \
+                    "-std=c++11 -O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; ".format(self.__NTHRDS)]
         listtmp = self.__get_dictlist(CXX,CXXFLAGS,RUNOPT)
         candidates.extend(listtmp)
         # (2) w/ MPI
         CXX = ["time mpicxx"]
-        CXXFLAGS = ["-DPARTICLE_SIMULATOR_MPI_PARALLEL", \
-                    "-DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CXXFLAGS = ["-std=c++11 -O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
+                    "-std=c++11 -O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
         listtmp = self.__get_dictlist(CXX,CXXFLAGS,RUNOPT)
         candidates.extend(listtmp)

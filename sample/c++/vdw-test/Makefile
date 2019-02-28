@@ -2,7 +2,7 @@ PS_PATH = -I../../../src/
 
 CC = g++
 #CC = mpicxx
-CFLAGS = -O3
+CFLAGS = -std=c++11 -O3
 CFLAGS += -Wall
 CFLAGS += -ffast-math
 CFLAGS += -funroll-loops

@@ -9,7 +9,7 @@ CXXFLAGS_COMMON = -std=c++11 -O3 -ffast-math -funroll-loops $(FDPS_INC)
 
 CUDAPATH?=/usr/local/cuda
 NVCC=$(CUDAPATH)/bin/nvcc
-NVCCFLAGS= -I$(CUDAPATH)/include -I$(CUDAPATH)/samples/common/inc -L$(CUDAPATH)/lib64 $(FDPS_INC) -Xcompiler "-O3"
+NVCCFLAGS= -std=c++11 -I$(CUDAPATH)/include -I$(CUDAPATH)/samples/common/inc -L$(CUDAPATH)/lib64 $(FDPS_INC) -Xcompiler "-std=c++11 -O3"
 
 LDFLAGS+=-L$(CUDAPATH)/lib64  -lcudart
 

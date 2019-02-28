@@ -234,12 +234,7 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     setRootCell(const DomainInfo & dinfo){
         const F64 time_offset = GetWtime();
-        if(dinfo.getBoundaryCondition() == BOUNDARY_CONDITION_OPEN){
-            calcCenterAndLengthOfRootCellOpenImpl(typename TSM::search_type());
-        }
-        else{
-            calcCenterAndLengthOfRootCellPeriodicImpl(typename TSM::search_type(), dinfo);
-        }
+        calcCenterAndLengthOfRootCell(typename TSM::search_type(), dinfo);
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
             PARTICLE_SIMULATOR_PRINT_LINE_INFO();
             std::cout<<"length_="<<length_<<" center_="<<center_<<std::endl;
@@ -721,6 +716,7 @@ namespace ParticleSimulator{
              class Tmomloc, class Tmomglb, class Tspj>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     makeIPGroupImpl(TagForceShort){
+        //std::cout << "tc_loc_[0].level_ = " << tc_loc_[0].level_ << std::endl;
         MakeIPGroupShort(ipg_, tc_loc_, epi_sorted_, 0, n_group_limit_);
     }
     
@@ -814,39 +810,6 @@ namespace ParticleSimulator{
         makeInteractionListImpl(typename TSM::force_type(), adr_ipg, clear);
     }
 
-
-
-
-    
-    template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
-    template<class Tep2>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    calcCenterAndLengthOfRootCellOpenNoMargenImpl(const Tep2 ep[]){
-
-        const F64ort min_box  = GetMinBox(ep, n_loc_tot_);
-        center_ = min_box.getCenter();
-        const F64 tmp0 = (min_box.high_ - center_).getMax();
-        const F64 tmp1 = (center_ - min_box.low_).getMax();
-        length_ = std::max(tmp0, tmp1) * 2.0 * 1.001;
-        pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
-        pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
-    }
-    
-    template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
-    template<class Tep2>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    calcCenterAndLengthOfRootCellOpenWithMargenImpl(const Tep2 ep[]){
-        const F64ort min_box  = GetMinBoxWithMargen(ep, n_loc_tot_);
-        center_ = min_box.getCenter();
-        const F64 tmp0 = (min_box.high_ - center_).getMax();
-        const F64 tmp1 = (center_ - min_box.low_).getMax();
-        length_ = std::max(tmp0, tmp1) * 2.0 * 1.001;
-        pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
-        pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
-    }
-
     static void CalcNumShift(const F64ort root_domain,
                              const F64ort my_outer_boundary,
                              const F64vec shift,
@@ -868,29 +831,49 @@ namespace ParticleSimulator{
              class Tmomloc, class Tmomglb, class Tspj>
     template<class Tep2>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
-    calcCenterAndLengthOfRootCellPeriodicImpl2(const Tep2 ep[],
-                                               const DomainInfo & dinfo){
-        //F64 rsearch_max_loc = -LARGE_FLOAT;
+    calcCenterAndLengthOfRootCellImpl(const Tep2 ep[],
+                                      const DomainInfo & dinfo){
         F64ort box_loc;
         box_loc.initNegativeVolume();
+        if (typeid(TSM) == typeid(SEARCH_MODE_LONG)) {
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel
 #endif
-        {
-            //F64 rsearch_max_loc_tmp = -LARGE_FLOAT;
-            F64ort box_loc_tmp;
-            box_loc_tmp.init();
+            {
+                F64ort box_loc_tmp;
+                box_loc_tmp.init();
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp for nowait
 #endif
-            for(S32 ip=0; ip<n_loc_tot_; ip++){
-                box_loc_tmp.merge(ep[ip].getPos(), ep[ip].getRSearch()*1.000001);
-            }
+                for(S32 ip=0; ip<n_loc_tot_; ip++){
+                    box_loc_tmp.merge(ep[ip].getPos());
+                }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp critical
 #endif
+                {
+                    box_loc.merge(box_loc_tmp);
+                }
+            }
+        } else {
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel
+#endif
             {
-                box_loc.merge(box_loc_tmp);
+                F64ort box_loc_tmp;
+                box_loc_tmp.init();
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp for nowait
+#endif
+                for(S32 ip=0; ip<n_loc_tot_; ip++){
+                    box_loc_tmp.merge(ep[ip].getPos(), GetMyRSearch(ep[ip])*1.000001);
+                }
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp critical
+#endif
+                {
+                    box_loc.merge(box_loc_tmp);
+                }
             }
         }
         F64vec xlow_loc  = box_loc.low_;
@@ -900,28 +883,40 @@ namespace ParticleSimulator{
         const F64ort my_outer_boundary(xlow_glb, xhigh_glb);
         const F64ort root_domain = dinfo.getPosRootDomain();
         const F64vec shift = root_domain.high_ - root_domain.low_;
+        bool pa[DIMENSION_LIMIT];
+        dinfo.getPeriodicAxis(pa);
         S32 num_shift_p[DIMENSION_LIMIT];
         S32 num_shift_n[DIMENSION_LIMIT];
         S32 num_shift_max[DIMENSION_LIMIT];
         //std::cerr<<"my_outer_boundary= "<<my_outer_boundary<<std::endl;
         for(S32 cid=0; cid<DIMENSION_LIMIT; cid++){
-            num_shift_p[cid] = num_shift_n[cid] = 0;
-            F64vec shift_tmp(0.0);
-            shift_tmp[cid] = shift[cid];
-            CalcNumShift(root_domain, my_outer_boundary, shift_tmp, num_shift_p[cid]);
-            CalcNumShift(root_domain, my_outer_boundary, -shift_tmp, num_shift_n[cid]);
-            //std::cerr<<"num_shift_p[cid]= "<<num_shift_p[cid]
-            //         <<" num_shift_n[cid]= "<<num_shift_n[cid]
-            //         <<std::endl;
-            num_shift_max[cid] = std::max(num_shift_p[cid], num_shift_n[cid]);
+            if (pa[cid]) {
+                num_shift_p[cid] = num_shift_n[cid] = 0;
+                F64vec shift_tmp(0.0);
+                shift_tmp[cid] = shift[cid];
+                CalcNumShift(root_domain, my_outer_boundary, shift_tmp, num_shift_p[cid]);
+                CalcNumShift(root_domain, my_outer_boundary, -shift_tmp, num_shift_n[cid]);
+                //std::cerr<<"num_shift_p[cid]= "<<num_shift_p[cid]
+                //         <<" num_shift_n[cid]= "<<num_shift_n[cid]
+                //         <<std::endl;
+                num_shift_max[cid] = std::max(num_shift_p[cid], num_shift_n[cid]);
+            } else {
+                num_shift_max[cid] = 0;
+            }
         }
         length_ = 0.0;
         for(S32 cid=0; cid<DIMENSION_LIMIT; cid++){
-            F64 length_tmp = (2*num_shift_max[cid]+1)*shift[cid];
-            if(length_tmp > length_) length_ = length_tmp;
+            if (pa[cid]) {
+                F64 length_tmp = (2*num_shift_max[cid]+1)*shift[cid];
+                if(length_tmp > length_) length_ = length_tmp;
+                center_[cid] = root_domain.getCenter()[cid];
+            } else {
+                F64 length_tmp = my_outer_boundary.getFullLength()[cid];
+                if (length_tmp > length_) length_ = length_tmp;
+                center_[cid] = my_outer_boundary.getCenter()[cid];
+            }
         }
         length_ *= 1.000001;
-        center_ = root_domain.getCenter();
         pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
         pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
         //std::cerr<<"pos_root_cell_= "<<pos_root_cell_<<std::endl;
@@ -1058,7 +1053,6 @@ namespace ParticleSimulator{
         // std::cerr<<"not implemented"<<std::endl;
     }
     #endif
-
 #else
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj>
@@ -1344,6 +1338,8 @@ namespace ParticleSimulator{
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
     exchangeLocalEssentialTreeReuseListLong(const DomainInfo & dinfo,
                                             const bool flag_reuse){
+        F64 time_offset = GetWtime();
+
         F64 r_crit_sq = LARGE_FLOAT;
         if (theta_ > 0) r_crit_sq = (length_ * length_) / (theta_ * theta_);
         else r_crit_sq = - 1.0; // negative value is used to represent theta_ = 0
@@ -1378,6 +1374,10 @@ namespace ParticleSimulator{
             comm_table_.n_ep_recv_tot_ += n_ep_recv_tot_tmp;
             comm_table_.n_sp_recv_tot_ += n_sp_recv_tot_tmp;
         }
+
+        time_profile_.make_LET_1st += GetWtime() - time_offset;
+        time_offset = GetWtime();
+
         ExchangeLet<TSM, Tepj, Tspj>(epj_sorted_, comm_table_.n_ep_send_,
                                      comm_table_.n_ep_recv_, comm_table_.n_ep_per_image_,
                                      comm_table_.adr_ep_send_,
@@ -1390,6 +1390,8 @@ namespace ParticleSimulator{
                                      spj_org_,
                                      comm_table_.shift_per_image_,
                                      comm_table_.n_image_per_proc_);
+
+        time_profile_.exchange_LET_1st += GetWtime() - time_offset;
     }
     
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -1398,9 +1400,7 @@ namespace ParticleSimulator{
     exchangeLocalEssentialTreeReuseListImpl(TagSearchLong,
                                             const DomainInfo & dinfo,
                                             const bool flag_reuse){
-        F64 time_offset = GetWtime();
         exchangeLocalEssentialTreeReuseListLong(dinfo, flag_reuse);
-        time_profile_.exchange_LET_1st += GetWtime() - time_offset;
     }    
     template<class TSM, class Tforce, class Tepi, class Tepj,
     class Tmomloc, class Tmomglb, class Tspj>
@@ -1458,6 +1458,10 @@ namespace ParticleSimulator{
             }
             comm_table_.n_ep_recv_tot_ = n_ep_recv_tot_tmp;
         }
+        
+        time_profile_.make_LET_1st += GetWtime() - time_offset;
+        time_offset = GetWtime();
+
         ExchangeLet(epj_sorted_, comm_table_.n_ep_send_, comm_table_.n_ep_recv_,
                     comm_table_.n_ep_per_image_,
                     comm_table_.adr_ep_send_,
@@ -1477,6 +1481,8 @@ namespace ParticleSimulator{
     exchangeLocalEssentialTreeReuseListImpl(TagSearchShortSymmetry,
                                             const DomainInfo & dinfo,
                                             const bool flag_reuse){
+        F64 time_offset = GetWtime();
+
         const S32 n_proc = Comm::getNumberOfProc();
         static ReallocatableArray<S32> n_ep_send_per_proc_1st;
         static ReallocatableArray<S32> n_ep_send_per_proc_2nd;
@@ -1608,7 +1614,8 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
-            for(S32 i=0; i<n_image_tot; i++){
+            //for(S32 i=0; i<n_image_tot; i++){
+            for(S32 i=0; i<n_proc; i++){
                 comm_table_.n_image_per_proc_[i] = n_image_per_proc_1st[i] + n_image_per_proc_2nd[i];
             }
             comm_table_.n_ep_send_tot_ = comm_table_.adr_ep_send_.size();
@@ -1621,12 +1628,18 @@ namespace ParticleSimulator{
             }
             comm_table_.n_ep_recv_tot_ = n_ep_recv_tot_tmp;
         } // end of reuse
+
+        time_profile_.make_LET_1st += GetWtime() - time_offset;
+        time_offset = GetWtime();
+
         ExchangeLet(epj_sorted_, comm_table_.n_ep_send_, comm_table_.n_ep_recv_,
                     comm_table_.n_ep_per_image_,
                     comm_table_.adr_ep_send_,
                     //epj_recv_,
                     epj_org_, n_loc_tot_,
                     comm_table_.shift_per_image_, comm_table_.n_image_per_proc_);
+
+        time_profile_.exchange_LET_1st += GetWtime() - time_offset;
     }
 
 
@@ -1638,6 +1651,8 @@ namespace ParticleSimulator{
     exchangeLocalEssentialTreeReuseListImpl(TagSearchShortGather,
                                             const DomainInfo & dinfo,
                                             const bool flag_reuse){
+        F64 time_offset = GetWtime();
+    
         const S32 n_proc = Comm::getNumberOfProc();
         static ReallocatableArray<S32> n_ep_send_per_proc_1st;
         static ReallocatableArray<S32> n_ep_send_per_proc_2nd;
@@ -1651,16 +1666,17 @@ namespace ParticleSimulator{
         static ReallocatableArray<S32> n_image_per_proc_2nd;
         static ReallocatableArray<S32> n_ep_send_per_image_1st;
         static ReallocatableArray<S32> n_ep_send_per_image_2nd;
-        //static ReallocatableArray<Tepi> ep_recv_1st;
         static ReallocatableArray<EssentialParticleBase> ep_recv_1st;
         static ReallocatableArray<EssentialParticleBase> epi_base_sorted;
         const S32 n_epi_sorted = epi_sorted_.size();
         epi_base_sorted.resizeNoInitialize(n_epi_sorted);
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#pragma omp parallel for
+#endif
         for(S32 i=0; i<n_epi_sorted; i++){
             epi_base_sorted[i].pos      = epi_sorted_[i].getPos();
             epi_base_sorted[i].r_search = epi_sorted_[i].getRSearch();
         }
-        
         if(!flag_reuse){
             ////////////
             // 1st STEP (send epi_base)
@@ -1671,13 +1687,21 @@ namespace ParticleSimulator{
                  shift_per_image_1st,
                  n_image_per_proc_1st,
                  n_ep_send_per_image_1st);
+
+            //std::cerr<<"check b"<<std::endl;
+            
             ExchangeNumber(n_ep_send_per_proc_1st, n_ep_recv_per_proc_1st);
+
+            //std::cerr<<"check c"<<std::endl;
+            
             // exchange epi_base particles
             ExchangeParticle(epi_base_sorted, n_ep_send_per_proc_1st, n_ep_recv_per_proc_1st,
                              n_ep_send_per_image_1st,
                              adr_ep_send_1st, ep_recv_1st,
                              shift_per_image_1st,
                              n_image_per_proc_1st);
+
+            //std::cerr<<"check d"<<std::endl;
             
             ////////////
             // 2nd STEP (find j particle)
@@ -1689,11 +1713,15 @@ namespace ParticleSimulator{
                  adr_ep_send_2nd, shift_per_image_2nd,
                  epi_base_sorted,
                  center_, length_);
+
+            //std::cerr<<"check e"<<std::endl;
             
             /////////////////////
             // 3rd STEP (exchange # of particles again)
             ExchangeNumber(n_ep_send_per_proc_2nd, n_ep_recv_per_proc_2nd);
 
+            //std::cerr<<"check f"<<std::endl;
+            
             ReallocatableArray<S32> n_disp_ep_send_per_proc;
             n_disp_ep_send_per_proc.resizeNoInitialize(n_proc+1);
             n_disp_ep_send_per_proc[0] = 0;
@@ -1703,6 +1731,8 @@ namespace ParticleSimulator{
                     + n_ep_send_per_proc_2nd[i];
             }
 
+            //std::cerr<<"check g"<<std::endl;
+            
             ReallocatableArray<S32> n_disp_image_per_proc;
             ReallocatableArray<S32> n_disp_image_per_proc_1st;
             ReallocatableArray<S32> n_disp_image_per_proc_2nd;
@@ -1716,6 +1746,8 @@ namespace ParticleSimulator{
                 n_disp_image_per_proc_2nd[i+1] = n_disp_image_per_proc_2nd[i] + n_image_per_proc_2nd[i];
             }
 
+            //std::cerr<<"check h"<<std::endl;
+            
             const S32 n_image_tot_1st = shift_per_image_1st.size();
             const S32 n_image_tot_2nd = shift_per_image_2nd.size();
             ReallocatableArray<S32> n_disp_ep_send_per_image_1st;
@@ -1729,6 +1761,8 @@ namespace ParticleSimulator{
             for(S32 i=0; i<n_image_tot_2nd; i++){
                 n_disp_ep_send_per_image_2nd[i+1] = n_disp_ep_send_per_image_2nd[i] + n_ep_send_per_image_2nd[i];
             }
+
+            //std::cerr<<"check i"<<std::endl;
             
             const S32 n_image_tot = n_disp_image_per_proc_1st[n_proc]  + n_disp_image_per_proc_2nd[n_proc];
             comm_table_.shift_per_image_.resizeNoInitialize(n_image_tot);
@@ -1766,6 +1800,9 @@ namespace ParticleSimulator{
                     }
                 }
             }
+
+            //std::cerr<<"check j"<<std::endl;
+            
             comm_table_.n_ep_send_.resizeNoInitialize(n_proc);
             comm_table_.n_ep_recv_.resizeNoInitialize(n_proc);
             comm_table_.n_image_per_proc_.resizeNoInitialize(n_proc);
@@ -1777,28 +1814,45 @@ namespace ParticleSimulator{
                 comm_table_.n_ep_recv_[i] = n_ep_recv_per_proc_1st[i] + n_ep_recv_per_proc_2nd[i];
                 comm_table_.n_image_per_proc_[i] = n_image_per_proc_1st[i] + n_image_per_proc_2nd[i];
             }
+
+            //std::cerr<<"check k"<<std::endl;
+
+
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
-            for(S32 i=0; i<n_image_tot; i++){
+            //for(S32 i=0; i<n_image_tot; i++){ // org, NEED TO CHECK
+            for(S32 i=0; i<n_proc; i++){
                 comm_table_.n_image_per_proc_[i] = n_image_per_proc_1st[i] + n_image_per_proc_2nd[i];
             }
             comm_table_.n_ep_send_tot_ = comm_table_.adr_ep_send_.size();
             S32 n_ep_recv_tot_tmp = 0;
+
+
+            
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for reduction(+:n_ep_recv_tot_tmp)
 #endif
             for(S32 i=0; i<n_proc; i++){
                 n_ep_recv_tot_tmp += comm_table_.n_ep_recv_[i];
             }
+
             comm_table_.n_ep_recv_tot_ = n_ep_recv_tot_tmp;
+            //std::cerr<<"check m"<<std::endl;
         } // end of reuse flag
+        //std::cerr<<"check n"<<std::endl;
+        time_profile_.make_LET_1st += GetWtime() - time_offset;
+        time_offset = GetWtime();
+
         ExchangeLet(epj_sorted_, comm_table_.n_ep_send_, comm_table_.n_ep_recv_,
                     comm_table_.n_ep_per_image_,
                     comm_table_.adr_ep_send_,
                     //epj_recv_,
                     epj_org_, n_loc_tot_,
                     comm_table_.shift_per_image_, comm_table_.n_image_per_proc_);
+
+        time_profile_.exchange_LET_1st += GetWtime() - time_offset;
+        //std::cerr<<"check z"<<std::endl;
     }
     
     template<class TSM>

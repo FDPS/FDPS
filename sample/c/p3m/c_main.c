@@ -168,7 +168,7 @@ void c_main() {
       Crystal_parameters NaCl_params;
       NaCl_params.nptcl_per_side = nptcl_1d;
       double relerr = 0.0;
-      const int num_trials = 512;
+      const int num_trials = 64;
       int nstep;
       for (nstep = 0; nstep < num_trials; nstep++) {
          // [1] Randomly choose a configuration of the grid

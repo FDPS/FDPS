@@ -59,6 +59,7 @@ static inline __m256 _mm256_set_m128_forgcc(__m128 hi, __m128 lo){
 #include"stack.hpp"
 
 namespace ParticleSimulator{
+
     inline void CalcNumberAndShiftOfImageDomain
     (ReallocatableArray<F64vec> & shift_image_domain,
      const F64vec & size_root_domain,
@@ -452,8 +453,6 @@ namespace ParticleSimulator{
             tc_array.resizeNoInitialize(offset);
         }
     }
-
-
 
     template<class Ttc>
     inline void LinkCellST(ReallocatableArray<Ttc> & tc_array,

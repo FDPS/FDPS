@@ -1,6 +1,6 @@
 CC := mpicc
 CXX := mpicxx
-CFLAGS = -O3 
+CFLAGS = -std=c++11 -O3 
 # Note that in some environment, the options -ffast-math funroll-loops
 # results in an irreproducible error.
 CFLAGS += -Wall

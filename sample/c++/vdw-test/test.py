@@ -62,8 +62,8 @@ class Automatic_Tester:
         candidates = []
         # (1) w/o MPI
         CC = ["time g++"]
-        CFLAGS = ["-O3", \
-                  "-O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CFLAGS = ["-std=c++11 -O3", \
+                  "-std=c++11 -O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; ".format(self.__NTHRDS)]
         listtmp = self.__get_dictlist(CC,CFLAGS,RUNOPT)
         candidates.extend(listtmp)

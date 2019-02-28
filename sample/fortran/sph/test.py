@@ -65,8 +65,8 @@ class Automatic_Tester:
         CXX = ["time g++"]
         FCFLAGS = ["-std=f2003 -O3", \
                    "-std=f2003 -O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
-        CXXFLAGS = ["-O3", \
-                    "-O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CXXFLAGS = ["-std=c++11 -O3", \
+                    "-std=c++11 -O3 -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         LDFLAGS = ["-lgfortran"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; ".format(self.__NTHRDS)]
         listtmp = self.__get_dictlist(FC,CXX,FCFLAGS,CXXFLAGS,LDFLAGS,RUNOPT)
@@ -76,8 +76,8 @@ class Automatic_Tester:
         CXX = ["time mpicxx"]
         FCFLAGS = ["-std=f2003 -O3", \
                    "-std=f2003 -O3 "]
-        CFLAGS = ["-O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp", \
-                  "-O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CFLAGS = ["-std=c++11 -O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp", \
+                  "-std=c++11 -O3 -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         LDFLAGS = ["-lgfortran"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
         listtmp = self.__get_dictlist(FC,CXX,FCFLAGS,CXXFLAGS,LDFLAGS,RUNOPT)

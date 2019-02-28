@@ -262,8 +262,8 @@ namespace ParticleSimulator{
                 }
             }
         }
-        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1);
-        ReallocatableArray<S32> n_disp_sp_per_image(n_image_tot+1);
+        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1, n_image_tot+1, 1);
+        ReallocatableArray<S32> n_disp_sp_per_image(n_image_tot+1, n_image_tot+1, 1);
         n_disp_ep_per_image[0] = 0;
         n_disp_sp_per_image[0] = 0;
         for(S32 i=0; i<n_image_tot; i++){
@@ -386,8 +386,9 @@ namespace ParticleSimulator{
                 n_ep_send[i] = adr_ep_send_tmp[ith].size() - n_ep_prev;
             }
         } // end of OMP scope
-        ReallocatableArray<S32> n_disp_image_per_proc;
-        n_disp_image_per_proc.resizeNoInitialize(n_proc+1);
+        ReallocatableArray<S32> n_disp_image_per_proc(n_proc+1, n_proc+1, 1);
+        //ReallocatableArray<S32> n_disp_image_per_proc;
+        //n_disp_image_per_proc.resizeNoInitialize(n_proc+1);
         n_disp_image_per_proc[0] = 0;
         for(S32 i=0; i<n_proc; i++){
             n_disp_image_per_proc[i+1] = n_disp_image_per_proc[i] + n_image_per_proc[i];
@@ -411,7 +412,7 @@ namespace ParticleSimulator{
                 }
             }
         }
-        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1);
+        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1, n_image_tot+1, 1);
         n_disp_ep_per_image[0] = 0;
         for(S32 i=0; i<n_image_tot; i++){
             n_disp_ep_per_image[i+1] = n_disp_ep_per_image[i] + n_ep_per_image[i];
@@ -489,10 +490,10 @@ namespace ParticleSimulator{
                             const ReallocatableArray<S32> & n_image_per_proc){
         const S32 n_proc = Comm::getNumberOfProc();
         //const S32 my_rank = Comm::getRank();
-        ReallocatableArray<S32> n_disp_ep_send(n_proc+1);
-        ReallocatableArray<S32> n_disp_sp_send(n_proc+1);
-        ReallocatableArray<S32> n_disp_ep_recv(n_proc+1);
-        ReallocatableArray<S32> n_disp_sp_recv(n_proc+1);
+        ReallocatableArray<S32> n_disp_ep_send(n_proc+1, n_proc+1, 1);
+        ReallocatableArray<S32> n_disp_sp_send(n_proc+1, n_proc+1, 1);
+        ReallocatableArray<S32> n_disp_ep_recv(n_proc+1, n_proc+1, 1);
+        ReallocatableArray<S32> n_disp_sp_recv(n_proc+1, n_proc+1, 1);
         n_disp_ep_send[0] = n_disp_sp_send[0] = n_disp_ep_recv[0] = n_disp_sp_recv[0] = 0;
         for(S32 i=0; i<n_proc; i++){
             n_disp_ep_send[i+1] = n_ep_send[i] + n_disp_ep_send[i];
@@ -502,15 +503,15 @@ namespace ParticleSimulator{
         }
         const S32 n_image_tot = n_ep_per_image.size();
         //if(my_rank==0) std::cerr<<"n_image_tot= "<<n_image_tot<<std::endl;
-        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1);
-        ReallocatableArray<S32> n_disp_sp_per_image(n_image_tot+1);
+        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1, n_image_tot+1, 1);
+        ReallocatableArray<S32> n_disp_sp_per_image(n_image_tot+1, n_image_tot+1, 1);
         n_disp_ep_per_image[0] = n_disp_sp_per_image[0] = 0;
         for(S32 i=0; i<n_image_tot; i++){
             n_disp_ep_per_image[i+1] = n_disp_ep_per_image[i] +  n_ep_per_image[i];
             n_disp_sp_per_image[i+1] = n_disp_sp_per_image[i] +  n_sp_per_image[i];
         }
-        ReallocatableArray<Tep> ep_send( n_disp_ep_send[n_proc] );
-        ReallocatableArray<Tsp> sp_send( n_disp_sp_send[n_proc] );
+        ReallocatableArray<Tep> ep_send( n_disp_ep_send[n_proc], n_disp_ep_send[n_proc], 1 );
+        ReallocatableArray<Tsp> sp_send( n_disp_sp_send[n_proc], n_disp_sp_send[n_proc], 1 );
 
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for schedule(dynamic, 4)
@@ -566,20 +567,20 @@ namespace ParticleSimulator{
                             const ReallocatableArray<F64vec> & shift_image_domain,
                             const ReallocatableArray<S32> & n_image_per_proc){
         const S32 n_proc = Comm::getNumberOfProc();
-        ReallocatableArray<S32> n_disp_ep_send(n_proc+1);
-        ReallocatableArray<S32> n_disp_ep_recv(n_proc+1);
+        ReallocatableArray<S32> n_disp_ep_send(n_proc+1, n_proc+1, 1);
+        ReallocatableArray<S32> n_disp_ep_recv(n_proc+1, n_proc+1, 1);
         n_disp_ep_send[0] = n_disp_ep_recv[0] = 0;
         for(S32 i=0; i<n_proc; i++){
             n_disp_ep_send[i+1] = n_ep_send[i] + n_disp_ep_send[i];
             n_disp_ep_recv[i+1] = n_ep_recv[i] + n_disp_ep_recv[i];
         }
         const S32 n_image_tot = n_ep_per_image.size();
-        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1);
+        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1, n_image_tot+1, 1);
         n_disp_ep_per_image[0] = 0;
         for(S32 i=0; i<n_image_tot; i++){
             n_disp_ep_per_image[i+1] = n_disp_ep_per_image[i] +  n_ep_per_image[i];
         }
-        ReallocatableArray<Tep> ep_send( n_disp_ep_send[n_proc] );
+        ReallocatableArray<Tep> ep_send( n_disp_ep_send[n_proc], n_disp_ep_send[n_proc], 1 );
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for schedule(dynamic, 4)
 #endif
@@ -610,20 +611,20 @@ namespace ParticleSimulator{
                                  const ReallocatableArray<F64vec> & shift_image_domain,
                                  const ReallocatableArray<S32> & n_image_per_proc){
         const S32 n_proc = Comm::getNumberOfProc();
-        ReallocatableArray<S32> n_disp_ep_send(n_proc+1);
-        ReallocatableArray<S32> n_disp_ep_recv(n_proc+1);
+        ReallocatableArray<S32> n_disp_ep_send(n_proc+1, n_proc+1, 1);
+        ReallocatableArray<S32> n_disp_ep_recv(n_proc+1, n_proc+1, 1);
         n_disp_ep_send[0] = n_disp_ep_recv[0] = 0;
         for(S32 i=0; i<n_proc; i++){
             n_disp_ep_send[i+1] = n_ep_send[i] + n_disp_ep_send[i];
             n_disp_ep_recv[i+1] = n_ep_recv[i] + n_disp_ep_recv[i];
         }
         const S32 n_image_tot = n_ep_per_image.size();
-        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1);
+        ReallocatableArray<S32> n_disp_ep_per_image(n_image_tot+1, n_image_tot+1, 1);
         n_disp_ep_per_image[0] = 0;
         for(S32 i=0; i<n_image_tot; i++){
             n_disp_ep_per_image[i+1] = n_disp_ep_per_image[i] +  n_ep_per_image[i];
         }
-        ReallocatableArray<Tep> ep_send( n_disp_ep_send[n_proc] );
+        ReallocatableArray<Tep> ep_send( n_disp_ep_send[n_proc], n_disp_ep_send[n_proc], 1 );
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for schedule(dynamic, 4)
 #endif
@@ -712,12 +713,12 @@ namespace ParticleSimulator{
             n_epj_send_per_image_tmp = new ReallocatableArray<S32>[n_thread];
             first = false;
         }
-        ReallocatableArray<S32> rank_src(n_proc);
+        ReallocatableArray<S32> rank_src(n_proc, 0, 1);
         for(S32 i=0; i<n_proc; i++){
             n_image_send_per_proc[i] = 0;
             if(n_epj_src_per_proc[i] > 0) rank_src.push_back(i);
         }
-        ReallocatableArray<F64> len_peri(DIMENSION);
+        ReallocatableArray<F64> len_peri(DIMENSION, DIMENSION, 1);
         bool pa[DIMENSION];
         dinfo.getPeriodicAxis(pa);
         for(S32 i=0; i<DIMENSION; i++){

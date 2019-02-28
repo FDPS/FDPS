@@ -60,8 +60,8 @@ class Automatic_Tester:
         # (1) w/ MPI
         CC = ["time mpicc"]
         CXX = ["time mpicxx"]
-        CFLAGS = ["-O3 -Wall -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
-                  "-O3 -Wall -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
+        CFLAGS = ["-std=c++11 -O3 -Wall -DPARTICLE_SIMULATOR_MPI_PARALLEL", \
+                  "-std=c++11 -O3 -Wall -DPARTICLE_SIMULATOR_MPI_PARALLEL -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp"]
         use_phantom_grape_x86 = ["no", "yes"]
         RUNOPT = ["export OMP_NUM_THREADS={0}; mpirun --mca btl ^openib -np {1} ".format(self.__NTHRDS,self.__NPROCS)]
         listtmp = self.__get_dictlist(CC,CXX,CFLAGS,use_phantom_grape_x86,RUNOPT)
