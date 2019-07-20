@@ -446,8 +446,8 @@ namespace ParticleSimulator{
                                const ReallocatableArray<S32> & n_sp_send,
                                ReallocatableArray<S32> & n_sp_recv){
         const S32 n_proc = Comm::getNumberOfProc();
-        static ReallocatableArray<S32> n_ep_sp_send(n_proc*2);
-        static ReallocatableArray<S32> n_ep_sp_recv(n_proc*2);
+        static ReallocatableArray<S32> n_ep_sp_send(n_proc*2, n_proc*2, 1);
+        static ReallocatableArray<S32> n_ep_sp_recv(n_proc*2, n_proc*2, 1);
         for(S32 i=0; i<n_proc; i++){
             n_ep_sp_send[i*2]   = n_ep_send[i];
             n_ep_sp_send[i*2+1] = n_sp_send[i];

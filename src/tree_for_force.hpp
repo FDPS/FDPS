@@ -889,6 +889,7 @@ namespace ParticleSimulator{
             if(list_mode == MAKE_LIST || list_mode == MAKE_LIST_FOR_REUSE){
                 setRootCell(dinfo);
 
+
                 mortonSortLocalTreeOnly();
 
                 epi_org_.freeMem(1);

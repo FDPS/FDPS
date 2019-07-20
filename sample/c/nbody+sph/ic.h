@@ -15,28 +15,7 @@
 #include "mathematical_constants.h"
 #include "physical_constants.h"
 
-/* Structure definitions */
-// The following two classes are used in function readTipsyFile,
-// which is used to read particle data created by MAGI.
-typedef struct magi_tipsy_header {
-   double time;
-   int nbodies;
-   int ndim;
-   int nsph;
-   int ndark;
-   int nstar;
-} Magi_tipsy_header;
-
-typedef struct magi_tipsy_particle {
-   float mass;
-   float pos[3];
-   float vel[3];
-   float eps;
-   int idx;
-} Magi_tipsy_particle;
-
 /* Prototype declarations */
-void read_tipsy_file(char file_name[], int psys_num);
 void galaxy_IC(int psys_num_nbody,
                int psys_num_sph,
                int *bc,

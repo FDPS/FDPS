@@ -164,6 +164,7 @@ namespace ParticleSimulator{
         }
 
         static void alloc(const size_t _size, int & _id_mpool, void * ptr_data, void *& ret){
+            if(_size <= 0) return;
             unifyMem();
             const size_t size_align = getAlignSize(_size);
             size_t cap_cum = 0;
@@ -239,6 +240,7 @@ namespace ParticleSimulator{
         }
 
         static void freeMem(const int id_seg){
+            if(getInstance().cap_per_seg_[id_seg] <= 0) return;
             if (id_seg < N_SEGMENT_LIMIT) {
                 getInstance().used_per_seg_[id_seg] = false;
                 if((size_t)id_seg == getInstance().n_segment_-1){

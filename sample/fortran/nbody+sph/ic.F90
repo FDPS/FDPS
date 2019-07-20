@@ -26,6 +26,24 @@ module tipsy_file_reader
       integer(kind=c_int) :: idx
    end type magi_tipsy_particle
 
+   interface
+      subroutine read_ptcl_number(file_name, n_ptcl) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         character(kind=c_char), dimension(*), intent(in) :: file_name
+         integer(kind=c_int), intent(inout) :: n_ptcl
+      end subroutine
+      subroutine read_ptcl_data(file_name, n_ptcl, mass, pos, vel) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         character(kind=c_char), dimension(*), intent(in) :: file_name
+         integer(kind=c_int), value, intent(in) :: n_ptcl
+         real(kind=c_float), dimension(*), intent(inout) :: mass
+         real(kind=c_float), dimension(*), intent(inout) :: pos
+         real(kind=c_float), dimension(*), intent(inout) :: vel
+      end subroutine
+   end interface
+
    ! Public routine
    public :: read_tipsy_file
 
@@ -42,31 +60,84 @@ module tipsy_file_reader
       integer, intent(in) :: psys_num
       !* Local variables
       integer :: i
-      type(magi_tipsy_header) :: header
-      type(magi_tipsy_particle) :: ptcl_tipsy
       type(fdps_controller) :: fdps_ctrl
+      integer(kind=c_int) :: nbodies
+      real(kind=c_float), dimension(:), allocatable :: mass,pos,vel
       type(fp_nbody), dimension(:), pointer :: ptcl
+      character(len=len(file_name)+1, kind=c_char) :: file_name_in_c
 
-      ! Read file
-      open(unit=9,file=trim(file_name),action='read', &
-           form='unformatted',access='stream',status='old')
-         read(9)header
-         write(*,*)'nbodies = ',header%nbodies
-         call fdps_ctrl%set_nptcl_loc(psys_num,header%nbodies)
-         call fdps_ctrl%get_psys_fptr(psys_num,ptcl)
-         do i=1,header%nbodies
-            read(9)ptcl_tipsy
-            ptcl(i)%mass  = ptcl_tipsy%mass
-            ptcl(i)%pos%x = ptcl_tipsy%pos(1)
-            ptcl(i)%pos%y = ptcl_tipsy%pos(2)
-            ptcl(i)%pos%z = ptcl_tipsy%pos(3)
-            ptcl(i)%vel%x = ptcl_tipsy%vel(1)
-            ptcl(i)%vel%y = ptcl_tipsy%vel(2)
-            ptcl(i)%vel%z = ptcl_tipsy%vel(3)
-         end do
-      close(unit=9)
+      ! Set file name
+      file_name_in_c = trim(file_name) // c_null_char
+
+      ! Read the number of particle
+      call read_ptcl_number(file_name_in_c, nbodies)
+      write(*,*)'nbodies = ',nbodies
+      call fdps_ctrl%set_nptcl_loc(psys_num, nbodies)
+
+      ! Read particle data
+      allocate( mass(nbodies), pos(3*nbodies), vel(3*nbodies) )
+      call read_ptcl_data(file_name_in_c, nbodies, mass, pos, vel)
+      call fdps_ctrl%get_psys_fptr(psys_num,ptcl)
+      do i=1,nbodies
+         ptcl(i)%mass  = mass(i)
+         ptcl(i)%pos%x = pos(3*i - 2)
+         ptcl(i)%pos%y = pos(3*i - 1)
+         ptcl(i)%pos%z = pos(3*i)
+         ptcl(i)%vel%x = vel(3*i - 2)
+         ptcl(i)%vel%y = vel(3*i - 1)
+         ptcl(i)%vel%z = vel(3*i)
+      end do
+      deallocate( mass, pos, vel )
 
    end subroutine read_tipsy_file
+       
+   !subroutine read_tipsy_file(file_name, psys_num)
+   !   ! This function is used to read particle data created by
+   !   ! MAGI (https://bitbucket.org/ymiki/magi). The particle
+   !   ! data must be in the TIPSY format.
+   !   use fdps_module
+   !   use user_defined_types
+   !   implicit none
+   !   character(len=*), intent(in) :: file_name
+   !   integer, intent(in) :: psys_num
+   !   !* Local variables
+   !   integer :: i
+   !   type(magi_tipsy_header) :: header
+   !   type(magi_tipsy_particle) :: ptcl_tipsy
+   !   type(fdps_controller) :: fdps_ctrl
+   !   type(fp_nbody), dimension(:), pointer :: ptcl
+
+   !   ! To check the padding of derived data types
+   !   !open(unit=9,file='magi_tipsy_header.dat',action='write', &
+   !   !     form='unformatted',access='stream',status='replace')
+   !   !   write(9)header
+   !   !close(9)
+
+   !   !open(unit=9,file='magi_tipsy_particle.dat',action='write', &
+   !   !     form='unformatted',access='stream',status='replace')
+   !   !   write(9)ptcl_tipsy
+   !   !close(9)
+
+   !   ! Read file
+   !   open(unit=9,file=trim(file_name),action='read', &
+   !        form='unformatted',access='stream',status='old')
+   !      read(9)header
+   !      write(*,*)'nbodies = ',header%nbodies
+   !      call fdps_ctrl%set_nptcl_loc(psys_num,header%nbodies)
+   !      call fdps_ctrl%get_psys_fptr(psys_num,ptcl)
+   !      do i=1,header%nbodies
+   !         read(9)ptcl_tipsy
+   !         ptcl(i)%mass  = ptcl_tipsy%mass
+   !         ptcl(i)%pos%x = ptcl_tipsy%pos(1)
+   !         ptcl(i)%pos%y = ptcl_tipsy%pos(2)
+   !         ptcl(i)%pos%z = ptcl_tipsy%pos(3)
+   !         ptcl(i)%vel%x = ptcl_tipsy%vel(1)
+   !         ptcl(i)%vel%y = ptcl_tipsy%vel(2)
+   !         ptcl(i)%vel%z = ptcl_tipsy%vel(3)
+   !      end do
+   !   close(unit=9)
+
+   !end subroutine read_tipsy_file
 
 end module tipsy_file_reader
 

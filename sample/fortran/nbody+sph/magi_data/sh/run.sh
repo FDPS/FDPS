@@ -5,7 +5,8 @@
 ###############################################################
 # global configurations
 ###############################################################
-MAGI_INSTALL_DIR=/work4a/local/MAGI/ymiki-magi-0944b759e2dc/build/bin
+#MAGI_INSTALL_DIR=/work4a/local/MAGI/ymiki-magi-0944b759e2dc/build/bin # old version
+MAGI_INSTALL_DIR=/work4a/local/MAGI/ymiki-magi-a94df21bb41c/build/bin
 EXEC=${MAGI_INSTALL_DIR}/magi
 ###############################################################
 ###############################################################

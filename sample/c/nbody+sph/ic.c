@@ -1,31 +1,37 @@
 #include "ic.h"
+#include "tipsy_file_reader.h"
 
 void read_tipsy_file(char file_name[], int psys_num) {
    // This function is used to read particle data created by
    // MAGI (https://bitbucket.org/ymiki/magi). The particle
    // data must be in the TIPSY format.
-   FILE *fp;
-   if ((fp = fopen(file_name,"rb")) == NULL) {
-      fprintf(stderr,"Cannot open file %s\n.",file_name);
-   }
-   Magi_tipsy_header header;
-   fread(&header,sizeof(Magi_tipsy_header),1,fp);
-   fprintf(stdout,"nbodies = %d\n",header.nbodies);
-   fdps_set_nptcl_loc(psys_num,header.nbodies);
+
+   // Read the number of particles
+   int nbodies;
+   nbodies = read_ptcl_number(file_name);
+   fprintf(stdout,"nbodies = %d\n",nbodies);
+   fdps_set_nptcl_loc(psys_num,nbodies);
+
+   // Read particle data
+   float *mass, *pos, *vel;
+   mass = (float *) malloc((size_t) sizeof(float) * nbodies);
+   pos  = (float *) malloc((size_t) sizeof(float) * nbodies * 3);
+   vel  = (float *) malloc((size_t) sizeof(float) * nbodies * 3);
+   read_ptcl_data(file_name, nbodies, mass, pos, vel); 
    FP_nbody *ptcl = (FP_nbody *) fdps_get_psys_cptr(psys_num);
    int i;
-   for (i = 0; i < header.nbodies; i++) {
-      Magi_tipsy_particle ptcl_tipsy;
-      fread(&ptcl_tipsy,sizeof(Magi_tipsy_particle),1,fp);
-      ptcl[i].mass  = ptcl_tipsy.mass;
-      ptcl[i].pos.x = ptcl_tipsy.pos[0];
-      ptcl[i].pos.y = ptcl_tipsy.pos[1];
-      ptcl[i].pos.z = ptcl_tipsy.pos[2];
-      ptcl[i].vel.x = ptcl_tipsy.vel[0];
-      ptcl[i].vel.y = ptcl_tipsy.vel[1];
-      ptcl[i].vel.z = ptcl_tipsy.vel[2];
+   for (i = 0; i < nbodies; i++) {
+      ptcl[i].mass  = mass[i];
+      ptcl[i].pos.x = pos[3*i];
+      ptcl[i].pos.y = pos[3*i + 1];
+      ptcl[i].pos.z = pos[3*i + 2];
+      ptcl[i].vel.x = vel[3*i];
+      ptcl[i].vel.y = vel[3*i + 1];
+      ptcl[i].vel.z = vel[3*i + 2];
    }
-   fclose(fp);
+   free(mass);
+   free(pos);
+   free(vel);
 }
 
 void galaxy_IC(int psys_num_nbody,

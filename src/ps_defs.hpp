@@ -961,7 +961,7 @@ namespace ParticleSimulator{
             std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
             std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
             std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-            std::cerr << "     ||     Version 5.0d (2019/02)       ||"   << std::endl;
+            std::cerr << "     ||     Version 5.0e (2019/07)       ||"   << std::endl;
             std::cerr << "     \\\\==================================//" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
@@ -1563,10 +1563,10 @@ namespace ParticleSimulator{
     template<typename Tptcl>
     struct HasgetRSearchMethod
     {
-       template<typename U, F32(U::*)() > struct SFINAE0 {};
-       template<typename U, F32(U::*)() const > struct SFINAE1 {};
-       template<typename U, F64(U::*)() > struct SFINAE2 {};
-       template<typename U, F64(U::*)() const > struct SFINAE3 {};
+       template<typename U, float(U::*)() > struct SFINAE0 {};
+       template<typename U, float(U::*)() const > struct SFINAE1 {};
+       template<typename U, double(U::*)() > struct SFINAE2 {};
+       template<typename U, double(U::*)() const > struct SFINAE3 {};
        template<typename U> static char Test(SFINAE0<U, &U::getRSearch> *);
        template<typename U> static char Test(SFINAE1<U, &U::getRSearch> *);
        template<typename U> static char Test(SFINAE2<U, &U::getRSearch> *);

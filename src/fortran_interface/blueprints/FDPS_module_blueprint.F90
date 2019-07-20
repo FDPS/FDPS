@@ -1390,8 +1390,14 @@ module FDPS_module
       integer(kind=c_int), intent(IN) :: psys_num
       integer(kind=c_int), intent(IN) :: nptcl
       integer(kind=c_int), dimension(nptcl), intent(IN) :: ptcl_indx
+      !* Local variables
+      integer :: i
+      integer(kind=c_int), dimension(nptcl) :: ptcl_indx_in_c
 
-      call fdps_remove_particle(psys_num,nptcl,ptcl_indx)
+      do i=1,nptcl
+         ptcl_indx_in_c(i) = ptcl_indx(i) - 1
+      end do
+      call fdps_remove_particle(psys_num,nptcl,ptcl_indx_in_c)
 
    end subroutine remove_particle
 

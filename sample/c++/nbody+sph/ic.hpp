@@ -2,6 +2,29 @@
 #include "mathematical_constants.h"
 #include "physical_constants.h"
 
+template <class T>
+T byteswap(const T val) {
+    constexpr int size = sizeof(T);
+    constexpr int block_size = sizeof(uint16_t);
+    if (size > block_size) {
+        assert(size % block_size == 0);
+        constexpr int n_block = size / block_size;
+        std::array<uint16_t *, n_block> block;
+        T T_tmp = val;
+        uint16_t * head = reinterpret_cast<uint16_t *>(&T_tmp);
+        for (int i = 0; i < n_block; i++) block[i] = head + i;
+        for (int i = 0; i < n_block/2; i++) {
+            uint16_t high = *block[i];
+            uint16_t low  = *block[n_block - 1 - i];
+            *block[n_block - 1 - i] = (high >> 8) | (high << 8);
+            *block[i] = (low >> 8) | (low << 8);
+        }
+        return T_tmp;
+    } else {
+        return val;
+    }
+}
+
 /* Class definitions */
 // The following two classes are used in function readTipsyFile,
 // which is used to read particle data created by MAGI.
@@ -39,6 +62,11 @@ void readTipsyFile(std::string& input_file_name,
     input_file.open(input_file_name.c_str(), std::ios::in | std::ios::binary);
     if (input_file) {
         input_file.read((char *)&header, sizeof(MAGI_Tipsy_header));
+#ifdef READ_DATA_WITH_BYTESWAP
+        std::cout << "nbodies = " << header.nbodies << std::endl;
+        header.nbodies = byteswap(header.nbodies);
+        std::cout << "nbodies = " << header.nbodies << std::endl;
+#endif
         ptcl.resize(header.nbodies);
         input_file.read((char *)&ptcl[0], sizeof(MAGI_Tipsy_particle)*header.nbodies);
     }
@@ -52,6 +80,15 @@ void readTipsyFile(std::string& input_file_name,
     // Copy particle data
     psys.setNumberOfParticleLocal(header.nbodies);
     for (PS::S32 i=0; i<header.nbodies; i++) {
+#ifdef READ_DATA_WITH_BYTESWAP
+        psys[i].mass  = byteswap(ptcl[i].mass);
+        psys[i].pos.x = byteswap(ptcl[i].pos[0]);
+        psys[i].pos.y = byteswap(ptcl[i].pos[1]);
+        psys[i].pos.z = byteswap(ptcl[i].pos[2]);
+        psys[i].vel.x = byteswap(ptcl[i].vel[0]);
+        psys[i].vel.y = byteswap(ptcl[i].vel[1]);
+        psys[i].vel.z = byteswap(ptcl[i].vel[2]);
+#else
         psys[i].mass  = ptcl[i].mass;
         psys[i].pos.x = ptcl[i].pos[0];
         psys[i].pos.y = ptcl[i].pos[1];
@@ -59,6 +96,7 @@ void readTipsyFile(std::string& input_file_name,
         psys[i].vel.x = ptcl[i].vel[0];
         psys[i].vel.y = ptcl[i].vel[1];
         psys[i].vel.z = ptcl[i].vel[2];
+#endif
     }
 
 }
@@ -340,7 +378,7 @@ void MakeGlassIC(PS::ParticleSystem<FP_nbody>& psys_nbody,
                  PS::F64 & time_end) {
     // Model parameters
     const PS::S64 N_nbody = 1; // dummy value
-    const PS::S64 N_sph   = std::pow(2,18);
+    const PS::S64 N_sph   = (1<<18); // 2^{18}
     // Initialize pseudorandom number generator
     PS::MTTS mt;
     mt.init_genrand(0);
@@ -379,8 +417,8 @@ void MakeGlassIC(PS::ParticleSystem<FP_nbody>& psys_nbody,
     }
     // Set boundary condition
     bc = PS::BOUNDARY_CONDITION_PERIODIC_XYZ;
-    pos_root_domain.low_  = (PS::F64vec)(-1.0, -1.0, -1.0);
-    pos_root_domain.high_ = (PS::F64vec)( 1.0,  1.0,  1.0);
+    pos_root_domain.low_  = PS::F64vec(-1.0, -1.0, -1.0);
+    pos_root_domain.high_ = PS::F64vec( 1.0,  1.0,  1.0);
     // Set gravitational softening
     eps_grav = 0.01;
     // Set I/O intervals
@@ -431,7 +469,7 @@ void GalaxyIC(PS::ParticleSystem<FP_nbody>& psys_nbody,
         psys_nbody[i].pot  = 0.0;
     }
     // Place SPH particles to form an exponential-disk
-    const PS::S64 N_sph = std::pow(2,18);
+    const PS::S64 N_sph = (1<<18); // 2^{18}
     const PS::F64 M_gas = 1.0e10 * phys_const::Msolar;
     const PS::F64 Rs = 7.0 * phys_const::kpc; // scale radius
     const PS::F64 Rt = 12.5 * phys_const::kpc; // truncation radius

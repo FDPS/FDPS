@@ -270,7 +270,7 @@ subroutine f_main()
       nstep = nstep + 1
 
       !* For debug
-      if (nstep == 100) exit
+      !if (nstep == 100) exit
    end do
 
 #if defined(ENABLE_PHANTOM_GRAPE_X86)

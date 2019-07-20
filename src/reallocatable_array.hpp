@@ -18,7 +18,8 @@ namespace  ParticleSimulator{
         int alloc_mode_;
         int roundUp(const int cap_prev, 
                     const int factor=8){
-            return ((cap_prev + factor) / factor) * factor;
+            return ((cap_prev + factor - 1) / factor) * factor;
+            //return ((cap_prev + factor) / factor) * factor;
         }
         int getNewCapacity(const int cap_prev){
 #ifdef PARTICLE_SIMULATOR_ROUND_UP_CAPACITY
@@ -115,44 +116,48 @@ namespace  ParticleSimulator{
 #endif
                 {
                     // Save old data                                                        
-                    T * data_old = new T[capacity_];                                        
-                    memcpy((void *)data_old, (void *)data_, (size_t)sizeof(T)*capacity_);   
-                    // Set new capacity                                                     
-                    capacity_ = getNewCapacity(new_cap);                                    
-                    int id_old = id_mpool_;                                                 
-                    void * ret = NULL;                                                      
-                    MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret);         
-                    data_ = (T*)ret;                                                        
-                    if(id_old != id_mpool_){                                                
-                        MemoryPool::freeMem(id_old);                                        
-                    }                                                                       
-                    // Copy old data                                                        
-                    memcpy((void *)data_, (void *)data_old, (size_t)sizeof(T)*size_);               
-                    // Release memory of temporal buffer                                    
-                    delete [] data_old; 
+                    T * data_old = new T[capacity_];
+                    memcpy((void *)data_old, (void *)data_, (size_t)sizeof(T)*capacity_);
+                    // Set new capacity
+                    capacity_ = getNewCapacity(new_cap);
+                    int id_old = id_mpool_;
+                    void * ret = NULL;
+                    MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret);
+                    data_ = (T*)ret;
+                    if(id_old != id_mpool_){
+                        MemoryPool::freeMem(id_old);
+                    }
+                    // Copy old data
+                    memcpy((void *)data_, (void *)data_old, (size_t)sizeof(T)*size_);
+                    // Release memory of temporal buffer
+                    delete [] data_old;
                 }
             }
         }
     public:
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
         ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {}
+        /*
         ReallocatableArray(int cap) : data_(NULL), size_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {
             constructorFunction(cap);
         }
         ReallocatableArray(int cap, int size) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {
             constructorFunction(cap);
         }
+        */
         ReallocatableArray(int cap, int size, int alloc_mode) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode), n_expand_(0) {
             constructorFunction(cap);
         }
 #else
         ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {}
+        /*
         ReallocatableArray(int cap) : data_(NULL), size_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {
             constructorFunction(cap);
         }
         ReallocatableArray(int cap, int size) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {
             constructorFunction(cap);
         }
+        */
         ReallocatableArray(int cap, int size, int alloc_mode) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode) {
             constructorFunction(cap);
         }
@@ -166,7 +171,8 @@ namespace  ParticleSimulator{
 #pragma omp critical
 #endif
                 {
-                    if(capacity_ > 0) MemoryPool::freeMem(id_mpool_);
+                    //if(capacity_ > 0) MemoryPool::freeMem(id_mpool_);
+                    MemoryPool::freeMem(id_mpool_);
                 }
             }
             data_ = NULL;

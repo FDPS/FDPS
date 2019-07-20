@@ -10,24 +10,20 @@ FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
 
 # (ii) Variables to specify compilers and compile options
 # Serial or OpenMP cases
-FC=/opt/intel/bin/ifort
-CXX=/opt/intel/bin/icpc
+#FC = time -p frtpx
+#CXX = time -p FCCpx
 # MPI case
-#FC=time -p mpiifort
-#CXX=time -p mpiicpc
-# [Option 1] w/o optimization
-#FCFLAGS = -O0 -check all -fpe0 -gen_interfaces -ftrapuv -traceback -g
-#CXXFLAGS = -ftrapuv -debug all -g -I/opt/intel/include $(FDPS_INC) 
-# [Option 2] w/ optimization 
-FCFLAGS = -O3 -ipo 
-CXXFLAGS = -O3 -ipo -I/opt/intel/include $(FDPS_INC)
-LDFLAGS = -L/opt/intel/lib/intel64 -L/usr/lib64 -lifport -lifcore -limf -lsvml -lm -lipgo -lirc -lirc_s
+FC = time -p mpifrtpx
+CXX = time -p mpiFCCpx
+FCFLAGS = -std=f2003 -Kfast -Ksimd=2 
+CXXFLAGS = -std=c++11 -Kfast -Ksimd=2 -Krestp=all $(FDPS_INC)
+LDFLAGS = -lgfortran 
 # OpenMP options
-#FCFLAGS  += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -qopenmp
-#CXXFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -qopenmp
+FCFLAGS  += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -Kopenmp
+CXXFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -Kopenmp
 # MPI options
-#FCFLAGS  += -DPARTICLE_SIMULATOR_MPI_PARALLEL
-#CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+FCFLAGS  += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 #use_phantom_grape_x86 = yes
 
@@ -43,9 +39,9 @@ FCFLAGS += -DISOTHERMAL_EOS
 FCFLAGS += -DINITIAL_CONDITION=0 
 #FCFLAGS += -DINITIAL_CONDITION=1 
 #FCFLAGS += -DINITIAL_CONDITION=2 
-#FCFLAGS += -DINITIAL_CONDITION=3 
+#FCFLAGS += -DINITIAL_CONDITION=3
 
-#CXXFLAGS += -DREAD_DATA_WITH_BYTESWAP
+CXXFLAGS += -DREAD_DATA_WITH_BYTESWAP
 
 ifeq ($(use_phantom_grape_x86),yes)
 PG_ROOT = $(FDPS_LOC)/src//phantom_grape_x86/G5/newton/libpg5
@@ -62,6 +58,11 @@ OBJ_PG   =
 PG_BUILD =
 PG_CLEAN = 
 endif
+
+# Job submission variables 
+QSUB = pjsub
+JOB_FILE_NAME = job.K.sh
+WORKDIR = /data/ra000008/namekata/sample/fortran/nbody+sph
 
 #-----------------------------------------------------------------------
 #   Source files
@@ -95,7 +96,7 @@ OBJ_USER_FTN		= $(SRC_USER_FTN:F90=o)
 OBJ_USER_CXX		= $(SRC_USER_CXX:cpp=o)
 OBJ_FDPS_MOD		= $(notdir $(SRC_FDPS_MOD:F90=o))
 OBJ_FTN			= $(notdir $(SRC_FTN:F90=o))
-OBJ_CXX			= $(SRC_CXX:cpp=o)
+OBJ_CXX			= $(SRC_CXX:cpp=o) 
 OBJ			= $(OBJ_FTN) $(OBJ_CXX) $(OBJ_PG)
 
 VPATH = $(FDPS_FTN_MOD_DIR) $(PG_ROOT)
@@ -104,6 +105,11 @@ TARGET = nbodysph.out
 $(TARGET): $(OBJ) result
 	$(PG_BUILD)
 	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
+	mkdir -p $(WORKDIR)
+	mv $@ $(WORKDIR)
+	cp $(JOB_FILE_NAME) $(WORKDIR)
+	cp ./magi_data $(WORKDIR)/
+	cd $(WORKDIR); $(QSUB) $(JOB_FILE_NAME) 
 
 result:
 	mkdir -p result
@@ -129,7 +135,6 @@ clean:
 distclean: clean
 	$(PG_CLEAN)
 	rm -f FDPS_ftn_if.cpp FDPS_Manipulators.cpp main.cpp FDPS_Manipulators.h FDPS_module.F90 user_defined.hpp 
-	rm -f *__genmod.f90
 	rm -rf result
 
 # fdps-autotest-run (DO NOT CHANGE THIS LINE)

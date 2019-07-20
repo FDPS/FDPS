@@ -45,6 +45,8 @@ CFLAGS += -DINITIAL_CONDITION=0
 #CFLAGS += -DINITIAL_CONDITION=2 
 #CFLAGS += -DINITIAL_CONDITION=3 
 
+#CXXFLAGS += -DREAD_DATA_WITH_BYTESWAP
+
 ifeq ($(use_phantom_grape_x86),yes)
 PG_ROOT = $(FDPS_LOC)/src//phantom_grape_x86/G5/newton/libpg5
 CFLAGS  += -DENABLE_PHANTOM_GRAPE_X86
@@ -66,17 +68,20 @@ endif
 	$(CXX) $(CXXFLAGS) -c $<
 
 HDR_USER_DEFINED_TYPE = user_defined.h
-SRC_USER = user_defined.c \
-	   mathematical_constants.c \
-	   physical_constants.c \
-	   leapfrog.c \
-	   ic.c \
-	   c_main.c 
+SRC_USER_C = user_defined.c \
+	     mathematical_constants.c \
+	     physical_constants.c \
+	     leapfrog.c \
+	     ic.c \
+	     c_main.c 
+SRC_USER_CXX = tipsy_file_reader.cpp
 SRC_CXX = FDPS_ftn_if.cpp \
 	  FDPS_Manipulators.cpp \
 	  main.cpp
 
-OBJ_USER = $(SRC_USER:c=o)
+OBJ_USER_C = $(SRC_USER_C:c=o)
+OBJ_USER_CXX = $(SRC_USER_CXX:c=o)
+OBJ_USER = $(OBJ_USER_C) $(OBJ_USER_CXX)
 OBJ_CXX	 = $(SRC_CXX:cpp=o)
 OBJ	 = $(OBJ_USER) $(OBJ_CXX)
 
@@ -94,12 +99,14 @@ FDPS_c_if.h $(SRC_CXX): $(HDR_USER_DEFINED_TYPE) Makefile
 
 $(OBJ_USER): FDPS_c_if.h 
 
+ic.o: tipsy_file_reader.o
+
 clean:
 	rm -f *.o *.s $(TARGET) *.dat
 
 distclean: clean
 	$(PG_CLEAN)
-	rm -f $(SRC_CXX) FDPS_c_if.h FDPS_Manipulators.h user_defined.hpp 
+	rm -f FDPS_ftn_if.cpp FDPS_Manipulators.cpp main.cpp FDPS_c_if.h FDPS_Manipulators.h user_defined.hpp 
 	rm -rf result
 
 # fdps-autotest-run (DO NOT CHANGE THIS LINE)

@@ -180,6 +180,7 @@ namespace ParticleSimulator{
             pos_sample_loc_ = NULL;
 	    
             n_smp_array_ = new S32[Comm::getNumberOfProc()];
+            
             n_smp_disp_array_ = new S32[Comm::getNumberOfProc() + 1];
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -614,7 +615,7 @@ namespace ParticleSimulator{
 	    // OK
 	    
 	    ////////////////////////////////////
-        ///////////// determine y corrdinate
+            ///////////// determine y corrdinate
 	    std::sort(pos_sample_buf, pos_sample_buf+n_par_slab, LessOPY());
 
             // get index of
@@ -635,10 +636,9 @@ namespace ParticleSimulator{
 	    // size of y_coord is n_domain_[1]+1
 	    y_coord[0] = pos_root_domain_.low_.y;
 	    y_coord[n_domain_[1]] = pos_root_domain_.high_.y;
-        for(S32 i=1; i<n_domain_[1]; i++) y_coord[i] = (pos_sample_buf[i_head[i]].y + pos_sample_buf[i_tail[i-1]].y) * 0.5;
+            for(S32 i=1; i<n_domain_[1]; i++) y_coord[i] = (pos_sample_buf[i_head[i]].y + pos_sample_buf[i_tail[i-1]].y) * 0.5;
 
 	    //if(Comm::getRank() == 0) for(S32 i=0; i<n_domain_[1]+1; i++) std::cout<<"y_coord[i]="<<y_coord[i]<<std::endl;
-
 
 #ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
 	    ////////////////////////////////////
@@ -732,6 +732,10 @@ namespace ParticleSimulator{
 #endif // UNDER_CONSTRUCTION
 
         void decomposeDomain() {
+            //Comm::barrier();
+            //std::cerr<<"CHECK 0"<<std::endl;
+            //Comm::barrier();
+            
             F64 time_offset = GetWtime();
             // ****** collect sample particles to process 0. ****** 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -746,15 +750,48 @@ namespace ParticleSimulator{
             Comm::allGatherV(pos_sample_loc_, number_of_sample_particle_loc_, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
             number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
 #else //__HPC_ACE__
-            Comm::gather(&number_of_sample_particle_loc_, 1, n_smp_array_);
+
+            //Comm::barrier();
+            //std::cerr<<"CHECK A number_of_sample_particle_loc_= "<<number_of_sample_particle_loc_<<std::endl;
+            //Comm::barrier();
+            
+            //Comm::gather(&number_of_sample_particle_loc_, 1, n_smp_array_);
+            Comm::allGather(&number_of_sample_particle_loc_, 1, n_smp_array_);
+
+            //Comm::barrier();
+            //std::cerr<<"CHECK B"<<std::endl;
+            //for(S32 i=0; i<nproc+1; i++){
+            //    std::cerr<<"n_smp_disp_array_[i]= "<<n_smp_disp_array_[i]<<std::endl;
+            //}
+            //for(S32 i=0; i<nproc; i++){
+            //    std::cerr<<"n_smp_array_[i]= "<<n_smp_array_[i]<<std::endl;
+            //}
+            //Comm::barrier();
+            
             n_smp_disp_array_[0] = 0;
             for(S32 i=0; i<nproc; i++){
                 n_smp_disp_array_[i+1] = n_smp_disp_array_[i] + n_smp_array_[i];
             }
-            Comm::gatherV(pos_sample_loc_, number_of_sample_particle_loc_, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
+
+            //Comm::barrier();
+            //for(S32 i=0; i<nproc+1; i++){
+            //     std::cerr<<"n_smp_disp_array_[i]= "<<n_smp_disp_array_[i]<<std::endl;
+            //}
+            //std::cerr<<"CHECK C"<<std::endl;
+            //Comm::barrier();
+
+            Comm::allGatherV(pos_sample_loc_, number_of_sample_particle_loc_, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);            
+            //Comm::gatherV(pos_sample_loc_, number_of_sample_particle_loc_, pos_sample_tot_, n_smp_array_, n_smp_disp_array_);
+            
             number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
 #endif //__HPC_ACE__
 
+
+            //Comm::barrier();
+            //std::cerr<<"CHECK D"<<std::endl;
+            //Comm::barrier();
+            
+            
             // ****************************************************
             // *** decompose domain *******************************
             if(myrank == 0) {
@@ -1041,8 +1078,12 @@ namespace ParticleSimulator{
         void decomposeDomainAll(Tpsys & psys,
                                 const F32 wgh){
             const bool clear = true;
+            //std::cerr<<"check a"<<std::endl;
+            //std::cerr<<"psys.getNumberOfParticleLocal()= "<<psys.getNumberOfParticleLocal()<<std::endl;
             collectSampleParticle(psys, clear, wgh);
+            //std::cerr<<"check b"<<std::endl;
             decomposeDomain();
+            //std::cerr<<"check c"<<std::endl;
         }
 
         template<class Tpsys>

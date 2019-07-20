@@ -3,9 +3,12 @@
 #include <math.h>
 #include <cfloat>
 #include <cstdio>
+#include <cassert>
+#include <cstdint>
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <array>
 #include <vector>
 #include <sys/stat.h>
 #include <time.h>
