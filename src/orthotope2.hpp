@@ -162,10 +162,18 @@ namespace ParticleSimulator{
             return dx*dx + dy*dy;
         }
 
+        const T getDistanceMinSq(const Orthotope2 & ort) const {
+            return getDistanceMinSQ(ort);
+        }
+
         const T getDistanceMinSQ(const Vector2<T> & vec) const {
             T dx = (vec.x > high_.x) ? (vec.x - high_.x) : ( (vec.x < low_.x) ? (low_.x - vec.x) : T(0) );
             T dy = (vec.y > high_.y) ? (vec.y - high_.y) : ( (vec.y < low_.y) ? (low_.y - vec.y) : T(0) );
             return dx*dx + dy*dy;
+        }
+
+        const T getDistanceMinSq(const Vector2<T> & vec) const {
+            return getDistanceMinSQ(vec);
         }
 
         template <typename U>

@@ -1349,7 +1349,7 @@ class Automatic_Generator:
                             # In this case, the name of the variable starts with
                             # a valid character. Next, we check this variable is
                             # a scalar or an array.
-                            m = re.match(r"^[a-zA-Z_][a-zA-Z0-9_]+$",var_name)
+                            m = re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$",var_name)
                             if (m):
                                 # In this case, this variable must be a scalar.
                                 pass
