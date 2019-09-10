@@ -889,7 +889,7 @@ namespace ParticleSimulator{
         S32 num_shift_n[DIMENSION_LIMIT];
         S32 num_shift_max[DIMENSION_LIMIT];
         //std::cerr<<"my_outer_boundary= "<<my_outer_boundary<<std::endl;
-        for(S32 cid=0; cid<DIMENSION_LIMIT; cid++){
+        for(S32 cid=0; cid<DIMENSION; cid++){
             if (pa[cid]) {
                 num_shift_p[cid] = num_shift_n[cid] = 0;
                 F64vec shift_tmp(0.0);
@@ -905,7 +905,7 @@ namespace ParticleSimulator{
             }
         }
         length_ = 0.0;
-        for(S32 cid=0; cid<DIMENSION_LIMIT; cid++){
+        for(S32 cid=0; cid<DIMENSION; cid++){
             if (pa[cid]) {
                 F64 length_tmp = (2*num_shift_max[cid]+1)*shift[cid];
                 if(length_tmp > length_) length_ = length_tmp;
