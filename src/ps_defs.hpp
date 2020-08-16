@@ -1021,9 +1021,6 @@ namespace ParticleSimulator{
         }
     }
 
-
-
-
     template<> inline float Comm::getMinValue<float>(const float & val){
         return allreduceMin(val);
     }
