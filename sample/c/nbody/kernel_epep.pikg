@@ -1,0 +1,32 @@
+EPI S64    idi:id
+EPI F64    mi:mass
+EPI F64    ei:eps
+EPI F64vec xi:pos
+EPI F64vec vi:vel
+EPI F64    pi:pot
+EPI F64vec ai:acc
+
+EPJ S64    idj:id
+EPJ F64    mj:mass
+EPJ F64    ej:eps
+EPJ F64vec xj:pos
+EPJ F64vec vj:vel
+EPJ F64    pj:pot
+EPJ F64vec aj:acc
+
+FORCE S64    idf:id
+FORCE F64    mf:mass
+FORCE F64    epsf:eps
+FORCE F64vec xf:pos
+FORCE F64vec vf:vel
+FORCE F64    pf:pot
+FORCE F64vec af:acc
+
+rij    = xi - xj
+r2 = rij * rij + ei*ei
+r_inv  = rsqrt(r2)
+r2_inv = r_inv * r_inv
+mr_inv  = mj * r_inv
+mr3_inv = r2_inv * mr_inv
+af    -= mr3_inv * rij
+pf    -= mr_inv
