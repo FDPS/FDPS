@@ -5,6 +5,10 @@
 #include <math.h>
 /* FDPS headers */
 #include "user_defined.h"
+#ifdef USE_PIKG_KERNEL
+#include "kernel_epep.h"
+#include "kernel_epsp.h"
+#endif
 #include "FDPS_c_if.h"
 
 void dump_fullp(Full_particle p)

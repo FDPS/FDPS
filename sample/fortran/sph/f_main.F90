@@ -107,7 +107,7 @@ subroutine f_main()
                                                    dinfo_num)
       call set_pressure(fdps_ctrl,psys_num)
       pfunc_ep_ep = c_funloc(calc_hydro_force)
-      call fdps_ctrl%calc_force_all_and_write_back(tree_num_dens, &
+      call fdps_ctrl%calc_force_all_and_write_back(tree_num_hydro, &
                                                    pfunc_ep_ep,   &
                                                    psys_num,      &
                                                    dinfo_num)

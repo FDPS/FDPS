@@ -275,10 +275,18 @@ int main(int argc, char *argv[]) {
                                                 dinfo,
                                                 n_walk_limit);
 #else
+#ifdef USE_PIKG_KERNEL
+    std::cerr << "--- using pikg kernel ---" << std::endl;
+    tree_grav.calcForceAllAndWriteBack(CalcGravityEpEp(FPGrav::eps*FPGrav::eps),
+                                       CalcGravityEpSp(FPGrav::eps*FPGrav::eps),
+                                       system_grav,
+                                       dinfo);
+#else
     tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>,
                                        CalcGravity<PS::SPJMonopole>,
                                        system_grav,
                                        dinfo);
+#endif
 #endif
     PS::F64 Epot0, Ekin0, Etot0, Epot1, Ekin1, Etot1;
     calcEnergy(system_grav, Etot0, Ekin0, Epot0);
@@ -328,10 +336,19 @@ int main(int argc, char *argv[]) {
                                                     n_walk_limit,
                                                     true);
 #else
+#ifdef USE_PIKG_KERNEL
+        tree_grav.calcForceAllAndWriteBack(CalcGravityEpEp(FPGrav::eps*FPGrav::eps),
+
+					   //CalcGravity<PS::SPJMonopole>,
+					   CalcGravityEpSp(FPGrav::eps*FPGrav::eps),
+                                           system_grav,
+                                           dinfo);
+#else
         tree_grav.calcForceAllAndWriteBack(CalcGravity<FPGrav>,
                                            CalcGravity<PS::SPJMonopole>,
                                            system_grav,
                                            dinfo);
+#endif
 #endif
         
         kick(system_grav, dt * 0.5);

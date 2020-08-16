@@ -11,6 +11,7 @@ CFLAGS = -std=c++11 -O3
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 #use_phantom_grape_x86 = yes
+#use_pikg_x86 = yes
 #use_gpu_cuda = yes
 
 # fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
@@ -41,12 +42,41 @@ force_gpu_cuda.o:force_gpu_cuda.cu
 OBJS = force_gpu_cuda.o
 endif
 
+PIKG_ROOT = ../../../pikg
+PIKG = $(PIKG_ROOT)/bin/pikg
+ifeq ($(use_pikg_x86),yes)
+INC += -I$(PIKG_ROOT)/inc
+CFLAGS+= -DUSE_PIKG_KERNEL -DPIKG_USE_FDPS_VECTOR
+
+# reference option
+CONVERSION_TYPE=reference
+
+# AVX2 options
+#CONVERSION_TYPE = AVX2
+#CFLAGS+= -mavx2 -mfma -ffast-math
+
+# AVX-512 options
+#CONVERSION_TYPE = AVX-512
+#CFLAGS+= -mavx512f -mavx512dq -ffast-math
+
+PIKG_FLAGS= --conversion-type $(CONVERSION_TYPE)
+PIKG_BUILD = make kernel_pikg.hpp
+else
+PIKG_BUILD = 
+endif
+
+
 nbody.out:nbody.cpp $(OBJS)
 	$(PG_BUILD)
+	$(PIKG_BUILD)
 	$(CC) $(INC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
+kernel_pikg.hpp:	kernel_epep.pikg kernel_epsp.pikg
+	$(PIKG) $(PIKG_FLAGS) --epi-name FPGrav --epj-name FPGrav --force-name FPGrav --kernel-name CalcGravityEpEp -i kernel_epep.pikg > $@
+	$(PIKG) $(PIKG_FLAGS) --epi-name FPGrav --epj-name PS::SPJMonopole --force-name FPGrav --kernel-name CalcGravityEpSp -i kernel_epsp.pikg >> $@
+
 clean:
-	rm -f *.o *~
+	rm -f *.o nbody.out kernel_pikg.hpp *~
 
 distclean: clean
 	$(PG_CLEAN)

@@ -17,6 +17,7 @@ typedef struct full_particle { //$fdps FP,EPI,EPJ,Force
     fdps_f64vec acc;
 } Full_particle;
 
+#ifndef USE_PIKG_KERNEL
 void  calc_gravity_ep_ep(Full_particle *ep_i,
                          int n_ip,
                          Full_particle *ep_j,
@@ -28,3 +29,4 @@ void  calc_gravity_ep_sp(Full_particle *ep_i,
                          fdps_spj_monopole *ep_j,
                          int n_jp,
                          Full_particle *f);
+#endif

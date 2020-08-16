@@ -146,3 +146,7 @@ void CalcGravity(const FPGrav * ep_i,
 }
 
 #endif
+
+#ifdef USE_PIKG_KERNEL
+#include "kernel_pikg.hpp"
+#endif

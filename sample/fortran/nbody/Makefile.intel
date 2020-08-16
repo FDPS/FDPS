@@ -30,6 +30,7 @@ LDFLAGS = -L/opt/intel/lib/intel64 -L/usr/lib64 -lifport -lifcore -limf -lsvml -
 #CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 #use_phantom_grape_x86 = yes
+#use_pikg_x86 = yes
 
 ifeq ($(use_phantom_grape_x86),yes)
 PG_ROOT = $(FDPS_LOC)/src/phantom_grape_x86/G5/newton/libpg5
@@ -47,6 +48,50 @@ PG_BUILD =
 PG_CLEAN = 
 endif
 
+ifeq ($(use_pikg_x86),yes)
+PIKG_ROOT = ../../../pikg
+PIKG_FTN_MOD_DIR = $(PIKG_ROOT)/src/fortran_interface/modules
+PIKG = $(PIKG_ROOT)/bin/pikg
+FCFLAGS += -DENABLE_PIKG_KERNEL_X86
+CXXFLAGS += -DPIKG_USE_FDPS_VECTOR -I$(PIKG_ROOT)/inc
+
+# Set conversion type
+# (i) Reference mode
+CONVERSION_TYPE = reference
+# (ii) AVX2 mode
+#CONVERSION_TYPE = AVX2 
+#CXXFLAGS += -mavx2 -mfma -ffast-math
+# (iii) AVX-512 mode
+#CONVERSION_TYPE = AVX-512
+#CXXFLAGS += -mavx512f -mavx512dq -ffast-math
+# (iv) ARM SVE mode
+#CONVERSION_TYPE = A64FX
+#CXXFLAGS += -Kfast
+
+EPI = full_particle
+EPJ = full_particle
+SPJ = PS::SPJMonopole
+FORCE = full_particle
+SRC_CXX_PIKG_KERNEL_EP_EP = pikg_kernel_ep_ep.cpp
+SRC_FTN_PIKG_KERNEL_EP_EP = pikg_module_ep_ep.F90
+SRC_CXX_PIKG_KERNEL_EP_SP = pikg_kernel_ep_sp.cpp
+SRC_FTN_PIKG_KERNEL_EP_SP = pikg_module_ep_sp.F90
+else
+PIKG_FTN_MOD_DIR =
+PIKG =
+CONVERSION_TYPE =
+EPI =
+EPJ =
+SPJ =
+FORCE =
+SRC_CXX_PIKG_KERNEL_EP_EP = 
+SRC_FTN_PIKG_KERNEL_EP_EP = 
+SRC_CXX_PIKG_KERNEL_EP_SP = 
+SRC_FTN_PIKG_KERNEL_EP_SP = 
+endif
+SRC_CXX_PIKG = $(SRC_CXX_PIKG_KERNEL_EP_EP) $(SRC_CXX_PIKG_KERNEL_EP_SP)
+SRC_FTN_PIKG = $(SRC_FTN_PIKG_KERNEL_EP_EP) $(SRC_FTN_PIKG_KERNEL_EP_SP)
+
 #-----------------------------------------------------------------------
 #   Source files
 #-----------------------------------------------------------------------
@@ -58,22 +103,31 @@ endif
 SRC_USER_DEFINED_TYPE = user_defined.F90
 SRC_USER = f_main.F90
 SRC_FDPS_MOD = $(wildcard $(FDPS_FTN_MOD_DIR)/*.F90)
-SRC_FTN = $(SRC_FDPS_MOD) \
-	  $(SRC_USER_DEFINED_TYPE) \
-	  FDPS_module.F90 \
-	  $(SRC_USER)
-SRC_CXX = FDPS_ftn_if.cpp \
-	  FDPS_Manipulators.cpp \
-	  main.cpp
+SRC_PIKG_MOD = $(wildcard $(PIKG_FTN_MOD_DIR)/*.F90)
+SRC_FTN_ALL = $(SRC_FDPS_MOD) \
+	      $(SRC_PIKG_MOD) \
+	      $(SRC_USER_DEFINED_TYPE) \
+	      FDPS_module.F90 \
+	      $(SRC_FTN_PIKG) \
+	      $(SRC_USER)
+SRC_CXX_FDPS = FDPS_ftn_if.cpp \
+	       FDPS_Manipulators.cpp \
+	       main.cpp
+SRC_CXX_ALL = $(SRC_CXX_FDPS) $(SRC_CXX_PIKG)
 
 OBJ_USER_DEFINED_TYPE	= $(SRC_USER_DEFINED_TYPE:F90=o)
 OBJ_USER		= $(SRC_USER:F90=o)
 OBJ_FDPS_MOD		= $(notdir $(SRC_FDPS_MOD:F90=o))
-OBJ_FTN			= $(notdir $(SRC_FTN:F90=o))
-OBJ_CXX			= $(SRC_CXX:cpp=o)
-OBJ			= $(OBJ_FTN) $(OBJ_CXX) $(OBJ_PG)
+OBJ_PIKG_MOD		= $(notdir $(SRC_PIKG_MOD:F90=o))
+OBJ_FTN_PIKG		= $(SRC_FTN_PIKG:F90=o)
+OBJ_FTN_ALL		= $(notdir $(SRC_FTN_ALL:F90=o))
+OBJ_CXX_FDPS            = $(SRC_CXX_FDPS:cpp=o)
+OBJ_CXX_PIKG		= $(SRC_CXX_PIKG:cpp=o)
+OBJ_CXX_ALL		= $(SRC_CXX_ALL:cpp=o)
+OBJ_PIKG		= $(OBJ_CXX_PIKG) $(OBJ_FTN_PIKG)
+OBJ			= $(OBJ_FTN_ALL) $(OBJ_CXX_ALL) $(OBJ_PG)
 
-VPATH = $(FDPS_FTN_MOD_DIR) $(PG_ROOT)
+VPATH = $(FDPS_FTN_MOD_DIR) $(PIKG_FTN_MOD_DIR) $(PG_ROOT)
 TARGET = nbody.out
 
 $(TARGET): $(OBJ) result
@@ -81,24 +135,34 @@ $(TARGET): $(OBJ) result
 	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
 
 result:
-	mkdir result
+	mkdir -p result
 
-$(SRC_CXX) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
+$(SRC_CXX_FDPS) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
 	$(FDPS_FTN_IF_GENERATOR) $(SRC_USER_DEFINED_TYPE) --output ./ 
 
 FDPS_super_particle.o: FDPS_vector.o FDPS_matrix.o
 
-$(OBJ_USER_DEFINED_TYPE): $(OBJ_FDPS_MOD) $(OBJ_PG)
+$(OBJ_USER_DEFINED_TYPE): $(OBJ_FDPS_MOD) $(OBJ_PIKG_MOD) $(OBJ_PG)
 
 FDPS_module.o: $(OBJ_USER_DEFINED_TYPE)
 
-$(OBJ_USER): $(OBJ_USER_DEFINED_TYPE) FDPS_module.o
+$(OBJ_USER): $(OBJ_USER_DEFINED_TYPE) FDPS_module.o $(OBJ_PIKG)
+
+$(OBJ_PIKG): $(SRC_CXX_PIKG) $(SRC_CXX_FDPS)
+
+$(SRC_CXX_PIKG_KERNEL_EP_EP) $(SRC_FTN_PIKG_KERNEL_EP_EP): kernel_ep_ep.pikg
+	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(EPJ) --force-name $(FORCE) --kernel-name "calc_gravity_ep_ep" --fortran-interface $(basename $(SRC_FTN_PIKG_KERNEL_EP_EP)) --output $(SRC_CXX_PIKG_KERNEL_EP_EP) --additional-text "#include \"user_defined.hpp\"" -i $<
+
+$(SRC_CXX_PIKG_KERNEL_EP_SP) $(SRC_FTN_PIKG_KERNEL_EP_SP): kernel_ep_sp.pikg
+	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(SPJ) --force-name $(FORCE) --kernel-name "calc_gravity_ep_sp" --fortran-interface $(basename $(SRC_FTN_PIKG_KERNEL_EP_SP)) --output $(SRC_CXX_PIKG_KERNEL_EP_SP) --additional-text "#include \"user_defined.hpp\"" -i $<
 
 clean:
 	rm -f *.o *.s *.mod $(TARGET) *.dat
 
 distclean: clean
 	$(PG_CLEAN)
-	rm -f $(SRC_CXX) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp
-	rm -f *__genmod.f90
+	rm -f $(SRC_CXX_FDPS) FDPS_Manipulators.h  FDPS_module.F90 user_defined.hpp 
+	rm -f $(SRC_CXX_PIKG) $(SRC_FTN_PIKG)
 	rm -rf result
+
+# fdps-autotest-run (DO NOT CHANGE THIS LINE)

@@ -23,6 +23,7 @@ module user_defined_types
       type(fdps_f64vec) :: acc
    end type full_particle
 
+#if defined(ENABLE_PHANTOM_GRAPE_X86) || !defined(ENABLE_PIKG_KERNEL_X86)
    contains
 
    !**** Interaction function (particle-particle)
@@ -229,6 +230,7 @@ module user_defined_types
       end do
 
    end subroutine calc_gravity_ep_sp
+#endif
 #endif
 
 end module user_defined_types

@@ -727,7 +727,7 @@ namespace FDPS_Manipulators {
             break;
          }
       }
-      if (is_exist = false) {
+      if (is_exist == false) {
          if (PS::Comm::getRank() == 0) {
             std::string errmsg,func_name;
             errmsg = "An invalid value is specified for tree_num.";

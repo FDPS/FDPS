@@ -6,6 +6,10 @@ subroutine f_main()
 #if defined(ENABLE_PHANTOM_GRAPE_X86)
    use phantom_grape_g5_x86
 #endif
+#if defined(ENABLE_PIKG_KERNEL_X86)
+   use pikg_module_ep_ep
+   use pikg_module_ep_sp 
+#endif
    use user_defined_types
    implicit none
    !* Local parameters
@@ -64,6 +68,9 @@ subroutine f_main()
 #if defined(ENABLE_PHANTOM_GRAPE_X86)
     call g5_open()
     call g5_set_eps_to_all(eps_grav);
+#elif defined(ENABLE_PIKG_KERNEL_X86)
+    call calc_gravity_ep_ep_initialize(eps_grav*eps_grav)
+    call calc_gravity_ep_sp_initialize(eps_grav*eps_grav)
 #endif
 
    !* Compute force at the initial time
