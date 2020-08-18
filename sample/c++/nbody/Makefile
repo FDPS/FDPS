@@ -72,8 +72,7 @@ nbody.out:nbody.cpp $(OBJS)
 	$(CC) $(INC) $(CFLAGS) -o $@ $^ $(CLIBS)
 
 kernel_pikg.hpp:	kernel_epep.pikg kernel_epsp.pikg
-	$(PIKG) $(PIKG_FLAGS) --epi-name FPGrav --epj-name FPGrav --force-name FPGrav --kernel-name CalcGravityEpEp -i kernel_epep.pikg > $@
-	$(PIKG) $(PIKG_FLAGS) --epi-name FPGrav --epj-name PS::SPJMonopole --force-name FPGrav --kernel-name CalcGravityEpSp -i kernel_epsp.pikg >> $@
+	$(PIKG) $(PIKG_FLAGS) --epi-name Epi --epj-name Epj --force-name Force --kernel-name CalcGravityEpEp -i kernel_epep.pikg -o $@
 
 clean:
 	rm -f *.o nbody.out kernel_pikg.hpp *~

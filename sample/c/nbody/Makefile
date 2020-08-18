@@ -96,14 +96,10 @@ $(OBJ_PIKG): $(SRC_CXX)
 FDPS_c_if.h $(SRC_CXX): $(HDR_USER_DEFINED_TYPE) Makefile
 	$(FDPS_C_IF_GENERATOR) user_defined.h --output ./
 
-kernel_pikg.cpp:	kernel_epep.pikg kernel_epsp.pikg
-	$(PIKG) $(PIKG_FLAGS) -i kernel_epep.pikg --c-interface kernel_epep.h --epi-name full_particle --epj-name full_particle --force-name full_particle --kernel-name calc_gravity_ep_ep  --additional-text "#include \"user_defined.hpp\"" > $@
-	$(PIKG) $(PIKG_FLAGS) -i kernel_epsp.pikg --c-interface kernel_epsp.h --epi-name full_particle --epj-name PS::SPJMonopole --force-name full_particle --kernel-name calc_gravity_ep_sp --additional-text "#include \"user_defined.hpp\"" >> $@
-
 kernel_epep.cpp:	kernel_epep.pikg
-	$(PIKG) $(PIKG_FLAGS) -i kernel_epep.pikg --c-interface kernel_epep.h --epi-name full_particle --epj-name full_particle --force-name full_particle --kernel-name calc_gravity_ep_ep  --additional-text "#include \"user_defined.hpp\"" -o $@
+	$(PIKG) $(PIKG_FLAGS) -i kernel_epep.pikg --c-interface kernel_epep.h --epi-name full_particle --epj-name full_particle --force-name full_particle --kernel-name calc_gravity_ep_ep -o $@
 kernel_epsp.cpp:	kernel_epsp.pikg
-	$(PIKG) $(PIKG_FLAGS) -i kernel_epsp.pikg --c-interface kernel_epsp.h --epi-name full_particle --epj-name PS::SPJMonopole --force-name full_particle --kernel-name calc_gravity_ep_sp --additional-text "#include \"user_defined.hpp\"" -o $@
+	$(PIKG) $(PIKG_FLAGS) -i kernel_epsp.pikg --c-interface kernel_epsp.h --epi-name full_particle --epj-name PS::SPJMonopole --force-name full_particle --kernel-name calc_gravity_ep_sp -o $@
 
 $(OBJ_USER): FDPS_c_if.h 
 
@@ -111,7 +107,7 @@ clean:
 	rm -f *.o *.s $(TARGET) *.dat
 
 distclean: clean
-	rm -f $(SRC_CXX) FDPS_c_if.h FDPS_Manipulators.h user_defined.hpp kernel_pikg.cpp kernel_epep.h kernel_epsp.h
+	rm -f $(SRC_CXX) FDPS_c_if.h FDPS_Manipulators.h user_defined.hpp kernel_pikg.cpp kernel_epep.h kernel_epsp.h kernel_epep.cpp kernel_epsp.cpp
 	rm -rf result
 
 # fdps-autotest-run (DO NOT CHANGE THIS LINE)

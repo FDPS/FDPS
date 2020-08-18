@@ -807,14 +807,14 @@ class GatherLoad
       for i in 1...nelem
         index +=  ",#{i*@interval.to_i + offset.to_i}"
       end
-      ret += "static int32_t #{index_name}[#{nelem}] = {#{index}};\n"
+      ret += "static int #{index_name}[#{nelem}] = {#{index}};\n"
       index_simd_width = 32 * nelem
       ret += "static __m#{index_simd_width}i #{vindex_name} = "
       case index_simd_width
       when 128
         ret += "_mm_load_si128((const __m128i*)#{index_name});\n"
       when 256
-        ret += "_mm256_load_si256(#{index_name});\n"
+        ret += "_mm256_load_si256((const __m256i*)#{index_name});\n"
       end
       ret += "#{@dest.convert_to_code(conversion_type)} = _mm256_i32gather_#{get_type_suffix_avx2(@type)}(#{@src.convert_to_code(conversion_type)},#{vindex_name},#{scale});"
     when /AVX-512/

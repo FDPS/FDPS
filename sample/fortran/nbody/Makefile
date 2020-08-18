@@ -53,7 +53,7 @@ PG_CLEAN =
 endif
 
 ifeq ($(use_pikg_x86),yes)
-PIKG_ROOT = ../../../pikg
+PIKG_ROOT = $(FDPS_LOC)/pikg
 PIKG_FTN_MOD_DIR = $(PIKG_ROOT)/src/fortran_interface/modules
 PIKG = $(PIKG_ROOT)/bin/pikg
 FCFLAGS += -DENABLE_PIKG_KERNEL_X86
@@ -155,10 +155,10 @@ $(OBJ_USER): $(OBJ_USER_DEFINED_TYPE) FDPS_module.o $(OBJ_PIKG)
 $(OBJ_PIKG): $(SRC_CXX_PIKG) $(SRC_CXX_FDPS)
 
 $(SRC_CXX_PIKG_KERNEL_EP_EP) $(SRC_FTN_PIKG_KERNEL_EP_EP): kernel_ep_ep.pikg
-	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(EPJ) --force-name $(FORCE) --kernel-name "calc_gravity_ep_ep" --fortran-interface $(basename $(SRC_FTN_PIKG_KERNEL_EP_EP)) --output $(SRC_CXX_PIKG_KERNEL_EP_EP) --additional-text "#include \"user_defined.hpp\"" -i $<
+	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(EPJ) --force-name $(FORCE) --kernel-name "calc_gravity_ep_ep" --fortran-interface $(basename $(SRC_FTN_PIKG_KERNEL_EP_EP)) --output $(SRC_CXX_PIKG_KERNEL_EP_EP) -i $<
 
 $(SRC_CXX_PIKG_KERNEL_EP_SP) $(SRC_FTN_PIKG_KERNEL_EP_SP): kernel_ep_sp.pikg
-	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(SPJ) --force-name $(FORCE) --kernel-name "calc_gravity_ep_sp" --fortran-interface $(basename $(SRC_FTN_PIKG_KERNEL_EP_SP)) --output $(SRC_CXX_PIKG_KERNEL_EP_SP) --additional-text "#include \"user_defined.hpp\"" -i $<
+	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(SPJ) --force-name $(FORCE) --kernel-name "calc_gravity_ep_sp" --fortran-interface $(basename $(SRC_FTN_PIKG_KERNEL_EP_SP)) --output $(SRC_CXX_PIKG_KERNEL_EP_SP) -i $<
 
 clean:
 	rm -f *.o *.s *.mod $(TARGET) *.dat

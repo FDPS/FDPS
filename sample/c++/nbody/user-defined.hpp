@@ -117,6 +117,46 @@ void CalcGravity(const FPGrav * iptcl,
     free(mj);
 }
 
+#elif USE_PIKG_KERNEL
+struct Epi{
+  PS::F32vec pos;
+};
+struct Epj{
+  PS::F32vec pos;
+  PS::F32    mass;
+};
+struct Force{
+  PS::F32vec acc;
+  PS::F32    pot;
+};
+
+#include "kernel_pikg.hpp"
+
+template <class TParticleJ>
+void CalcGravity(const FPGrav * ep_i,
+                 const PS::S32 n_ip,
+                 const TParticleJ * ep_j,
+                 const PS::S32 n_jp,
+                 FPGrav * force) {
+  Epi epi[n_ip];
+  Force f[n_ip];
+  for(int i=0;i<n_ip;i++){
+    epi[i].pos = (PS::F32vec)(ep_i[i].pos - ep_i[0].pos);
+
+    f[i].acc = force[i].acc;
+    f[i].pot = force[i].pot;
+  }
+  Epj epj[n_jp];
+  for(int i=0;i<n_jp;i++){
+    epj[i].pos = (PS::F32vec)(ep_j[i].pos - ep_i[0].pos);
+    epj[i].mass = ep_j[i].mass;
+  }
+  CalcGravityEpEp(FPGrav::eps*FPGrav::eps)(epi,n_ip,epj,n_jp,f);
+  for(int i=0;i<n_ip;i++){
+    force[i].acc = f[i].acc;
+    force[i].pot = f[i].pot;
+  }
+}
 #else
 
 template <class TParticleJ>
@@ -147,6 +187,4 @@ void CalcGravity(const FPGrav * ep_i,
 
 #endif
 
-#ifdef USE_PIKG_KERNEL
-#include "kernel_pikg.hpp"
-#endif
+ 
