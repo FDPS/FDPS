@@ -1,0 +1,379 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage[whole]{bxcjkjatype}
+% \usepackage{subsubsection}
+\setlength{\textheight}{22cm}
+\setlength{\textwidth}{17cm}
+\setlength{\leftmargin}{-1 in}
+\setlength{\topmargin}{0.35in}
+\setlength{\topmargin}{0.1in}
+\setlength{\evensidemargin}{0. in}
+\setlength{\oddsidemargin}{0. in}
+\setcounter{secnumdepth}{5}
+\setcounter{tocdepth}{5}
+
+\begin{document}
+%\input defs
+%\parindent 0pt
+%\parskip 5 pt
+\title{PIKG仕様書\\
+{\large 
+Ver 0.1 --- 2020/8/16\\
+}
+}
+\author{野村昴太郎}
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{TODO}
+ \begin{itemize}
+  \item FXXmat関連の演算や型推論が実装されていない
+  \item 現状勝手にアップキャストされてしまうが，低精度を維持したい場合，statementの先頭に型宣言ができる必要がある
+  \item 16 bit型の演算をサポートする
+ \end{itemize}
+\section{履歴}
+\label{sect:4}
+\subsection{2019/12/23}
+ファイルを作った．
+\subsection{2019/12/30}
+カーネルジェネレータ周りのTODOを追加．
+\subsection{2020/5/7}
+カーネルジェネレータの名前をPIKGに変更．
+\subsection{2020/7/31}
+0.0版リリース向けに改定
+\subsection{2020/8/7}
+変数宣言部に記述を追加．
+\subsection{2020/8/12}
+条件分岐の文法に間違いがあったので修正．
+\subsection{2020/8/14}
+C-interfaceの記述を追加．
+\subsection{2020/8/16}
+Fortran-interfaceの記述を追加．
+
+\section{はじめに}
+%本書はFDPS向けのカーネル関数のソースコードジェネレータの仕様書である．
+本書は粒子間相互作用カーネル関数のソースコードジェネレータPIKGの仕様書である．
+
+% 粒子間相互作用の説明
+粒子間相互作用とは，分子動力学やN体，SPHなどの粒子系シミュレーションにおいて，
+粒子の時間発展を差分化して解く際に計算する粒子間に働く相互作用のことである．
+ここでは，2体間相互作用のみを考える．
+
+% 相互作用カーネルを書く際の課題とPIKGに求められるもの
+粒子系シミュレーションでは，一般的に計算量のほとんどをこの粒子間相互作用の計算が占めている．
+したがって，多様化しているさまざまな計算機上で十分な実行性能を引き出すためには，
+それぞれのアーキテクチャ上で相互作用を計算するカーネルの最適化が必要不可欠である．
+しかしながら，これらの最適化カーネルは特定のアーキテクチャに特化した形で書かれるものが多く，
+計算機を変える場合には新たにカーネルを書き直すことがほとんどである．
+さまざまな計算機を利用する研究者にとって，それぞれのアーキテクチャ向けにカーネルを最適化することは，
+多くの時間を要するだけでなく，複雑なアーキテクチャの特性を理解しないといけないためそもそも最適化が困難であるという問題がある．
+
+相互作用計算カーネルジェネレータPIKGは，ひとつのDSL(ドメイン特化型言語)記述から，複数のアーキテクチャ向けに最適化された相互作用計算カーネルを生成することを目的としている．
+
+\section{概要}
+カーネル関数の最適化ソースコードを様々なアーキテクチャ向けに生成するためのジェネレータを作る．
+そのための言語仕様及びコンパイラの仕様，簡単な使い方を示す．
+
+\section{DSL仕様}
+PIKGは，PIKG用DSL(Domain Specific Language)で書かれたソースコードを元に，
+指定したアーキテクチャ向けに最適化されたC++のカーネルソースコードを生成する．
+
+以下では本カーネルジェネレータで用いるDSLの仕様について定義する．
+
+\subsection{粒子間相互作用カーネルの一般化}
+まず，DSL記述について述べる前に，粒子間相互作用カーネルが一般にどのような構造とをとるのかを説明する．
+C/C++の関数では2粒子間相互作用カーネルは以下のように書ける．
+\begin{verbatim}
+void kernel_body(const EPI* epi,const int ni,
+                 const EPJ* epj,const int nj,
+                 FORCE* force){
+  (1) preprocess
+  for (int i=0; i < ni; i++){
+    (2) load EPI variables
+    (3) load FORCE variables
+    for(int j=0; j < nj; j++){
+      (4) load EPJ variables
+      (5) calc interaction for FORCE variable
+    }
+    (6) store FORCE variables
+  }
+}
+\end{verbatim}
+入力として，相互作用をうける粒子であるEPIと相互作用を及ぼす粒子であるEPJのArray of Structure(AoS)形式の配列epiとepj(これらをあわせて相互作用リストと呼ぶ)，それぞれの配列長niとnj，計算された相互作用を保持する構造体であるFORCEのAoS形式の配列が与えられる(FORCEの配列の長さはni)．
+
+(1)ではEPIやEPJの変数を一時配列に入れ直し，AoSからSoA形式にする等の前処理が行われる．
+(2)ではEPI変数及び(1)で作った一時配列のうち，カーネル計算に必要な変数のみがロードされる．
+(3)では相互作用のアキュムレートに必要なFORCE変数をロードする．FORCE変数は事前に初期化されていることが前提となっている．
+これは，複数のカーネルを使ってFORCEを計算する場合を考慮しているためである．
+(4)ではEPJ変数をロードする．(2)と同様である．
+(5)ではロードした変数を使って相互作用の計算を行い，FORCE変数にアキュムレートしていく．
+最後に(6)でアキュムレートしたFORCE変数をもとの配列にストアする．
+
+PIKGでは，DSL記述から(5)相互作用計算と(5)で使われる変数がEPI，EPJとFORCEクラスのどの変数かの情報を読み取り，
+相互作用計算カーネルを生成する．
+
+\subsection{DSL概要}
+PIKGのDSLは以下の3つのパートから構成される．
+ \begin{itemize}
+  \item 変数宣言部
+  \item 関数宣言部
+  \item 相互作用記述部
+ \end{itemize}
+ それぞれのパートは上記の順番で書かれる必要があり，関数宣言部は省略が可能である．
+ 変数宣言部はひとつ以上の変数宣言からなり，関数宣言もひとつ以上の関数宣言からなる．
+ 相互作用記述部では，変数宣言部と関数宣言部で宣言された変数と関数，予約関数を用いて粒子間の相互作用を記述する．
+
+ 以下では，DSLの文法とそれぞれのパートについて詳しく見ていく．
+
+ \subsection{文法等}
+ \subsubsection{コメントアウト}
+ 二重のスラッシュ(//)以降のその行の文字列はコメントとして無視される．C++における$/*$ $*/$のような行をまたげるコメントアウトは存在しない．
+
+ \subsubsection{予約語とその説明}
+ \begin{itemize}
+  \item EPI (変数宣言時に相互作用を受ける粒子の変数であることを示す)
+  \item EPJ (変数宣言時に相互作用を及ぼす粒子の変数であることを示す)
+  \item SPJ (変数宣言時に相互作用を及ぼす粒子でTree法で見込角より外のまとめられた粒子でであることを示す，MultiWalkのときのみ使用)
+  \item FORCE (変数宣言時に求める相互作用を保持する変数であることを示す)
+%  \item static (変数宣言時にstaticメンバ変数であることを示す)
+  \item local (変数宣言時にlocalメンバ変数であることを示す)
+  \item function (関数宣言であることを示す)
+  \item (S$|$U)(16$|$32$|$64) ((符号あり$|$なし)整数スカラー型)
+  \item F(16$|$32$|$64)([vec$|$mat][2$|$3$|$4]) (浮動小数点スカラー，ベクトル，マトリックス型．末尾の数字は次元．何もつけない場合は3次元として扱う)
+  \item (sqrt$|$rsqrt$|$inv$|$min$|$max$|$table$|$to\_float$|$to\_int$|$to\_uint$|$madd$|$msub$|$nmadd$|$nmsub) (特殊関数．それぞれ平方根，逆数平方根，逆数，最小値，最大値,テーブル関数，積和算)
+ \end{itemize}
+
+\subsubsection{利用可能な型}
+本DSLでは，符号あり/なし整数型および浮動小数点スカラー型，ベクトル型，マトリックス型をサポートする．
+具体的には，以下の型が使用可能である．(マトリックス型は対称行列のみだが現状サポート外)．
+ \begin{itemize}
+  \item (S$|$U)(16$|$32$|$64)
+  \item F(16$|$32$|$64)
+  \item F(16$|$32$|$64)vec(2$|$3$|$4)?
+  \item F(16$|$32$|$64)mat(2$|$3$|$4)?
+%  \item F(16|32|64)ort[2|3]
+ \end{itemize}
+ それぞれ，16 bit，32 bit，64 bitの(符号あり｜なし)整数型，浮動小数点スカラー型，浮動小数点ベクトル型，浮動小数点マトリックス型である．浮動小数点ベクトル型とマトリックス型は末尾に2もしくは3，4をつけることにより，次元を表すことができる．省略した場合は3次元である．
+
+ 仕様に定めているが現状未サポートの機能は以下．
+ \begin{itemize}
+  \item 現状16 bit型の変数
+  \item すべてのマトリックス型
+ \end{itemize}
+
+ \subsubsection{演算子}
+ 使用可能な演算子は以下である．
+  \begin{itemize}
+   \item $+$ (加算)
+   \item $-$ (減算)
+   \item $*$ (乗算，ベクトル型は内積)
+   \item $/$ (除算)
+   \item $\&\&$ (論理積)
+   \item $||$ (論理和)
+   \item $==$ (等価)
+   \item $!=$ (不等価)
+   \item $<$ (比較)
+   \item $>$ (比較)
+   \item $<=$ (比較)
+   \item $>=$ (比較)
+   \item $+=$ (加算代入)
+   \item $-=$ (減算代入)
+   \item $*=$ (乗算代入)
+   \item $/=$ (除算代入)
+  \end{itemize}
+% ただし，$+=$や$-=$，$*=$，$/=$はFORCEクラスのメンバ変数にしか用いることができない．
+ 詳細は相互作用関数記述部\ref{subsec:kernel}節で説明する．
+
+ \subsubsection{条件分岐}
+ 条件分岐は以下の文法でおこなえる．
+\begin{verbatim}
+if 条件1 
+  実行1
+elsif 条件2
+  実行2
+else
+  実行3
+endif
+\end{verbatim}
+elsif以下は省略可能である．
+将来的にendifはendでも使えるようになる予定(Rubyの文法に合わせる)．後置などはできない．
+
+例
+\begin{verbatim}
+	dr = ri - rj
+	r2 = dr*dr
+	if r2 > 0.0 && r2 < 16.0
+	  r2i = inv(r2)
+	  r6i = r2i * r2i * r2i
+	  f += 24 * r6i * r2i * (2*r6i - 1) * dr
+	  u += 4 * r6i * (r6i - 1)
+	endif
+\end{verbatim}
+
+ \subsubsection{予約関数}
+ 予約されている関数は以下．
+  \begin{itemize}
+   \item sqrt (平方乗根)
+   \item rsqrt (逆数平方根)
+   \item max (最大値)
+   \item min (最小値)
+   \item madd ($A*B + C$)
+   \item msub ($A*B - C$)
+   \item nmadd ($-A*B - C$)
+   \item nmsub ($-A*B + C$)
+   \item table (テーブル命令)
+   \item to\_(float$|$int$|$uint) (キャスト)
+  \end{itemize}
+  積和算系の命令に関しては，DSL中で使わなくても，自動的に縮約される．
+
+\subsection{変数宣言部}
+変数宣言では，型の前にEPI，EPJもしくはFORCEをつけることでそれぞれのメンバ変数であることを示す．
+%また，先頭にstatic修飾子をつけることにより定数をわたすことができる．これにより，static修飾子をつけた変数はすべてのEPIやEPJが持つ必要がなくなる．
+また，変数宣言では変数名のあとにコロン(:)と実際のEPIもしくはEPJ，FORCE型のメンバ変数名を書かなくてはならない．
+これにより，変数宣言で宣言された変数名と実際の型のメンバ変数の対応関係を示す．
+\begin{verbatim}
+	EPI F32vec ri:r
+	EPJ F32vec rj:r
+	EPJ F32    mj:m
+	FORCE F32 fi:f
+	FORCE F32 ui:u
+\end{verbatim}
+これは仕様ではないが，現状"x","y","z","w"は変数名として使用することができない．
+
+EPI，EPJもしくはFORCEがつかない場合，カーネル関数オブジェクト初期化時に渡す引数として扱われる．DSL上ではグローバル変数のような扱いになる．
+この場合，コロンによって対応関係を示す必要はない．
+\begin{verbatim}
+	F32 eps
+\end{verbatim}
+
+また，local修飾子をつけることでEPI，EPJのローカル変数を宣言できる．
+ローカル変数にEPIやEPJの変数を使った値を代入するDSLを記述すると，相互作用計算の2重ループの外側で初期化される．
+local変数は1次元配列として確保されるため，EPIやEPJの要素数が大きいときなどにAoSからSoAに変換するときに用いる．
+
+EPI，EPJ，FORCEの変数宣言はC++のクラスの宣言と型やメンバ変数の宣言の順番，個数と完全に一致していなくてはならない．
+したがって，実際には相互作用の計算に使用されないメンバ変数がクラスに含まれている場合でも，変数宣言部では宣言される必要がある．
+
+\subsection{関数記述部}
+本DSLでは，関数を記述し，相互作用関数記述部で利用することができる．
+関数記述部は，以下の記述になる．
+\begin{verbatim}
+	function 関数名(引数0，$\cdots$)
+	  /* 計算部分 */
+	  return 返り値
+	end
+\end{verbatim}
+
+関数記述内の計算部分では，予約語および変数宣言部にない任意のローカル変数を使用できる．
+型推論されるので，特に宣言なく使用できる．
+
+\subsection{相互作用関数記述部} \label{subsec:kernel}
+相互作用関数記述部では，以下のような記述が可能である．
+\begin{verbatim}
+	dr  = ri - rj
+	r2  = dr * dr
+	rinv = rsqrt(r2)
+	f += mj * ri * ri * ri * dr
+	u += mj * ri
+\end{verbatim}
+
+相互作用関数記述部では，これまでに型を指定して宣言された変数をもとに型推論が行われるため，
+ローカルな変数の宣言などを行う必要がなく，これまでに宣言されていない好きな変数名の変数に値を代入できる．
+
+%FORCEメンバ変数に対応する変数にのみ+=もしくは-=，*=，/=演算子を用いることができる(最大値とかはいらない？)．
+カーネルジェネレータは，EPIとEPJの2重ループを作り，その中でこれらの演算子を用いて書かれた記述をアキュムレートするカーネル関数を生成する．
+
+\subsubsection{プラグマ記述}
+主にARM SVE向けの機能であるが，プラグマをはさみたい場所に\#pragmaから始まる行を入れると，生成されたカーネルの対応する箇所に同じプラグマ文が入る．
+以下のプラグマは，実際に生成されるカーネルにも影響を与える．
+ \begin{itemize}
+  \item \#pragma unroll X (Xはアンロール段数)
+  \item \#pragma statement loop\_fission\_point
+ \end{itemize}
+
+%\subsection{構文解析}
+
+\section{カーネル生成方法及び利用法}
+カーネルの生成方法は簡単である．以下の2ステップで行われる．
+ \begin{itemize}
+  \item 相互作用関数をDSLで記述
+  \item オプションを指定してカーネルジェネレータにDSLファイルを入力として渡す
+ \end{itemize}
+ カーネルジェネレータの実行方法は以下．\$(PIKG)はPIKGをgit cloneしてきたディレクトリである．
+\begin{verbatim}
+$(PIKG)/bin/pikg [options]
+\end{verbatim}
+
+ 指定可能なオプションは以下の通りである．
+  \begin{itemize}
+   \item $--$input $|$ $-$i ファイル名 (入力ファイル名の指定)
+   \item $--$output $|$ $-$o  ファイル名 (出力ファイル名の指定．ユーザープログラムにインクルードされることを想定する．単独でコンパイル可能にするためには kernel.cpp のように C++ プログラムの拡張子にする．デフォルトはkernel.hpp)
+   \item $--$conversion$-$type (AVX2$|$AVX-512$|$SVE) (アーキテクチャの指定)
+   \item $--$kernel$-$name カーネル関数名 (カーネル関数名の指定．デフォルトはKernel)
+   \item $--$epi$-$name EPI名 (EPIの構造体名の指定．デフォルトはEPI)
+   \item $--$epj$-$name EPJ名 (EPJの構造体名の指定．デフォルトはEPJ)
+   \item $--$force$-$ame FORCE名 (FORCEの構造体名の指定，デフォルトはFORCE)
+   \item $--$strip$-$mining ストリップマイニングループ数 (アーキテクチャがSVEに指定されている場合にストリップマイニングを行う)
+   \item $--$unroll アンロール段数 ($--$strip$-$mining指定時に最内ループをアンロールする段数を指定，デフォルトは1．DSL内にunrollのプラグマが現れるとそれ以降はプラグまで指定されたアンロール段数が使われる)
+   \item $--$multiwalk (FDPSにおけるMultiwalk向けにカーネルを生成する場合に指定，現状利用不可)
+   \item $--$spj$-$name SPJ名 (SPJの構造体名の指定．$--$multiwalkを指定したときのみ利用される．デフォルトはSPJ)
+   \item $--$addtional$-$text 文字列 (出力ファイルのデフォルトのインクルードファイル指定の直後に追加される文字列．ここで"\#include "user\_defined.h"" 等を指定することで単独でコンパイル可能なプログラムファイルを生成できる)
+   \item $--$c$-$interface [ファイル名] (ファイル名は省略可能．このオプションがあるとC言語リンケージのための関数実体と関数プロトタイプ宣言を生成する．ファイル名が指定されたらプロトタイプ宣言はそのファイルに出力される．指定がない時にはファイル名は --output もしくは -o で指定されたファイル名の basename (最後の "." の後ろを取り除いたもの)+".h"となる)
+   \item $--$fortran$-$interface module名 (このオプションがあると$--$c$-$interfaceを有効化するとともに，相互作用関数を呼び出すために必要なmoduleを指定したmoduleで生成する．生成されたmoduleはmodule名$+$".F90"に出力される)
+   \item $--$initializer$-$name イニシャライザ名 (--c-interfaceオプションが有効なときに，C言語において相互作用カーネルのファンクタのメンバ関数を初期化するための関数名を指定．デフォルトは--kernel-nameで指定されるカーネル名+"\_initalize")
+  \end{itemize}
+  $--$strip$-$mining及び$--$unrollは将来的に廃止される予定であるが，現状ARM SVE向けの最適化には指定が必要なので公開する．
+  現状，最適なARM SVEカーネルを生成するためには，DSL内の適切な箇所にunroll及び，loop\_fission\_pointのプラグマを挿入する必要がある．
+
+  \subsection{生成されるカーネルの形式}
+  カーネルは以下のような構造体として生成される(いずれもデフォルトのEPI,EPJ,FORCE，カーネル名を使う場合)．
+\begin{verbatim}
+	struct Kernel{
+	  void operator()(const EPI* epi, const int nepi, const EPJ* epj,const int nepj,FORCE* force){
+	    (カーネル本体)
+	  }
+	};
+\end{verbatim}
+生成したカーネルは生成されたファイル(ここではkernel.hpp)をインクルードし，
+\begin{verbatim}
+	#include "kernel.hpp"
+	const int N = 1024; // 粒子数
+	int main{
+	  const int nepi = N;
+	  const int nepj = N;
+	  EPI *epi = new EPI[nepi];
+	  EPJ *epj = new EPJ[nepj];
+	  FORCE *force = new FORCE[nepi];
+	  Kernel kernel; // ファクタのインスタンス化
+	  (epiやepjに粒子の情報を代入)
+	  kernel(epi,nepi,epj,nepj,force); // カーネル呼び出し
+	  (後略)
+	}
+\end{verbatim}
+のようにして利用できる．
+
+
+\subsection{Cインターフェース}
+PIKGはC++のstructを利用して，相互作用カーネルのファンクタを生成する．
+当然このままではC言語およびその他の言語のユーザからはPIKGから生成されたカーネルを利用できないので，
+Cインターフェースオプションを提供する．
+$--$c$-$interfaceオプションを有効化すると，生成されたコードの中でファンクタの実体を作り，
+$--$kernel-nameで指定した名前の関数からファンクタを呼び出す関数が生成される．
+また，各関数のプロトタイプ宣言も別ファイルに生成される(ファイル名の指定などは$--$c-interfaceオプションを参照)．
+C言語やその他の言語で書かれたコードからは$--$kernel-nameで指定した関数に適切な引数をつけて呼び出せば，相互作用計算が行われる．
+
+生成されたコードが単独のファイルとしてコンパイルされるためにはEPI/EPJ/FORCEクラスもしくは構造体の実体をインクルードされる必要がある．PIKGからはその実体がどのヘッダーファイルにかかれているのかを把握するすべがないため，$--$additional-textオプションをもちいて適切にファイルをインクルードする必要がある．詳しくは$--$additional-textオプションを参考のこと．
+
+また，EPI/EPJ/FORCE以外の変数を宣言している場合は，ファンクタのメンバ変数を初期化する必要があるのでこれを行う関数も提供される．
+詳しくは$--$initializer-nameオプションを参照のこと．
+
+\subsection{Fortranインターフェース}
+PIKGではCインターフェースと同様にFortranインターフェースを提供する．
+FortranインターフェースではCインターフェースの機能に加えて，Fortranで利用するmoduleを含むFortranソースを生成する必要がある．module名は$--$fortran-interfaceに続けてmodule名を指定する．
+ユーザコードからは，このmoduleを利用して$--$kernel-nameで指定した関数に適切な引数をつけて呼び出すことで相互作用計算が行われる．PIKGで定義されているベクトル型を利用する場合は，src/fortran\_interface/modules/pikg\_vector.F90に定義されているpikg\_vectorを利用する必要がある．
+
+Fortranインターフェースを使う際の注意点として，Fortranには符号なし整数が無いため，EPI，EPJ，FORCE型のメンバ変数としてU(16$|$32$|$64)は使えない．
+\end{document}
