@@ -72,29 +72,21 @@ CONVERSION_TYPE = reference
 #CONVERSION_TYPE = A64FX
 #CXXFLAGS += -Kfast
 
-EPI = full_particle
-EPJ = full_particle
-SPJ = PS::SPJMonopole
-FORCE = full_particle
-SRC_CXX_PIKG_KERNEL_EP_EP = pikg_kernel_ep_ep.cpp
-SRC_FTN_PIKG_KERNEL_EP_EP = pikg_module_ep_ep.F90
-SRC_CXX_PIKG_KERNEL_EP_SP = pikg_kernel_ep_sp.cpp
-SRC_FTN_PIKG_KERNEL_EP_SP = pikg_module_ep_sp.F90
+EPI = epi_grav
+EPJ = epj_grav
+FORCE = force_grav
+SRC_CXX_PIKG = pikg_kernel_ep_ep.cpp
+SRC_FTN_PIKG = pikg_module_ep_ep.F90
 else
 PIKG_FTN_MOD_DIR =
 PIKG =
 CONVERSION_TYPE =
 EPI =
 EPJ =
-SPJ =
 FORCE =
-SRC_CXX_PIKG_KERNEL_EP_EP = 
-SRC_FTN_PIKG_KERNEL_EP_EP = 
-SRC_CXX_PIKG_KERNEL_EP_SP = 
-SRC_FTN_PIKG_KERNEL_EP_SP = 
+SRC_CXX_PIKG = 
+SRC_FTN_PIKG = 
 endif
-SRC_CXX_PIKG = $(SRC_CXX_PIKG_KERNEL_EP_EP) $(SRC_CXX_PIKG_KERNEL_EP_SP)
-SRC_FTN_PIKG = $(SRC_FTN_PIKG_KERNEL_EP_EP) $(SRC_FTN_PIKG_KERNEL_EP_SP)
 
 #-----------------------------------------------------------------------
 #   Source files
@@ -146,7 +138,7 @@ $(SRC_CXX_FDPS) FDPS_module.F90: $(SRC_USER_DEFINED_TYPE)
 
 FDPS_super_particle.o: FDPS_vector.o FDPS_matrix.o
 
-$(OBJ_USER_DEFINED_TYPE): $(OBJ_FDPS_MOD) $(OBJ_PIKG_MOD) $(OBJ_PG)
+$(OBJ_USER_DEFINED_TYPE): $(OBJ_FDPS_MOD) $(OBJ_PIKG_MOD) $(OBJ_PIKG) $(OBJ_PG)
 
 FDPS_module.o: $(OBJ_USER_DEFINED_TYPE)
 
@@ -154,11 +146,8 @@ $(OBJ_USER): $(OBJ_USER_DEFINED_TYPE) FDPS_module.o $(OBJ_PIKG)
 
 $(OBJ_PIKG): $(SRC_CXX_PIKG) $(SRC_CXX_FDPS)
 
-$(SRC_CXX_PIKG_KERNEL_EP_EP) $(SRC_FTN_PIKG_KERNEL_EP_EP): kernel_ep_ep.pikg
-	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(EPJ) --force-name $(FORCE) --kernel-name "calc_gravity_ep_ep" --fortran-interface $(basename $(SRC_FTN_PIKG_KERNEL_EP_EP)) --output $(SRC_CXX_PIKG_KERNEL_EP_EP) -i $<
-
-$(SRC_CXX_PIKG_KERNEL_EP_SP) $(SRC_FTN_PIKG_KERNEL_EP_SP): kernel_ep_sp.pikg
-	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(SPJ) --force-name $(FORCE) --kernel-name "calc_gravity_ep_sp" --fortran-interface $(basename $(SRC_FTN_PIKG_KERNEL_EP_SP)) --output $(SRC_CXX_PIKG_KERNEL_EP_SP) -i $<
+$(SRC_CXX_PIKG) $(SRC_FTN_PIKG): kernel_ep_ep.pikg
+	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(EPJ) --force-name $(FORCE) --kernel-name "pikg_calc_grav_ep_ep" --fortran-interface $(basename $(SRC_FTN_PIKG)) --output $(SRC_CXX_PIKG) -i $<
 
 clean:
 	rm -f *.o *.s *.mod $(TARGET) *.dat

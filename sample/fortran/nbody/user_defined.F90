@@ -23,7 +23,21 @@ module user_defined_types
       type(fdps_f64vec) :: acc
    end type full_particle
 
-#if defined(ENABLE_PHANTOM_GRAPE_X86) || !defined(ENABLE_PIKG_KERNEL_X86)
+   !* The following types are used in PIKG-generated kenrels
+   type, public, bind(c) :: epi_grav
+      type(fdps_f32vec) :: pos
+   end type epi_grav
+
+   type, public, bind(c) :: epj_grav
+      type(fdps_f32vec) :: pos
+      real(kind=c_float) :: mass
+   end type epj_grav
+
+   type, public, bind(c) :: force_grav
+      type(fdps_f32vec) :: acc
+      real(kind=c_float) :: pot
+   end type force_grav
+  
    contains
 
    !**** Interaction function (particle-particle)
@@ -141,6 +155,92 @@ module user_defined_types
          f(i)%pot   = f(i)%pot   - pi(i)
       end do
    end subroutine calc_gravity_ep_sp
+#elif defined(ENABLE_PIKG_KERNEL_X86)
+   subroutine calc_gravity_ep_ep(ep_i,n_ip,ep_j,n_jp,f) bind(c)
+      use, intrinsic :: iso_c_binding
+      use pikg_module_ep_ep
+      implicit none
+      integer(c_int), intent(in), value :: n_ip,n_jp
+      type(full_particle), dimension(n_ip), intent(in) :: ep_i
+      type(full_particle), dimension(n_jp), intent(in) :: ep_j
+      type(full_particle), dimension(n_ip), intent(inout) :: f
+      !* Local variables
+      integer(c_int) :: i,j
+      type(epi_grav), dimension(n_ip), target :: ep_i_tmp
+      type(epj_grav), dimension(n_jp), target :: ep_j_tmp
+      type(force_grav), dimension(n_ip), target :: f_tmp
+
+      if (n_ip > 0) then
+         do i=1,n_ip
+            ep_i_tmp(i)%pos%x = ep_i(i)%pos%x - ep_i(1)%pos%x
+            ep_i_tmp(i)%pos%y = ep_i(i)%pos%y - ep_i(1)%pos%y
+            ep_i_tmp(i)%pos%z = ep_i(i)%pos%z - ep_i(1)%pos%z
+            f_tmp(i)%acc%x = 0.0
+            f_tmp(i)%acc%y = 0.0
+            f_tmp(i)%acc%z = 0.0
+            f_tmp(i)%pot   = 0.0
+         end do
+         do j=1,n_jp
+            ep_j_tmp(j)%pos%x = ep_j(j)%pos%x - ep_i(1)%pos%x
+            ep_j_tmp(j)%pos%y = ep_j(j)%pos%y - ep_i(1)%pos%y
+            ep_j_tmp(j)%pos%z = ep_j(j)%pos%z - ep_i(1)%pos%z
+            ep_j_tmp(j)%mass  = ep_j(j)%mass
+         end do
+         call pikg_calc_grav_ep_ep(c_loc(ep_i_tmp), n_ip, &
+                                   c_loc(ep_j_tmp), n_jp, &
+                                   c_loc(f_tmp))
+         do i=1,n_ip
+            f(i)%acc%x = f(i)%acc%x + f_tmp(i)%acc%x
+            f(i)%acc%y = f(i)%acc%y + f_tmp(i)%acc%y
+            f(i)%acc%z = f(i)%acc%z + f_tmp(i)%acc%z
+            f(i)%pot   = f(i)%pot   + f_tmp(i)%pot
+         end do
+      end if
+
+   end subroutine calc_gravity_ep_ep
+
+   subroutine calc_gravity_ep_sp(ep_i,n_ip,ep_j,n_jp,f) bind(c)
+      use, intrinsic :: iso_c_binding
+      use pikg_module_ep_ep
+      implicit none
+      integer(c_int), intent(in), value :: n_ip,n_jp
+      type(full_particle), dimension(n_ip), intent(in) :: ep_i
+      type(fdps_spj_monopole), dimension(n_jp), intent(in) :: ep_j
+      type(full_particle), dimension(n_ip), intent(inout) :: f
+      !* Local variables
+      integer(c_int) :: i,j
+      type(epi_grav), dimension(n_ip), target :: ep_i_tmp
+      type(epj_grav), dimension(n_jp), target :: ep_j_tmp
+      type(force_grav), dimension(n_ip), target :: f_tmp
+
+      if (n_ip > 0) then
+         do i=1,n_ip
+            ep_i_tmp(i)%pos%x = ep_i(i)%pos%x - ep_i(1)%pos%x
+            ep_i_tmp(i)%pos%y = ep_i(i)%pos%y - ep_i(1)%pos%y
+            ep_i_tmp(i)%pos%z = ep_i(i)%pos%z - ep_i(1)%pos%z
+            f_tmp(i)%acc%x = 0.0
+            f_tmp(i)%acc%y = 0.0
+            f_tmp(i)%acc%z = 0.0
+            f_tmp(i)%pot   = 0.0
+         end do
+         do j=1,n_jp
+            ep_j_tmp(j)%pos%x = ep_j(j)%pos%x - ep_i(1)%pos%x
+            ep_j_tmp(j)%pos%y = ep_j(j)%pos%y - ep_i(1)%pos%y
+            ep_j_tmp(j)%pos%z = ep_j(j)%pos%z - ep_i(1)%pos%z
+            ep_j_tmp(j)%mass  = ep_j(j)%mass
+         end do
+         call pikg_calc_grav_ep_ep(c_loc(ep_i_tmp), n_ip, &
+                                   c_loc(ep_j_tmp), n_jp, &
+                                   c_loc(f_tmp))
+         do i=1,n_ip
+            f(i)%acc%x = f(i)%acc%x + f_tmp(i)%acc%x
+            f(i)%acc%y = f(i)%acc%y + f_tmp(i)%acc%y
+            f(i)%acc%z = f(i)%acc%z + f_tmp(i)%acc%z
+            f(i)%pot   = f(i)%pot   + f_tmp(i)%pot
+         end do
+      end if
+
+   end subroutine calc_gravity_ep_sp
 #else
    subroutine calc_gravity_ep_ep(ep_i,n_ip,ep_j,n_jp,f) bind(c)
       implicit none
@@ -230,7 +330,6 @@ module user_defined_types
       end do
 
    end subroutine calc_gravity_ep_sp
-#endif
 #endif
 
 end module user_defined_types

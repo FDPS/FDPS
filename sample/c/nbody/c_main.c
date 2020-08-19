@@ -7,7 +7,6 @@
 #include "user_defined.h"
 #ifdef USE_PIKG_KERNEL
 #include "kernel_epep.h"
-#include "kernel_epsp.h"
 #endif
 #include "FDPS_c_if.h"
 
@@ -40,6 +39,7 @@ void setup_IC(int psys_num,
     double m_tot=1.0;
     double rmax=3.0;
     double r2max=rmax*rmax;
+    double eps=1.0/32.0;
     //   Get # of MPI processes and rank number
     int nprocs = fdps_get_num_procs();
     int myrank = fdps_get_rank();
@@ -70,7 +70,7 @@ void setup_IC(int psys_num,
             q->vel.x = 0.0;
             q->vel.y = 0.0;
             q->vel.z = 0.0;
-            q->eps = 1.0/32.0;
+            q->eps = eps;
         }
         fdps_f64vec cm_pos;
         fdps_f64vec cm_vel;
@@ -106,6 +106,10 @@ void setup_IC(int psys_num,
     } else{
         fdps_set_nptcl_loc(psys_num,0);
     }
+#ifdef USE_PIKG_KERNEL
+    float eps2 = (float)(eps * eps);
+    pikg_calc_grav_ep_ep_initialize(eps2);
+#endif
 }
 
 void calc_energy(int psys_num,

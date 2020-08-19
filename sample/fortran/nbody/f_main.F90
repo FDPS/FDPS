@@ -8,7 +8,6 @@ subroutine f_main()
 #endif
 #if defined(ENABLE_PIKG_KERNEL_X86)
    use pikg_module_ep_ep
-   use pikg_module_ep_sp 
 #endif
    use user_defined_types
    implicit none
@@ -34,6 +33,7 @@ subroutine f_main()
    double precision :: ekin1,epot1,etot1
    double precision :: time_diag,time_snap,time_sys
    double precision :: r,acc
+   real(c_float) :: eps2
    type(fdps_controller) :: fdps_ctrl
    type(full_particle), dimension(:), pointer :: ptcl
    type(c_funptr) :: pfunc_ep_ep,pfunc_ep_sp
@@ -69,8 +69,8 @@ subroutine f_main()
     call g5_open()
     call g5_set_eps_to_all(eps_grav);
 #elif defined(ENABLE_PIKG_KERNEL_X86)
-    call calc_gravity_ep_ep_initialize(eps_grav*eps_grav)
-    call calc_gravity_ep_sp_initialize(eps_grav*eps_grav)
+    eps2 = eps_grav * eps_grav
+    call pikg_calc_grav_ep_ep_initialize(eps2)
 #endif
 
    !* Compute force at the initial time

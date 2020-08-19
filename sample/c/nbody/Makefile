@@ -50,8 +50,7 @@ CONVERSION_TYPE=reference
 #CXXFLAGS+= -mavx512f -mavx512dq -ffast-math
 
 PIKG_FLAGS= --conversion-type $(CONVERSION_TYPE)
-OBJ_PIKG = kernel_epep.o kernel_epsp.o
-#PIKG_BUILD = make kernel_pikg.o
+OBJ_PIKG = kernel_epep.o 
 PIKG_BUILD = make $(OBJ_PIKG)
 else
 PIKG_BUILD =
@@ -69,12 +68,8 @@ endif
 
 HDR_USER_DEFINED_TYPE = user_defined.h
 
-ifeq ($(use_pikg_x86),yes)
-SRC_USER = c_main.c 
-else
 SRC_USER = user_defined.c \
 	   c_main.c 
-endif
 SRC_CXX = FDPS_ftn_if.cpp \
 	  FDPS_Manipulators.cpp \
 	  main.cpp
@@ -97,9 +92,7 @@ FDPS_c_if.h $(SRC_CXX): $(HDR_USER_DEFINED_TYPE) Makefile
 	$(FDPS_C_IF_GENERATOR) user_defined.h --output ./
 
 kernel_epep.cpp:	kernel_epep.pikg
-	$(PIKG) $(PIKG_FLAGS) -i kernel_epep.pikg --c-interface kernel_epep.h --epi-name full_particle --epj-name full_particle --force-name full_particle --kernel-name calc_gravity_ep_ep -o $@
-kernel_epsp.cpp:	kernel_epsp.pikg
-	$(PIKG) $(PIKG_FLAGS) -i kernel_epsp.pikg --c-interface kernel_epsp.h --epi-name full_particle --epj-name PS::SPJMonopole --force-name full_particle --kernel-name calc_gravity_ep_sp -o $@
+	$(PIKG) $(PIKG_FLAGS) -i kernel_epep.pikg --c-interface kernel_epep.h --epi-name epi_grav --epj-name epj_grav --force-name force_grav --kernel-name pikg_calc_grav_ep_ep -o $@
 
 $(OBJ_USER): FDPS_c_if.h 
 
