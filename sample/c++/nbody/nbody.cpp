@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
 
     if(PS::Comm::getRank() == 0) {
         char sout_de[1024];
-	sprintf(sout_de, "%s/t-de.dat", dir_name);
+        sprintf(sout_de, "%s/t-de.dat", dir_name);
         fout_eng.open(sout_de);
         fprintf(stdout, "This is a sample program of N-body simulation on FDPS!\n");
         fprintf(stdout, "Number of processes: %d\n", PS::Comm::getNumberOfProc());
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
 #endif
     
     PS::TreeForForceLong<FPGrav, FPGrav, FPGrav>::Monopole tree_grav;
-    tree_grav.initialize(n_tot, theta, n_leaf_limit, n_group_limit);
+    tree_grav.initialize(n_loc, theta, n_leaf_limit, n_group_limit);
 #ifdef MULTI_WALK
     const PS::S32 n_walk_limit = 200;
     const PS::S32 tag_max = 1;

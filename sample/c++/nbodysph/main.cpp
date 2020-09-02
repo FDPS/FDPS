@@ -48,21 +48,22 @@ int main(int argc, char* argv[]){
 	dinfo.setDomain(PS::Comm::getNumberOfProc(), 1, 1);
 	dinfo.decomposeDomainAll(sph_system);
 	sph_system.exchangeParticle(dinfo);
+    PS::S32 n_loc = sph_system.getNumberOfParticleLocal();
 	//plant tree
 	PS::TreeForForceShort<RESULT::Dens , EPI::Dens , EPJ::Dens >::Gather   dens_tree;
 	PS::TreeForForceShort<RESULT::Drvt , EPI::Drvt , EPJ::Drvt >::Gather   drvt_tree;
 	PS::TreeForForceShort<RESULT::Hydro, EPI::Hydro, EPJ::Hydro>::Symmetry hydr_tree;
 	PS::TreeForForceLong <RESULT::Grav , EPI::Grav , EPJ::Grav >::Monopole grav_tree;
 
-	dens_tree.initialize(sph_system.getNumberOfParticleGlobal());
-	drvt_tree.initialize(sph_system.getNumberOfParticleGlobal());
-	hydr_tree.initialize(sph_system.getNumberOfParticleGlobal());
-	grav_tree.initialize(sph_system.getNumberOfParticleGlobal());
+	dens_tree.initialize(n_loc);
+	drvt_tree.initialize(n_loc);
+	hydr_tree.initialize(n_loc);
+	grav_tree.initialize(n_loc);
 
 	for(int loop = 0 ; loop <= 5 ; ++ loop){
 		dens_tree.calcForceAllAndWriteBack(CalcDensity()   , sph_system, dinfo);
 	}
-	for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
+	for(PS::S32 i = 0 ; i < n_loc ; ++ i){
 		sph_system[i].setPressure();
 	}
 	drvt_tree.calcForceAllAndWriteBack(CalcDerivative(), sph_system, dinfo);
@@ -82,10 +83,11 @@ int main(int argc, char* argv[]){
 		Predict(sph_system, dt);
 		dinfo.decomposeDomainAll(sph_system);
 		sph_system.exchangeParticle(dinfo);
+        n_loc = sph_system.getNumberOfParticleLocal();
 		for(int loop = 0 ; loop <= 2 ; ++ loop){
 			dens_tree.calcForceAllAndWriteBack(CalcDensity()   , sph_system, dinfo);
 		}
-		for(PS::S32 i = 0 ; i < sph_system.getNumberOfParticleLocal() ; ++ i){
+		for(PS::S32 i = 0 ; i < n_loc ; ++ i){
 			sph_system[i].setPressure();
 		}
 		drvt_tree.calcForceAllAndWriteBack(CalcDerivative(), sph_system, dinfo);

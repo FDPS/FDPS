@@ -179,7 +179,7 @@ int main(int argc, char **argv)
     ptcl.exchangeParticle(domain_info);
     this_run.npart_local = ptcl.getNumberOfParticleLocal();
     PS::TreeForForceLong<Result_treepm, EPItreepm, EPJtreepm>::MonopoleWithCutoff treepm_tree;
-    treepm_tree.initialize(3*ptcl.getNumberOfParticleGlobal(), this_run.theta);
+    treepm_tree.initialize(ptcl.getNumberOfParticleLocal(), this_run.theta);
 #ifdef ENABLE_PHANTOM_GRAPE_X86
     //g5_open();
     pg5_gen_s2_force_table(EPS_FOR_PP, 3.0/SIZE_OF_MESH);

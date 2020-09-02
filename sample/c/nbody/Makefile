@@ -29,31 +29,42 @@ LDFLAGS =
 #CFLAGS   += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 #CXXFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
-
 #use_pikg_x86=yes
-PIKG_ROOT = $(FDPS_LOC)/pikg/
-PIKG = $(PIKG_ROOT)/bin/pikg
+
 ifeq ($(use_pikg_x86),yes)
-INC += -I$(PIKG_ROOT)/inc
-CFLAGS+= -DUSE_PIKG_KERNEL -I$(PIKG_ROOT)/inc
-CXXFLAGS+= -DUSE_PIKG_KERNEL -DPIKG_USE_FDPS_VECTOR -I$(PIKG_ROOT)/inc
+PIKG_ROOT = $(FDPS_LOC)/pikg
+PIKG_HDR_DIR = $(PIKG_ROOT)/inc
+PIKG = $(PIKG_ROOT)/bin/pikg
+CFLAGS += -DUSE_PIKG_KERNEL -I$(PIKG_HDR_DIR)
+CXXFLAGS += -DUSE_PIKG_KERNEL -DPIKG_USE_FDPS_VECTOR -I$(PIKG_HDR_DIR)
 
-# reference option
+# Set convertion type
+# (i) Reference mode
 CONVERSION_TYPE=reference
-
-# AVX2 options
+# (ii) AVX2 mode
 #CONVERSION_TYPE = AVX2
-#CXXFLAGS+= -mavx2 -mfma -ffast-math
-
-# AVX-512 options
+#CXXFLAGS += -mavx2 -mfma -ffast-math
+# (iii) AVX-512 mode
 #CONVERSION_TYPE = AVX-512
-#CXXFLAGS+= -mavx512f -mavx512dq -ffast-math
+#CXXFLAGS += -mavx512f -mavx512dq -ffast-math
+# (iv) ARM SVE mode
+#CONVERSION_TYPE = A64FX
+#CXXFLAGS += -Kfast
 
-PIKG_FLAGS= --conversion-type $(CONVERSION_TYPE)
-OBJ_PIKG = kernel_epep.o 
-PIKG_BUILD = make $(OBJ_PIKG)
+EPI = epi_grav
+EPJ = epj_grav
+FORCE = force_grav
+SRC_CXX_PIKG = kernel_epep.cpp
+HDR_C_PIKG = kernel_epep.h 
 else
-PIKG_BUILD =
+PIKG_HDR_DIR =
+PIKG =
+CONVERSION_TYPE =
+EPI =
+EPJ =
+FORCE =
+SRC_CXX_PIKG =
+HDR_C_PIKG =
 endif
 
 # fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
@@ -70,37 +81,39 @@ HDR_USER_DEFINED_TYPE = user_defined.h
 
 SRC_USER = user_defined.c \
 	   c_main.c 
-SRC_CXX = FDPS_ftn_if.cpp \
-	  FDPS_Manipulators.cpp \
-	  main.cpp
+SRC_CXX_FDPS = FDPS_ftn_if.cpp \
+	       FDPS_Manipulators.cpp \
+	       main.cpp
+SRC_CXX_ALL = $(SRC_CXX_FDPS) $(SRC_CXX_PIKG)
 
-OBJ_USER = $(SRC_USER:c=o)
-OBJ_CXX	 = $(SRC_CXX:cpp=o)
-OBJ	 = $(OBJ_USER) $(OBJ_CXX)
+OBJ_USER	= $(SRC_USER:c=o)
+OBJ_CXX_FDPS	= $(SRC_CXX_FDPS:cpp=o)
+OBJ_CXX_PIKG	= $(SRC_CXX_PIKG:cpp=o)
+OBJ_CXX_ALL	= $(OBJ_CXX_FDPS) $(OBJ_CXX_PIKG)
+OBJ		= $(OBJ_USER) $(OBJ_CXX_ALL)
+
 TARGET = nbody.out
 
-$(TARGET): $(OBJ_PIKG) $(OBJ) result
-	$(PIKG_BUILD)
-	$(CXX) $(OBJ) $(OBJ_PIKG) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
+$(TARGET): $(OBJ) result
+	$(CXX) $(OBJ) $(CXXFLAGS) -o $(TARGET) $(LDFLAGS)
 
 result:
 	mkdir -p result
 
-$(OBJ_PIKG): $(SRC_CXX)
+$(OBJ_USER): FDPS_c_if.h  $(HDR_C_PIKG)
 
-FDPS_c_if.h $(SRC_CXX): $(HDR_USER_DEFINED_TYPE) Makefile
-	$(FDPS_C_IF_GENERATOR) user_defined.h --output ./
+FDPS_c_if.h $(SRC_CXX_FDPS): $(HDR_USER_DEFINED_TYPE) Makefile
+	$(FDPS_C_IF_GENERATOR) $(HDR_USER_DEFINED_TYPE) --output ./
 
-kernel_epep.cpp:	kernel_epep.pikg
-	$(PIKG) $(PIKG_FLAGS) -i kernel_epep.pikg --c-interface kernel_epep.h --epi-name epi_grav --epj-name epj_grav --force-name force_grav --kernel-name pikg_calc_grav_ep_ep -o $@
-
-$(OBJ_USER): FDPS_c_if.h 
+$(SRC_CXX_PIKG) $(HDR_C_PIKG): kernel_epep.pikg
+	$(PIKG) --conversion-type $(CONVERSION_TYPE) --epi-name $(EPI) --epj-name $(EPJ) --force-name $(FORCE) --kernel-name "pikg_calc_grav_ep_ep" --c-interface $(HDR_C_PIKG) -o $(SRC_CXX_PIKG) -i $<
 
 clean:
 	rm -f *.o *.s $(TARGET) *.dat
 
 distclean: clean
-	rm -f $(SRC_CXX) FDPS_c_if.h FDPS_Manipulators.h user_defined.hpp kernel_pikg.cpp kernel_epep.h kernel_epsp.h kernel_epep.cpp kernel_epsp.cpp
+	rm -f $(SRC_CXX_FDPS) FDPS_c_if.h FDPS_Manipulators.h user_defined.hpp
+	rm -f $(SRC_CXX_PIKG) $(HDR_C_PIKG)
 	rm -rf result
 
 # fdps-autotest-run (DO NOT CHANGE THIS LINE)

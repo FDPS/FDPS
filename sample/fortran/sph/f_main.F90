@@ -20,7 +20,7 @@ subroutine f_main()
    integer :: nstep
    integer :: psys_num,dinfo_num
    integer :: tree_num_dens,tree_num_hydro
-   integer :: ntot,nloc
+   integer :: n_tot,n_loc
    logical :: clear
    double precision :: time,dt,end_time
    type(fdps_f64vec) :: pos_ll,pos_ul
@@ -53,17 +53,17 @@ subroutine f_main()
    call fdps_ctrl%exchange_particle(psys_num,dinfo_num)
 
    !* Make two tree structures
-   ntot = fdps_ctrl%get_nptcl_glb(psys_num)
+   n_loc = fdps_ctrl%get_nptcl_loc(psys_num)
    !** dens_tree (used for the density calculation)
    call fdps_ctrl%create_tree(tree_num_dens, &
                               "Short,force_dens,essential_particle,essential_particle,Gather")
-   call fdps_ctrl%init_tree(tree_num_dens,3*ntot,theta, &
+   call fdps_ctrl%init_tree(tree_num_dens,n_loc,theta, &
                             n_leaf_limit,n_group_limit)
 
    !** hydro_tree (used for the force calculation)
    call fdps_ctrl%create_tree(tree_num_hydro, &
                               "Short,force_hydro,essential_particle,essential_particle,Symmetry")
-   call fdps_ctrl%init_tree(tree_num_hydro,3*ntot,theta, &
+   call fdps_ctrl%init_tree(tree_num_hydro,n_loc,theta, &
                             n_leaf_limit,n_group_limit)
 
    !* Compute density, pressure, acceleration due to pressure gradient
@@ -108,8 +108,8 @@ subroutine f_main()
       call set_pressure(fdps_ctrl,psys_num)
       pfunc_ep_ep = c_funloc(calc_hydro_force)
       call fdps_ctrl%calc_force_all_and_write_back(tree_num_hydro, &
-                                                   pfunc_ep_ep,   &
-                                                   psys_num,      &
+                                                   pfunc_ep_ep,    &
+                                                   psys_num,       &
                                                    dinfo_num)
 
       !* Get a new timestep

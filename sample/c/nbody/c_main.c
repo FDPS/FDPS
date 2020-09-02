@@ -186,20 +186,21 @@ int c_main()
     int psys_num;
     fdps_create_psys(&psys_num,"full_particle");
     fdps_init_psys(psys_num);
+    // Make an initial condition
+    int n_tot=1024;
+    setup_IC(psys_num,n_tot);
+    // Domain decomposition and exchange particle
+    fdps_decompose_domain_all(dinfo_num,psys_num,-1.0);
+    fdps_exchange_particle(psys_num,dinfo_num);
+    int n_loc=fdps_get_nptcl_loc(psys_num);
     // Create and initialize tree object
     int tree_num;
     fdps_create_tree(&tree_num, 
                      "Long,full_particle,full_particle,full_particle,Monopole");
-    int ntot=1024;
     double theta = 0.5;
     int n_leaf_limit = 8;
     int n_group_limit = 64;
-    fdps_init_tree(tree_num, ntot, theta, n_leaf_limit, n_group_limit);
-    // Make an initial condition
-    setup_IC(psys_num,ntot);
-    // Domain decomposition and exchange particle
-    fdps_decompose_domain_all(dinfo_num,psys_num,-1.0);
-    fdps_exchange_particle(psys_num,dinfo_num);
+    fdps_init_tree(tree_num, n_loc, theta, n_leaf_limit, n_group_limit);
     // Compute force at the initial time
     fdps_calc_force_all_and_write_back(tree_num, 
                                        calc_gravity_ep_ep,

@@ -56,11 +56,12 @@ subroutine f_main()
    !* Domain decomposition and exchange particle
    call fdps_ctrl%decompose_domain_all(dinfo_num,psys_num)
    call fdps_ctrl%exchange_particle(psys_num,dinfo_num)
+   nloc = fdps_ctrl%get_nptcl_loc(psys_num)
 
    !* Make a tree structure
    call fdps_ctrl%create_tree(tree_num, &
                               "Short,fplj,fplj,fplj,Scatter")
-   call fdps_ctrl%init_tree(tree_num,3*ntot,theta, &
+   call fdps_ctrl%init_tree(tree_num,nloc,theta, &
                             n_leaf_limit,n_group_limit)
 
    !* Compute force

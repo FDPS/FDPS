@@ -476,7 +476,7 @@ int main(int argc, char *argv[]){
     n_grav_loc = system_grav.getNumberOfParticleLocal();
     PS::TreeForForceShort<FPLJ, FPLJ, FPLJ>::Scatter tree_grav;
 
-    tree_grav.initialize(n_grav_glb, theta, n_leaf_limit, n_group_limit);
+    tree_grav.initialize(n_grav_loc, theta, n_leaf_limit, n_group_limit);
     
     tree_grav.calcForceAllAndWriteBack(CalcForceFpFp,  system_grav, dinfo);
 

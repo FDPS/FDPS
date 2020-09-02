@@ -256,7 +256,7 @@ void c_main() {
     fdps_exchange_particle(psys_num,dinfo_num);
 
     // Make two tree structures
-    int ntot = fdps_get_nptcl_glb(psys_num);
+    int n_loc = fdps_get_nptcl_loc(psys_num);
     // tree_dens (used for the density calculation)
     int tree_num_dens;
     fdps_create_tree(&tree_num_dens,
@@ -264,13 +264,13 @@ void c_main() {
     float theta = 0.5;
     int n_leaf_limit = 8;
     int n_group_limit = 64;
-    fdps_init_tree(tree_num_dens,3*ntot,theta,n_leaf_limit,n_group_limit);
+    fdps_init_tree(tree_num_dens,n_loc,theta,n_leaf_limit,n_group_limit);
 
     // tree_hydro (used for the force calculation)
     int tree_num_hydro;
     fdps_create_tree(&tree_num_hydro,
                      "Short,force_hydro,essential_particle,essential_particle,Symmetry");
-    fdps_init_tree(tree_num_hydro,3*ntot,theta,n_leaf_limit,n_group_limit);
+    fdps_init_tree(tree_num_hydro,n_loc,theta,n_leaf_limit,n_group_limit);
 
     // Compute density, pressure, acceleration due to pressure gradient
     fdps_calc_force_all_and_write_back(tree_num_dens, 

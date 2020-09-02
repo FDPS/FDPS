@@ -13,8 +13,8 @@ FDPS_FTN_IF_GENERATOR = $(FDPS_LOC)/scripts/gen_ftn_if.py
 FC=gfortran-mp-9
 CXX=g++-mp-9
 # MPI case
-#FC=mpif90-openmpi-gcc8
-#CXX=mpicxx-openmpi-gcc8
+#FC=mpif90-openmpi-gcc9
+#CXX=mpicxx-openmpi-gcc9
 # [Option 1] w/o optimization
 #FCFLAGS = -std=f2003 -O0 -Wall
 #CXXFLAGS = -std=c++11 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)

@@ -12,7 +12,7 @@ subroutine f_main()
    use user_defined_types
    implicit none
    !* Local parameters
-   integer, parameter :: ntot=2**10
+   integer, parameter :: n_tot=2**10
    !-(force parameters)
    real, parameter :: theta = 0.5
    integer, parameter :: n_leaf_limit = 8
@@ -27,7 +27,7 @@ subroutine f_main()
    !* Local variables
    integer :: i,j,k,num_loop,ierr
    integer :: psys_num,dinfo_num,tree_num
-   integer :: nloc
+   integer :: n_loc
    logical :: clear
    double precision :: ekin0,epot0,etot0
    double precision :: ekin1,epot1,etot1
@@ -52,18 +52,19 @@ subroutine f_main()
    call fdps_ctrl%create_psys(psys_num,'full_particle')
    call fdps_ctrl%init_psys(psys_num)
 
-   !* Create tree object
-   call fdps_ctrl%create_tree(tree_num, &
-                              "Long,full_particle,full_particle,full_particle,Monopole")
-   call fdps_ctrl%init_tree(tree_num,ntot,theta, &
-                            n_leaf_limit,n_group_limit)
-
    !* Make an initial condition
-   call setup_IC(fdps_ctrl,psys_num,ntot)
+   call setup_IC(fdps_ctrl,psys_num,n_tot)
 
    !* Domain decomposition and exchange particle
    call fdps_ctrl%decompose_domain_all(dinfo_num,psys_num)
    call fdps_ctrl%exchange_particle(psys_num,dinfo_num)
+   n_loc = fdps_ctrl%get_nptcl_loc(psys_num)
+
+   !* Create tree object
+   call fdps_ctrl%create_tree(tree_num, &
+                              "Long,full_particle,full_particle,full_particle,Monopole")
+   call fdps_ctrl%init_tree(tree_num,n_loc,theta, &
+                            n_leaf_limit,n_group_limit)
 
 #if defined(ENABLE_PHANTOM_GRAPE_X86)
     call g5_open()

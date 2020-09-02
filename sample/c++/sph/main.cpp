@@ -394,14 +394,15 @@ int main(int argc, char* argv[]){
    dinfo.decomposeDomainAll(sph_system);
    // Exchange the SPH particles between the (MPI) processes
    sph_system.exchangeParticle(dinfo);
+   PS::S32 n_loc = sph_system.getNumberOfParticleLocal();
    // Make two tree structures
    // (one is for the density calculation and
    //  another is for the force calculation.)
    PS::TreeForForceShort<Dens, EP, EP>::Gather dens_tree;
-   dens_tree.initialize(3 * sph_system.getNumberOfParticleGlobal());
+   dens_tree.initialize(n_loc);
 
    PS::TreeForForceShort<Hydro, EP, EP>::Symmetry hydr_tree;
-   hydr_tree.initialize(3 * sph_system.getNumberOfParticleGlobal());
+   hydr_tree.initialize(n_loc);
    // Compute density, pressure, acceleration due to pressure gradient
    dens_tree.calcForceAllAndWriteBack(CalcDensity(), sph_system, dinfo);
    setPressure(sph_system);
