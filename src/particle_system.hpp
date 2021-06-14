@@ -165,6 +165,7 @@ namespace ParticleSimulator{
                               void (Tptcl::*pFuncPtcl)(FILE*),
                               S32 (Theader::*pFuncHead)(FILE*),
                               const char * open_format){
+            bool read_binary_format = (strcmp(open_format, "rb")==0);
             if(format == NULL){//Read from single file
                 if(Comm::getRank() == 0){
                     FILE* fp = fopen(filename, open_format);
@@ -174,11 +175,13 @@ namespace ParticleSimulator{
                         Abort(-1);
                     }
                     S32 n_ptcl_ = (header->*pFuncHead)(fp);
-                    while('\n' == getc(fp));
-                    fseek(fp, -1, SEEK_CUR);
+                    if (!read_binary_format) {
+                        while('\n' == getc(fp));
+                        fseek(fp, -1, SEEK_CUR);
+                    }
                     if(n_ptcl_ < 0){//User does NOT return # of ptcl
                         //n_ptcl_ = 0;
-                        if(strcmp(open_format, "rb")==0){
+                        if(read_binary_format){
                             n_ptcl_ = countPtclBinary(fp, pFuncPtcl);
                         }
                         else{
@@ -188,8 +191,10 @@ namespace ParticleSimulator{
                         }
                         fseek(fp, 0, SEEK_SET);
                         (header->*pFuncHead)(fp);
-                        while('\n' == getc(fp));
-                        fseek(fp, -1, SEEK_CUR);
+                        if (!read_binary_format) {
+                            while('\n' == getc(fp));
+                            fseek(fp, -1, SEEK_CUR);
+                        }
                     }
                     //Inform the # of ptcl for each process.
                     const S32 n_proc = Comm::getNumberOfProc();
@@ -246,10 +251,12 @@ namespace ParticleSimulator{
                     Abort(-1);
                 }
                 S32 n_ptcl_ = (header->*pFuncHead)(fp);
-                while('\n' == getc(fp));
-                fseek(fp, -1, SEEK_CUR);
+                if (!read_binary_format) {
+                    while('\n' == getc(fp));
+                    fseek(fp, -1, SEEK_CUR);
+                }
                 if(n_ptcl_ < 0){//User does NOT return # of ptcl
-                    if(strcmp(open_format, "rb")==0){
+                    if(read_binary_format){
                         n_ptcl_ = countPtclBinary(fp, pFuncPtcl);
                     }
                     else{
@@ -259,8 +266,10 @@ namespace ParticleSimulator{
                     ptcl_.resizeNoInitialize(n_ptcl_);
                     fseek(fp, 0, SEEK_SET);
                     S32 tmp = (header->*pFuncHead)(fp);
-                    while('\n' == getc(fp));
-                    fseek(fp, -1, SEEK_CUR);                    
+                    if (!read_binary_format) {
+                        while('\n' == getc(fp));
+                        fseek(fp, -1, SEEK_CUR);  
+                    }                  
                     for(S32 i = 0 ; i < ptcl_.size() ; ++ i){
                         (ptcl_[i].*pFuncPtcl)(fp);
                     }
