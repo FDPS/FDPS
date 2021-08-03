@@ -1,0 +1,12 @@
+F32 eps2
+rij = EPI.pos - EPJ.pos
+r2  = rij * rij + eps2
+over_r   = rsqrt(r2)
+over_r_sq  = over_r * over_r
+m_over_r  = EPJ.mass * over_r
+m_over_r_cu = over_r_sq * m_over_r
+acc -= m_over_r_cu * rij
+pot -= 0.5f*m_over_r
+
+
+

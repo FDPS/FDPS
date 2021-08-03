@@ -146,27 +146,27 @@ namespace ParticleSimulator{
         }
 #else
         const T & operator[](const int i) const {
-			if(0==i) return x;
-			if(1==i) return y;
-			std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
-			std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
+            if(0==i) return x;
+            if(1==i) return y;
+            std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
+            std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-			MPI_Abort(MPI_COMM_WORLD,-1);
+            MPI_Abort(MPI_COMM_WORLD,-1);
 #endif		
-			exit(-1);
+            exit(-1);
             return x; //dummy for avoid warning
-		}
+        }
         T & operator[](const int i){
-			if(0==i) return x;
-			if(1==i) return y;
-			std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
-			std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
+            if(0==i) return x;
+            if(1==i) return y;
+            std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
+            std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-			MPI_Abort(MPI_COMM_WORLD,-1);
+            MPI_Abort(MPI_COMM_WORLD,-1);
 #endif		
-			exit(-1);
+            exit(-1);
             return x; //dummy for avoid warning
-		}
+        }
 #endif
 
 	T getDistanceSQ(const Vector2 & u) const {
@@ -179,6 +179,13 @@ namespace ParticleSimulator{
         }
         bool operator != (const Vector2 & u) const {
             return ( (x!=u.x) || (y!=u.y) );
+        }
+        
+        bool isnan() const {
+            return std::isnan(x) || std::isnan(y);
+        }
+        bool isinf() const {
+            return std::isinf(x) || std::isinf(y);
         }
 
     };

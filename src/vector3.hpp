@@ -190,6 +190,13 @@ namespace ParticleSimulator{
         bool operator != (const Vector3 & u) const {
             return ( (x!=u.x) || (y!=u.y) || (z!=u.z) );
         }
+
+        bool isnan() const {
+            return std::isnan(x) || std::isnan(y) || std::isnan(z);
+        }
+        bool isinf() const {
+            return std::isinf(x) || std::isinf(y) || std::isinf(z);
+        }
 	
 	/*
 	Vector3 getDiagonal (const Vector3 & u) const {

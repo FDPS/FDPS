@@ -163,13 +163,19 @@ subroutine setup_IC(fdps_ctrl,psys_num,end_time,pos_ll,pos_ul)
    double precision, intent(inout) :: end_time
    type(fdps_f64vec) :: pos_ll,pos_ul
    !* Local variables
-   integer :: i
-   integer :: nprocs,myrank
-   integer :: nptcl_glb
-   double precision :: dens_L,dens_R,eng_L,eng_R
+   integer :: i,ii,irank
+   integer :: nprocs, myrank
+   integer :: nx_left, ny_left, nz_left
+   integer :: nx_right, ny_right, nz_right
+   integer :: nptcl_loc, nptcl_glb
+   integer :: nptcl_quot, nptcl_rem
+   integer :: i_first, i_last
+   double precision :: dens_left, dens_right
+   double precision :: eng_left, eng_right
+   double precision :: sv, mass
    double precision :: x,y,z,dx,dy,dz
-   double precision :: dx_tgt,dy_tgt,dz_tgt
    type(full_particle), dimension(:), pointer :: ptcl
+   character(len=5)  :: proc_num
    character(len=64) :: fname
 
    !* Get # of MPI processes and rank number
@@ -184,128 +190,168 @@ subroutine setup_IC(fdps_ctrl,psys_num,end_time,pos_ll,pos_ul)
    pos_ul%y = pos_ul%x / 8.0d0
    pos_ul%z = pos_ul%x / 8.0d0
 
-   !* Make an initial condition at RANK 0
+   !* Set the left and right states
+   dens_left  = 1.0d0
+   eng_left   = 2.5d0
+   dens_right = 0.5d0
+   eng_right  = 2.5d0
+
+   !* Set the separation of particle of the left state
+   dx = 1.0d0 / 128.0d0
+   dy = dx
+   dz = dx
+
+   !* Count # of particles in the computational domain
+   !** (1) Left-half
+   nx_left = 0
+   x = 0.0d0
+   do
+      nx_left = nx_left + 1
+      x = x + dx
+      if (x >= 0.5d0*pos_ul%x) exit
+   end do 
+   ny_left = 0
+   y = 0.0d0
+   do 
+      ny_left = ny_left + 1
+      y = y + dy
+      if (y >= pos_ul%y) exit
+   end do
+   nz_left = 0
+   z = 0.0d0
+   do
+      nz_left = nz_left + 1
+      z = z + dz
+      if (z >= pos_ul%z) exit
+   end do
+   !** (2) Right-half
+   nx_right = 0
+   x = 0.5d0*pos_ul%x
+   do
+      nx_right = nx_right + 1
+      x = x + (dens_left/dens_right)*dx
+      if (x >= pos_ul%x) exit
+   end do
+   ny_right = 0
+   y = 0.0d0
+   do 
+      ny_right = ny_right + 1
+      y = y + dy
+      if (y >= pos_ul%y) exit
+   end do
+   nz_right = 0
+   z = 0.0d0
+   do 
+      nz_right = nz_right + 1
+      z = z + dz
+      if (z >= pos_ul%z) exit
+   end do
+   !** (3) calculate # of particles
+   nptcl_glb = (nx_left * ny_left * nz_left) &
+             + (nx_right * ny_right * nz_right)
    if (myrank == 0) then
-      !* Set the left and right states
-      dens_L = 1.0d0
-      eng_L  = 2.5d0
-      dens_R = 0.5d0
-      eng_R  = 2.5d0
-      !* Set the separation of particle of the left state
-      dx = 1.0d0 / 128.0d0
-      dy = dx
-      dz = dx
-      !* Set the number of local particles
-      nptcl_glb = 0
-      !** (1) Left-half
-      x = 0.0d0
-      do 
-         y = 0.0d0
-         do 
-            z = 0.0d0
-            do 
-               nptcl_glb = nptcl_glb + 1
-               z = z + dz
-               if (z >= pos_ul%z) exit
-            end do
-            y = y + dy
-            if (y >= pos_ul%y) exit
-         end do
-         x = x + dx
-         if (x >= 0.5d0*pos_ul%x) exit
-      end do
-      write(*,*)'nptcl_glb(L)   = ',nptcl_glb
-      !** (2) Right-half
-      x = 0.5d0*pos_ul%x
-      do
-         y = 0.0d0
-         do 
-            z = 0.0d0
-            do 
-               nptcl_glb = nptcl_glb + 1
-               z = z + dz
-               if (z >= pos_ul%z) exit
-            end do
-            y = y + dy
-            if (y >= pos_ul%y) exit
-         end do
-         x = x + (dens_L/dens_R)*dx
-         if (x >= pos_ul%x) exit
-      end do
-      write(*,*)'nptcl_glb(L+R) = ',nptcl_glb
-      !* Place SPH particles
-      call fdps_ctrl%set_nptcl_loc(psys_num,nptcl_glb)
-      call fdps_ctrl%get_psys_fptr(psys_num,ptcl)
-      i = 0
-      !** (1) Left-half
-      x = 0.0d0
-      do 
-         y = 0.0d0
-         do 
-            z = 0.0d0
-            do 
-               i = i + 1
-               ptcl(i)%id    = i
-               ptcl(i)%pos%x = x
-               ptcl(i)%pos%y = y
-               ptcl(i)%pos%z = z
-               ptcl(i)%dens  = dens_L
-               ptcl(i)%eng   = eng_L
-               z = z + dz
-               if (z >= pos_ul%z) exit
-            end do
-            y = y + dy
-            if (y >= pos_ul%y) exit
-         end do
-         x = x + dx
-         if (x >= 0.5d0*pos_ul%x) exit
-      end do
-      write(*,*)'nptcl(L)   = ',i
-      !** (2) Right-half
-      x = 0.5d0*pos_ul%x
-      do
-         y = 0.0d0
-         do 
-            z = 0.0d0
-            do 
-               i = i + 1
-               ptcl(i)%id    = i
-               ptcl(i)%pos%x = x
-               ptcl(i)%pos%y = y
-               ptcl(i)%pos%z = z
-               ptcl(i)%dens  = dens_R
-               ptcl(i)%eng   = eng_R
-               z = z + dz
-               if (z >= pos_ul%z) exit
-            end do
-            y = y + dy
-            if (y >= pos_ul%y) exit
-         end do
-         x = x + (dens_L/dens_R)*dx
-         if (x >= pos_ul%x) exit
-      end do
-      write(*,*)'nptcl(L+R) = ',i
-      !* Set particle mass and smoothing length
-      do i=1,nptcl_glb
-         ptcl(i)%mass = 0.5d0*(dens_L+dens_R)        &
-                      * (pos_ul%x*pos_ul%y*pos_ul%z) &
-                      / nptcl_glb
-         ptcl(i)%smth = kernel_support_radius * 0.012d0
-      end do
-
-      !* Check the initial distribution
-     !fname = "initial.dat"
-     !open(unit=9,file=trim(fname),action='write',status='replace')
-     !   do i=1,nptcl_glb
-     !      write(9,'(3es25.16e3)')ptcl(i)%pos%x, &
-     !                             ptcl(i)%pos%y, &
-     !                             ptcl(i)%pos%z
-     !   end do
-     !close(unit=9)
-
-   else
-      call fdps_ctrl%set_nptcl_loc(psys_num,0)
+      write(*,*)'nptcl_glb = ',nptcl_glb
    end if
+
+   !* Set # of local particles
+   nptcl_quot = nptcl_glb / nprocs
+   nptcl_rem  = mod(nptcl_glb, nprocs)
+   if (myrank == 0) then
+      write(*,*)'nptcl_quot = ',nptcl_quot
+      write(*,*)'nptcl_rem  = ',nptcl_rem
+   end if
+   nptcl_loc = nptcl_quot
+   if (myrank < nptcl_rem) nptcl_loc = nptcl_loc + 1
+   call fdps_ctrl%set_nptcl_loc(psys_num, nptcl_loc)
+   i_first = 1 + nptcl_quot * myrank
+   if (myrank > (nptcl_rem-1)) then
+      i_first = i_first + nptcl_rem
+   else
+      i_first = i_first + myrank
+   end if
+   i_last = i_first + nptcl_loc - 1
+   do irank=0, nprocs-1
+      if (irank == myrank) then
+         write(*,"(4(a,1x,i8))")'myrank =',myrank, &
+                   ', nptcl_loc =',nptcl_loc, &
+                   ', i_first =',i_first, &
+                   ', i_last =',i_last
+      end if
+      call fdps_ctrl%barrier()
+   end do
+
+   !* Set local particles
+   call fdps_ctrl%get_psys_fptr(psys_num,ptcl)
+   sv = (pos_ul%x * pos_ul%y * pos_ul%z) / nptcl_glb ! specific volume
+   mass = 0.5d0*(dens_left+dens_right) * sv
+   i = 1
+   !** (1) Left-half
+   x = 0.0d0
+   do 
+      y = 0.0d0
+      do 
+         z = 0.0d0
+         do 
+            if ((i_first <= i) .and. (i <= i_last)) then
+               ii = i - i_first + 1
+               ptcl(ii)%mass  = mass
+               ptcl(ii)%pos%x = x
+               ptcl(ii)%pos%y = y
+               ptcl(ii)%pos%z = z
+               ptcl(ii)%dens  = dens_left
+               ptcl(ii)%eng   = eng_left
+               ptcl(ii)%smth  = kernel_support_radius * 0.012d0
+               ptcl(ii)%id    = i
+            end if
+            i = i + 1
+            z = z + dz
+            if (z >= pos_ul%z) exit
+         end do
+         y = y + dy
+         if (y >= pos_ul%y) exit
+      end do
+      x = x + dx
+      if (x >= 0.5d0*pos_ul%x) exit
+   end do
+   !** (2) Right-half
+   x = 0.5d0*pos_ul%x
+   do
+      y = 0.0d0
+      do 
+         z = 0.0d0
+         do 
+            if ((i_first <= i) .and. (i <= i_last)) then
+               ii = i - i_first + 1
+               ptcl(ii)%mass  = mass
+               ptcl(ii)%pos%x = x
+               ptcl(ii)%pos%y = y
+               ptcl(ii)%pos%z = z
+               ptcl(ii)%dens  = dens_right
+               ptcl(ii)%eng   = eng_right
+               ptcl(ii)%smth  = kernel_support_radius * 0.012d0
+               ptcl(ii)%id    = i
+            end if
+            i = i + 1
+            z = z + dz
+            if (z >= pos_ul%z) exit
+         end do
+         y = y + dy
+         if (y >= pos_ul%y) exit
+      end do
+      x = x + (dens_left/dens_right)*dx
+      if (x >= pos_ul%x) exit
+   end do
+
+   !* Check the initial distribution
+   !write(proc_num,"(i5.5)")myrank
+   !fname = "initial" // proc_num // ".dat"
+   !open(unit=9,file=trim(fname),action='write',status='replace')
+   !   do i=1,nptcl_loc
+   !      write(9,'(3es25.16e3)')ptcl(i)%pos%x, &
+   !                             ptcl(i)%pos%y, &
+   !                             ptcl(i)%pos%z
+   !   end do
+   !close(unit=9)
 
    !* Set the end time
    end_time = 0.12d0

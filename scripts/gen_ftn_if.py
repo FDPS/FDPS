@@ -3163,6 +3163,7 @@ class Automatic_Generator:
         pat_create_psys          = re.compile(r"fdps-autogen:create_psys;")
         pat_init_psys            = re.compile(r"fdps-autogen:init_psys;")
         pat_get_psys_memsize     = re.compile(r"fdps-autogen:get_psys_memsize;")
+        pat_set_psys_comm_info     = re.compile(r"fdps-autogen:set_psys_comm_info;")
         pat_get_psys_time_prof   = re.compile(r"fdps-autogen:get_psys_time_prof;")
         pat_clear_psys_time_prof = re.compile(r"fdps-autogen:clear_psys_time_prof;")
         pat_set_nptcl_smpl       = re.compile(r"fdps-autogen:set_nptcl_smpl;")
@@ -3180,6 +3181,8 @@ class Automatic_Generator:
         pat_create_tree          = re.compile(r"fdps-autogen:create_tree;")
         pat_init_tree            = re.compile(r"fdps-autogen:init_tree;")
         pat_get_tree_memsize     = re.compile(r"fdps-autogen:get_tree_memsize;")
+        pat_set_tree_comm_info     = re.compile(r"fdps-autogen:set_tree_comm_info;")
+        pat_set_exchange_let_mode     = re.compile(r"fdps-autogen:set_exchange_let_mode;")
         pat_get_tree_time_prof   = re.compile(r"fdps-autogen:get_tree_time_prof;")
         pat_clear_tree_time_prof = re.compile(r"fdps-autogen:clear_tree_time_prof;")
         pat_get_nint_ep_ep_loc   = re.compile(r"fdps-autogen:get_num_interact_ep_ep_loc;")
@@ -3214,6 +3217,9 @@ class Automatic_Generator:
                 self.__write_psys_branch_cpp_impl(ofh,inst)
             if (pat_get_psys_memsize.search(line)):
                 inst = "return (long long int) psys->getMemSizeUsed();"
+                self.__write_psys_branch_cpp_impl(ofh,inst)
+            if (pat_set_psys_comm_info.search(line)):
+                inst = "psys->setCommInfo(*((PS::CommInfo*)ci));"
                 self.__write_psys_branch_cpp_impl(ofh,inst)
             if (pat_get_psys_time_prof.search(line)):
                 inst = "*prof = psys->getTimeProfile();"
@@ -3267,6 +3273,12 @@ class Automatic_Generator:
                 self.__write_tree_branch_cpp_impl(ofh,inst)
             if (pat_get_tree_memsize.search(line)):
                 inst = "return (long long int) tree->getMemSizeUsed();"
+                self.__write_tree_branch_cpp_impl(ofh,inst)
+            if (pat_set_tree_comm_info.search(line)):
+                inst = "tree->setCommInfo(*((PS::CommInfo*)ci));"
+                self.__write_tree_branch_cpp_impl(ofh,inst)
+            if (pat_set_exchange_let_mode.search(line)):
+                inst = "tree->setExchangeLETMode(static_cast<PS::EXCHANGE_LET_MODE>(mode));"
                 self.__write_tree_branch_cpp_impl(ofh,inst)
             if (pat_get_tree_time_prof.search(line)):
                 inst = "*prof = tree->getTimeProfile();"

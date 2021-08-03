@@ -5,22 +5,37 @@
 #include<random>
 
 #include <pikg_vector.hpp>
+#include "particle.hpp"
 
-struct Particle{
-  PIKG::F64vec pos;
-  PIKG::F64vec vel;
-  PIKG::F64vec acc;
-  PIKG::F64    mass;
-  PIKG::F64    pot;
-  static PIKG::F64 eps;
+#ifndef USE_CUDA_KERNEL
+#include "kernel.hpp"
+#else
+PIKG::S32 DispatchKernel(const PIKG::S32          tag,
+			 const PIKG::S32          n_walk,
+			 const Particle    *epi[],
+			 const PIKG::S32          n_epi[],
+			 const Particle    *epj[],
+			 const PIKG::S32          n_epj[]);
+PIKG::S32 RetrieveKernel(const PIKG::S32 tag,
+			 const PIKG::S32 n_walk,
+			 const PIKG::S32 ni[],
+			 Particle *force[]);
+void initialize_Kernel(const double eps2_);
 
-  void clear(){
-    acc = 0.0;
-    pot = 0.0;
+struct Kernel{
+  Kernel(const PIKG::F64 eps2){
+    initialize_Kernel(eps2);
+  }
+  void operator()(const Particle* epi,
+		  const int nepi,
+		  const Particle* epj,
+		  const int nepj,
+		  Particle* force){
+    DispatchKernel(0,1,&epi,&nepi,&epj,&nepj);
+    RetrieveKernel(0,1,&nepi,&force);
   }
 };
-
-#include "kernel.hpp"
+#endif
 //#include "kernel_orig.hpp"
 
 void makeColdUniformSphere(const PIKG::F64 mass_glb,

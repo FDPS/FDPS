@@ -8,7 +8,15 @@ See kernel_orig.hpp which is the hand-written source code of interaction kernel 
 # how to compile and run
 make
 ./main.out
-
+## for AVX2 mode
+use_avx2=yes make
+./main.out
+## for AVX-512 mode
+use_avx512=yes make
+./main.out
+## for ARM SVE mode ( and modify "CC" in Makefile)
+use_arm_sve=yes make
+./main.out
 # expected result
 If the total energy is conserved, the program shows "test passed" at the end of run.
 See ./exact which is the detailed log of succcessful run

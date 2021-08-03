@@ -34,6 +34,25 @@ module FDPS_module
       enumerator :: fdps_reuse_list
    end enum
 
+   !**** PS::EXCHANGE_LET_MODE
+   enum, bind(c)
+     enumerator :: fdps_exchange_let_a2a
+     enumerator :: fdps_exchange_let_p2p_exact
+     enumerator :: fdps_exchange_let_p2p_fast
+   end enum
+
+   !**** PS::CALC_DISTANCE_TYPE
+   enum, bind(c)
+     enumerator :: fdps_calc_distance_type_normal
+     enumerator :: fdps_calc_distance_type_nearest_x
+     enumerator :: fdps_calc_distance_type_nearest_y
+     enumerator :: fdps_calc_distance_type_nearest_xy
+     enumerator :: fdps_calc_distance_type_nearest_z
+     enumerator :: fdps_calc_distance_type_nearest_xz
+     enumerator :: fdps_calc_distance_type_nearest_yz
+     enumerator :: fdps_calc_distance_type_nearest_xyz
+   end enum
+
    !**** FDPS controller
    type, public :: FDPS_controller
       ! Note that this structure is introduced to avoid that
@@ -72,6 +91,7 @@ module FDPS_module
       procedure :: remove_particle
       procedure :: adjust_pos_into_root_domain
       procedure :: sort_particle
+      procedure :: set_psys_comm_info
       !-(DomainInfo functions)
       procedure :: create_dinfo
       procedure :: delete_dinfo
@@ -92,6 +112,7 @@ module FDPS_module
       procedure :: collect_sample_particle
       procedure :: decompose_domain
       procedure :: decompose_domain_all
+      procedure :: set_dinfo_comm_info
       !-(Tree functions)
       procedure :: create_tree
       procedure :: delete_tree
@@ -142,53 +163,101 @@ module FDPS_module
       !           are generated.
       ! fdps-autogen:get_epj_from_id:method;
       !-----------------------------------------------
+      procedure :: set_tree_comm_info
+      procedure :: set_exchange_let_mode
       !-(MPI comm. functions)
       procedure :: get_rank 
+      procedure :: ci_get_rank
       procedure :: get_rank_multi_dim
+      procedure :: ci_get_rank_multi_dim
       procedure :: get_num_procs
+      procedure :: ci_get_num_procs
       procedure :: get_num_procs_multi_dim
+      procedure :: ci_get_num_procs_multi_dim
       procedure :: get_logical_and
+      procedure :: ci_get_logical_and
       procedure :: get_logical_or
+      procedure :: ci_get_logical_or
       procedure, private :: get_min_value_s32
+      procedure, private :: ci_get_min_value_s32
       procedure, private :: get_min_value_s64
+      procedure, private :: ci_get_min_value_s64
       procedure, private :: get_min_value_f32
+      procedure, private :: ci_get_min_value_f32
       procedure, private :: get_min_value_f64
+      procedure, private :: ci_get_min_value_f64
       procedure, private :: get_min_value_w_id_f32
+      procedure, private :: ci_get_min_value_w_id_f32
       procedure, private :: get_min_value_w_id_f64
+      procedure, private :: ci_get_min_value_w_id_f64
       generic :: get_min_value => get_min_value_s32, &
                                   get_min_value_s64, &
                                   get_min_value_f32, &
                                   get_min_value_f64, &
                                   get_min_value_w_id_f32, &
                                   get_min_value_w_id_f64
+      generic :: ci_get_min_value => ci_get_min_value_s32, &
+                                  ci_get_min_value_s64, &
+                                  ci_get_min_value_f32, &
+                                  ci_get_min_value_f64, &
+                                  ci_get_min_value_w_id_f32, &
+                                  ci_get_min_value_w_id_f64
       procedure, private :: get_max_value_s32
+      procedure, private :: ci_get_max_value_s32
       procedure, private :: get_max_value_s64
+      procedure, private :: ci_get_max_value_s64
       procedure, private :: get_max_value_f32
+      procedure, private :: ci_get_max_value_f32
       procedure, private :: get_max_value_f64
+      procedure, private :: ci_get_max_value_f64
       procedure, private :: get_max_value_w_id_f32
+      procedure, private :: ci_get_max_value_w_id_f32
       procedure, private :: get_max_value_w_id_f64
+      procedure, private :: ci_get_max_value_w_id_f64
       generic :: get_max_value => get_max_value_s32, &
                                   get_max_value_s64, &
                                   get_max_value_f32, &
                                   get_max_value_f64, &
                                   get_max_value_w_id_f32, &
                                   get_max_value_w_id_f64
+      generic :: ci_get_max_value => ci_get_max_value_s32, &
+                                  ci_get_max_value_s64, &
+                                  ci_get_max_value_f32, &
+                                  ci_get_max_value_f64, &
+                                  ci_get_max_value_w_id_f32, &
+                                  ci_get_max_value_w_id_f64
       procedure, private :: get_sum_s32
+      procedure, private :: ci_get_sum_s32
       procedure, private :: get_sum_s64
+      procedure, private :: ci_get_sum_s64
       procedure, private :: get_sum_f32
+      procedure, private :: ci_get_sum_f32
       procedure, private :: get_sum_f64
+      procedure, private :: ci_get_sum_f64
       generic :: get_sum => get_sum_s32, &
                             get_sum_s64, &
                             get_sum_f32, &
                             get_sum_f64
+      generic :: ci_get_sum => ci_get_sum_s32, &
+                                  ci_get_sum_s64, &
+                                  ci_get_sum_f32, &
+                                  ci_get_sum_f64
       procedure, private :: broadcast_scalar_s32
+      procedure, private :: ci_broadcast_scalar_s32
       procedure, private :: broadcast_array_s32
+      procedure, private :: ci_broadcast_array_s32
       procedure, private :: broadcast_scalar_s64
+      procedure, private :: ci_broadcast_scalar_s64
       procedure, private :: broadcast_array_s64
+      procedure, private :: ci_broadcast_array_s64
       procedure, private :: broadcast_scalar_f32
+      procedure, private :: ci_broadcast_scalar_f32
       procedure, private :: broadcast_array_f32
+      procedure, private :: ci_broadcast_array_f32
       procedure, private :: broadcast_scalar_f64
+      procedure, private :: ci_broadcast_scalar_f64
       procedure, private :: broadcast_array_f64
+      procedure, private :: ci_broadcast_array_f64
       generic :: broadcast => broadcast_scalar_s32, &
                               broadcast_array_s32, &
                               broadcast_scalar_s64, &
@@ -197,8 +266,23 @@ module FDPS_module
                               broadcast_array_f32, &
                               broadcast_scalar_f64, &
                               broadcast_array_f64
+      generic :: ci_broadcast => ci_broadcast_scalar_s32, &
+                                  ci_broadcast_array_s32, &
+                                  ci_broadcast_scalar_s64, &
+                                  ci_broadcast_array_s64, &
+                                  ci_broadcast_scalar_f32, &
+                                  ci_broadcast_array_f32, &
+                                  ci_broadcast_scalar_f64, &
+                                  ci_broadcast_array_f64
       procedure :: get_wtime
+      procedure :: ci_get_wtime
       procedure :: barrier
+      procedure :: ci_barrier
+      procedure :: ci_initialize
+      procedure :: ci_set_communicator
+      procedure :: ci_delete
+      procedure :: ci_create
+      procedure :: ci_split
 
       !-(Utility functions)
       procedure :: mt_init_genrand
@@ -331,37 +415,74 @@ module FDPS_module
    !-------------------------------------------
    !-(MPI comm. functions)
    private :: get_rank 
+   private :: ci_get_rank
    private :: get_rank_multi_dim
+   private :: ci_get_rank_multi_dim
    private :: get_num_procs
+   private :: ci_get_num_procs
    private :: get_num_procs_multi_dim
+   private :: ci_get_num_procs_multi_dim
    private :: get_logical_and
+   private :: ci_get_logical_and
    private :: get_logical_or
+   private :: ci_get_logical_or
    private :: get_min_value_s32
+   private :: ci_get_min_value_s32
    private :: get_min_value_s64
+   private :: ci_get_min_value_s64
    private :: get_min_value_f32
+   private :: ci_get_min_value_f32
    private :: get_min_value_f64
+   private :: ci_get_min_value_f64
    private :: get_min_value_w_id_f32
+   private :: ci_get_min_value_w_id_f32
    private :: get_min_value_w_id_f64
+   private :: ci_get_min_value_w_id_f64
    private :: get_max_value_s32
+   private :: ci_get_max_value_s32
    private :: get_max_value_s64
+   private :: ci_get_max_value_s64
    private :: get_max_value_f32
+   private :: ci_get_max_value_f32
    private :: get_max_value_f64
+   private :: ci_get_max_value_f64
    private :: get_max_value_w_id_f32
+   private :: ci_get_max_value_w_id_f32
    private :: get_max_value_w_id_f64
+   private :: ci_get_max_value_w_id_f64
    private :: get_sum_s32
+   private :: ci_get_sum_s32
    private :: get_sum_s64
+   private :: ci_get_sum_s64
    private :: get_sum_f32
+   private :: ci_get_sum_f32
    private :: get_sum_f64
+   private :: ci_get_sum_f64
    private :: broadcast_scalar_s32
+   private :: ci_broadcast_scalar_s32
    private :: broadcast_array_s32
+   private :: ci_broadcast_array_s32
    private :: broadcast_scalar_s64
+   private :: ci_broadcast_scalar_s64
    private :: broadcast_array_s64
+   private :: ci_broadcast_array_s64
    private :: broadcast_scalar_f32
+   private :: ci_broadcast_scalar_f32
    private :: broadcast_array_f32
+   private :: ci_broadcast_array_f32
    private :: broadcast_scalar_f64
+   private :: ci_broadcast_scalar_f64
    private :: broadcast_array_f64
+   private :: ci_broadcast_array_f64
    private :: get_wtime
+   private :: ci_get_wtime
    private :: barrier
+   private :: ci_barrier
+      private :: ci_initialize
+      private :: ci_set_communicator
+      private :: ci_delete
+      private :: ci_create
+      private :: ci_split
    !-(Utility functions)
    private :: mt_init_genrand
    private :: mt_genrand_int31
@@ -534,6 +655,12 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: psys_num
          type(c_funptr), value, intent(in) :: pfunc_comp
       end subroutine fdps_sort_particle
+      subroutine fdps_set_psys_comm_info(psys_num, ci)  bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: psys_num,ci
+      end subroutine fdps_set_psys_comm_info
+
 
       !----------------------
       !  Domain Info
@@ -621,6 +748,11 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: dinfo_num,psys_num
          real(kind=c_float), value, intent(in) :: weight
       end subroutine fdps_decompose_domain_all
+      subroutine fdps_set_dinfo_comm_info(dinfo_num, ci)  bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: dinfo_num,ci
+      end subroutine fdps_set_dinfo_comm_info
 
       !----------------------
       !  Tree 
@@ -817,6 +949,16 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: tree_num
          integer(kind=c_long_long), value, intent(in) :: id
       end function fdps_get_epj_from_id
+      subroutine fdps_set_tree_comm_info(tree_num, ci)  bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: tree_num,ci
+      end subroutine fdps_set_tree_comm_info
+      subroutine fdps_set_exchange_let_mode(tree_num, mode)  bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: tree_num, mode
+      end subroutine fdps_set_exchange_let_mode
 
       !----------------------
       !  MPI comm. 
@@ -827,6 +969,13 @@ module FDPS_module
          integer(kind=c_int) :: fdps_get_rank
       end function fdps_get_rank
 
+     function fdps_ci_get_rank(ci) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_get_rank
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_rank
+
       function fdps_get_rank_multi_dim(id) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
@@ -834,11 +983,26 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: id
       end function fdps_get_rank_multi_dim
 
+      function fdps_ci_get_rank_multi_dim(ci, id) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_get_rank_multi_dim
+         integer(kind=c_int), value, intent(in) :: id
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_rank_multi_dim
+
       function fdps_get_num_procs() bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          integer(kind=c_int) :: fdps_get_num_procs
       end function fdps_get_num_procs
+
+      function fdps_ci_get_num_procs(ci) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_get_num_procs
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_num_procs
 
       function fdps_get_num_procs_multi_dim(id) bind(c)
          use, intrinsic :: iso_c_binding
@@ -847,12 +1011,28 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: id
       end function fdps_get_num_procs_multi_dim
 
+      function fdps_ci_get_num_procs_multi_dim(ci, id) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_get_num_procs_multi_dim
+         integer(kind=c_int), value, intent(in) :: id
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_num_procs_multi_dim
+
       function fdps_get_logical_and(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          logical(kind=c_bool) :: fdps_get_logical_and
          logical(kind=c_bool), value, intent(in) :: f_in
       end function fdps_get_logical_and
+
+      function fdps_ci_get_logical_and(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         logical(kind=c_bool) :: fdps_ci_get_logical_and
+         logical(kind=c_bool), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_logical_and
 
       function fdps_get_logical_or(f_in) bind(c)
          use, intrinsic :: iso_c_binding
@@ -861,12 +1041,28 @@ module FDPS_module
          logical(kind=c_bool), value, intent(in) :: f_in
       end function fdps_get_logical_or
 
+      function fdps_ci_get_logical_or(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         logical(kind=c_bool) :: fdps_ci_get_logical_or
+         logical(kind=c_bool), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_logical_or
+
       function fdps_get_min_value_s32(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          integer(kind=c_int) :: fdps_get_min_value_s32
          integer(kind=c_int), value, intent(in) :: f_in
       end function fdps_get_min_value_s32
+
+      function fdps_ci_get_min_value_s32(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_get_min_value_s32
+         integer(kind=c_int), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_min_value_s32
 
       function fdps_get_min_value_s64(f_in) bind(c)
          use, intrinsic :: iso_c_binding
@@ -875,6 +1071,14 @@ module FDPS_module
          integer(kind=c_long_long), value, intent(in) :: f_in
       end function fdps_get_min_value_s64
 
+      function fdps_ci_get_min_value_s64(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_long_long) :: fdps_ci_get_min_value_s64
+         integer(kind=c_long_long), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_min_value_s64
+
       function fdps_get_min_value_f32(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
@@ -882,12 +1086,28 @@ module FDPS_module
          real(kind=c_float), value, intent(in) :: f_in
       end function fdps_get_min_value_f32
 
+      function fdps_ci_get_min_value_f32(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float) :: fdps_ci_get_min_value_f32
+         real(kind=c_float), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_min_value_f32
+
       function fdps_get_min_value_f64(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          real(kind=c_double) :: fdps_get_min_value_f64
          real(kind=c_double), value, intent(in) :: f_in
       end function fdps_get_min_value_f64
+
+      function fdps_ci_get_min_value_f64(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_ci_get_min_value_f64
+         real(kind=c_double), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_min_value_f64
 
       subroutine fdps_get_min_value_w_id_f32(f_in,i_in,f_out,i_out) bind(c)
          use, intrinsic :: iso_c_binding
@@ -898,6 +1118,16 @@ module FDPS_module
          integer(kind=c_int), intent(inout) :: i_out
       end subroutine fdps_get_min_value_w_id_f32
 
+      subroutine fdps_ci_get_min_value_w_id_f32(ci, f_in,i_in,f_out,i_out) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float), value, intent(in) :: f_in
+         real(kind=c_float), intent(inout) :: f_out
+         integer(kind=c_int), value, intent(in) :: i_in
+         integer(kind=c_int), intent(inout) :: i_out
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_get_min_value_w_id_f32
+
       subroutine fdps_get_min_value_w_id_f64(f_in,i_in,f_out,i_out) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
@@ -907,12 +1137,30 @@ module FDPS_module
          integer(kind=c_int), intent(inout) :: i_out
       end subroutine fdps_get_min_value_w_id_f64
 
+      subroutine fdps_ci_get_min_value_w_id_f64(ci, f_in,i_in,f_out,i_out) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double), value, intent(in) :: f_in
+         real(kind=c_double), intent(inout) :: f_out
+         integer(kind=c_int), value, intent(in) :: i_in
+         integer(kind=c_int), intent(inout) :: i_out
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_get_min_value_w_id_f64
+
       function fdps_get_max_value_s32(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          integer(kind=c_int) :: fdps_get_max_value_s32
          integer(kind=c_int), value, intent(in) :: f_in
       end function fdps_get_max_value_s32
+
+      function fdps_ci_get_max_value_s32(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_get_max_value_s32
+         integer(kind=c_int), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_max_value_s32
 
       function fdps_get_max_value_s64(f_in) bind(c)
          use, intrinsic :: iso_c_binding
@@ -921,6 +1169,14 @@ module FDPS_module
          integer(kind=c_long_long), value, intent(in) :: f_in
       end function fdps_get_max_value_s64
 
+      function fdps_ci_get_max_value_s64(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_long_long) :: fdps_ci_get_max_value_s64
+         integer(kind=c_long_long), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_max_value_s64
+
       function fdps_get_max_value_f32(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
@@ -928,12 +1184,28 @@ module FDPS_module
          real(kind=c_float), value, intent(in) :: f_in
       end function fdps_get_max_value_f32
 
+      function fdps_ci_get_max_value_f32(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float) :: fdps_ci_get_max_value_f32
+         real(kind=c_float), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_max_value_f32
+
       function fdps_get_max_value_f64(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          real(kind=c_double) :: fdps_get_max_value_f64
          real(kind=c_double), value, intent(in) :: f_in
       end function fdps_get_max_value_f64
+
+      function fdps_ci_get_max_value_f64(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_ci_get_max_value_f64
+         real(kind=c_double), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_max_value_f64
 
       subroutine fdps_get_max_value_w_id_f32(f_in,i_in,f_out,i_out) bind(c)
          use, intrinsic :: iso_c_binding
@@ -944,6 +1216,16 @@ module FDPS_module
          integer(kind=c_int), intent(inout) :: i_out
       end subroutine fdps_get_max_value_w_id_f32
 
+      subroutine fdps_ci_get_max_value_w_id_f32(ci, f_in,i_in,f_out,i_out) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float), value, intent(in) :: f_in
+         real(kind=c_float), intent(inout) :: f_out
+         integer(kind=c_int), value, intent(in) :: i_in
+         integer(kind=c_int), intent(inout) :: i_out
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_get_max_value_w_id_f32
+
       subroutine fdps_get_max_value_w_id_f64(f_in,i_in,f_out,i_out) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
@@ -953,12 +1235,30 @@ module FDPS_module
          integer(kind=c_int), intent(inout) :: i_out
       end subroutine fdps_get_max_value_w_id_f64
 
+      subroutine fdps_ci_get_max_value_w_id_f64(ci, f_in,i_in,f_out,i_out) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double), value, intent(in) :: f_in
+         real(kind=c_double), intent(inout) :: f_out
+         integer(kind=c_int), value, intent(in) :: i_in
+         integer(kind=c_int), intent(inout) :: i_out
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_get_max_value_w_id_f64
+
       function fdps_get_sum_s32(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          integer(kind=c_int) :: fdps_get_sum_s32
          integer(kind=c_int), value, intent(in) :: f_in
       end function fdps_get_sum_s32
+
+      function fdps_ci_get_sum_s32(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_get_sum_s32
+         integer(kind=c_int), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_sum_s32
 
       function fdps_get_sum_s64(f_in) bind(c)
          use, intrinsic :: iso_c_binding
@@ -967,6 +1267,14 @@ module FDPS_module
          integer(kind=c_long_long), value, intent(in) :: f_in
       end function fdps_get_sum_s64
 
+      function fdps_ci_get_sum_s64(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_long_long) :: fdps_ci_get_sum_s64
+         integer(kind=c_long_long), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_sum_s64
+
       function fdps_get_sum_f32(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
@@ -974,12 +1282,28 @@ module FDPS_module
          real(kind=c_float), value, intent(in) :: f_in
       end function fdps_get_sum_f32
 
+      function fdps_ci_get_sum_f32(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_float) :: fdps_ci_get_sum_f32
+         real(kind=c_float), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_sum_f32
+
       function fdps_get_sum_f64(f_in) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          real(kind=c_double) :: fdps_get_sum_f64
          real(kind=c_double), value, intent(in) :: f_in
       end function fdps_get_sum_f64
+
+      function fdps_ci_get_sum_f64(ci, f_in) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_ci_get_sum_f64
+         real(kind=c_double), value, intent(in) :: f_in
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_sum_f64
 
       subroutine fdps_broadcast_s32(vals,n,src) bind(c)
          use, intrinsic :: iso_c_binding
@@ -989,6 +1313,15 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: src
       end subroutine fdps_broadcast_s32
 
+      subroutine fdps_ci_broadcast_s32(ci, vals,n,src) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: n
+         integer(kind=c_int), dimension(n), intent(inout) :: vals
+         integer(kind=c_int), value, intent(in) :: src
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_broadcast_s32
+
       subroutine fdps_broadcast_s64(vals,n,src) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
@@ -996,6 +1329,15 @@ module FDPS_module
          integer(kind=c_long_long), dimension(n), intent(inout) :: vals
          integer(kind=c_int), value, intent(in) :: src
       end subroutine fdps_broadcast_s64
+
+      subroutine fdps_ci_broadcast_s64(ci, vals,n,src) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: n
+         integer(kind=c_long_long), dimension(n), intent(inout) :: vals
+         integer(kind=c_int), value, intent(in) :: src
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_broadcast_s64
 
       subroutine fdps_broadcast_f32(vals,n,src) bind(c)
          use, intrinsic :: iso_c_binding
@@ -1005,6 +1347,15 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: src
       end subroutine fdps_broadcast_f32
 
+      subroutine fdps_ci_broadcast_f32(ci, vals,n,src) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: n
+         real(kind=c_float), dimension(n), intent(inout) :: vals
+         integer(kind=c_int), value, intent(in) :: src
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_broadcast_f32
+
       subroutine fdps_broadcast_f64(vals,n,src) bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
@@ -1013,15 +1364,76 @@ module FDPS_module
          integer(kind=c_int), value, intent(in) :: src
       end subroutine fdps_broadcast_f64
 
+      subroutine fdps_ci_broadcast_f64(ci, vals,n,src) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: n
+         real(kind=c_double), dimension(n), intent(inout) :: vals
+         integer(kind=c_int), value, intent(in) :: src
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_broadcast_f64
+
       function fdps_get_wtime() bind(c)
          use, intrinsic :: iso_c_binding
          implicit none
          real(kind=c_double) :: fdps_get_wtime
       end function fdps_get_wtime
 
+      function fdps_ci_get_wtime(ci) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         real(kind=c_double) :: fdps_ci_get_wtime
+         integer(kind=c_int), value, intent(in) :: ci
+      end function fdps_ci_get_wtime
+
       subroutine fdps_barrier() bind(c)
+         use, intrinsic :: iso_c_binding
          implicit none
       end subroutine fdps_barrier
+
+      subroutine fdps_ci_barrier(ci) bind(c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_barrier
+
+      function fdps_ci_initialize(comm) bind (c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_initialize
+         integer(kind=c_int), value, intent(in) :: comm
+      end function fdps_ci_initialize
+
+      subroutine fdps_ci_set_communicator(ci, comm) bind (c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: ci
+         integer(kind=c_int), value, intent(in) :: comm
+      end subroutine fdps_ci_set_communicator
+
+      subroutine fdps_ci_delete(ci) bind (c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int), value, intent(in) :: ci
+      end subroutine fdps_ci_delete
+
+      function fdps_ci_create(ci,n,rank) bind (c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_create
+         integer(kind=c_int), value, intent(in) :: ci
+         integer(kind=c_int), value, intent(in) :: n
+         integer(kind=c_int), dimension(n), intent(in) :: rank
+      end function fdps_ci_create
+
+      function fdps_ci_split(ci,color,key) bind (c)
+         use, intrinsic :: iso_c_binding
+         implicit none
+         integer(kind=c_int) :: fdps_ci_split
+         integer(kind=c_int), value, intent(in) :: ci
+         integer(kind=c_int), value, intent(in) :: color
+         integer(kind=c_int), value, intent(in) :: key
+      end function fdps_ci_split
 
       !----------------------
       !  Utility
@@ -1422,6 +1834,16 @@ module FDPS_module
 
    end subroutine sort_particle
 
+   subroutine set_psys_comm_info(this,psys_num,ci)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: psys_num, ci
+
+      call fdps_set_psys_comm_info(psys_num,ci)
+
+   end subroutine set_psys_comm_info
+
+   
    !##########################################################
    subroutine create_dinfo(this,dinfo_num)
       implicit none
@@ -1629,6 +2051,16 @@ module FDPS_module
 
    end subroutine decompose_domain_all
 
+   subroutine set_dinfo_comm_info(this,dinfo_num,ci)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: dinfo_num, ci
+
+      call fdps_set_dinfo_comm_info(dinfo_num,ci)
+
+   end subroutine set_dinfo_comm_info
+
+   
    !##########################################################
    subroutine create_tree(this,tree_num,tree_info_in)
       implicit none
@@ -2096,6 +2528,26 @@ module FDPS_module
    !           get_epj_from_id*() are generated.
    ! fdps-autogen:get_epj_from_id:impl;
 
+   subroutine set_tree_comm_info(this,tree_num,ci)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: tree_num, ci
+
+      call fdps_set_tree_comm_info(tree_num,ci)
+
+   end subroutine set_tree_comm_info
+
+   subroutine set_exchange_let_mode(this,tree_num,mode)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: tree_num, mode
+
+      call fdps_set_exchange_let_mode(tree_num,mode)
+
+   end subroutine set_exchange_let_mode
+
+
+   
    !##########################################################
    function get_rank(this)
       implicit none
@@ -2105,6 +2557,16 @@ module FDPS_module
       get_rank = fdps_get_rank()
       
    end function get_rank
+
+   function ci_get_rank(this, ci)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int) :: ci_get_rank
+
+      ci_get_rank = fdps_ci_get_rank(ci)
+      
+   end function ci_get_rank
 
    !----------------------------------------------------------
    function get_rank_multi_dim(this,id)
@@ -2117,6 +2579,17 @@ module FDPS_module
       
    end function get_rank_multi_dim
 
+   function ci_get_rank_multi_dim(this, ci,id)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int) :: ci_get_rank_multi_dim
+      integer(kind=c_int), intent(IN) :: id
+
+      ci_get_rank_multi_dim = fdps_ci_get_rank_multi_dim(ci,id)
+      
+   end function ci_get_rank_multi_dim
+
    !----------------------------------------------------------
    function get_num_procs(this)
       implicit none
@@ -2126,6 +2599,16 @@ module FDPS_module
       get_num_procs = fdps_get_num_procs()
 
    end function get_num_procs
+
+   function ci_get_num_procs(this, ci)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int) :: ci_get_num_procs
+      
+      ci_get_num_procs = fdps_ci_get_num_procs(ci)
+
+   end function ci_get_num_procs
 
    !----------------------------------------------------------
    function get_num_procs_multi_dim(this,id)
@@ -2138,6 +2621,17 @@ module FDPS_module
 
    end function get_num_procs_multi_dim
 
+   function ci_get_num_procs_multi_dim(this, ci,id)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int) :: ci_get_num_procs_multi_dim
+      integer(kind=c_int), intent(IN) :: id
+      
+      ci_get_num_procs_multi_dim = fdps_ci_get_num_procs_multi_dim(ci,id)
+
+   end function ci_get_num_procs_multi_dim
+
    !----------------------------------------------------------
    subroutine get_logical_and(this,f_in,f_out)
       implicit none
@@ -2149,6 +2643,17 @@ module FDPS_module
 
    end subroutine get_logical_and
 
+   subroutine ci_get_logical_and(this, ci,f_in,f_out)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      logical(kind=c_bool), intent(IN) :: f_in
+      logical(kind=c_bool), intent(INOUT) :: f_out
+
+      f_out = fdps_ci_get_logical_and(ci,f_in)
+
+   end subroutine ci_get_logical_and
+
    !----------------------------------------------------------
    subroutine get_logical_or(this,f_in,f_out)
       implicit none
@@ -2159,6 +2664,17 @@ module FDPS_module
       f_out = fdps_get_logical_or(f_in)
 
    end subroutine get_logical_or
+
+   subroutine ci_get_logical_or(this, ci,f_in,f_out)
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      logical(kind=c_bool), intent(IN) :: f_in
+      logical(kind=c_bool), intent(INOUT) :: f_out
+
+      f_out = fdps_ci_get_logical_or(ci,f_in)
+
+   end subroutine ci_get_logical_or
 
    !----------------------------------------------------------
    subroutine get_min_value_s32(this,f_in,f_out)
@@ -2172,6 +2688,18 @@ module FDPS_module
 
    end subroutine get_min_value_s32
 
+   subroutine ci_get_min_value_s32(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int), intent(IN) :: f_in
+      integer(kind=c_int), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_min_value_s32(ci,f_in)
+
+   end subroutine ci_get_min_value_s32
+
    subroutine get_min_value_s64(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2182,6 +2710,18 @@ module FDPS_module
        f_out = fdps_get_min_value_s64(f_in)
 
    end subroutine get_min_value_s64
+
+   subroutine ci_get_min_value_s64(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_long_long), intent(IN) :: f_in
+      integer(kind=c_long_long), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_min_value_s64(ci,f_in)
+
+   end subroutine ci_get_min_value_s64
 
    subroutine get_min_value_f32(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
@@ -2194,6 +2734,18 @@ module FDPS_module
 
    end subroutine get_min_value_f32
 
+   subroutine ci_get_min_value_f32(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_min_value_f32(ci,f_in)
+
+   end subroutine ci_get_min_value_f32
+
    subroutine get_min_value_f64(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2204,6 +2756,18 @@ module FDPS_module
        f_out = fdps_get_min_value_f64(f_in)
 
    end subroutine get_min_value_f64
+
+   subroutine ci_get_min_value_f64(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_min_value_f64(ci,f_in)
+
+   end subroutine ci_get_min_value_f64
 
    subroutine get_min_value_w_id_f32(this,f_in,i_in,f_out,i_out)
       use, intrinsic :: iso_c_binding
@@ -2218,6 +2782,20 @@ module FDPS_module
 
    end subroutine get_min_value_w_id_f32
 
+   subroutine ci_get_min_value_w_id_f32(this, ci,f_in,i_in,f_out,i_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+      integer(kind=c_int), intent(IN) :: i_in
+      integer(kind=c_int), intent(INOUT) :: i_out
+
+      call fdps_ci_get_min_value_w_id_f32(ci,f_in,i_in,f_out,i_out)
+
+   end subroutine ci_get_min_value_w_id_f32
+
    subroutine get_min_value_w_id_f64(this,f_in,i_in,f_out,i_out)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2231,6 +2809,20 @@ module FDPS_module
 
    end subroutine get_min_value_w_id_f64
 
+   subroutine ci_get_min_value_w_id_f64(this, ci,f_in,i_in,f_out,i_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+      integer(kind=c_int), intent(IN) :: i_in
+      integer(kind=c_int), intent(INOUT) :: i_out
+
+      call fdps_ci_get_min_value_w_id_f64(ci,f_in,i_in,f_out,i_out)
+
+   end subroutine ci_get_min_value_w_id_f64
+
    !----------------------------------------------------------
    subroutine get_max_value_s32(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
@@ -2243,6 +2835,18 @@ module FDPS_module
 
    end subroutine get_max_value_s32
 
+   subroutine ci_get_max_value_s32(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int), intent(IN) :: f_in
+      integer(kind=c_int), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_max_value_s32(ci,f_in)
+
+   end subroutine ci_get_max_value_s32
+
    subroutine get_max_value_s64(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2253,6 +2857,18 @@ module FDPS_module
        f_out = fdps_get_max_value_s64(f_in)
 
    end subroutine get_max_value_s64
+
+   subroutine ci_get_max_value_s64(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_long_long), intent(IN) :: f_in
+      integer(kind=c_long_long), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_max_value_s64(ci,f_in)
+
+   end subroutine ci_get_max_value_s64
 
    subroutine get_max_value_f32(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
@@ -2265,6 +2881,18 @@ module FDPS_module
 
    end subroutine get_max_value_f32
 
+   subroutine ci_get_max_value_f32(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_max_value_f32(ci,f_in)
+
+   end subroutine ci_get_max_value_f32
+
    subroutine get_max_value_f64(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2275,6 +2903,18 @@ module FDPS_module
        f_out = fdps_get_max_value_f64(f_in)
 
    end subroutine get_max_value_f64
+
+   subroutine ci_get_max_value_f64(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_max_value_f64(ci,f_in)
+
+   end subroutine ci_get_max_value_f64
 
    subroutine get_max_value_w_id_f32(this,f_in,i_in,f_out,i_out)
       use, intrinsic :: iso_c_binding
@@ -2289,6 +2929,20 @@ module FDPS_module
 
    end subroutine get_max_value_w_id_f32
 
+   subroutine ci_get_max_value_w_id_f32(this, ci,f_in,i_in,f_out,i_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+      integer(kind=c_int), intent(IN) :: i_in
+      integer(kind=c_int), intent(INOUT) :: i_out
+
+      call fdps_ci_get_max_value_w_id_f32(ci,f_in,i_in,f_out,i_out)
+
+   end subroutine ci_get_max_value_w_id_f32
+
    subroutine get_max_value_w_id_f64(this,f_in,i_in,f_out,i_out)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2302,6 +2956,20 @@ module FDPS_module
 
    end subroutine get_max_value_w_id_f64
 
+   subroutine ci_get_max_value_w_id_f64(this, ci,f_in,i_in,f_out,i_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+      integer(kind=c_int), intent(IN) :: i_in
+      integer(kind=c_int), intent(INOUT) :: i_out
+
+      call fdps_ci_get_max_value_w_id_f64(ci,f_in,i_in,f_out,i_out)
+
+   end subroutine ci_get_max_value_w_id_f64
+
    !----------------------------------------------------------
    subroutine get_sum_s32(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
@@ -2314,6 +2982,18 @@ module FDPS_module
 
    end subroutine get_sum_s32
 
+   subroutine ci_get_sum_s32(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int), intent(IN) :: f_in
+      integer(kind=c_int), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_sum_s32(ci,f_in)
+
+   end subroutine ci_get_sum_s32
+
    subroutine get_sum_s64(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2324,6 +3004,18 @@ module FDPS_module
        f_out = fdps_get_sum_s64(f_in)
 
    end subroutine get_sum_s64
+
+   subroutine ci_get_sum_s64(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_long_long), intent(IN) :: f_in
+      integer(kind=c_long_long), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_sum_s64(ci,f_in)
+
+   end subroutine ci_get_sum_s64
 
    subroutine get_sum_f32(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
@@ -2336,6 +3028,18 @@ module FDPS_module
 
    end subroutine get_sum_f32
 
+   subroutine ci_get_sum_f32(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_float), intent(IN) :: f_in
+      real(kind=c_float), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_sum_f32(ci,f_in)
+
+   end subroutine ci_get_sum_f32
+
    subroutine get_sum_f64(this,f_in,f_out)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2346,6 +3050,18 @@ module FDPS_module
        f_out = fdps_get_sum_f64(f_in)
 
    end subroutine get_sum_f64
+
+   subroutine ci_get_sum_f64(this, ci,f_in,f_out)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_double), intent(IN) :: f_in
+      real(kind=c_double), intent(INOUT) :: f_out
+
+       f_out = fdps_ci_get_sum_f64(ci,f_in)
+
+   end subroutine ci_get_sum_f64
 
    !----------------------------------------------------------
    subroutine broadcast_scalar_s32(this,val,n,src)
@@ -2368,6 +3084,27 @@ module FDPS_module
 
    end subroutine broadcast_scalar_s32
 
+   subroutine ci_broadcast_scalar_s32(this, ci,val,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int), intent(INOUT) :: val
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), optional, intent(IN) :: src
+      !* Local variables
+      integer(kind=c_int), dimension(1) :: vals
+
+      vals(1) = val
+      if (present(src)) then
+         call fdps_broadcast_s32(vals,1,src)
+      else
+         call fdps_broadcast_s32(vals,1,0)
+      end if
+      val = vals(1)
+
+   end subroutine ci_broadcast_scalar_s32
+
    subroutine broadcast_array_s32(this,vals,n,src)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2383,6 +3120,23 @@ module FDPS_module
       end if
 
    end subroutine broadcast_array_s32
+
+   subroutine ci_broadcast_array_s32(this, ci,vals,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), dimension(n), intent(INOUT) :: vals
+      integer(kind=c_int), optional, intent(IN) :: src
+
+      if (present(src)) then
+         call fdps_broadcast_s32(vals,n,src)
+      else
+         call fdps_broadcast_s32(vals,n,0)
+      end if
+
+   end subroutine ci_broadcast_array_s32
 
    subroutine broadcast_scalar_s64(this,val,n,src)
       use, intrinsic :: iso_c_binding
@@ -2404,6 +3158,27 @@ module FDPS_module
 
    end subroutine broadcast_scalar_s64
 
+   subroutine ci_broadcast_scalar_s64(this, ci,val,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_long_long), intent(INOUT) :: val
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), optional, intent(IN) :: src
+      !* Local variables
+      integer(kind=c_long_long), dimension(1) :: vals
+
+      vals(1) = val
+      if (present(src)) then
+         call fdps_broadcast_s64(vals,1,src)
+      else
+         call fdps_broadcast_s64(vals,1,0)
+      end if
+      val = vals(1)
+
+   end subroutine ci_broadcast_scalar_s64
+
    subroutine broadcast_array_s64(this,vals,n,src)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2419,6 +3194,23 @@ module FDPS_module
       end if
 
    end subroutine broadcast_array_s64
+
+   subroutine ci_broadcast_array_s64(this, ci,vals,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_long_long), dimension(n), intent(INOUT) :: vals
+      integer(kind=c_int), optional, intent(IN) :: src
+
+      if (present(src)) then
+         call fdps_broadcast_s64(vals,n,src)
+      else
+         call fdps_broadcast_s64(vals,n,0)
+      end if
+
+   end subroutine ci_broadcast_array_s64
 
    subroutine broadcast_scalar_f32(this,val,n,src)
       use, intrinsic :: iso_c_binding
@@ -2440,6 +3232,27 @@ module FDPS_module
 
    end subroutine broadcast_scalar_f32
 
+   subroutine ci_broadcast_scalar_f32(this, ci,val,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_float), intent(INOUT) :: val
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), optional, intent(IN) :: src
+      !* Local variables
+      real(kind=c_float), dimension(1) :: vals
+ 
+      vals(1) = val
+      if (present(src)) then
+         call fdps_broadcast_f32(vals,1,src)
+      else
+         call fdps_broadcast_f32(vals,1,0)
+      end if
+      val = vals(1)
+
+   end subroutine ci_broadcast_scalar_f32
+
    subroutine broadcast_array_f32(this,vals,n,src)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2455,6 +3268,23 @@ module FDPS_module
       end if
 
    end subroutine broadcast_array_f32
+
+   subroutine ci_broadcast_array_f32(this, ci,vals,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int), intent(in) :: n
+      real(kind=c_float), dimension(n), intent(INOUT) :: vals
+      integer(kind=c_int), optional, intent(IN) :: src
+
+      if (present(src)) then
+         call fdps_broadcast_f32(vals,n,src)
+      else
+         call fdps_broadcast_f32(vals,n,0)
+      end if
+
+   end subroutine ci_broadcast_array_f32
 
    subroutine broadcast_scalar_f64(this,val,n,src)
       use, intrinsic :: iso_c_binding
@@ -2476,6 +3306,27 @@ module FDPS_module
 
    end subroutine broadcast_scalar_f64
 
+   subroutine ci_broadcast_scalar_f64(this, ci,val,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_double), intent(INOUT) :: val
+      integer(kind=c_int), intent(in) :: n
+      integer(kind=c_int), optional, intent(IN) :: src
+      !* Local variables
+      real(kind=c_double), dimension(1) :: vals
+
+      vals(1) = val
+      if (present(src)) then
+         call fdps_broadcast_f64(vals,1,src)
+      else
+         call fdps_broadcast_f64(vals,1,0)
+      end if
+      val = vals(1)
+
+   end subroutine ci_broadcast_scalar_f64
+
    subroutine broadcast_array_f64(this,vals,n,src)
       use, intrinsic :: iso_c_binding
       implicit none
@@ -2492,6 +3343,23 @@ module FDPS_module
 
    end subroutine broadcast_array_f64
 
+   subroutine ci_broadcast_array_f64(this, ci,vals,n,src)
+      use, intrinsic :: iso_c_binding
+      implicit none
+      class(FDPS_controller) :: this
+      integer(kind=c_int), intent(IN) :: ci
+      integer(kind=c_int), intent(in) :: n
+      real(kind=c_double), dimension(n), intent(INOUT) :: vals
+      integer(kind=c_int), optional, intent(IN) :: src
+
+      if (present(src)) then
+         call fdps_broadcast_f64(vals,n,src)
+      else
+         call fdps_broadcast_f64(vals,n,0)
+      end if
+
+   end subroutine ci_broadcast_array_f64
+
    !----------------------------------------------------------
    function get_wtime(this)
       implicit none
@@ -2502,6 +3370,16 @@ module FDPS_module
 
    end function get_wtime
 
+   function ci_get_wtime(this, ci)
+      implicit none
+      class(FDPS_controller) :: this 
+      integer(kind=c_int), intent(IN) :: ci
+      real(kind=c_double) :: ci_get_wtime
+
+      ci_get_wtime = fdps_ci_get_wtime(ci)
+
+   end function ci_get_wtime
+
    !----------------------------------------------------------
    subroutine barrier(this)
       implicit none
@@ -2510,6 +3388,58 @@ module FDPS_module
       call fdps_barrier()
 
    end subroutine barrier
+
+   subroutine ci_barrier(this, ci)
+      implicit none
+      class(FDPS_controller) :: this 
+      integer(kind=c_int), intent(IN) :: ci
+
+      call fdps_ci_barrier(ci)
+
+   end subroutine ci_barrier
+
+      function ci_initialize(this, comm)
+         implicit none
+         class(FDPS_controller) :: this
+         integer(kind=c_int) :: ci_initialize
+         integer(kind=c_int), intent(in) :: comm
+         ci_initialize = fdps_ci_initialize(comm)
+      end function ci_initialize
+
+      subroutine ci_set_communicator(this, ci, comm)
+         implicit none
+         class(FDPS_controller) :: this
+         integer(kind=c_int), value, intent(in) :: ci
+         integer(kind=c_int), value, intent(in) :: comm
+         call fdps_ci_set_communicator(ci, comm)
+      end subroutine ci_set_communicator
+
+      subroutine ci_delete(this,ci) 
+         implicit none
+         class(FDPS_controller) :: this
+         integer(kind=c_int), value, intent(in) :: ci
+         call fdps_ci_delete(ci)
+      end subroutine ci_delete
+
+      function ci_create(this, ci,n,rank) 
+         implicit none
+         class(FDPS_controller) :: this
+         integer(kind=c_int) :: ci_create
+         integer(kind=c_int), value, intent(in) :: ci
+         integer(kind=c_int), value, intent(in) :: n
+         integer(kind=c_int), dimension(n), intent(in) :: rank
+         ci_create = fdps_ci_create(ci,n,rank)
+      end function ci_create
+
+      function ci_split(this, ci, color, key)
+         implicit none
+         class(FDPS_controller) :: this
+         integer(kind=c_int) :: ci_split
+         integer(kind=c_int), value, intent(in) :: ci
+         integer(kind=c_int), value, intent(in) :: color
+         integer(kind=c_int), value, intent(in) :: key
+         ci_split = fdps_ci_split(ci, color, key)
+      end function ci_split
 
    !##########################################################
    subroutine MT_init_genrand(this,s)

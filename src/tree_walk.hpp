@@ -6,14 +6,8 @@ namespace ParticleSimulator{
 
     ////////////
     // walk mode
-    struct TagWalkModeNormal{};
-    struct TagWalkModeNearestImage{};
-    struct WALK_MODE_NORMAL{
-        typedef TagWalkModeNormal walk_type;
-    };
-    struct WALK_MODE_NEAREST_IMAGE{
-        typedef TagWalkModeNearestImage walk_type;
-    };
+    //struct TagWalkModeNormal{};
+    //struct TagWalkModeNearestImage{};
     // walk mode
     ////////////
 
@@ -31,13 +25,14 @@ namespace ParticleSimulator{
     struct TagCopyInfoCloseWithTpAdrptcl{};
     // copy info close mode
     ////////////
-    
+
     ////////////
     // targe box class
     template<class TSM>
     struct TargetBox{
         F64ort vertex_;
     };
+  
     template<>
     struct TargetBox<SEARCH_MODE_LONG>{
         F64ort vertex_;
@@ -45,10 +40,15 @@ namespace ParticleSimulator{
         void set(const Tipg & ipg){
             vertex_ = ipg.vertex_in_;
         }
+        template<typename T>
+        void setForExLet(const T & top, const F64vec & s){
+            vertex_ = top.vertex_in_.shift(s);
+        }
         void dump(std::ostream & fout=std::cerr){
             fout<<"vertex_= "<<vertex_<<std::endl;
         }
     };
+  
     template<>
     struct TargetBox<SEARCH_MODE_LONG_SYMMETRY>{
         F64ort vertex_in_;
@@ -57,6 +57,11 @@ namespace ParticleSimulator{
         void set(const Tipg & ipg){
             vertex_in_  = ipg.vertex_in_;
             vertex_out_ = ipg.vertex_out_;
+        }
+        template<typename T>
+        void setForExLet(const T & top, const F64vec & s){
+            vertex_in_  = top.vertex_in_.shift(s);
+            vertex_out_ = top.vertex_out_.shift(s);
         }
     };
 
@@ -67,6 +72,13 @@ namespace ParticleSimulator{
         void set(const Tipg & ipg){
             vertex_ = ipg.vertex_in_;
         }
+        template<typename T>
+        void setForExLet(const T & top, const F64vec & s){
+            vertex_ = top.vertex_in_.shift(s);
+        }
+        void dump(std::ostream & fout=std::cerr){
+            fout<<"vertex_= "<<vertex_<<std::endl;
+        }
     };
     
     template<>
@@ -75,6 +87,10 @@ namespace ParticleSimulator{
         template<class Tipg>
         void set(const Tipg & ipg){
             vertex_ = ipg.vertex_in_;
+        }
+        template<typename T>
+        void setForExLet(const T & top, const F64vec & s){
+            vertex_ = top.vertex_in_.shift(s);
         }
         void dump(std::ostream & fout=std::cerr){
             fout<<"vertex_= "<<vertex_<<std::endl;
@@ -114,6 +130,7 @@ namespace ParticleSimulator{
             return (dis_sq <= r_crit_sq) || (vertex_out_.overlapped(ep_first[adr].getPos()));
         }
     };
+  
     template<>
     struct TargetBox<SEARCH_MODE_GATHER>{
         F64ort vertex_out_;
@@ -129,7 +146,6 @@ namespace ParticleSimulator{
     };
     // targe box class
     ////////////
-
 
     /////////////
     // set target box for exching let
@@ -170,6 +186,7 @@ namespace ParticleSimulator{
     }
     // set target box for exching let
     /////////////
+
     
     ///////////
     // IS OPEN
@@ -177,10 +194,7 @@ namespace ParticleSimulator{
     inline bool IsOpen(TagSearchLong,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> & target_box,
-                       const F64 r_crit_sq,
-                       const F64vec & len_peri,
-                       TagWalkModeNormal){
+                       const TargetBox<TSM> target_box){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
     
@@ -188,10 +202,7 @@ namespace ParticleSimulator{
     inline bool IsOpen(TagSearchLongScatter,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> & target_box,
-                       const F64 r_crit_sq,
-                       const F64vec & len_peri,
-                       TagWalkModeNormal){
+                       const TargetBox<TSM> target_box){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
 
@@ -199,59 +210,44 @@ namespace ParticleSimulator{
     inline bool IsOpen(TagSearchLongSymmetry,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> & target_box,
-                       const F64 r_crit_sq,
-                       const F64vec & len_peri,
-                       TagWalkModeNormal){
+                       const TargetBox<TSM> target_box){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
-    
+
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchLongCutoff,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> & target_box,
-                       const F64 r_crit_sq,
-                       const F64vec & len_peri,
-                       TagWalkModeNormal){
-        return ( (target_box.vertex_.overlapped(tc_first[adr_tc].mom_.getVertexOut()))
-                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+                       const TargetBox<TSM> target_box){
+        return ( (target_box.vertex_.overlapped(tc_first[adr_tc].geo_.getVertexOut()))
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );        
     }
     
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortScatter,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> & target_box,
-                       const F64 r_crit_sq,
-                       const F64vec & len_peri,
-                       TagWalkModeNormal){
-        return ( (target_box.vertex_in_.overlapped(tc_first[adr_tc].mom_.getVertexOut()))
-                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+                       const TargetBox<TSM> target_box){
+        return ( (target_box.vertex_in_.overlapped(tc_first[adr_tc].geo_.getVertexOut()))
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );        
     }
     
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortSymmetry,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> & target_box,
-                       const F64 r_crit_sq,
-                       const F64vec & len_peri,
-                       TagWalkModeNormal){
-        return ( ( (target_box.vertex_in_.overlapped(tc_first[adr_tc].mom_.getVertexOut()))
-                 || (target_box.vertex_out_.overlapped(tc_first[adr_tc].mom_.getVertexIn())) )
-                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+                       const TargetBox<TSM> target_box){
+        return ( ( (target_box.vertex_in_.overlapped(tc_first[adr_tc].geo_.getVertexOut()))
+                 || (target_box.vertex_out_.overlapped(tc_first[adr_tc].geo_.getVertexIn())) )
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );        
     }
     template<class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortGather,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> & target_box,
-                       const F64 r_crit_sq,
-                       const F64vec & len_peri,
-                       TagWalkModeNormal){
-        return ( target_box.vertex_out_.overlapped(tc_first[adr_tc].mom_.getVertexIn())
-                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+                       const TargetBox<TSM> target_box){
+        return ( target_box.vertex_out_.overlapped(tc_first[adr_tc].geo_.getVertexIn())
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );        
     }    
     // IS OPEN
     ///////////
@@ -408,221 +404,175 @@ namespace ParticleSimulator{
     
     /////////////////
     // GET OPEN BITS
-    template<class TSM, class Ttc>
+    template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline U32 GetOpenBit(TagSearchLong,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
                           const TargetBox<TSM> & target_box,
-                          const F64 r_crit_sq,
                           const F64vec & len_peri,
-                          TagWalkModeNormal){
+                          const F64 inv_theta_sq){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
-            const F64 dis = target_box.vertex_.getDistanceMinSq(pos);
-            open_bit |= (dis <= r_crit_sq) << i;
+            //const F64 dis_sq = target_box.vertex_.getDistanceMinSq(pos);
+	    const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, pos, len_peri);
+            const F64 size = tc_first[adr_tc+i].geo_.getSize();
+            const F64 r_crit_sq = size*size*inv_theta_sq;
+            open_bit |= (dis_sq <= r_crit_sq) << i;
             open_bit |= (tc_first[adr_tc+i].n_ptcl_ > 0) << (i + N_CHILDREN); // if true, it should be checked
         }
         return open_bit;
     }
 
-    template<class TSM, class Ttc>
+    template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline U32 GetOpenBit(TagSearchLongScatter,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
                           const TargetBox<TSM> & target_box,
-                          const F64 r_crit_sq,
                           const F64vec & len_peri,
-                          TagWalkModeNormal){
+                          const F64 inv_theta_sq){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            //const F64 dis0 = target_box.vertex_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexOut());
             const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
-            const F64 dis1 = target_box.vertex_.getDistanceMinSq(pos);
-            open_bit |= ( target_box.vertex_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut()) || dis1 <= r_crit_sq) << i;
+	    const F64 size = tc_first[adr_tc+i].geo_.getSize();
+            const F64 r_crit_sq = size*size*inv_theta_sq;
+
+	    const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, pos, len_peri);
+	    open_bit |= ( GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri) <= 0.0 || dis_sq <= r_crit_sq) << i;
+
+	    
+            //const F64 dis_sq = target_box.vertex_.getDistanceMinSq(pos);
+            //open_bit |= ( target_box.vertex_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut()) || dis_sq <= r_crit_sq) << i;
+	    //if(Comm::getRank()==0){
+	    //  std::cerr<<"target_box.vertex_= "<<target_box.vertex_<<" tc_first[adr_tc+i].geo_.getVertexOut()= "<<tc_first[adr_tc+i].geo_.getVertexOut()
+	    //	       <<" dis= "<<GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri)
+	    //	       <<std::endl;
+	    //}
+	    
+
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0)
                           << (i + N_CHILDREN) ); // if true, it should be checked
         }
         return open_bit;
     }
 
-    template<class TSM, class Ttc>
+    template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline U32 GetOpenBit(TagSearchLongSymmetry,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
                           const TargetBox<TSM> & target_box,
-                          const F64 r_crit_sq,
                           const F64vec & len_peri,
-                          TagWalkModeNormal){
+                          const F64 inv_theta_sq){
+        // long symmetry
         U32 open_bit = 0;
-#if 1
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
-            const F64 dis1 = target_box.vertex_in_.getDistanceMinSq(pos);
-            open_bit |= ( (target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut())
-                           || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()) )
-                          || dis1 <= r_crit_sq) << i;
-            open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0)
-                          << (i + N_CHILDREN) ); // if true, it should be checked
-            /*
-            const F64 dis0 = std::min( target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexOut()),
-                                       target_box.vertex_out_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexIn()) );
-            if(Comm::getRank()==0){
-                if((target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut()))){
-                    std::cerr<<"A) dis0= "<<target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexOut())<<std::endl;
-                }
-                if((target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()))){
-                    std::cerr<<"B) dis1= "<<target_box.vertex_out_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexIn())<<std::endl;
-                }
-            }
-            */
 #if 0
-            if(Comm::getRank()==0){
-                if(target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexOut()) <= 0.0){
-                    
-                    if(target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut()) == 0){
-                        std::cout<<"A) n_ptcl= "<<tc_first[adr_tc+i].n_ptcl_
-                                 <<" adr_tc+i= "<<adr_tc+i
-                                 <<" tc_first[adr_tc+i].mom_.getVertexOut()= "<<tc_first[adr_tc+i].mom_.getVertexOut()
-                                 <<" tc_first[adr_tc+i].mom_.getVertexIn()= "<<tc_first[adr_tc+i].mom_.getVertexIn()
-                                 <<std::endl;
-                    }
-                        /*
-                    std::cerr<<"A) over= "<<target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut())
-                        //<<" dis= "<<target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexOut())
-                        //<<" target_box.vertex_in_= "<<target_box.vertex_in_
-                        //<<" tc_first[adr_tc+i].mom_.getVertexOut()= "<<tc_first[adr_tc+i].mom_.getVertexOut()
-                             <<" n_ptcl= "<<tc_first[adr_tc+i].n_ptcl_
-                             <<std::endl;
-                        */
-                }
-                /*
-                if(target_box.vertex_out_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexIn()) <= 0.0){
-                    if(target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()) == 0){
-                        std::cerr<<"B) n_ptcl= "<<tc_first[adr_tc+i].n_ptcl_
-                                 <<" tc_first[adr_tc+i].mom_.getVertexOut()= "<<tc_first[adr_tc+i].mom_.getVertexOut()
-                                 <<std::endl;
-                    }
-                }
-                */
-            }
+            const F64 dis_sq = target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc+i].geo_.getVertexOut());
+#else
+            const F64 dis_sq = target_box.vertex_in_.getDistanceMinSq(pos);
 #endif
-        }
-
-        /*
-        for(S32 i=0; i<N_CHILDREN; i++){
-            const F64 dis0 = std::min( target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexOut()),
-                                       target_box.vertex_out_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexIn()) );
-            const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
-            const F64 dis1 = target_box.vertex_in_.getDistanceMinSq(pos);
-            open_bit |= ( dis0 <= 0.0 || dis1 <= r_crit_sq) << i;
+            const F64 size = tc_first[adr_tc+i].geo_.getSize();
+            const F64 r_crit_sq = size*size*inv_theta_sq;
+#if 0
+            open_bit |= (dis_sq <= r_crit_sq) << i; // OK
+            //open_bit |= (target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) || dis_sq <= r_crit_sq) << i;
+#else
+            open_bit |= ( (target_box.vertex_in_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut())
+                           || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) )
+                          || dis_sq <= r_crit_sq) << i;
+#endif
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0)
                           << (i + N_CHILDREN) ); // if true, it should be checked
         }
-        */
-        /*
-        for(S32 i=0; i<N_CHILDREN; i++){
-            const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
-            const F64 dis = target_box.vertex_in_.getDistanceMinSq(pos);
-            open_bit |= (dis <= r_crit_sq) << i;
-            open_bit |= (tc_first[adr_tc+i].n_ptcl_ > 0) << (i + N_CHILDREN); // if true, it should be checked
-        }
-        */
-#else
-        for(S32 i=0; i<N_CHILDREN; i++){
-            const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
-            const F64 dis = target_box.vertex_in_.getDistanceMinSq(pos);
-            open_bit |= (dis <= r_crit_sq) << i;
-            open_bit |= (tc_first[adr_tc+i].n_ptcl_ > 0) << (i + N_CHILDREN); // if true, it should be checked
-        }
-#endif
         return open_bit;
     }
-    
-    template<class TSM, class Ttc>
+
+    template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline U32 GetOpenBit(TagSearchLongCutoff,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
                           const TargetBox<TSM> & target_box,
-                          const F64 r_crit_sq,
                           const F64vec & len_peri,
-                          TagWalkModeNormal){
+                          const F64 inv_theta_sq){
         U32 open_bit = 0;
-        if (r_crit_sq >= 0.0) {
+        if (inv_theta_sq > 0.0) {
             // theta_ > 0 case
             for(S32 i=0; i<N_CHILDREN; i++){
                 const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
-                const F64 dis = target_box.vertex_.getDistanceMinSq(pos);
-                open_bit |= (dis <= r_crit_sq) << i;
-                open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].mom_.getVertexOut()))
+                const F64 dis_sq = target_box.vertex_.getDistanceMinSq(pos);
+                const F64 size = tc_first[adr_tc+i].geo_.getSize();
+                const F64 r_crit_sq = size*size*inv_theta_sq;
+                open_bit |= (dis_sq <= r_crit_sq) << i;
+                //open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].mom_.getVertexOut()))
+                //                && (tc_first[adr_tc+i].n_ptcl_ > 0) )
+                //              << (i + N_CHILDREN) ); // if true, it should be checked
+                open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].geo_.getVertexOut()))
                                 && (tc_first[adr_tc+i].n_ptcl_ > 0) )
-                              << (i + N_CHILDREN) ); // if true, it should be checked
+                              << (i + N_CHILDREN) ); // if true, it should be checked                
             }
         }
         else {
             // theta_ = 0 case
             for(S32 i=0; i<N_CHILDREN; i++){
                 open_bit |= 1 << i;
-                open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].mom_.getVertexOut()))
+                //open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].mom_.getVertexOut()))
+                //                && (tc_first[adr_tc+i].n_ptcl_ > 0) )
+                //              << (i + N_CHILDREN) ); // if true, it should be checked
+                open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].geo_.getVertexOut()))
                                 && (tc_first[adr_tc+i].n_ptcl_ > 0) )
-                              << (i + N_CHILDREN) ); // if true, it should be checked
+                              << (i + N_CHILDREN) ); // if true, it should be checked                
             }
         }
         return open_bit;
     }
     
-    template<class TSM, class Ttc>
+    template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline U32 GetOpenBit(TagSearchShortScatter,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
                           const TargetBox<TSM> & target_box,
-                          const F64 r_crit_sq,
                           const F64vec & len_peri,
-                          TagWalkModeNormal){
+                          const F64 inv_theta_sq){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-#if 0
-            const F64 dis = target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc+i].mom_.getVertexOut());
-            open_bit |= ( dis <= 0.0 ) << i;
-#else
-            open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut()) ) << i;
-#endif
+            //open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut()) ) << i;
+            open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut()) ) << i;
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0) << (i + N_CHILDREN) ); // if true, it should be checked
         }
         return open_bit;
     }
 
-    template<class TSM, class Ttc>
+    template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline U32 GetOpenBit(TagSearchShortSymmetry,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
-                          //const F64ort & pos_target_box,
                           const TargetBox<TSM> & target_box,
-                          const F64 r_crit_sq,
                           const F64vec & len_peri,
-                          TagWalkModeNormal){
+                          const F64 inv_theta_sq){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut())
-                          || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()) ) << i;            
+            //open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut())
+            //              || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()) ) << i;
+            open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut())
+                          || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) ) << i;
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0)
                           << (i + N_CHILDREN) ); // if true, it should be checked
         }
         return open_bit;
     }
 
-    template<class TSM, class Ttc>
+    template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline U32 GetOpenBit(TagSearchShortGather,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
-                          //const F64ort & pos_target_box,
                           const TargetBox<TSM> & target_box,
-                          const F64 r_crit_sq,
                           const F64vec & len_peri,
-                          TagWalkModeNormal){
+                          const F64 inv_theta_sq){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bit |= ( target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()) ) << i;
+            //open_bit |= ( target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()) ) << i;
+            open_bit |= ( target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) ) << i;
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0) << (i + N_CHILDREN) ); // if true, it should be checked
         }
         return open_bit;
@@ -630,8 +580,9 @@ namespace ParticleSimulator{
     // GET OPEN BITS
     /////////////////
 
+    // new
     // for both long mode and short mode
-    template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode, class Tchopleaf, class Tcopyinfoclose>
+    template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Tchopleaf, class Tcopyinfoclose, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void MakeListUsingTreeRecursive
     (const ReallocatableArray<Ttc> & tc_first,
      const S32 adr_tc,
@@ -640,26 +591,28 @@ namespace ParticleSimulator{
      ReallocatableArray<S32> & adr_ep_list,
      const ReallocatableArray<Tsp> & sp_first,
      ReallocatableArray<S32> & adr_sp_list,
-     //const F64ort & pos_target_box,
      const TargetBox<TSM> & target_box,
-     const F64 r_crit_sq,
      const S32 n_leaf_limit,
-     const S32 adr_tree_sp_first, // adress of first sp coming from the (global) tree.
-     const F64vec & len_peri){
+     const S32 adr_tree_sp_first, // address of the first sp from the (global) tree.
+     const F64vec & len_peri,
+     const F64 theta){
+      //if(Comm::getRank()==0){
+      //    std::cerr<<"B) CALC_DISTANCE_TYPE= "<<CALC_DISTANCE_TYPE<<std::endl;
+      //}
         const Ttc * tc_cur = tc_first.getPointer(adr_tc);
         const S32 n_ptcl = tc_cur->n_ptcl_;
         const S32 adr_ptcl_child = tc_cur->adr_ptcl_;
         const S32 adr_tc_child = tc_cur->adr_tc_;
+        const F64 inv_theta_sq = (theta > 0.0) ? 1.0 / (theta*theta) : -1.0;
         if( !(tc_cur->isLeaf(n_leaf_limit)) ){ // not leaf
-            U32 open_bit = GetOpenBit(typename TSM::search_type(), tc_first, adr_tc_child,
-                                      target_box, r_crit_sq*0.25, len_peri,
-                                      typename Twalkmode::walk_type());
+	  U32 open_bit = GetOpenBit<TSM, Ttc, CALC_DISTANCE_TYPE>(typename TSM::search_type(), tc_first, adr_tc_child,
+						target_box, len_peri, inv_theta_sq);
             for(S32 i=0; i<N_CHILDREN; i++){
                 if( !((open_bit>>(i+N_CHILDREN)) & 0x1) ) continue;
                 else if( (open_bit>>i) & 0x1 ){ // close
-                    MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Twalkmode, Tchopleaf, Tcopyinfoclose>
+		    MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Tchopleaf, Tcopyinfoclose, CALC_DISTANCE_TYPE>
                         (tc_first, adr_tc_child+i, tp_first, ep_first, adr_ep_list, sp_first, adr_sp_list,
-                         target_box, r_crit_sq*0.25, n_leaf_limit, adr_tree_sp_first, len_peri);
+                         target_box, n_leaf_limit, adr_tree_sp_first, len_peri, theta);
                 }
                 else{ // far
                     CopyInfoDistant(typename TSM::force_type(), adr_tc_child+adr_tree_sp_first+i, adr_sp_list);
@@ -667,25 +620,16 @@ namespace ParticleSimulator{
             }
         }
         else{ //leaf
-#if 0
-            CopyInfoClose(typename TSM::force_type(), tp_first, adr_ptcl_child, n_ptcl,
-                          ep_first, adr_ep_list, sp_first, adr_sp_list);
-#elif 0
-            adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
-            for(S32 ip=0; ip<n_ptcl; ip++){
-                F64 dis_sq = target_box.vertex_in_.getDistanceMinSQ(ep_first[adr_ptcl_child+ip].pos);
-                if(dis_sq > ep_first[adr_ptcl_child+ip].getRSearch()*ep_first[adr_ptcl_child+ip].getRSearch()) continue;
-                adr_ep_list.pushBackNoCheck(adr_ptcl_child+ip);
-            }
-#else
             CopyInfoClose(typename TSM::force_type(), Tchopleaf(), Tcopyinfoclose(), tp_first, adr_ptcl_child, n_ptcl,
                           ep_first, adr_ep_list, sp_first, adr_sp_list, target_box);
-#endif
         }
     }
 
+    
+    // new
     // for long mode
-    template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Twalkmode, class Tchopleaf, class Tcopyinfoclose>
+    //template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Tchopleaf, class Tcopyinfoclose, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE=CALC_DISTANCE_TYPE_NORMAL>
+    template<class TSM, class Ttc, class Ttp, class Tep, class Tsp, class Tchopleaf, class Tcopyinfoclose, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void MakeListUsingTreeRecursiveTop
     (const ReallocatableArray<Ttc> & tc_first,
      const S32 adr_tc,
@@ -695,19 +639,19 @@ namespace ParticleSimulator{
      const ReallocatableArray<Tsp> & sp_first,
      ReallocatableArray<S32> & adr_sp_list,
      const TargetBox<TSM> & target_box,
-     const F64 r_crit_sq,
      const S32 n_leaf_limit,
      const S32 adr_tree_sp_first, // adress of first sp coming from the (global) tree.
-     const F64vec & len_peri){
-        if ((r_crit_sq >= 0.0) || (typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF))) {
+     const F64vec & len_peri,
+     const F64 theta){
+      //std::cerr<<"CALC_DISTANCE_TYPE_NORMAL= "<<CALC_DISTANCE_TYPE_NORMAL<<std::endl;
+        if ((theta > 0.0) || (typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF))) {
             // theta_ > 0 case or PS::SEARCH_MODE_LONG_CUTOFF
-            if( IsOpen(typename TSM::search_type(), tc_first, adr_tc, target_box,
-                       r_crit_sq, len_peri, typename Twalkmode::walk_type()) ){
-                MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Twalkmode, Tchopleaf, Tcopyinfoclose>
+            if( IsOpen(typename TSM::search_type(), tc_first, adr_tc, target_box) ){
+  	        MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Tchopleaf, Tcopyinfoclose, CALC_DISTANCE_TYPE>
                     (tc_first, adr_tc, tp_first, ep_first, adr_ep_list, sp_first,
-                     adr_sp_list, target_box, r_crit_sq, n_leaf_limit,
-                     adr_tree_sp_first, len_peri);
-            } 
+                     adr_sp_list, target_box, n_leaf_limit,
+                     adr_tree_sp_first, len_peri, theta);
+            }
         }
         else {
             // theta_ = 0 case with the modes other than PS::SEARCH_MODE_LONG_CUTOFF
@@ -718,8 +662,9 @@ namespace ParticleSimulator{
         }
     }
 
+
     // for short mode
-    template<class TSM, class Ttc, class Ttp, class Tep, class Twalkmode, class Tchopleaf>
+    template<class TSM, class Ttc, class Ttp, class Tep, class Tchopleaf, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void MakeListUsingTreeRecursiveTop
     (const ReallocatableArray<Ttc> & tc_first,
      const S32 adr_tc,
@@ -727,21 +672,17 @@ namespace ParticleSimulator{
      const ReallocatableArray<Tep> & ep_first,
      ReallocatableArray<S32> & adr_ep_list,
      const TargetBox<TSM> & target_box,
-     const F64 r_crit_sq,
      const S32 n_leaf_limit,
      const F64vec & len_peri){
+        const F64 theta_tmp = 1.0;
         S32 adr_tree_sp_first = 0;
         ReallocatableArray<SuperParticleBase> sp_first;
         ReallocatableArray<S32> adr_sp_list;
-        MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, SuperParticleBase, Twalkmode, Tchopleaf, TagCopyInfoCloseNoSp>
+        MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, SuperParticleBase, Tchopleaf, TagCopyInfoCloseNoSp, CALC_DISTANCE_TYPE>
             (tc_first, adr_tc, tp_first, ep_first, adr_ep_list, sp_first,
-             adr_sp_list, target_box, r_crit_sq, n_leaf_limit,
-             adr_tree_sp_first, len_peri);
-        //adr_sp_list.freeMem();
-        //sp_first.freeMem();
+             adr_sp_list, target_box, n_leaf_limit,
+             adr_tree_sp_first, len_peri, theta_tmp);
     }
-
-
     
     ////////////////////
     // FOR DOUBLE WALK
@@ -756,7 +697,8 @@ namespace ParticleSimulator{
         if(is_overlapped) return;
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bit |= (tc_first[adr_tc+i].mom_.getVertexOut().overlapped(pos_box) << i);
+            //open_bit |= (tc_first[adr_tc+i].mom_.getVertexOut().overlapped(pos_box) << i);
+            open_bit |= (tc_first[adr_tc+i].geo_.getVertexOut().overlapped(pos_box) << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             if(is_overlapped) return;
@@ -789,7 +731,8 @@ namespace ParticleSimulator{
             IsOverlapped(tc_first.getPointer(), adr_tc, pos_box, n_leaf_limit, is_overlapped);
         }
         else{
-            is_overlapped = tc_first[0].mom_.getVertexOut().overlapped(pos_box);
+            //is_overlapped = tc_first[0].mom_.getVertexOut().overlapped(pos_box);
+            is_overlapped = tc_first[0].geo_.getVertexOut().overlapped(pos_box);
         }
         return is_overlapped;
     }
@@ -802,8 +745,8 @@ namespace ParticleSimulator{
                                     const S32 n_leaf_limit_A){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bit |= (tc_first_B[adr_tc_B+i].mom_.getVertexOut().overlapped(pos_domain)
-                         || IsOverlappedTop(tc_first_A, tc_first_B[adr_tc_B+i].mom_.getVertexIn(), n_leaf_limit_A)) << i;
+            open_bit |= (tc_first_B[adr_tc_B+i].geo_.getVertexOut().overlapped(pos_domain)
+                         || IsOverlappedTop(tc_first_A, tc_first_B[adr_tc_B+i].geo_.getVertexIn(), n_leaf_limit_A)) << i;
             open_bit |= (tc_first_B[adr_tc_B+i].n_ptcl_ > 0) << (i + N_CHILDREN); // if false, just skip
         }
         return open_bit;
@@ -832,40 +775,17 @@ namespace ParticleSimulator{
                                        adr_ptcl_send);
                 }
                 else{
-                    if( pos_domain.overlapped(tc_first_B[adr_tc_child].mom_.getVertexOut()) ){
+                    //if( pos_domain.overlapped(tc_first_B[adr_tc_child].mom_.getVertexOut()) ){
+                    if( pos_domain.overlapped(tc_first_B[adr_tc_child].geo_.getVertexOut()) ){
                         //if(Comm::getRank()==0) std::cerr<<"tc_first_B[adr_tc_child].mom_.getVertexOut()= "<<tc_first_B[adr_tc_child].mom_.getVertexOut()<<std::endl;
                         continue;
                     }
                     else{
-                        /*
-                        if(Comm::getRank()==0){
-                            std::cerr<<"pos_domain= "<<pos_domain
-                                     <<" tc_first_B[adr_tc_child].mom_.getVertexOut()= "
-                                     <<tc_first_B[adr_tc_child].mom_.getVertexOut()
-                                     <<" tc_first_B[adr_tc_child].mom_.getVertexIn()= "
-                                     <<tc_first_B[adr_tc_child].mom_.getVertexIn()
-                                     <<" overlapped= "
-                                     <<IsOverlappedTop(tc_first_A, tc_first_B[adr_tc_child].mom_.getVertexIn(), n_leaf_limit_A)
-                                     <<std::endl;
-                        }
-                        */                       
                         S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
                         for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
-                            /*
-                            if(Comm::getRank()==0){
-                                std::cerr<<"adr_ptcl_tmp= "<<adr_ptcl_tmp<<std::endl;
-                            }
-                            */
                             adr_ptcl_send.push_back(adr_ptcl_tmp);
                         }
                     }
-                    /*
-                    S32 adr_ptcl_tmp = tc_child->adr_ptcl_;
-                    for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
-                        if( pos_domain.overlapped(tc_first_B[adr_tc_child].mom_.getVertexOut()) ) continue;
-                        adr_ptcl_send.push_back(adr_ptcl_tmp);
-                    }
-                    */
                 }
             }
         }
@@ -888,12 +808,9 @@ namespace ParticleSimulator{
                                adr_ptcl_send);
         }
         else{
-#if 0
-            S32 adr_ptcl_tmp = tc_first_B[0].adr_ptcl_;
-            const S32 n_child = tc_first_B[0].n_ptcl_;
-#else
             // original
-            if( tc_first_B[0].mom_.getVertexOut().overlapped(pos_domain) ){
+            //if( tc_first_B[0].mom_.getVertexOut().overlapped(pos_domain) ){
+            if( tc_first_B[0].geo_.getVertexOut().overlapped(pos_domain) ){
                 // already sent
                 return;
             }
@@ -906,7 +823,87 @@ namespace ParticleSimulator{
                     adr_ptcl_send.push_back(adr_ptcl_tmp);
                 }
             }
-#endif
         }
     }
+
+#ifdef LOOP_TREE
+    template<typename Ttc, typename Ttp>
+    inline void CopyInfoClose(const Ttc & tc,
+                              const ReallocatableArray<Ttp> & tp_first,
+                              ReallocatableArray<S32> & adr_ep_list,
+                              ReallocatableArray<S32> & adr_sp_list){
+        const S32 n_ptcl = tc.n_ptcl_;
+        S32 adr_tp = tc.adr_ptcl_;
+        for(S32 i=0; i<n_ptcl; i++, adr_tp++){
+            U32 adr_ptcl = tp_first[adr_tp].adr_ptcl_;
+            if( GetMSB(adr_ptcl) == 0 ){
+                adr_ep_list.pushBackNoCheck(adr_ptcl);
+            }
+            else{
+                adr_sp_list.pushBackNoCheck(ClearMSB(adr_ptcl));
+            }
+        }
+    }
+    
+    template<class TSM, class Ttc, class Ttp>
+    inline void MakeListUsingTreeLoop
+    (const ReallocatableArray<Ttc> & tc_first,
+     const ReallocatableArray<Ttp> & tp_first,
+     const TargetBox<TSM> target_box[],
+     ReallocatableArray<S32> adr_ep_list[],
+     ReallocatableArray<S32> adr_sp_list[],
+     const S32 n_ipg,
+     const S32 n_leaf_limit,
+     const S32 adr_tree_sp_first, // adress of first sp coming from the (global) tree.
+     const F64 inv_theta_sq,
+     const S32 buf_size_limit = 100000){
+        S32 adr_tc[128];
+        assert(n_ipg < 128);
+        for(S32 i=0; i<n_ipg; i++){
+            adr_tc[i] = 0;
+        }
+        S32 loop = 0;
+        while(1){
+            S32 n_ipg_rem = n_ipg;
+            //std::cerr<<"loop= "<<loop<<std::endl;
+            loop++;
+            for(S32 i=0; i<n_ipg; i++){
+                const U32 adr = adr_tc[i];
+                //std::cerr<<"i= "<<i<<" loop= "<<loop<<" adr= "<<adr<<std::endl;
+                const Ttc & tc_cur = tc_first[adr];
+                const F64vec tc_pos = tc_cur.mom_.getPos();
+                const F64 size = tc_cur.geo_.getSize();
+                const F64 r_crit_sq = size*size*inv_theta_sq;
+                const F64 dis_sq = target_box[i].vertex_.getDistanceMinSq(tc_pos);
+                if(r_crit_sq < dis_sq){
+                    //std::cerr<<"check A"<<std::endl;
+                    // distant
+                    adr_sp_list[i].pushBackNoCheck(adr+adr_tree_sp_first);
+                    adr_tc[i] = tc_cur.adr_tc_next_;
+                }
+                else{
+                    // close
+                    if(tc_cur.isLeaf(n_leaf_limit)){
+                        //std::cerr<<"check B: tc_cur.n_ptcl_= "<<tc_cur.n_ptcl_<<std::endl;
+                        CopyInfoClose(tc_cur, tp_first, adr_ep_list[i], adr_sp_list[i]);
+                        adr_tc[i] = tc_cur.adr_tc_next_;
+                    }
+                    else{
+                        //std::cerr<<"check C"<<std::endl;
+                        // not leaf. go deeper.
+                        adr_tc[i] = tc_cur.adr_tc_;
+                    }
+                }
+                if(&tc_cur-tc_first.getPointer() == 1){
+                    n_ipg_rem--;
+                }
+            }
+            if(n_ipg_rem == 0) break;
+        }
+    }
+
+
+    
+#endif
+    
 }

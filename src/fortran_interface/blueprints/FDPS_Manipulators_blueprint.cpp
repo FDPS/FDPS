@@ -337,6 +337,16 @@ namespace FDPS_Manipulators {
       }
    }
 
+   void set_psys_comm_info(int psys_num, fdps_comm_info *ci){
+      for (std::vector<Psys_Data>::iterator it = psys_vector.begin(); it != psys_vector.end(); ++it) {
+         if (it->id == psys_num) {
+            //-----------------------------------------------
+            // fdps-autogen:set_psys_comm_info;
+            //-----------------------------------------------
+         }
+      }
+   }
+
 
    //----------------------------
    // DomainInfo manipulators
@@ -552,6 +562,17 @@ namespace FDPS_Manipulators {
          }
       }
    }
+   void set_dinfo_comm_info(int dinfo_num, fdps_comm_info *ci){
+      for (std::vector<Dinfo_Data>::iterator it = dinfo_vector.begin(); it != dinfo_vector.end(); ++it) {
+         if (it->id == dinfo_num) {
+            PS::DomainInfo *dinfo;
+            dinfo = (PS::DomainInfo *) it->ptr;
+            dinfo->setCommInfo(*((PS::CommInfo*)ci));
+            break;
+         }
+      }
+   }
+    
    //----------------------------
    // TreeForForce manipulators
    //----------------------------
@@ -1083,6 +1104,25 @@ namespace FDPS_Manipulators {
       //-----------------------------------------------
       // fdps-autogen:get_epj_from_id;
       //-----------------------------------------------
+   }
+   void set_tree_comm_info(int tree_num, fdps_comm_info *ci){
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            //------------------------------------------------------
+            // fdps-autogen:set_tree_comm_info;
+            //------------------------------------------------------
+         }
+      }
+   }
+
+    void set_exchange_let_mode(int tree_num, int mode){
+      for (std::vector<Tree_Data>::iterator it = tree_vector.begin(); it != tree_vector.end(); ++it) {
+         if (it->id == tree_num) {
+            //------------------------------------------------------
+            // fdps-autogen:set_exchange_let_mode;
+            //------------------------------------------------------
+         }
+      }
    }
 
    //----------------------------

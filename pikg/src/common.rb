@@ -1,11 +1,135 @@
+def get_initial_value(op,type)
+  if op == :plus || op == :minus
+    case type
+    when /(S|U)/
+    #IntegerValue.new("0")
+      "0"
+    when "F64"
+    #FloatingPoint.new("0.0")
+      "0.0"
+    when "F32"
+      #FloatingPoint.new("0.0f")
+      "0.0f"
+    when "F16"
+      #FloatingPoint.new("0.0h")
+      "0.0h"
+    end
+  elsif op == :mult || op == :div
+    case type
+    when /(S|U)/
+      #IntegerValue.new("1")
+      "1"
+    when "F64"
+      #FloatingPoint.new("1.0")
+      "1.0"
+    when "F32"
+      #FloatingPoint.new("1.0f")
+      "1.0f"
+    when "F16"
+      #FloatingPoint.new("1.0h")
+      "1.0h"
+    end
+  elsif op == "max"
+    case type
+    when "S64"
+      "std::numeric_limits<int64_t>::lowest()"
+    when "S32"
+      "std::numeric_limits<int32_t>::lowest()"
+    when "S16"
+      "std::numeric_limits<int16_t>::lowest()"
+    when "U64"
+      "std::numeric_limits<uint64_t>::lowest()"
+    when "U32"
+      "std::numeric_limits<uint32_t>::lowest()"
+    when "U16"
+      "std::numeric_limits<uint16_t>::lowest()"
+    when "F64"
+      "std::numeric_limits<double>::lowest()"
+    when "F32"
+      "std::numeric_limits<float>::lowest()"
+    when "F16"
+      "std::numeric_limits<float16_t>::lowest()"
+    end
+  elsif op == "min"
+    case type
+    when "S64"
+      "std::numeric_limits<int64_t>::max()"
+    when "S32"
+      "std::numeric_limits<int32_t>::max()"
+    when "S16"
+      "std::numeric_limits<int16_t>::max()"
+    when "U64"
+      "std::numeric_limits<uint64_t>::max()"
+    when "U32"
+      "std::numeric_limits<uint32_t>::max()"
+    when "U16"
+      "std::numeric_limits<uint16_t>::max()"
+    when "F64"
+      "std::numeric_limits<double>::max()"
+    when "F32"
+      "std::numeric_limits<float>::max()"
+    when "F16"
+      "std::numeric_limits<float16_t>::max()"
+    else
+      abort "error: unsupported type #{type} for get_initial_value"
+    end
+  else
+    abort "unsupported accumulate operator #{op} for get_initial_value"
+  end
+end
+
+def get_iotype_from_hash(v)
+  v[1][0]
+end
+def get_type_from_hash(v)
+  v[1][1]
+end
+def get_fdpsname_from_hash(v)
+  v[1][2]
+end
+def get_modifier_from_hash(v)
+  v[1][3]
+end
+
+def get_vector_elements(type)
+  case type
+  when /F(16|32|64)vec2/
+    ["x","y"]
+  when /F(16|32|64)vec(3)?/
+    ["x","y","z"]
+  when /F(16|32|64)vec4/
+    ["x","y","z","w"]
+  else
+    [""]
+  end
+end
+
 def sizeof(type)
   case type
-  when /64/
-    "64"
-  when /32/
-    "32"
-  when /16/
-    "16"
+  when /F64vec(3)?/
+    64*3
+  when /F32vec(3)?/
+    32*3
+  when /F16vec(3)?/
+    16*3
+  when "F64vec2"
+    64*2
+  when "F32vec2"
+    32*2
+  when "F16vec2"
+    16*2
+  when "F64vec4"
+    64*4
+  when "F32vec4"
+    32*4
+  when "F16vec4"
+    16*4
+  when /(F|S|U|B)64/
+    64
+  when /(F|S|U|B)32/
+    32
+  when /(F|S|U|B)16/
+    16
   end
 end
 
@@ -55,7 +179,7 @@ def get_name(x)
     else
       abort "get_name for not :dot epxpression"
     end
-  elsif x.class ==  Statement
+  elsif x.class ==  Statement || x.class == NonSimdState
     if x.name.class == Expression
       ret = get_name(x.name)
     else
@@ -73,6 +197,8 @@ def get_name(x)
     ret = get_name(x.exp)
   elsif x.class == String
     ret = x
+  elsif x.class == TableDecl
+    ret = get_name(x.name)
   else
     return nil
     abort "get_name is not allowed to use for #{x.class}"
@@ -135,6 +261,37 @@ def get_declare_type(type,conversion_type)
     decl = get_declare_type_avx2(type)
   when /AVX-512/
     decl = get_declare_type_avx512(type)
+  when /CUDA/
+    case type
+    when "S32"
+      decl = "int"
+    when "S64"
+      decl = "long long"
+    when "U32"
+      decl = "unsigned int"
+    when "U64"
+      decl = "unsigned long long"
+    when "F64"
+     decl =  "double"
+    when "F32"
+      decl = "float"
+    when "F64vec"
+      decl = "double3"
+    when "F32vec"
+      decl = "float3"
+    when "F64vec4"
+      decl = "double4"
+    when "F32vec4"
+      decl = "float4"
+    when "F64vec2"
+      decl = "double2"
+    when "F32vec2"
+      decl = "float2"
+    when "F64vec3"
+      decl = "double3"
+    when "F32vec3"
+      decl = "float3"
+    end
   else
     abort "error: unsupported conversion_type #{conversion_type} at get_declare_type"
   end
@@ -252,7 +409,11 @@ def get_simd_width(conversion_type)
 end
 
 def get_num_elem(type,conversion_type)
-  get_simd_width(conversion_type) / get_single_data_size(type)
+  if conversion_type == "reference"
+    1
+  else
+    get_simd_width(conversion_type) / get_single_data_size(type)
+  end
 end
 
 def get_byte_size(type)
@@ -315,7 +476,8 @@ def count_class_member(io,h=$varhash)
     iotype = v[1][0]
     type   = v[1][1]
     modifier = v[1][3]
-    if iotype == io
+    if iotype == io && modifier == nil
+      next if v[0] =~ /_swpl/
       prev_type = type.delete("vec") if tot == 0
       byte = byte_count(type)
       tot += byte_count(type) if modifier == nil
@@ -324,6 +486,6 @@ def count_class_member(io,h=$varhash)
       is_uniform = false if prev_type != nil && type.delete("vec") != prev_type
     end
   }
-  warn "size of #{io} member is #{max_byte_size}, # of elemennts are #{tot/max_byte_size}" if is_uniform
+  #warn "size of #{io} member is #{max_byte_size}, # of elemennts are #{tot/max_byte_size}" if is_uniform
   [tot,max_byte_size,is_uniform]
 end

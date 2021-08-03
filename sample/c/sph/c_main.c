@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <assert.h>
 /* FDPS headers */
 #include "FDPS_c_if.h"
 /* user-defined headers */
@@ -25,75 +26,98 @@ void setup_IC(int psys_num,
     pos_ul->y = pos_ul->x / 8.0;
     pos_ul->z = pos_ul->x / 8.0;
 
-    // Make an initial condition at RANK 0
+    // Set the left and right states
+    const double dens_left  = 1.0;
+    const double eng_left   = 2.5;
+    const double dens_right = 0.5;
+    const double eng_right  = 2.5;
+
+    // Set the separation of particle of the left state
+    const double dx = 1.0 / 128.0;
+    const double dy = dx;
+    const double dz = dx;
+
+    // Count # of particles in the computational domain
+    double x, y, z;
+    int nx_left = 0, ny_left = 0, nz_left = 0;
+    for (x = 0; x < 0.5 * pos_ul->x; x += dx) nx_left++;
+    for (y = 0; y < pos_ul->y ; y += dy) ny_left++;
+    for (z = 0; z < pos_ul->z ; z += dz) nz_left++;
+    int nx_right = 0, ny_right = 0, nz_right = 0;
+    for (x = 0.5 * pos_ul->x; x < pos_ul->x * 1.0; x += (dens_left/dens_right)*dx) nx_right++;
+    for (y = 0; y < pos_ul->y; y += dy) ny_right++;
+    for (z = 0; z < pos_ul->z; z += dz) nz_right++;
+    const int nptcl_glb = (nx_left * ny_left * nz_left)
+                        + (nx_right * ny_right * nz_right);
     if (myrank == 0) {
-        // Set the left and right states
-        const double dens_L = 1.0;
-        const double eng_L  = 2.5;
-        const double dens_R = 0.5;
-        const double eng_R  = 2.5;
-        // Set the separation of particle of the left state
-        const double dx = 1.0 / 128.0;
-        const double dy = dx;
-        const double dz = dx;
-        // Set the number of local particles
-        int nptcl_glb = 0;
-        // (1) Left-half
-        const int nx_L = 0.5*pos_ul->x/dx;
-        const int ny_L = pos_ul->y/dy;
-        const int nz_L = pos_ul->z/dz;
-        nptcl_glb += nx_L * ny_L * nz_L;
-        printf("nptcl_glb(L)   = %d\n",nptcl_glb);
-        // (2) Right-half
-        const int nx_R = 0.5*pos_ul->x/((dens_L/dens_R)*dx);
-        const int ny_R = ny_L;
-        const int nz_R = nz_L;
-        nptcl_glb += nx_R * ny_R * nz_R;
-        printf("nptcl_glb(L+R) = %d\n",nptcl_glb);
-        // Place SPH particles
-        fdps_set_nptcl_loc(psys_num,nptcl_glb);
-        Full_particle *ptcl = (Full_particle *) fdps_get_psys_cptr(psys_num);
-        int id = -1;
-        // (1) Left-half
-        int i,j,k;
-        for (i = 0; i < nx_L; i++) {
-            for (j = 0; j < ny_L; j++) {
-                for (k = 0; k < nz_L; k++) {
-                    id++;
-                    ptcl[id].id    = id;
-                    ptcl[id].pos.x = dx * i;
-                    ptcl[id].pos.y = dy * j;
-                    ptcl[id].pos.z = dz * k;
-                    ptcl[id].dens  = dens_L;
-                    ptcl[id].eng   = eng_L;
-                }
-            }
-        }
-        // (2) Right-half
-        for (i = 0; i < nx_R; i++) {
-            for (j = 0; j < ny_R; j++) {
-                for (k = 0; k < nz_R; k++) {
-                    id++;
-                    ptcl[id].id    = id;
-                    ptcl[id].pos.x = 0.5*pos_ul->x + ((dens_L/dens_R)*dx)*i;
-                    ptcl[id].pos.y = dy * j;
-                    ptcl[id].pos.z = dz * k;
-                    ptcl[id].dens  = dens_R;
-                    ptcl[id].eng   = eng_R;
-                }
-            }
-        }
-        printf("nptcl(L+R) = %d\n",id+1);
-        // Set particle mass and smoothing length
-        for (i = 0; i < nptcl_glb; i++) {
-            ptcl[i].mass = 0.5*(dens_L+dens_R)
-                         * (pos_ul->x*pos_ul->y*pos_ul->z)
-                         / nptcl_glb;
-            ptcl[i].smth = kernel_support_radius * 0.012;
-        }
-    } else {
-        fdps_set_nptcl_loc(psys_num,0);
+        printf("nptcl_glb = %d\n",nptcl_glb);
     }
+
+    // Set # of local particles
+    const int nptcl_quot = nptcl_glb / nprocs; // quotient
+    const int nptcl_rem = nptcl_glb % nprocs; // remainder
+    if (myrank == 0) {
+        printf("nptcl_quot = %d\n",nptcl_quot);
+        printf("nptcl_rem  = %d\n",nptcl_rem);
+    }
+    const int nptcl_loc = nptcl_quot + ((myrank < nptcl_rem) ? 1 : 0);
+    fdps_set_nptcl_loc(psys_num, nptcl_loc);
+    const int i_head = nptcl_quot * myrank
+                     + ((myrank > (nptcl_rem-1)) ? nptcl_rem : myrank);
+    const int i_tail = i_head + nptcl_loc;
+    int rank;
+    for (rank = 0; rank < nprocs; rank++) {
+        if (rank == myrank) {
+            printf("myrank = %d, nptcl_loc = %d, i_head = %d, i_tail = %d\n",
+                   myrank, nptcl_loc, i_head, i_tail);
+        }
+        fdps_barrier();
+    }
+
+    // Set local particles
+    Full_particle *ptcl = (Full_particle *) fdps_get_psys_cptr(psys_num);
+    const double sv = (pos_ul->x * pos_ul->y * pos_ul->z) / (double)nptcl_glb;
+    const double mass = 0.5 * (dens_left + dens_right) * sv;
+    int i = 0;
+    // (1) Left-half
+    for (x = 0; x < 0.5 * pos_ul->x; x += dx) {
+        for (y = 0; y < pos_ul->y ; y += dy) {
+            for (z = 0; z < pos_ul->z ; z += dz) {
+                if (i_head <= i && i < i_tail) {
+                    const int ii = i - i_head;
+                    ptcl[ii].pos.x = x;
+                    ptcl[ii].pos.y = y;
+                    ptcl[ii].pos.z = z;
+                    ptcl[ii].mass  = mass;
+                    ptcl[ii].dens  = dens_left;
+                    ptcl[ii].eng   = eng_right;
+                    ptcl[ii].smth  = kernel_support_radius * 0.012;
+                    ptcl[ii].id    = i;
+                }
+                i++;
+            }
+        }
+    }
+    // (2) Right-half
+    for (x = 0.5 * pos_ul->x; x < pos_ul->x * 1.0; x += (dens_left/dens_right)*dx) {
+        for (y = 0; y < pos_ul->y; y += dy) {
+            for (z = 0; z < pos_ul->z; z += dz) {
+                if (i_head <= i && i < i_tail) {
+                    const int ii = i - i_head;
+                    ptcl[ii].pos.x = x;
+                    ptcl[ii].pos.y = y;
+                    ptcl[ii].pos.z = z;
+                    ptcl[ii].mass  = mass;
+                    ptcl[ii].dens  = dens_right;
+                    ptcl[ii].eng   = eng_right;
+                    ptcl[ii].smth  = kernel_support_radius * 0.012;
+                    ptcl[ii].id    = i;
+                }
+                i++;
+            }
+        }
+    }
+    assert(i == nptcl_glb);
 
     // Set the end time
     *end_time = 0.12;

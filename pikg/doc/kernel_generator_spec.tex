@@ -18,7 +18,7 @@
 %\parskip 5 pt
 \title{PIKG仕様書\\
 {\large 
-Ver 0.1 --- 2020/8/16\\
+Ver 0.1c\\
 }
 }
 \author{野村昴太郎}
@@ -53,6 +53,8 @@ Ver 0.1 --- 2020/8/16\\
 C-interfaceの記述を追加．
 \subsection{2020/8/16}
 Fortran-interfaceの記述を追加．
+\subsection{2020/8/20}
+変数宣言部および相互作用記述部の新文法に関するを追加．
 
 \section{はじめに}
 %本書はFDPS向けのカーネル関数のソースコードジェネレータの仕様書である．
@@ -115,6 +117,7 @@ void kernel_body(const EPI* epi,const int ni,
 
 PIKGでは，DSL記述から(5)相互作用計算と(5)で使われる変数がEPI，EPJとFORCEクラスのどの変数かの情報を読み取り，
 相互作用計算カーネルを生成する．
+ここで，EPI，EPJ，FORCEは同じ型でもよく，相互作用カーネルに渡される3つの配列には同じ配列を使用しても良い．
 
 \subsection{DSL概要}
 PIKGのDSLは以下の3つのパートから構成される．
@@ -123,8 +126,8 @@ PIKGのDSLは以下の3つのパートから構成される．
   \item 関数宣言部
   \item 相互作用記述部
  \end{itemize}
- それぞれのパートは上記の順番で書かれる必要があり，関数宣言部は省略が可能である．
- 変数宣言部はひとつ以上の変数宣言からなり，関数宣言もひとつ以上の関数宣言からなる．
+ それぞれのパートは上記の順番で書かれる必要があり，
+ 変数宣言部は0個以上の変数宣言からなり，関数宣言も0個以上の関数宣言からなる．
  相互作用記述部では，変数宣言部と関数宣言部で宣言された変数と関数，予約関数を用いて粒子間の相互作用を記述する．
 
  以下では，DSLの文法とそれぞれのパートについて詳しく見ていく．
@@ -251,17 +254,17 @@ EPI，EPJもしくはFORCEがつかない場合，カーネル関数オブジェ
 \end{verbatim}
 
 また，local修飾子をつけることでEPI，EPJのローカル変数を宣言できる．
-ローカル変数にEPIやEPJの変数を使った値を代入するDSLを記述すると，相互作用計算の2重ループの外側で初期化される．
-local変数は1次元配列として確保されるため，EPIやEPJの要素数が大きいときなどにAoSからSoAに変換するときに用いる．
+ローカル変数にEPIやEPJの変数を使った値を代入する文を記述すると，相互作用計算の2重ループの外側で初期化され，EPI変数やEPJ変数と同じように相互作用計算に利用できる．
+%local変数は1次元配列として確保されるため，EPIやEPJの要素数が大きいときなどにAoSからSoAに変換するときに用いる．
 
-EPI，EPJ，FORCEの変数宣言はC++のクラスの宣言と型やメンバ変数の宣言の順番，個数と完全に一致していなくてはならない．
-したがって，実際には相互作用の計算に使用されないメンバ変数がクラスに含まれている場合でも，変数宣言部では宣言される必要がある．
+後述の--class-fileオプションを付けない場合，EPI，EPJ，FORCEの変数宣言はC++のクラスの宣言と型やメンバ変数の宣言の順番，個数と完全に一致していなくてはならない．
+したがって，このとき実際には相互作用の計算に使用されないメンバ変数がクラスの定義に含まれている場合でも，変数宣言部では宣言される必要がある．
 
 \subsection{関数記述部}
 本DSLでは，関数を記述し，相互作用関数記述部で利用することができる．
 関数記述部は，以下の記述になる．
 \begin{verbatim}
-	function 関数名(引数0，$\cdots$)
+	function 関数名(引数0，...)
 	  /* 計算部分 */
 	  return 返り値
 	end
@@ -271,13 +274,99 @@ EPI，EPJ，FORCEの変数宣言はC++のクラスの宣言と型やメンバ変
 型推論されるので，特に宣言なく使用できる．
 
 \subsection{相互作用関数記述部} \label{subsec:kernel}
-相互作用関数記述部では，以下のような記述が可能である．
+相互作用関数記述部では，EPI，EPJ，FORCEクラスの変数および一時変数を使ってFORCEクラスの変数に相互作用計算で求めたい値をアキュムレートしていくように記述を行う．
+
+後述の--class-fileオプションを使う場合は，変数宣言部で宣言した変数名以外に，実際のEPI，EPJ，FORCEクラスのメンバ変数名を使ってEPI.posやEPJ.massのようにメンバ変数を使うことができる．下記の例では，EPJ.massとmjは等価である．
 \begin{verbatim}
-	dr  = ri - rj
-	r2  = dr * dr
+	EPJ F64 mj:mass
+	F64 eps2
+
+	dr = EPI.pos - EPJ.pos
+	r2 = dr * dr * eps2
 	rinv = rsqrt(r2)
-	f += mj * ri * ri * ri * dr
-	u += mj * ri
+	mr_inv = mj * rinv
+	mr3_inv = mr_inv * rinv * rinv
+	FORCE.acc -= mr3_inv * dr
+	FORCE.pot -= mr_inv
+\end{verbatim}
+また，EPI.とEPJ.とFORCE.を省略した記法も可能である．ただし，EPIとEPJとFORCEクラスで同じ名前のメンバ変数がある場合，省略したときは，左辺値ではFORCE.が，右辺値ではEPI. $>$ EPJ. $>$ FORCE. の順番の優先度で省略されたとみなされる．ただし，同じ文において，左辺値でFORCE.が省略された変数があり，右辺値でも同じ変数が出てくる場合に限り，優先度を無視してFORCE.が省略されたとみなす．
+
+たとえば，以下のようなC++でのクラスの定義があるとすると，
+\begin{verbatim}
+	struct EPI{
+	  F64vec pos;
+	};
+	struct EPJ{
+	  F64vec pos;
+	  F64v   mass;
+	};
+	struct EPI{
+	  F64vec acc;
+	  F64    pot;
+	};
+\end{verbatim}
+前述の相互作用記述部は以下のようにも記述できる．
+\begin{verbatim}
+	dr = pos - EPJ.pos
+	r2 = dr * dr + eps2
+	rinv = rsqrt(r2)
+	mr_inv = mass * rinv
+	mr3_inv = mr_inv * rinv * rinv
+	acc -= mr3_inv * dr
+	pot -= mr_inv
+\end{verbatim}
+
+また，以下のようなクラスParticleがEPI，EPJ，FORCEに使われているとする．
+\begin{verbatim}
+	struct Particle{
+	  F64vec pos;
+	  F64    mass;
+	  F64vec acc;
+	  F64    pot;
+	};
+\end{verbatim}
+このとき，
+\begin{verbatim}
+	acc = acc - mr3_inv * dr
+\end{verbatim}
+という記述は
+\begin{verbatim}
+	FORCE.acc = FORCE.acc - mr3_inv * dr
+\end{verbatim}
+と解釈される．
+
+%左辺値と右辺値で優先順位が違うため，以下のような記述に注意する．
+%例えば，rminがEPIとFORCEクラスに定義されていて，r2が計算された一時変数とすると，
+%\begin{verbatim}
+%	FORCE.rmin = min(r2,FORCE.rmin)
+%\end{verbatim}
+%を意図して，
+%\begin{verbatim}
+%	rmin = min(r2,rmin)
+%\end{verbatim}
+%と書いた場合は，
+%\begin{verbatim}
+%	FORCE.rmin = min(r2,EPI.rmin)
+%\end{verbatim}
+%と解釈される．
+
+--class-fileオプションを用いない場合，変数宣言部で宣言した変数と一時変数のみを相互作用記述部で使うことができる．
+\begin{verbatim}
+	EPI F64vec xi:pos
+
+	EPJ F64vec xj:pos
+	EPJ F64    mj:mass
+
+	FORCE F64vec acc:acc
+	FORCE F64    pot:pot
+
+	dr = xi - xj
+	r2 = dr * dr + eps2
+	rinv = rsqrt(r2)
+	mr_inv = mj * rinv
+	mr3_inv = mr_inv * rinv * rinv
+	acc -= mr3_inv * dr
+	pot -= mr_inv
 \end{verbatim}
 
 相互作用関数記述部では，これまでに型を指定して宣言された変数をもとに型推論が行われるため，
@@ -297,7 +386,7 @@ EPI，EPJ，FORCEの変数宣言はC++のクラスの宣言と型やメンバ変
 %\subsection{構文解析}
 
 \section{カーネル生成方法及び利用法}
-カーネルの生成方法は簡単である．以下の2ステップで行われる．
+カーネル生成は以下の2ステップで行われる．
  \begin{itemize}
   \item 相互作用関数をDSLで記述
   \item オプションを指定してカーネルジェネレータにDSLファイルを入力として渡す
@@ -308,25 +397,79 @@ $(PIKG)/bin/pikg [options]
 \end{verbatim}
 
  指定可能なオプションは以下の通りである．
+ 
+   必須オプション:
   \begin{itemize}
    \item $--$input $|$ $-$i ファイル名 (入力ファイル名の指定)
+  \end{itemize}
+
+   省略可能オプション:
+    \begin{itemize}
    \item $--$output $|$ $-$o  ファイル名 (出力ファイル名の指定．ユーザープログラムにインクルードされることを想定する．単独でコンパイル可能にするためには kernel.cpp のように C++ プログラムの拡張子にする．デフォルトはkernel.hpp)
-   \item $--$conversion$-$type (AVX2$|$AVX-512$|$SVE) (アーキテクチャの指定)
+   \item $--$conversion$-$type (AVX2$|$AVX-512$|$SVE) (アーキテクチャの指定．デフォルトはreference)
    \item $--$kernel$-$name カーネル関数名 (カーネル関数名の指定．デフォルトはKernel)
    \item $--$epi$-$name EPI名 (EPIの構造体名の指定．デフォルトはEPI)
    \item $--$epj$-$name EPJ名 (EPJの構造体名の指定．デフォルトはEPJ)
-   \item $--$force$-$ame FORCE名 (FORCEの構造体名の指定，デフォルトはFORCE)
+   \item $--$force$-$name FORCE名 (FORCEの構造体名の指定，デフォルトはFORCE)
+   \item $--$class$-$file ファイル名0 [ファイル名1 ファイル名2] (EPI/EPJ/FORCEの構造体の宣言がされているファイル名の指定．ファイル名0だけ指定した場合にはEPI，EPJ，FORCEが全て同じファイル名に宣言されていて，ファイル名3つ指定した場合にはファイル名0にEPI，ファイル名1がEPJ,ファイル名2にFORCEが宣言されているとみなす)
    \item $--$strip$-$mining ストリップマイニングループ数 (アーキテクチャがSVEに指定されている場合にストリップマイニングを行う)
    \item $--$unroll アンロール段数 ($--$strip$-$mining指定時に最内ループをアンロールする段数を指定，デフォルトは1．DSL内にunrollのプラグマが現れるとそれ以降はプラグまで指定されたアンロール段数が使われる)
    \item $--$multiwalk (FDPSにおけるMultiwalk向けにカーネルを生成する場合に指定，現状利用不可)
    \item $--$spj$-$name SPJ名 (SPJの構造体名の指定．$--$multiwalkを指定したときのみ利用される．デフォルトはSPJ)
    \item $--$addtional$-$text 文字列 (出力ファイルのデフォルトのインクルードファイル指定の直後に追加される文字列．ここで"\#include "user\_defined.h"" 等を指定することで単独でコンパイル可能なプログラムファイルを生成できる)
    \item $--$c$-$interface [ファイル名] (ファイル名は省略可能．このオプションがあるとC言語リンケージのための関数実体と関数プロトタイプ宣言を生成する．ファイル名が指定されたらプロトタイプ宣言はそのファイルに出力される．指定がない時にはファイル名は --output もしくは -o で指定されたファイル名の basename (最後の "." の後ろを取り除いたもの)+".h"となる)
-   \item $--$fortran$-$interface module名 (このオプションがあると$--$c$-$interfaceを有効化するとともに，相互作用関数を呼び出すために必要なmoduleを指定したmoduleで生成する．生成されたmoduleはmodule名$+$".F90"に出力される)
+   \item $--$fortran$-$interface module名 (このオプションがあると$--$c$-$interfaceを有効化するとともに，相互作用関数を呼び出すために必要なmoduleを指定したmodule名で生成する．生成されたmoduleはmodule名$+$".F90"に出力される)
    \item $--$initializer$-$name イニシャライザ名 (--c-interfaceオプションが有効なときに，C言語において相互作用カーネルのファンクタのメンバ関数を初期化するための関数名を指定．デフォルトは--kernel-nameで指定されるカーネル名+"\_initalize")
-  \end{itemize}
+    \end{itemize}
   $--$strip$-$mining及び$--$unrollは将来的に廃止される予定であるが，現状ARM SVE向けの最適化には指定が必要なので公開する．
   現状，最適なARM SVEカーネルを生成するためには，DSL内の適切な箇所にunroll及び，loop\_fission\_pointのプラグマを挿入する必要がある．
+
+  $--$class$-$fileオプションを使用する際，PIKGはEPIクラスやEPJクラスの定義がそのファイルの中で一つだけであることを仮定する．
+  つまり，マクロなどでクラスの定義を切り替える等を想定していない．またテンプレートクラスにおいて，メンバ変数の型名がテンプレートパラメータで与えられていることも想定しない．また，usingなどを使って型名をエイリアスされていることも想定しない．つまり，クラス定義であたえられるクラス名が$--$epi$-$nameなどのオプションで与えられるクラス名と一致している必要がある．
+  EPI，EPJ，FORCEクラスの宣言においてメンバ変数の宣言で型名として使用可能なものを挙げる．()内はPIKG上での型名．
+ \begin{itemize}
+  \item double (F64)
+  \item float64\_t (F64)
+  \item (PS::|PIKG::)F64 (F64)
+  \item float (F32)
+  \item float32\_t (F32)
+  \item (PS::|PIKG::)F32 (F32)
+  \item half (F16)
+  \item float16\_t (F32)
+  \item (PS::|PIKG::)F16 (F16)
+  \item long long int (S64)
+  \item long long (S64)
+  \item int64\_t (S64)
+  \item (PS::|PIKG::)S64 (S64)
+  \item int (S32)
+  \item int32\_t (S32)
+  \item (PS::|PIKG::)S32 (S32)
+  \item unsigned long long int (U64)
+  \item unsigned long long (U64)
+  \item uint64\_t (U64)
+  \item (PS::|PIKG::)U64 (U64)
+  \item unsigned int (U32)
+  \item unsigned (U32)
+  \item uint32\_t (U32)
+  \item (PS::|PIKG::)U32 (U32)
+  \item (PS::|PIKG::)F64vec (F64vec)
+  \item (PS::|PIKG::)F64vec2 (F64vec2)
+  \item (PS::|PIKG::)F64vec3 (F64vec3)
+  \item (PS::|PIKG::)F64vec4 (F64vec4)
+  \item (PS::|PIKG::)F32vec (F32vec)
+  \item (PS::|PIKG::)F32vec2 (F32vec2)
+  \item (PS::|PIKG::)F32vec3 (F32vec3)
+  \item (PS::|PIKG::)F32vec4 (F32vec4)
+  \item (PS::|PIKG::)F64vec (F64vec)
+  \item (PS::|PIKG::)F64vec2 (F64vec2)
+  \item (PS::|PIKG::)F64vec3 (F64vec3)
+  \item (PS::|PIKG::)F64vec4 (F64vec4)
+  \item (PS::|PIKG::)F32vec (F32vec)
+  \item (PS::|PIKG::)F32vec2 (F32vec2)
+  \item (PS::|PIKG::)F32vec3 (F32vec3)
+  \item (PS::|PIKG::)F32vec4 (F32vec4)
+ \end{itemize}
+  using namespaceなどを使ってPS::もしくはPIKG::を省略することは可能．
 
   \subsection{生成されるカーネルの形式}
   カーネルは以下のような構造体として生成される(いずれもデフォルトのEPI,EPJ,FORCE，カーネル名を使う場合)．
@@ -347,7 +490,7 @@ $(PIKG)/bin/pikg [options]
 	  EPI *epi = new EPI[nepi];
 	  EPJ *epj = new EPJ[nepj];
 	  FORCE *force = new FORCE[nepi];
-	  Kernel kernel; // ファクタのインスタンス化
+	  Kernel kernel; // ファンクタのインスタンス化．メンバ変数の初期化が必要であればここで行う
 	  (epiやepjに粒子の情報を代入)
 	  kernel(epi,nepi,epj,nepj,force); // カーネル呼び出し
 	  (後略)
@@ -370,10 +513,84 @@ C言語やその他の言語で書かれたコードからは$--$kernel-nameで�
 また，EPI/EPJ/FORCE以外の変数を宣言している場合は，ファンクタのメンバ変数を初期化する必要があるのでこれを行う関数も提供される．
 詳しくは$--$initializer-nameオプションを参照のこと．
 
+--class-fileオプションを使用したとき，PIKGは以下のように構造体名が定義されていることを仮定する．
+\begin{verbatim}
+	typedef struct{
+	  型名0 メンバ変数名0;
+	  型名1 メンバ変数名1;
+	          .
+	          .
+	          .
+	} 構造体名;
+\end{verbatim}
+型名として使用可能なものを挙げる．()内はPIKG上での型名．
+ \begin{itemize}
+  \item double (F64)
+  \item float (F32)
+  \item long long int (S64)
+  \item long long (S64)
+  \item int (S32)
+  \item unsigned long long int (U64)
+  \item unsigned long long (U64)
+  \item unsigned int (U32)
+  \item unsigned (U32)
+  \item pikg\_f64vec (F64vec)
+  \item pikg\_f64vec2 (F64vec2)
+  \item pikg\_f64vec3 (F64vec3)
+  \item pikg\_f64vec4 (F64vec4)
+  \item pikg\_f32vec (F32vec)
+  \item pikg\_f32vec2 (F32vec2)
+  \item pikg\_f32vec3 (F32vec3)
+  \item pikg\_f32vec4 (F32vec4)
+  \item fdps\_f64vec (F64vec)
+  \item fdps\_f64vec2 (F64vec2)
+  \item fdps\_f64vec3 (F64vec3)
+  \item fdps\_f64vec4 (F64vec4)
+  \item fdps\_f32vec (F32vec)
+  \item fdps\_f32vec2 (F32vec2)
+  \item fdps\_f32vec3 (F32vec3)
+  \item fdps\_f32vec4 (F32vec4)
+ \end{itemize}
+
 \subsection{Fortranインターフェース}
 PIKGではCインターフェースと同様にFortranインターフェースを提供する．
 FortranインターフェースではCインターフェースの機能に加えて，Fortranで利用するmoduleを含むFortranソースを生成する必要がある．module名は$--$fortran-interfaceに続けてmodule名を指定する．
 ユーザコードからは，このmoduleを利用して$--$kernel-nameで指定した関数に適切な引数をつけて呼び出すことで相互作用計算が行われる．PIKGで定義されているベクトル型を利用する場合は，src/fortran\_interface/modules/pikg\_vector.F90に定義されているpikg\_vectorを利用する必要がある．
 
 Fortranインターフェースを使う際の注意点として，Fortranには符号なし整数が無いため，EPI，EPJ，FORCE型のメンバ変数としてU(16$|$32$|$64)は使えない．
+
+--class-fileオプションを使用したとき，PIKGは以下のように構造体名が定義されていることを仮定する．
+\begin{verbatim}
+	type 構造体名
+	  型名宣言0 [::] メンバ変数名0
+	  型名宣言1 [::] メンバ変数名1
+	          .
+	          .
+	          .
+	end type 構造体名
+\end{verbatim}型名宣言として使用可能なものを挙げる．最後の()内はPIKG上での型名．
+ \begin{itemize}
+  \item real(kind=c\_double) (F64)
+  \item real(kind=c\_float) (F32)
+  \item integer(kind=c\_long\_long) (S64)
+  \item integer(kind=c\_int) (S32)
+  \item type(pikg\_f64vec) (F64vec)
+  \item type(pikg\_f64vec2) (F64vec2)
+  \item type(pikg\_f64vec3) (F64vec3)
+  \item type(pikg\_f64vec4) (F64vec4)
+  \item type(pikg\_f32vec) (F32vec)
+  \item type(pikg\_f32vec2) (F32vec2)
+  \item type(pikg\_f32vec3) (F32vec3)
+  \item type(pikg\_f32vec4) (F32vec4)
+  \item type(fdps\_f64vec) (F64vec)
+  \item type(fdps\_f64vec2) (F64vec2)
+  \item type(fdps\_f64vec3) (F64vec3)
+  \item type(fdps\_f64vec4) (F64vec4)
+  \item type(fdps\_f32vec) (F32vec)
+  \item type(fdps\_f32vec2) (F32vec2)
+  \item type(fdps\_f32vec3) (F32vec3)
+  \item type(fdps\_f32vec4) (F32vec4)
+ \end{itemize}
+ ::は省略可能．メンバ変数の宣言のあとにFDPSのFortranインターフェースのマクロをつけることは可能である．
+
 \end{document}

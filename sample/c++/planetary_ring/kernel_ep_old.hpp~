@@ -1,0 +1,4 @@
+struct CalcForceEpEpImpl{
+PIKG::F32 eps2;
+PIKG::F32 kappa;
+PIKG::F32 eta;

@@ -1,26 +1,98 @@
+#pragma once
+
 #include<typeinfo>
 #include<cassert>
 #include<iostream>
+#include<fstream>
 
-//#define PARTICLE_SIMULATOR_ROUND_UP_CAPACITY
+#define PARTICLE_SIMULATOR_ROUND_UP_CAPACITY
 
 namespace  ParticleSimulator{
+
     template<class T>
-        class ReallocatableArray{
+    class ReallocatableArray{
     private:
-        ReallocatableArray(const ReallocatableArray &);
-        ReallocatableArray & operator = (const ReallocatableArray &);
+        //ReallocatableArray(const ReallocatableArray &){};
+        ReallocatableArray & operator = (const ReallocatableArray &){};
         T * data_;
         int size_;
         int capacity_;
         int capacity_org_;
         int id_mpool_;
-        int alloc_mode_;
+        MemoryAllocMode alloc_mode_;
+
+	int my_omp_get_num_threads(){
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
+            const int n_thread = omp_get_num_threads();
+#else
+            const int n_thread = 1;
+#endif
+	    return n_thread;
+	}
+	
+	int my_omp_get_thread_num(){
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
+            const int id_thread = omp_get_thread_num();
+#else
+            const int id_thread = 0;
+#endif
+	    return id_thread;
+	}
+	
+	class CallerInfo{
+#if defined(SET_CALLER_INFO_REALLOCATABLE_ARRAY)
+	    int  line_num_;
+	    char func_name_[256];
+	    char file_name_[256];
+#endif
+	public:
+	    void dump(std::ostream & fout = std::cerr) const {
+#if defined(SET_CALLER_INFO_REALLOCATABLE_ARRAY)
+		fout<<"line_num_= "<<line_num_
+		    <<" func_name= "<<func_name_
+		    <<" file_name= "<<file_name_
+		    <<std::endl;
+#endif
+	    }
+	    void set(const int l = __LINE__,
+		     const char * func = __FUNCTION__,
+		     const char * file = __FILE__){
+#if defined(SET_CALLER_INFO_REALLOCATABLE_ARRAY)
+		line_num_ = l;
+		strcpy(func_name_, func);
+		strcpy(file_name_, file);
+#endif
+	    }
+	};
+	CallerInfo caller_info_;
+	
+        bool inParallelRegion() {
+	    /*
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
+            const int n_thread = omp_get_num_threads();
+#else
+            const int n_thread = 1;
+#endif
+	    */
+	    const int n_thread = my_omp_get_num_threads();
+            if (n_thread > 1) return true;
+            else return false;
+        }
+        
+        void calcAdrToSplitData(int & head,
+                                int & end,
+                                const int i_th,
+                                const int n_div,
+                                const int n_tot){
+            head = (n_tot/n_div)*i_th + std::min(n_tot%n_div, i_th);
+            end  = (n_tot/n_div)*(i_th+1) + std::min(n_tot%n_div, (i_th+1));
+        }
+        
         int roundUp(const int cap_prev, 
                     const int factor=8){
             return ((cap_prev + factor - 1) / factor) * factor;
-            //return ((cap_prev + factor) / factor) * factor;
         }
+	
         int getNewCapacity(const int cap_prev){
 #ifdef PARTICLE_SIMULATOR_ROUND_UP_CAPACITY
             return roundUp(cap_prev);
@@ -47,50 +119,56 @@ namespace  ParticleSimulator{
         void constructorFunction(const int cap){
             capacity_ = getNewCapacity(cap);
             checkCapacityOverInConstructor();
-            if(alloc_mode_ == 0){
+	    if(capacity_ == 0){
+		data_ = nullptr;
+	    }
+            else if(alloc_mode_ == MemoryAllocMode::Default){
                 data_ = new T[capacity_];
             }
-            else if(alloc_mode_ == 1) {
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp critical
-#endif
+            else if(alloc_mode_ == MemoryAllocMode::Pool || alloc_mode_ == MemoryAllocMode::Stack) {
+PS_OMP_CRITICAL
                 {
-                    void * ret = NULL;
-                    MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret);
+                    void * ret = nullptr;
+                    MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret, alloc_mode_);
                     data_ = (T*)ret;
                 }
             }
         }
         
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
-        void dumpImpl() const {
-            std::cerr<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
-            std::cerr<<"data_= "<<data_<<std::endl;
-            std::cerr<<"size_="<<size_<<std::endl;
-            std::cerr<<"capacity_="<<capacity_<<std::endl;
-            std::cerr<<"capacity_org_="<<capacity_org_<<std::endl;
-            std::cerr<<"id_mpool_="<<id_mpool_<<std::endl;
-            std::cerr<<"n_expand_="<<n_expand_<<std::endl;
+        void dumpImpl(std::ostream & fout = std::cerr) const {
+            fout<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
+            fout<<"data_= "<<data_<<std::endl;
+            fout<<"size_="<<size_<<std::endl;
+            fout<<"capacity_="<<capacity_<<std::endl;
+            fout<<"capacity_org_="<<capacity_org_<<std::endl;
+            fout<<"id_mpool_="<<id_mpool_<<std::endl;
+            fout<<"n_expand_="<<n_expand_<<std::endl;
+            fout<<"alloc_mode_= "<<static_cast<int>(alloc_mode_)<<std::endl;
+	    caller_info_.dump(fout);
         }
         int n_expand_;
-        void increaseNExpand(const int n_input){
-            std::cerr<<"expand capacity"<<std::endl;
-            std::cerr<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
-            std::cerr<<"n_input="<<n_input<<std::endl;
-            std::cerr<<"size_="<<size_<<std::endl;
-            std::cerr<<"capacity_="<<capacity_<<std::endl;
-            std::cerr<<"n_expand_="<<n_expand_<<std::endl;
+        void increaseNExpand(const int n_input, std::ostream & fout = std::cerr){
+            fout<<"expand capacity"<<std::endl;
+            fout<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
+            fout<<"n_input="<<n_input<<std::endl;
+            fout<<"size_="<<size_<<std::endl;
+            fout<<"capacity_="<<capacity_<<std::endl;
+            fout<<"n_expand_="<<n_expand_<<std::endl;
+            fout<<"alloc_mode_= "<<static_cast<int>(alloc_mode_)<<std::endl;
             n_expand_++;
         }
 #else
-        void dumpImpl() const {
-            std::cerr<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
-            std::cerr<<"data_= "<<data_<<std::endl;
-            std::cerr<<"size_="<<size_<<std::endl;
-            std::cerr<<"capacity_="<<capacity_<<std::endl;
-            std::cerr<<"capacity_org_="<<capacity_org_<<std::endl;
-            std::cerr<<"id_mpool_="<<id_mpool_<<std::endl;
-            std::cerr<<"data_= "<<data_<<std::endl;
+        void dumpImpl(std::ostream & fout = std::cerr) const {
+            fout<<"typeid(T).name()"<<typeid(T).name()<<std::endl;
+            fout<<"data_= "<<data_<<std::endl;
+            fout<<"size_="<<size_<<std::endl;
+            fout<<"capacity_="<<capacity_<<std::endl;
+            fout<<"capacity_org_="<<capacity_org_<<std::endl;
+            fout<<"id_mpool_="<<id_mpool_<<std::endl;
+            fout<<"data_= "<<data_<<std::endl;
+            fout<<"alloc_mode_= "<<static_cast<int>(alloc_mode_)<<std::endl;
+	    caller_info_.dump(fout);
         }
 #endif
 
@@ -99,91 +177,153 @@ namespace  ParticleSimulator{
 #else
         void ReallocInner(const int new_cap){
 #endif
-            //capacity_ = new_cap;
-            if(alloc_mode_ == 0){
+            if(alloc_mode_ == MemoryAllocMode::Default){
                 capacity_ = getNewCapacity(new_cap);
                 T * data_old = data_;
                 T * data_new = new T[capacity_];
-                for( int i=0; i<size_; i++){
-                    data_new[i] = data_old[i];
+                if(inParallelRegion()){
+                    for( int i=0; i<size_; i++){
+                        data_new[i] = data_old[i];
+                    }                    
+                }
+                else{
+PS_OMP_PARALLEL_FOR
+                    for( int i=0; i<size_; i++){
+			data_new[i] = data_old[i];
+                    }
                 }
                 data_ = data_new;
-                delete[] data_old;
-            }
-            else if(alloc_mode_ == 1){
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp critical
-#endif
-                {
-                    // Save old data                                                        
-                    T * data_old = new T[capacity_];
-                    memcpy((void *)data_old, (void *)data_, (size_t)sizeof(T)*capacity_);
-                    // Set new capacity
-                    capacity_ = getNewCapacity(new_cap);
-                    int id_old = id_mpool_;
-                    void * ret = NULL;
-                    MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret);
-                    data_ = (T*)ret;
-                    if(id_old != id_mpool_){
-                        MemoryPool::freeMem(id_old);
-                    }
-                    // Copy old data
-                    memcpy((void *)data_, (void *)data_old, (size_t)sizeof(T)*size_);
-                    // Release memory of temporal buffer
+                //DELETE_ARRAY(data_old);
+                if(data_old!=nullptr)
                     delete [] data_old;
+            }
+            else if(alloc_mode_ == MemoryAllocMode::Pool || alloc_mode_ == MemoryAllocMode::Stack){
+                if(inParallelRegion()){
+		    // in parallel scope
+PS_OMP_CRITICAL 
+                    {
+                        if(data_ != nullptr){
+                            // Save old data
+                            T * data_old = new T[capacity_];
+                            memcpy((void *)data_old, (void *)data_, (size_t)sizeof(T)*capacity_);
+                            // Set new capacity   
+                            capacity_ = getNewCapacity(new_cap);
+                            int id_old = id_mpool_;
+                            void * ret = nullptr;
+                            MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret, alloc_mode_);
+                            data_ = (T*)ret;
+                            if(id_old != id_mpool_){
+                                MemoryPool::freeMem(id_old);
+                            }
+                            // Copy old data
+                            memcpy((void *)data_, (void *)data_old, (size_t)sizeof(T)*size_);
+                            // Release memory of temporal buffer
+                            delete [] data_old;
+                        }
+                        else{
+                            // Set new capacity   
+                            capacity_ = getNewCapacity(new_cap);
+                            void * ret = nullptr;
+                            MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret, alloc_mode_);
+                            data_ = (T*)ret;
+                        }
+                    }
+                }
+                else{
+		    // not in parallel scope
+                    if(data_ != nullptr){
+                        // Save old data
+                        T * data_old = new T[capacity_];
+PS_OMP_PARALLEL
+                        {
+                            int head, end;
+                            //int i_th = omp_get_thread_num();
+                            //int n_th = omp_get_num_threads();
+			    int i_th = my_omp_get_thread_num();
+                            int n_th = my_omp_get_num_threads();
+                            calcAdrToSplitData(head, end, i_th, n_th, capacity_);
+                            memcpy((void *)(data_old+head), (void *)(data_+head), (size_t)(sizeof(T)*(end-head)));
+                        }
+                        // Set new capacity   
+                        capacity_ = getNewCapacity(new_cap);
+                        int id_old = id_mpool_;
+                        void * ret = nullptr;
+                        MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret, alloc_mode_);
+                        data_ = (T*)ret;
+                        if(id_old != id_mpool_){
+                            MemoryPool::freeMem(id_old);
+                        }
+                        // Copy old data
+PS_OMP_PARALLEL
+                        {
+                            int head, end;
+                            //int i_th = omp_get_thread_num();
+                            //int n_th = omp_get_num_threads();
+			    int i_th = my_omp_get_thread_num();
+                            int n_th = my_omp_get_num_threads();
+                            calcAdrToSplitData(head, end, i_th, n_th, size_);
+                            memcpy((void *)(data_+head), (void *)(data_old+head), (size_t)(sizeof(T)*(end-head)));
+                        }
+                        // Release memory of temporal buffer
+                        delete [] data_old;
+                    }
+                    else{
+                        // Set new capacity   
+                        capacity_ = getNewCapacity(new_cap);
+                        void * ret = nullptr;
+                        MemoryPool::alloc(sizeof(T)*capacity_, id_mpool_, &data_, ret, alloc_mode_);
+                        data_ = (T*)ret;
+                    }
                 }
             }
         }
+
     public:
+	///////////////
+	// constructor
+        ReallocatableArray(int cap, int size, MemoryAllocMode alloc_mode) : data_(nullptr), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode) {
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
-        ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {}
-        /*
-        ReallocatableArray(int cap) : data_(NULL), size_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {
-            constructorFunction(cap);
-        }
-        ReallocatableArray(int cap, int size) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(0), n_expand_(0) {
-            constructorFunction(cap);
-        }
-        */
-        ReallocatableArray(int cap, int size, int alloc_mode) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode), n_expand_(0) {
-            constructorFunction(cap);
-        }
-#else
-        ReallocatableArray() : data_(NULL), size_(0), capacity_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {}
-        /*
-        ReallocatableArray(int cap) : data_(NULL), size_(0), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {
-            constructorFunction(cap);
-        }
-        ReallocatableArray(int cap, int size) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(0) {
-            constructorFunction(cap);
-        }
-        */
-        ReallocatableArray(int cap, int size, int alloc_mode) : data_(NULL), size_(size), capacity_org_(0), id_mpool_(-1), alloc_mode_(alloc_mode) {
-            constructorFunction(cap);
-        }
+	    n_expand_ = 0;
 #endif
+#if defined(USE_ALLOC_MODE_NEW)
+            alloc_mode_ = MemoryAllocMode::Default;
+#endif
+	    constructorFunction(cap);
+	}
+        ReallocatableArray(MemoryAllocMode alloc_mode) : ReallocatableArray(0, 0, alloc_mode) {}
+        ReallocatableArray() : ReallocatableArray(0, 0, MemoryAllocMode::Default) {}
         ~ReallocatableArray(){
-            if(alloc_mode_ == 0){
+            //std::cerr<<"****** destroctor ******"<<std::endl;
+            //dumpImpl();
+            if(alloc_mode_ == MemoryAllocMode::Default){
                 if(capacity_ > 0) delete [] data_;
             }
-            else if(alloc_mode_ == 1) {
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp critical
-#endif
+            else if(alloc_mode_ == MemoryAllocMode::Pool || alloc_mode_ == MemoryAllocMode::Stack) {
+PS_OMP_CRITICAL
                 {
-                    //if(capacity_ > 0) MemoryPool::freeMem(id_mpool_);
                     MemoryPool::freeMem(id_mpool_);
                 }
             }
-            data_ = NULL;
+            data_ = nullptr;
         }
         
-        void setAllocMode(const int alloc_mode){
+        void setAllocMode(const MemoryAllocMode alloc_mode){
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
+            assert(data_ == nullptr);
+#endif
             alloc_mode_ = alloc_mode;
+#if defined(USE_ALLOC_MODE_NEW)
+            alloc_mode_ = MemoryAllocMode::Default;
+#endif
         }
-        
-        void initialize(int cap, int size, int alloc_mode){
-            //capacity_ = cap;
+	void setCallerInfo(const int l = __LINE__,
+			   const char * func = __FUNCTION__,
+			   const char * file = __FILE__){
+	    caller_info_.set(l, func, file);
+	}
+
+        void initialize(int cap, int size, MemoryAllocMode alloc_mode){
+	    //std::cerr<<"MemoryPool::getCapacity()= "<<MemoryPool::getCapacity()<<std::endl;
             capacity_ = getNewCapacity(cap);
             size_ = size;
             alloc_mode_ = alloc_mode;
@@ -192,11 +332,10 @@ namespace  ParticleSimulator{
         
         void reserve(const int n){
             if( n > capacity_ ){
-#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 2
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
-                //capacity_ = n;
                 capacity_ = getNewCapacity(n);
                 if(capacity_ >= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                     PARTICLE_SIMULATOR_PRINT_ERROR("The number of particles of this process is beyound the FDPS limit number");
@@ -221,12 +360,16 @@ namespace  ParticleSimulator{
         int capacity() const {return capacity_; }
 
         const T & operator [] (const int i) const {
-//#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
             if(i > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE || i < 0 || capacity_ <= i){
                 dumpImpl();
-                std::cout<<"i="<<i<<std::endl;
-                std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                std::cerr<<"i="<<i<<std::endl;
+                std::cerr<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+   #if defined(THROW_EXCEPTION_REALLOCATABLE_ARRAY)
+                std::stringstream msg;
+                msg << "function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                throw msg.str().c_str();
+   #endif
             }
             assert(i <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
             assert(i >= 0);
@@ -237,6 +380,11 @@ namespace  ParticleSimulator{
                 dumpImpl();
                 std::cout<<"i="<<i<<std::endl;
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+#if defined(THROW_EXCEPTION_REALLOCATABLE_ARRAY)
+                std::stringstream msg;
+                msg << "function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                throw msg.str().c_str();
+#endif
             }
             assert(size_ > i);
 #endif
@@ -248,8 +396,13 @@ namespace  ParticleSimulator{
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 0
             if(i > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE || i < 0 || capacity_ <= i){
                 dumpImpl();
-                std::cout<<"i="<<i<<std::endl;
-                std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                std::cerr<<"i="<<i<<std::endl;
+                std::cerr<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+#if defined(THROW_EXCEPTION_REALLOCATABLE_ARRAY)
+                std::stringstream msg;
+                msg << "function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                throw msg.str().c_str();
+#endif
             }
             assert(i <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
             assert(i >= 0);
@@ -258,8 +411,13 @@ namespace  ParticleSimulator{
 #if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
             if(size_ <= i){
                 dumpImpl();
-                std::cout<<"i="<<i<<std::endl;
-                std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                std::cerr<<"i="<<i<<std::endl;
+                std::cerr<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+#if defined(THROW_EXCEPTION_REALLOCATABLE_ARRAY)
+                std::stringstream msg;
+                msg << "function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                throw msg.str().c_str();
+#endif
             }
             assert(size_ > i);
 #endif
@@ -270,6 +428,12 @@ namespace  ParticleSimulator{
 
         T & back(){ return data_[size_-1]; }
 
+        T * frontP(){ return data_; }
+        
+        T * backP(){ return data_+(size_-1); }
+
+        T * endP(){ return data_+size_; }
+        
         T * data(){ return data_; }
 
         const T * data() const { return data_; }
@@ -280,6 +444,11 @@ namespace  ParticleSimulator{
             if(size_+1 > LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE){
                 dumpImpl();
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+#if defined(THROW_EXCEPTION_REALLOCATABLE_ARRAY)
+                std::stringstream msg;
+                msg << "function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                throw msg.str().c_str();
+#endif
             }
             assert(size_+1 <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
 #endif
@@ -297,19 +466,22 @@ namespace  ParticleSimulator{
                 dumpImpl();
                 std::cout<<"n="<<n<<std::endl;
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+#if defined(THROW_EXCEPTION_REALLOCATABLE_ARRAY)
+                std::stringstream msg;
+                msg << "function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                throw msg.str().c_str();
+#endif
             }
             assert(n <= LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE);
 #endif
             const int new_cap = std::max(getNewCapacity((n+(n+10)/10)+100), capacity_org_);
-            if(data_ == NULL){
-                if(alloc_mode_ == 0){data_ = new T[new_cap];}
-                else if(alloc_mode_ == 1){
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp critical
-#endif
+            if(data_ == nullptr){
+                if(alloc_mode_ == MemoryAllocMode::Default){data_ = new T[new_cap];}
+                else if(alloc_mode_ == MemoryAllocMode::Pool || alloc_mode_ == MemoryAllocMode::Stack){
+PS_OMP_CRITICAL
                     {
-                        void * ret = NULL;
-                        MemoryPool::alloc(sizeof(T)*new_cap, id_mpool_, &data_, ret);
+                        void * ret = nullptr;
+                        MemoryPool::alloc(sizeof(T)*new_cap, id_mpool_, &data_, ret, alloc_mode_);
                         data_ = (T*)ret;
                     }
                 }
@@ -317,7 +489,8 @@ namespace  ParticleSimulator{
                 size_ = n;
             }
             if(n > capacity_){
-#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
+                //std::cerr<<"n= "<<n<<" capacity_= "<<capacity_<<std::endl;
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 2
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
@@ -340,9 +513,9 @@ namespace  ParticleSimulator{
             size_ = n;
         }
 
-        void dump(const std::string str=""){
-            std::cerr<<str<<std::endl;
-            dumpImpl();
+        void dump(const std::string str = "", std::ostream & fout = std::cerr) const {
+            fout<<str<<std::endl;
+            dumpImpl(fout);
         }
 
         size_t getMemSize() const { return capacity_ * sizeof(T); }
@@ -356,6 +529,11 @@ namespace  ParticleSimulator{
             if(size_ >= capacity_){
                 dumpImpl();
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+#if defined(THROW_EXCEPTION_REALLOCATABLE_ARRAY)
+                std::stringstream msg;
+                msg << "function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
+                throw msg.str().c_str();
+#endif
             }
             assert(size_ < capacity_);
 #endif
@@ -367,7 +545,7 @@ namespace  ParticleSimulator{
         void reserveAtLeast(const int n){
             if( n >= capacity_){
 //#ifdef SANITY_CHECK_REALLOCATABLE_ARRAY
-#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 2
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
@@ -396,7 +574,7 @@ namespace  ParticleSimulator{
 #endif
             const int n = n_add + size_;
             if( n >= capacity_){
-#if SANITY_CHECK_REALLOCATABLE_ARRAY > 1
+#if SANITY_CHECK_REALLOCATABLE_ARRAY > 2
                 increaseNExpand(n);
                 std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;
 #endif
@@ -419,29 +597,26 @@ namespace  ParticleSimulator{
             }
         }
         void freeMem(const int free_alloc_mode = -1){
-            if( alloc_mode_ == 0 && (free_alloc_mode == -1  || free_alloc_mode == 0) ){
+            if( alloc_mode_ == MemoryAllocMode::Default ){
                 if(capacity_ > 0){
                     capacity_org_ = capacity_;
                     size_ = capacity_ = 0;
                     delete [] data_;
-                    capacity_ = 10;
-                    data_ = new T[capacity_];
+                    data_ = nullptr;
                 }
                 else{
                     capacity_org_ = 0;
                 }
             }
-            else if( alloc_mode_ == 1 && (free_alloc_mode == -1  || free_alloc_mode == 1) ){
-                if(data_ == NULL) return;
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp critical
-#endif
+            else if( alloc_mode_ == MemoryAllocMode::Pool || alloc_mode_ == MemoryAllocMode::Stack ){
+                if(data_ == nullptr) return;
+PS_OMP_CRITICAL
                 {
                     MemoryPool::freeMem(id_mpool_);
                     capacity_org_ = capacity_;
                     capacity_ = 0;
                     size_     = 0;
-                    data_     = NULL;
+                    data_     = nullptr;
                     id_mpool_ = -1;
                 }
             }

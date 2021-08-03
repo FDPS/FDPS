@@ -37,9 +37,10 @@ class Expression
     new_s = []
     if !(@operator == :dot || @operator == :array)
       [@lop,@rop].each{ |op|
+        next if op == nil 
         if !isLeaf(op)
           new_name = add_new_tmpvar(type)
-          new_s += Statement.new([new_name,op.dup,op.type.dup]).disassemble if op != nil
+          new_s += Statement.new([new_name,op.dup,op.get_type.dup]).disassemble if op != nil
         #p new_s
         else
           new_name = op.dup

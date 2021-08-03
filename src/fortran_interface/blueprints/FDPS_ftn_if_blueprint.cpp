@@ -23,6 +23,14 @@ void fdps_abort(const int err_num) {
    PS_Abort(err_num);
 }
 
+// CommInfo static tables
+const int fdps_comm_table_size = 32;
+static int fdps_comm_table_initialized = 0;
+static fdps_comm_info  comm_table[fdps_comm_table_size];
+static int  comm_table_used[fdps_comm_table_size];
+
+    
+
 //----------------------
 //  Particle System 
 //----------------------
@@ -88,6 +96,9 @@ void fdps_adjust_pos_into_root_domain(const int psys_num,
 void fdps_sort_particle(const int psys_num,
                         bool (*pfunc_comp)(const void *, const void *)) {
    sort_particle(psys_num,pfunc_comp);
+}
+void fdps_set_psys_comm_info(int psys_num, int ci){
+   set_psys_comm_info(psys_num, comm_table+ci);
 }
 
 //----------------------
@@ -159,6 +170,10 @@ void fdps_decompose_domain_all(const int dinfo_num,
       weight_ = (float) get_nptcl_loc(psys_num);
    }
    decompose_domain_all(dinfo_num,psys_num,weight_);
+}
+void fdps_set_dinfo_comm_info(int dinfo_num, int ci){
+    
+   set_dinfo_comm_info(dinfo_num, comm_table+ci);
 }
 
 //----------------------
@@ -322,58 +337,276 @@ void * fdps_get_epj_from_id(const int tree_num,
                             const PS::S64 id) {
    return get_epj_from_id(tree_num, id);
 }
+void fdps_set_tree_comm_info(int tree_num, int ci){
+   set_tree_comm_info(tree_num, comm_table+ci);
+}
+void fdps_set_exchange_let_mode(int tree_num, int mode){
+   set_exchange_let_mode(tree_num, mode);
+}
 
 //----------------------
 //  MPI comm. 
 //----------------------
+#include "FDPS_comm_info.h"
+
+
+void fdps_ci_raw_delete(fdps_comm_info * ci)
+{
+    ((PS::CommInfo*)ci)->free();
+}
+
+void fdps_ci_raw_initialized_comm_table_if_not()
+{
+   if (fdps_comm_table_initialized ==0){        
+       for(int i=0;i<fdps_comm_table_size; i++){
+           comm_table_used[i]=0;
+       }
+       fdps_comm_table_initialized = 1;
+    }
+}
+
+int  fdps_ci_raw_register_comm(fdps_comm_info  p)
+{
+   fdps_ci_raw_initialized_comm_table_if_not();
+   for(int i=0;i<fdps_comm_table_size; i++){
+       if (comm_table_used[i]==0){
+           comm_table[i]=p;
+	   comm_table_used[i]=1;
+           return i;
+       }
+   }
+   return -1;
+}
+
+#ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
+#define MPI_Comm int
+#define MPI_Fint int
+
+#endif
+fdps_comm_info  fdps_ci_raw_initialize(MPI_Comm* comm)
+{
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    PS::CommInfo CI = PS::CommInfo( *comm);
+#else
+    PS::CommInfo CI = PS::CommInfo();
+#endif
+    return *((fdps_comm_info *) (&CI));
+}
+void fdps_ci_raw_set_communicator(fdps_comm_info* ci,MPI_Comm * comm)
+{
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    ((PS::CommInfo*)(ci))->setCommunicator(*comm);
+#else
+    ((PS::CommInfo*)(ci))->setCommunicator();
+#endif
+
+}
+
+
+int fdps_ci_initialize(MPI_Fint comm)
+{
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    MPI_Comm ccomm = MPI_Comm_f2c(comm);
+#else
+    MPI_Comm ccomm = comm;
+#endif
+    return fdps_ci_raw_register_comm(fdps_ci_raw_initialize(&ccomm));
+}
+void fdps_ci_set_communicator(int ci, MPI_Fint comm)
+{
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+    MPI_Comm ccomm = MPI_Comm_f2c(comm);
+#else
+    MPI_Comm ccomm = comm;
+#endif
+    fdps_ci_raw_set_communicator(comm_table+ci, &ccomm);
+}
+
+void fdps_ci_delete(int ci)
+{
+    fdps_ci_raw_delete(comm_table+ci);
+    comm_table_used[ci] = 0;
+}
+
+
+
+fdps_comm_info  fdps_ci_raw_create(fdps_comm_info  ci, int n, int rank[])
+{
+    PS::CommInfo CI =((PS::CommInfo*)(&ci))->create(n, rank);
+    return *((fdps_comm_info *) (&CI));
+}
+fdps_comm_info  fdps_ci_raw_split(fdps_comm_info  ci,int color, int key)
+{
+    PS::CommInfo CI =((PS::CommInfo*)(&ci))->split(color, key);
+    return *((fdps_comm_info *) (&CI));
+}
+int  fdps_ci_create(int ci, int n, int rank[])
+{
+    return fdps_ci_raw_register_comm(fdps_ci_raw_create(comm_table[ci], n, rank));
+}
+int fdps_ci_split(int ci,int color, int key)
+{
+    return fdps_ci_raw_register_comm(fdps_ci_raw_split(comm_table[ci], color, key));
+}
+
+
+
+int fdps_ci_raw_get_rank(fdps_comm_info * ci) {
+   return ((PS::CommInfo*)(ci))->getRank();
+}
+int fdps_ci_get_rank(int ci) {
+   return ((PS::CommInfo*)(comm_table+ci))->getRank();
+}
 int fdps_get_rank() {
    return PS::Comm::getRank();
+}
+int fdps_ci_raw_get_num_procs(fdps_comm_info * ci) {
+   return ((PS::CommInfo*)(ci))->getNumberOfProc();
+}
+int fdps_ci_get_num_procs(int ci) {
+   return ((PS::CommInfo*)(comm_table+ci))->getNumberOfProc();
 }
 int fdps_get_num_procs() {
    return PS::Comm::getNumberOfProc();
 }
+int fdps_ci_raw_get_rank_multi_dim(fdps_comm_info * ci, const int id) {
+   return ((PS::CommInfo*)(ci))->getRankMultiDim(id);
+}
+int fdps_ci_get_rank_multi_dim(int ci, const int id) {
+   return ((PS::CommInfo*)(comm_table+ci))->getRankMultiDim(id);
+}
 int fdps_get_rank_multi_dim(const int id) {
    return PS::Comm::getRankMultiDim(id);
+}
+int fdps_ci_raw_get_num_procs_multi_dim(fdps_comm_info * ci, const int id) {
+   return ((PS::CommInfo*)(ci))->getNumberOfProcMultiDim(id);
+}
+int fdps_ci_get_num_procs_multi_dim(int ci, const int id) {
+   return ((PS::CommInfo*)(comm_table+ci))->getNumberOfProcMultiDim(id);
 }
 int fdps_get_num_procs_multi_dim(const int id) {
    return PS::Comm::getNumberOfProcMultiDim(id);
 }
+bool fdps_ci_raw_get_logical_and(fdps_comm_info * ci, const bool in) {
+   return ((PS::CommInfo*)(ci))->synchronizeConditionalBranchAND(in);
+}
+bool fdps_ci_get_logical_and(int ci, const bool in) {
+   return ((PS::CommInfo*)(comm_table+ci))->synchronizeConditionalBranchAND(in);
+}
 bool fdps_get_logical_and(const bool in) {
    return PS::Comm::synchronizeConditionalBranchAND(in);
+}
+bool fdps_ci_raw_get_logical_or(fdps_comm_info * ci, const bool in) {
+   return ((PS::CommInfo*)(ci))->synchronizeConditionalBranchOR(in);
+}
+bool fdps_ci_get_logical_or(int ci, const bool in) {
+   return ((PS::CommInfo*)(comm_table+ci))->synchronizeConditionalBranchOR(in);
 }
 bool fdps_get_logical_or(const bool in) {
    return PS::Comm::synchronizeConditionalBranchOR(in);
 }
 
+PS::S32 fdps_ci_raw_get_min_value_s32(fdps_comm_info * ci, const PS::S32 f_in) {
+    PS::S32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMinValue(tmp);
+}
+PS::S32 fdps_ci_get_min_value_s32(int ci, const PS::S32 f_in) {
+    PS::S32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMinValue(tmp);
+}
 PS::S32 fdps_get_min_value_s32(const PS::S32 f_in) {
     PS::S32 tmp = f_in;
     return PS::Comm::getMinValue(tmp);
+}
+PS::S64 fdps_ci_raw_get_min_value_s64(fdps_comm_info * ci, const PS::S64 f_in) {
+    PS::S64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMinValue(tmp);
+}
+PS::S64 fdps_ci_get_min_value_s64(int ci, const PS::S64 f_in) {
+    PS::S64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMinValue(tmp);
 }
 PS::S64 fdps_get_min_value_s64(const PS::S64 f_in) {
     PS::S64 tmp = f_in;
     return PS::Comm::getMinValue(tmp);
 }
+PS::U32 fdps_ci_raw_get_min_value_u32(fdps_comm_info * ci, const PS::U32 f_in) {
+    PS::U32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMinValue(tmp);
+}
+PS::U32 fdps_ci_get_min_value_u32(int ci, const PS::U32 f_in) {
+    PS::U32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMinValue(tmp);
+}
 PS::U32 fdps_get_min_value_u32(const PS::U32 f_in) {
     PS::U32 tmp = f_in;
     return PS::Comm::getMinValue(tmp);
+}
+PS::U64 fdps_ci_raw_get_min_value_u64(fdps_comm_info * ci, const PS::U64 f_in) {
+    PS::U64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMinValue(tmp);
+}
+PS::U64 fdps_ci_get_min_value_u64(int ci, const PS::U64 f_in) {
+    PS::U64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMinValue(tmp);
 }
 PS::U64 fdps_get_min_value_u64(const PS::U64 f_in) {
     PS::U64 tmp = f_in;
     return PS::Comm::getMinValue(tmp);
 }
+PS::F32 fdps_ci_raw_get_min_value_f32(fdps_comm_info * ci, const PS::F32 f_in) {
+    PS::F32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMinValue(tmp);
+}
+PS::F32 fdps_ci_get_min_value_f32(int ci, const PS::F32 f_in) {
+    PS::F32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMinValue(tmp);
+}
 PS::F32 fdps_get_min_value_f32(const PS::F32 f_in) {
     PS::F32 tmp = f_in;
     return PS::Comm::getMinValue(tmp);
 }
+PS::F64 fdps_ci_raw_get_min_value_f64(fdps_comm_info * ci, const PS::F64 f_in) {
+    PS::F64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMinValue(tmp);
+}
+PS::F64 fdps_ci_get_min_value_f64(int ci, const PS::F64 f_in) {
+    PS::F64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMinValue(tmp);
+}
 PS::F64 fdps_get_min_value_f64(const PS::F64 f_in) {
     PS::F64 tmp = f_in;
     return PS::Comm::getMinValue(tmp);
+}
+void fdps_ci_raw_get_min_value_w_id_f32(fdps_comm_info * ci, const PS::F32 f_in,
+                                 const int i_in,
+                                 PS::F32 *f_out,
+                                 int *i_out) {
+    ((PS::CommInfo*)(ci))->getMinValue(f_in,i_in,*f_out,*i_out);
+}
+void fdps_ci_get_min_value_w_id_f32(int ci, const PS::F32 f_in,
+                                 const int i_in,
+                                 PS::F32 *f_out,
+                                 int *i_out) {
+    ((PS::CommInfo*)(comm_table+ci))->getMinValue(f_in,i_in,*f_out,*i_out);
 }
 void fdps_get_min_value_w_id_f32(const PS::F32 f_in,
                                  const int i_in,
                                  PS::F32 *f_out,
                                  int *i_out) {
     PS::Comm::getMinValue(f_in,i_in,*f_out,*i_out);
+}
+void fdps_ci_raw_get_min_value_w_id_f64(fdps_comm_info * ci, const PS::F64 f_in,
+                                 const int i_in,
+                                 PS::F64 *f_out,
+                                 int *i_out) {
+    ((PS::CommInfo*)(ci))->getMinValue(f_in,i_in,*f_out,*i_out);
+}
+void fdps_ci_get_min_value_w_id_f64(int ci, const PS::F64 f_in,
+                                 const int i_in,
+                                 PS::F64 *f_out,
+                                 int *i_out) {
+    ((PS::CommInfo*)(comm_table+ci))->getMinValue(f_in,i_in,*f_out,*i_out);
 }
 void fdps_get_min_value_w_id_f64(const PS::F64 f_in,
                                  const int i_in,
@@ -382,35 +615,107 @@ void fdps_get_min_value_w_id_f64(const PS::F64 f_in,
     PS::Comm::getMinValue(f_in,i_in,*f_out,*i_out);
 }
 
+PS::S32 fdps_ci_raw_get_max_value_s32(fdps_comm_info * ci, const PS::S32 f_in) {
+    PS::S32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMaxValue(tmp);
+}
+PS::S32 fdps_ci_get_max_value_s32(int ci, const PS::S32 f_in) {
+    PS::S32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMaxValue(tmp);
+}
 PS::S32 fdps_get_max_value_s32(const PS::S32 f_in) {
     PS::S32 tmp = f_in;
     return PS::Comm::getMaxValue(tmp);
+}
+PS::S64 fdps_ci_raw_get_max_value_s64(fdps_comm_info * ci, const PS::S64 f_in) {
+    PS::S64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMaxValue(tmp);
+}
+PS::S64 fdps_ci_get_max_value_s64(int ci, const PS::S64 f_in) {
+    PS::S64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMaxValue(tmp);
 }
 PS::S64 fdps_get_max_value_s64(const PS::S64 f_in) {
     PS::S64 tmp = f_in;
     return PS::Comm::getMaxValue(tmp);
 }
+PS::U32 fdps_ci_raw_get_max_value_u32(fdps_comm_info * ci, const PS::U32 f_in) {
+    PS::U32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMaxValue(tmp);
+}
+PS::U32 fdps_ci_get_max_value_u32(int ci, const PS::U32 f_in) {
+    PS::U32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMaxValue(tmp);
+}
 PS::U32 fdps_get_max_value_u32(const PS::U32 f_in) {
     PS::U32 tmp = f_in;
     return PS::Comm::getMaxValue(tmp);
+}
+PS::U64 fdps_ci_raw_get_max_value_u64(fdps_comm_info * ci, const PS::U64 f_in) {
+    PS::U64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMaxValue(tmp);
+}
+PS::U64 fdps_ci_get_max_value_u64(int ci, const PS::U64 f_in) {
+    PS::U64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMaxValue(tmp);
 }
 PS::U64 fdps_get_max_value_u64(const PS::U64 f_in) {
     PS::U64 tmp = f_in;
     return PS::Comm::getMaxValue(tmp);
 }
+PS::F32 fdps_ci_raw_get_max_value_f32(fdps_comm_info * ci, const PS::F32 f_in) {
+    PS::F32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMaxValue(tmp);
+}
+PS::F32 fdps_ci_get_max_value_f32(int ci, const PS::F32 f_in) {
+    PS::F32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMaxValue(tmp);
+}
 PS::F32 fdps_get_max_value_f32(const PS::F32 f_in) {
     PS::F32 tmp = f_in;
     return PS::Comm::getMaxValue(tmp);
 }
+PS::F64 fdps_ci_raw_get_max_value_f64(fdps_comm_info * ci, const PS::F64 f_in) {
+    PS::F64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getMaxValue(tmp);
+}
+PS::F64 fdps_ci_get_max_value_f64(int ci, const PS::F64 f_in) {
+    PS::F64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getMaxValue(tmp);
+}
 PS::F64 fdps_get_max_value_f64(const PS::F64 f_in) {
     PS::F64 tmp = f_in;
     return PS::Comm::getMaxValue(tmp);
+}
+void fdps_ci_raw_get_max_value_w_id_f32(fdps_comm_info * ci, const PS::F32 f_in,
+                                 const int i_in,
+                                 PS::F32 *f_out,
+                                 int *i_out) {
+    ((PS::CommInfo*)(ci))->getMaxValue(f_in,i_in,*f_out,*i_out);
+}
+void fdps_ci_get_max_value_w_id_f32(int ci, const PS::F32 f_in,
+                                 const int i_in,
+                                 PS::F32 *f_out,
+                                 int *i_out) {
+    ((PS::CommInfo*)(comm_table+ci))->getMaxValue(f_in,i_in,*f_out,*i_out);
 }
 void fdps_get_max_value_w_id_f32(const PS::F32 f_in,
                                  const int i_in,
                                  PS::F32 *f_out,
                                  int *i_out) {
     PS::Comm::getMaxValue(f_in,i_in,*f_out,*i_out);
+}
+void fdps_ci_raw_get_max_value_w_id_f64(fdps_comm_info * ci, const PS::F64 f_in,
+                                 const int i_in,
+                                 PS::F64 *f_out,
+                                 int *i_out) {
+    ((PS::CommInfo*)(ci))->getMaxValue(f_in,i_in,*f_out,*i_out);
+}
+void fdps_ci_get_max_value_w_id_f64(int ci, const PS::F64 f_in,
+                                 const int i_in,
+                                 PS::F64 *f_out,
+                                 int *i_out) {
+    ((PS::CommInfo*)(comm_table+ci))->getMaxValue(f_in,i_in,*f_out,*i_out);
 }
 void fdps_get_max_value_w_id_f64(const PS::F64 f_in,
                                  const int i_in,
@@ -419,54 +724,150 @@ void fdps_get_max_value_w_id_f64(const PS::F64 f_in,
     PS::Comm::getMaxValue(f_in,i_in,*f_out,*i_out);
 }
 
+PS::S32 fdps_ci_raw_get_sum_s32(fdps_comm_info * ci, const PS::S32 f_in) {
+    PS::S32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getSum(tmp);
+}
+PS::S32 fdps_ci_get_sum_s32(int ci, const PS::S32 f_in) {
+    PS::S32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getSum(tmp);
+}
 PS::S32 fdps_get_sum_s32(const PS::S32 f_in) {
     PS::S32 tmp = f_in;
     return PS::Comm::getSum(tmp);
+}
+PS::S64 fdps_ci_raw_get_sum_s64(fdps_comm_info * ci, const PS::S64 f_in) {
+    PS::S64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getSum(tmp);
+}
+PS::S64 fdps_ci_get_sum_s64(int ci, const PS::S64 f_in) {
+    PS::S64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getSum(tmp);
 }
 PS::S64 fdps_get_sum_s64(const PS::S64 f_in) {
     PS::S64 tmp = f_in;
     return PS::Comm::getSum(tmp);
 }
+PS::U32 fdps_ci_raw_get_sum_u32(fdps_comm_info * ci, const PS::U32 f_in) {
+    PS::U32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getSum(tmp);
+}
+PS::U32 fdps_ci_get_sum_u32(int ci, const PS::U32 f_in) {
+    PS::U32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getSum(tmp);
+}
 PS::U32 fdps_get_sum_u32(const PS::U32 f_in) {
     PS::U32 tmp = f_in;
     return PS::Comm::getSum(tmp);
+}
+PS::U64 fdps_ci_raw_get_sum_u64(fdps_comm_info * ci, const PS::U64 f_in) {
+    PS::U64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getSum(tmp);
+}
+PS::U64 fdps_ci_get_sum_u64(int ci, const PS::U64 f_in) {
+    PS::U64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getSum(tmp);
 }
 PS::U64 fdps_get_sum_u64(const PS::U64 f_in) {
     PS::U64 tmp = f_in;
     return PS::Comm::getSum(tmp);
 }
+PS::F32 fdps_ci_raw_get_sum_f32(fdps_comm_info * ci, const PS::F32 f_in) {
+    PS::F32 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getSum(tmp);
+}
+PS::F32 fdps_ci_get_sum_f32(int ci, const PS::F32 f_in) {
+    PS::F32 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getSum(tmp);
+}
 PS::F32 fdps_get_sum_f32(const PS::F32 f_in) {
     PS::F32 tmp = f_in;
     return PS::Comm::getSum(tmp);
+}
+PS::F64 fdps_ci_raw_get_sum_f64(fdps_comm_info * ci, const PS::F64 f_in) {
+    PS::F64 tmp = f_in;
+    return ((PS::CommInfo*)(ci))->getSum(tmp);
+}
+PS::F64 fdps_ci_get_sum_f64(int ci, const PS::F64 f_in) {
+    PS::F64 tmp = f_in;
+    return ((PS::CommInfo*)(comm_table+ci))->getSum(tmp);
 }
 PS::F64 fdps_get_sum_f64(const PS::F64 f_in) {
     PS::F64 tmp = f_in;
     return PS::Comm::getSum(tmp);
 }
 
+void fdps_ci_raw_broadcast_s32(fdps_comm_info * ci, PS::S32 *val, int n, int src) {
+    ((PS::CommInfo*)(ci))->broadcast(val,n,src);
+}
+void fdps_ci_broadcast_s32(int ci, PS::S32 *val, int n, int src) {
+    ((PS::CommInfo*)(comm_table+ci))->broadcast(val,n,src);
+}
 void fdps_broadcast_s32(PS::S32 *val, int n, int src) {
     PS::Comm::broadcast(val,n,src);
+}
+void fdps_ci_raw_broadcast_s64(fdps_comm_info * ci, PS::S64 *val, int n, int src) {
+    ((PS::CommInfo*)(ci))->broadcast(val,n,src);
+}
+void fdps_ci_broadcast_s64(int ci, PS::S64 *val, int n, int src) {
+    ((PS::CommInfo*)(comm_table+ci))->broadcast(val,n,src);
 }
 void fdps_broadcast_s64(PS::S64 *val, int n, int src) {
     PS::Comm::broadcast(val,n,src);
 }
+void fdps_ci_raw_broadcast_u32(fdps_comm_info * ci, PS::U32 *val, int n, int src) {
+    ((PS::CommInfo*)(ci))->broadcast(val,n,src);
+}
+void fdps_ci_broadcast_u32(int ci, PS::U32 *val, int n, int src) {
+    ((PS::CommInfo*)(comm_table+ci))->broadcast(val,n,src);
+}
 void fdps_broadcast_u32(PS::U32 *val, int n, int src) {
     PS::Comm::broadcast(val,n,src);
+}
+void fdps_ci_raw_broadcast_u64(fdps_comm_info * ci, PS::U64 *val, int n, int src) {
+    ((PS::CommInfo*)(ci))->broadcast(val,n,src);
+}
+void fdps_ci_broadcast_u64(int ci, PS::U64 *val, int n, int src) {
+    ((PS::CommInfo*)(comm_table+ci))->broadcast(val,n,src);
 }
 void fdps_broadcast_u64(PS::U64 *val, int n, int src) {
     PS::Comm::broadcast(val,n,src);
 }
+void fdps_ci_raw_broadcast_f32(fdps_comm_info * ci, PS::F32 *val, int n, int src) {
+    ((PS::CommInfo*)(ci))->broadcast(val,n,src);
+}
+void fdps_ci_broadcast_f32(int ci, PS::F32 *val, int n, int src) {
+    ((PS::CommInfo*)(comm_table+ci))->broadcast(val,n,src);
+}
 void fdps_broadcast_f32(PS::F32 *val, int n, int src) {
     PS::Comm::broadcast(val,n,src);
+}
+void fdps_ci_raw_broadcast_f64(fdps_comm_info * ci, PS::F64 *val, int n, int src) {
+    ((PS::CommInfo*)(ci))->broadcast(val,n,src);
+}
+void fdps_ci_broadcast_f64(int ci, PS::F64 *val, int n, int src) {
+    ((PS::CommInfo*)(comm_table+ci))->broadcast(val,n,src);
 }
 void fdps_broadcast_f64(PS::F64 *val, int n, int src) {
     PS::Comm::broadcast(val,n,src);
 }
 
+double fdps_ci_raw_get_wtime(fdps_comm_info * ci) {
+   return PS::GetWtime();
+}
+double fdps_ci_get_wtime(int ci) {
+   return PS::GetWtime();
+}
 double fdps_get_wtime() {
    return PS::GetWtime();
 }
 
+void fdps_ci_raw_barrier(fdps_comm_info * ci) {
+   ((PS::CommInfo*)(ci))->barrier();
+}
+void fdps_ci_barrier(int ci) {
+   ((PS::CommInfo*)(comm_table+ci))->barrier();
+}
 void fdps_barrier() {
    PS::Comm::barrier();
 }
@@ -537,7 +938,7 @@ double fdps_get_pm_cutoff_radius() {
 }
 void fdps_set_dinfo_of_pm(const int pm_num, 
                           const int dinfo_num) {
-   set_dinfo_of_pm(pm_num,dinfo_num);
+   set_dinfo_of_pm(pom_num,dinfo_num);
 }
 void fdps_set_psys_of_pm(const int pm_num, 
                          const int psys_num,

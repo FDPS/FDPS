@@ -173,7 +173,7 @@ void  drift(int psys_num, double dt)
     }
 }
 
-int c_main()
+void c_main()
 {
     fprintf(stderr, "FDPS on C test code\n");
     fdps_initialize();
@@ -259,5 +259,4 @@ int c_main()
         num_loop += 1;
     }
     fdps_finalize();
-    return 0;
 }

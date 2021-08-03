@@ -35,6 +35,10 @@ def get_declare_type_a64fx(type)
     decl = "svfloat64x3_t"
   when "F32vec" then 
     decl = "svfloat32x3_t"
+  when "B32" then
+    decl = "svbool_t"
+  when "B64" then
+    decl = "svbool_t"
   else
     abort "error: unsupported vector type of #{type} for A64FX"
     decl = "UNSUPPORTED_VECTOR_TYPE"
@@ -100,6 +104,10 @@ def get_type_suffix_a64fx(type)
     suffix = "f64"
   when /F32vec/ then
     suffix = "f32"
+  when "B32" then
+    suffix = "b32"
+  when "B64" then
+    suffix = "b64"
   else
     abort "error: unsupported scalar type of #{@type} for A64FX (get_type_suffix)"
   end
@@ -119,6 +127,16 @@ class Kernelprogram
     code += "return rinv;\n"
     code += "}\n"
 
+    code += "svfloat64_t rsqrt(svbool_t pg,svfloat64_t op){\n"
+    code += "svfloat64_t rinv = svrsqrte_f64(op);\n"
+    code += "svfloat64_t h = svmul_f64_z(pg,op,rinv);\n"
+    code += "h = svmsb_n_f64_z(pg,h,rinv,1.f);\n"
+    code += "svfloat64_t poly = svmad_n_f64_z(pg,h,svdup_f64(0.375f),0.5f);\n"
+    code += "poly = svmul_f64_z(pg,poly,h);\n"
+    code += "rinv = svmad_f64_z(pg,rinv,poly,rinv);\n"
+    code += "return rinv;\n"
+    code += "}\n"
+
     code += "svfloat32x2_t svdup_n_f32x3(PIKG::F32vec2 v){\n"
     code += "  svfloat32x2_t ret;\n"
     code += "  ret.v0 = svdup_n_f32(v.x);\n  ret.v1 = svdup_n_f32(v.y);\n"
@@ -129,13 +147,30 @@ class Kernelprogram
     code += "  ret.v0 = svdup_n_f32(v.x);\n  ret.v1 = svdup_n_f32(v.y);\n  ret.v2 = svdup_n_f32(v.z);\n"
     code += "  return ret;\n"
     code +="}\n"
-    #code += "svfloat32x4_t svdup_n_f32x3(PIKG::F32vec4 v){\n"
-    #code += "  svfloat32x4_t ret;\n"
-    #code += "  ret.v0 = svdup_n_f32(v.x);\n  ret.v1 = svdup_n_f32(v.y);\n  ret.v2 = svdup_n_f32(v.z);\n  ret.v3 = svdup_n_f32(v.w);\n"
-    #code += "  return ret;\n"
-    #code +="}\n"
+    code += "svfloat32x4_t svdup_n_f32x4(PIKG::F32vec4 v){\n"
+    code += "  svfloat32x4_t ret;\n"
+    code += "  ret.v0 = svdup_n_f32(v.x);\n  ret.v1 = svdup_n_f32(v.y);\n  ret.v2 = svdup_n_f32(v.z);\n  ret.v3 = svdup_n_f32(v.w);\n"
+    code += "  return ret;\n"
+    code +="}\n"
+
+    code += "svfloat64x2_t svdup_n_f64x3(PIKG::F64vec2 v){\n"
+    code += "  svfloat64x2_t ret;\n"
+    code += "  ret.v0 = svdup_n_f64(v.x);\n  ret.v1 = svdup_n_f64(v.y);\n"
+    code += "  return ret;\n"
+    code +="}\n"
+    code += "svfloat64x3_t svdup_n_f64x3(PIKG::F64vec v){\n"
+    code += "  svfloat64x3_t ret;\n"
+    code += "  ret.v0 = svdup_n_f64(v.x);\n  ret.v1 = svdup_n_f64(v.y);\n  ret.v2 = svdup_n_f64(v.z);\n"
+    code += "  return ret;\n"
+    code +="}\n"
+    code += "svfloat64x4_t svdup_n_f64x4(PIKG::F64vec4 v){\n"
+    code += "  svfloat64x4_t ret;\n"
+    code += "  ret.v0 = svdup_n_f64(v.x);\n  ret.v1 = svdup_n_f64(v.y);\n  ret.v2 = svdup_n_f64(v.z);\n  ret.v3 = svdup_n_f64(v.w);\n"
+    code += "  return ret;\n"
+    code +="}\n"
 
     code += "svfloat32_t sqrt(svbool_t pg,svfloat32_t op){ return svsqrt_f32_z(pg,op); }\n"
+    code += "svfloat64_t sqrt(svbool_t pg,svfloat64_t op){ return svsqrt_f64_z(pg,op); }\n"
     # http://math-koshimizu.hatenablog.jp/entry/2017/07/28/083000
     code += "svfloat32_t inv(svbool_t pg,svfloat32_t op){\n"
     code += "svfloat32_t x1 = svrecpe_f32(op);\n"
@@ -145,6 +180,16 @@ class Kernelprogram
     code += "ret = svmul_f32_z(pg,ret,x2);\n"
     code += "return ret;\n"
     code += "}\n"
+
+    code += "svfloat64_t inv(svbool_t pg,svfloat64_t op){\n"
+    code += "svfloat64_t x1 = svrecpe_f64(op);\n"
+    code += "svfloat64_t x2 = svmsb_n_f64_z(pg,op,x1,2.f);\n"
+    code += "x2 = svmul_f64_z(pg,x2,x1);\n"
+    code += "svfloat64_t ret = svmsb_n_f64_z(pg,op,x2,2.f);\n"
+    code += "ret = svmul_f64_z(pg,ret,x2);\n"
+    code += "return ret;\n"
+    code += "}\n"
+
     code += "svfloat64_t max(svbool_t pg,svfloat64_t a,svfloat64_t b){ return svmax_f64_z(pg,a,b);}\n"
     code += "svfloat64_t min(svbool_t pg,svfloat64_t a,svfloat64_t b){ return svmin_f64_z(pg,a,b);}\n"
     code += "svuint64_t max(svbool_t pg,svuint64_t a,svuint64_t b){ return svmax_u64_z(pg,a,b);}\n"
@@ -462,79 +507,18 @@ class FuncCall
   end
 end
 
-class IfElseState
-  def convert_to_code_a64fx(conversion_type)
-    if $predicate_queue == nil
-      $predicate_queue = Array.new()
-    end
-    if $condition_queue == nil
-      $condition_queue = Array.new()
-    end
-    p self
-    type = "B" + sizeof(@expression.get_type) if @expression != nil
-    ret = ""
-    case @operator
-    when :if
-      $predicate_queue.push($current_predicate)
-      $condition_queue.push(Expression.new([:not,@expression,nil,type]))
-      $pg_count += 1
-      ret = Statement.new(["pg#{$pg_count}",expression,type]).convert_to_code(conversion_type)
-      $current_predicate = "pg#{$pg_count}"
-    when :elsif
-      $current_predicate = $predicate_queue.pop
-      cond = $condition_queue.pop
-      ret = Statement.new(["pg#{$pg_count}",Expression.new([:land,expression,cond,type]),type]).convert_to_code(conversion_type)
-      $predicate_queue.push($current_predicate)
-      $current_predicate = "pg#{$pg_count}"
-      $condition_queue.push(Expression.new([:and,cond,Expression.new([:not,expression,nil,type]),type]))
-    when :else
-      $current_predicate = $predicate_queue.pop
-      cond = $condition_queue.pop
-      ret = Statement.new(["pg#{$pg_count}",Expression.new([:land,expression,cond,type]),type]).convert_to_code(conversion_type)
-      $predicate_queue.push($current_predicate)
-      $current_predicate = "pg#{$pg_count}"
-      $condition_queue.push(Expression.new([:and,cond,Expression.new([:not,expression,nil,type]),type]))
-    when :endif
-      $predicate_queue.pop
-      $condition_queue.pop
-      $pg_count -= 1
-      $current_predicate = "pg#{$pg_count}"
-    else
-      abort "undefined operator of IfElseState: #{@operator}"
-    end
-    ret
-  end
-end
-
 class Expression
   def convert_to_code_a64fx(conversion_type,predicate=$current_predicate)
+    predicate = "svptrue_b#{$min_element_size}()" if $current_predicate == nil
+
     if @operator != :array && @operator != :func
-      case self.get_type
-      when "F64"
-        type = "f64"
-      when "F32"
-        type = "f32"
-      when "S64"
-        type = "s64"
-      when "S32"
-        type = "s32"
-      when "U64"
-        type = "u64"
-      when "U32"
-        type = "u32"
-      when "B64"
-        type = "b64"
-      when "B32"
-        type = "b32"
-      when "F64vec"
-        type = "f64x3"
-      when "F32vec"
-        type = "f32x3"
+      if [:eq,:neq,:gt,:ge,:lt,:le].index(@operator)
+        type = get_type_suffix_a64fx(@lop.get_type)
       else
-        #abort "error: unsupported type #{@type} and operator #{@operator}"
+        type = get_type_suffix_a64fx(self.get_type)
       end
     end
-
+    
     case @operator
     when :uminus then
       retval="svneg_#{type}_z(" + predicate + "," + @lop.convert_to_code(conversion_type) + ")"
@@ -564,8 +548,10 @@ class Expression
       retval="svand_b_z(" + predicate + "," + @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
     when :lor  then
       retval="svorr_b_z(" + predicate + "," + @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+    when :landnot  then
+      retval="svbic_b_z(" + predicate + "," + @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
     when :dot   then
-      if @rop == "x" || @rop == "y" || @rop == "z" || @rop == "w"
+      if (@rop == "x" || @rop == "y" || @rop == "z" || @rop == "w") && @lop.type =~ /vec/
         retval=@lop.convert_to_code(conversion_type)+"."
         retval += ["v0","v1","v2","v3"][["x","y","z","w"].index(@rop)]
         #@rop.convert_to_code(conversion_type)
@@ -674,8 +660,9 @@ class String
   end
 end
 
-def aos2soa_simd(fvars,h=$varhash)
+def aos2soa_simd(fvars,coversion_type,h=$varhash)
   ret = []
+
   # count bytes of EPI and FORCE member variable
   epi_tot, epi_max_byte_size, is_epi_uniform = count_class_member("EPI")
   force_tot, force_max_byte_size, is_force_uniform = count_class_member("FORCE")
@@ -706,21 +693,25 @@ def aos2soa_simd(fvars,h=$varhash)
         end
       }
       count = 0
-      fvars.each{ |v|
-        if h[v][0] == io
-          type_single = get_single_element_type(type)
-          vdim = get_vector_dim(h[v][1])
-          if vdim > 1
-            for i in 0...vdim
-              dest = Expression.new([:dot,v,["x","y","z","w"][i],type_single])
-              src  = Expression.new([:dot,vname,["v0","v1","v2","v3"][i],type_single])
-              ret += [Statement.new([dest,src,type_single])]
+      h.each{ |v|
+        if v[1][0] == io
+          fvars.each{ |name|
+            if name == v[0]
+              type_single = get_single_element_type(type)
+              vdim = get_vector_dim(v[1][1])
+              if vdim > 1
+                for i in 0...vdim
+                  dest = Expression.new([:dot,v[0],["x","y","z","w"][i],type_single])
+                  src  = Expression.new([:dot,vname,["v0","v1","v2","v3"][i+count],type_single])
+                  ret += [Statement.new([dest,src,type_single])]
+                end
+                count += vdim
+              else
+                ret += [Statement.new([v[0],Expression.new([:dot,vname,"v#{count}",type_single]),type_single])]
+                count += 1
+              end
             end
-            count += vdim
-          else
-            ret += [Statement.new([v,Expression.new([:dot,vname,"v#{count}",type_single]),type_single])]
-            count += 1
-          end
+          }
         end
       }
     else # is not uniform
@@ -786,7 +777,7 @@ def soa2aos_simd(fvars,h=$varhash)
       modifier = h[v][3]
       if iotype == io
         if type =~ /vec/
-          ret += [Statement.new([Expression.new([:dot,vname,"v#{count+0}",type]),Expression.new([:dot,v,"x"]),Expression.new([:dot,v,"z"]),type])]
+          ret += [Statement.new([Expression.new([:dot,vname,"v#{count+0}",type]),Expression.new([:dot,v,"x"]),type])]
           ret += [Statement.new([Expression.new([:dot,vname,"v#{count+1}",type]),Expression.new([:dot,v,"y"]),type])]
           ret += [Statement.new([Expression.new([:dot,vname,"v#{count+2}",type]),Expression.new([:dot,v,"z"]),type])]
           count += 3
@@ -799,12 +790,12 @@ def soa2aos_simd(fvars,h=$varhash)
     type = "F#{max_byte_size}"
     ret += [StructureStore.new([PointerOf.new([type,Expression.new([:array,get_iotype_array(io),"i",type])]),vname,nelem,type])]
   else # is not uniform
-    h.each{ |v|
-      name = v[0]
-      iotype   = v[1][0]
-      type     = v[1][1]
-      fdpsname = v[1][2]
-      modifier = v[1][3]
+    fvars.each{ |v|
+      name = v
+      iotype   = h[v][0]
+      type     = h[v][1]
+      fdpsname = h[v][2]
+      modifier = h[v][3]
       if iotype == io
         tmp_type = type.delete("vec")
         tmp_offset = offset * max_byte_size / byte_count(tmp_type)
@@ -818,6 +809,5 @@ def soa2aos_simd(fvars,h=$varhash)
       end
     }
   end
-
   ret
 end

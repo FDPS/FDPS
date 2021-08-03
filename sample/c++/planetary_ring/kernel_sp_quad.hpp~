@@ -1,0 +1,230 @@
+#include<pikg_vector.hpp>
+#include<cmath>
+#include<limits>
+#include<chrono>
+
+struct CalcForceEpSpQuadImpl{
+PIKG::F32 eps2;
+PIKG::F32vec qr;
+CalcForceEpSpQuadImpl(){}
+CalcForceEpSpQuadImpl(PIKG::F32 eps2,PIKG::F32vec qr):eps2(eps2),qr(qr){}
+void initialize(PIKG::F32 eps2_,PIKG::F32vec qr_){
+eps2 = eps2_;
+qr = qr_;
+}
+int kernel_id = 0;
+void operator()(const Epi2* __restrict__ epi,const int ni,const Epj2* __restrict__ epj,const int nj,Force2* __restrict__ force,const int kernel_select = 1){
+static_assert(sizeof(Epi2) == 12,"check consistency of EPI member variable definition between PIKG source and original source");
+static_assert(sizeof(Epj2) == 40,"check consistency of EPJ member variable definition between PIKG source and original source");
+static_assert(sizeof(Force2) == 16,"check consistency of FORCE member variable definition between PIKG source and original source");
+if(kernel_select>=0) kernel_id = kernel_select;
+if(kernel_id == 0){
+std::cout << "ni: " << ni << " nj:" << nj << std::endl;
+Force2* force_tmp = new Force2[ni];
+std::chrono::system_clock::time_point  start, end;
+double min_time = std::numeric_limits<double>::max();
+{ // test Kernel_I1_J1
+for(int i=0;i<ni;i++) force_tmp[i] = force[i];
+start = std::chrono::system_clock::now();
+Kernel_I1_J1(epi,ni,epj,nj,force_tmp);
+end = std::chrono::system_clock::now();
+double elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count();
+std::cerr << "kerel 1: " << elapsed << " ns" << std::endl;
+if(min_time > elapsed){
+min_time = elapsed;
+kernel_id = 1;
+}
+}
+delete[] force_tmp;
+} // if(kernel_id == 0)
+if(kernel_id == 1) Kernel_I1_J1(epi,ni,epj,nj,force);
+} // operator() definition 
+void Kernel_I1_J1(const Epi2* __restrict__ epi,const PIKG::S32 ni,const Epj2* __restrict__ epj,const PIKG::S32 nj,Force2* __restrict__ force){
+PIKG::S32 i;
+PIKG::S32 j;
+for(i = 0;i < ni;++i){
+PIKG::F32vec EPI_pos;
+
+EPI_pos.x = epi[i+0].pos.x;
+EPI_pos.y = epi[i+0].pos.y;
+EPI_pos.z = epi[i+0].pos.z;
+PIKG::F32vec FORCE_acc;
+
+FORCE_acc.x = 0.0f;
+FORCE_acc.y = 0.0f;
+FORCE_acc.z = 0.0f;
+PIKG::F32 FORCE_pot;
+
+FORCE_pot = 0.0f;
+for(j = 0;j < nj;++j){
+PIKG::F32 EPJ_mass;
+
+EPJ_mass = epj[j+0].mass;
+PIKG::F32vec EPJ_pos;
+
+EPJ_pos.x = epj[j+0].pos.x;
+EPJ_pos.y = epj[j+0].pos.y;
+EPJ_pos.z = epj[j+0].pos.z;
+PIKG::F32 EPJ_quad_xx;
+
+EPJ_quad_xx = epj[j+0].quad_xx;
+PIKG::F32 EPJ_quad_xy;
+
+EPJ_quad_xy = epj[j+0].quad_xy;
+PIKG::F32 EPJ_quad_xz;
+
+EPJ_quad_xz = epj[j+0].quad_xz;
+PIKG::F32 EPJ_quad_yy;
+
+EPJ_quad_yy = epj[j+0].quad_yy;
+PIKG::F32 EPJ_quad_yz;
+
+EPJ_quad_yz = epj[j+0].quad_yz;
+PIKG::F32 EPJ_quad_zz;
+
+EPJ_quad_zz = epj[j+0].quad_zz;
+PIKG::F32vec rij;
+
+PIKG::F32 __fkg_tmp1;
+
+PIKG::F32 __fkg_tmp0;
+
+PIKG::F32 r2;
+
+PIKG::F32 __fkg_tmp2;
+
+PIKG::F32 tr;
+
+PIKG::F32 __fkg_tmp4;
+
+PIKG::F32 __fkg_tmp3;
+
+PIKG::F32 __fkg_tmp6;
+
+PIKG::F32 __fkg_tmp5;
+
+PIKG::F32 __fkg_tmp8;
+
+PIKG::F32 __fkg_tmp7;
+
+PIKG::F32 __fkg_tmp10;
+
+PIKG::F32 __fkg_tmp9;
+
+PIKG::F32 qrr;
+
+PIKG::F32 r_inv;
+
+PIKG::F32 r2_inv;
+
+PIKG::F32 r3_inv;
+
+PIKG::F32 r5_inv;
+
+PIKG::F32 qrr_r5;
+
+PIKG::F32 qrr_r7;
+
+PIKG::F32 __fkg_tmp12;
+
+PIKG::F32 __fkg_tmp11;
+
+PIKG::F32 A;
+
+PIKG::F32 __fkg_tmp13;
+
+PIKG::F32 B;
+
+PIKG::F32 __fkg_tmp14;
+
+PIKG::F32 __fkg_tmp15;
+
+PIKG::F32 __fkg_tmp16;
+
+PIKG::F32 __fkg_tmp17;
+
+PIKG::F32 __fkg_tmp19;
+
+PIKG::F32 __fkg_tmp20;
+
+PIKG::F32 __fkg_tmp18;
+
+rij.x = (EPI_pos.x-EPJ_pos.x);
+rij.y = (EPI_pos.y-EPJ_pos.y);
+rij.z = (EPI_pos.z-EPJ_pos.z);
+__fkg_tmp1 = (rij.x*rij.x+eps2);
+__fkg_tmp0 = (rij.y*rij.y+__fkg_tmp1);
+r2 = (rij.z*rij.z+__fkg_tmp0);
+__fkg_tmp2 = (EPJ_quad_xx+EPJ_quad_yy);
+tr = (__fkg_tmp2+EPJ_quad_zz);
+__fkg_tmp4 = (EPJ_quad_xx*rij.x);
+__fkg_tmp3 = (EPJ_quad_xy*rij.y+__fkg_tmp4);
+qr.x = (EPJ_quad_xz*rij.z+__fkg_tmp3);
+__fkg_tmp6 = (EPJ_quad_yy*rij.y);
+__fkg_tmp5 = (EPJ_quad_yz*rij.z+__fkg_tmp6);
+qr.y = (EPJ_quad_xy*rij.x+__fkg_tmp5);
+__fkg_tmp8 = (EPJ_quad_zz*rij.z);
+__fkg_tmp7 = (EPJ_quad_xz*rij.x+__fkg_tmp8);
+qr.z = (EPJ_quad_yz*rij.y+__fkg_tmp7);
+__fkg_tmp10 = (qr.y*rij.y);
+__fkg_tmp9 = (qr.x*rij.x+__fkg_tmp10);
+qrr = (qr.z*rij.z+__fkg_tmp9);
+r_inv = rsqrt(r2);
+r2_inv = (r_inv*r_inv);
+r3_inv = (r2_inv*r_inv);
+r5_inv = (r2_inv*r3_inv);
+qrr_r5 = (r5_inv*qrr);
+qrr_r7 = (r2_inv*qrr_r5);
+__fkg_tmp12 = (EPJ_mass*r3_inv);
+__fkg_tmp11 = (__fkg_tmp12 - tr*r5_inv);
+A = (5.0f*qrr_r7+__fkg_tmp11);
+__fkg_tmp13 = -(2.0f);
+B = (__fkg_tmp13*r5_inv);
+__fkg_tmp14 = (A*rij.x-FORCE_acc.x);
+FORCE_acc.x = (-(__fkg_tmp14 + B*qr.x));
+__fkg_tmp15 = (A*rij.y-FORCE_acc.y);
+FORCE_acc.y = (-(__fkg_tmp15 + B*qr.y));
+__fkg_tmp16 = (A*rij.z-FORCE_acc.z);
+FORCE_acc.z = (-(__fkg_tmp16 + B*qr.z));
+__fkg_tmp17 = (0.5f*tr);
+__fkg_tmp19 = (0.5f*EPJ_mass);
+__fkg_tmp20 = (qrr_r5-FORCE_pot);
+__fkg_tmp18 = (__fkg_tmp19*r_inv+__fkg_tmp20);
+FORCE_pot = (__fkg_tmp17*r3_inv-__fkg_tmp18);
+} // loop of j
+
+force[i+0].acc.x = (force[i+0].acc.x+FORCE_acc.x);
+force[i+0].acc.y = (force[i+0].acc.y+FORCE_acc.y);
+force[i+0].acc.z = (force[i+0].acc.z+FORCE_acc.z);
+force[i+0].pot = (force[i+0].pot+FORCE_pot);
+} // loop of i
+} // Kernel_I1_J1 definition 
+PIKG::F64 rsqrt(PIKG::F64 op){ return 1.0/std::sqrt(op); }
+PIKG::F64 sqrt(PIKG::F64 op){ return std::sqrt(op); }
+PIKG::F64 inv(PIKG::F64 op){ return 1.0/op; }
+PIKG::F64 max(PIKG::F64 a,PIKG::F64 b){ return std::max(a,b);}
+PIKG::F64 min(PIKG::F64 a,PIKG::F64 b){ return std::min(a,b);}
+PIKG::F32 rsqrt(PIKG::F32 op){ return 1.f/std::sqrt(op); }
+PIKG::F32 sqrt(PIKG::F32 op){ return std::sqrt(op); }
+PIKG::F32 inv(PIKG::F32 op){ return 1.f/op; }
+PIKG::S64 max(PIKG::S64 a,PIKG::S64 b){ return std::max(a,b);}
+PIKG::S64 min(PIKG::S64 a,PIKG::S64 b){ return std::min(a,b);}
+PIKG::S32 max(PIKG::S32 a,PIKG::S32 b){ return std::max(a,b);}
+PIKG::S32 min(PIKG::S32 a,PIKG::S32 b){ return std::min(a,b);}
+PIKG::F64 table(PIKG::F64 tab[],PIKG::S64 i){ return tab[i]; }
+PIKG::F32 table(PIKG::F32 tab[],PIKG::S32 i){ return tab[i]; }
+PIKG::F64 to_float(PIKG::U64 op){return (PIKG::F64)op;}
+PIKG::F32 to_float(PIKG::U32 op){return (PIKG::F32)op;}
+PIKG::F64 to_float(PIKG::S64 op){return (PIKG::F64)op;}
+PIKG::F32 to_float(PIKG::S32 op){return (PIKG::F32)op;}
+PIKG::S64   to_int(PIKG::F64 op){return (PIKG::S64)op;}
+PIKG::S32   to_int(PIKG::F32 op){return (PIKG::S32)op;}
+PIKG::U64  to_uint(PIKG::F64 op){return (PIKG::U64)op;}
+PIKG::U32  to_uint(PIKG::F32 op){return (PIKG::U32)op;}
+template<typename T> PIKG::F64 to_f64(const T& op){return (PIKG::F64)op;}
+template<typename T> PIKG::F32 to_f32(const T& op){return (PIKG::F32)op;}
+template<typename T> PIKG::S64 to_s64(const T& op){return (PIKG::S64)op;}
+template<typename T> PIKG::S32 to_s32(const T& op){return (PIKG::S32)op;}
+template<typename T> PIKG::U64 to_u64(const T& op){return (PIKG::U64)op;}
+template<typename T> PIKG::U32 to_u32(const T& op){return (PIKG::U32)op;}
+};// kernel functor definition 

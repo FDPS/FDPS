@@ -270,58 +270,10 @@ class Kernelprogram
   end
 end
 
-class IfElseState
-  def convert_to_code_avx2(conversion_type)
-    if $predicate_queue == nil
-      $predicate_queue = Array.new()
-    end
-    if $condition_queue == nil
-      $condition_queue = Array.new()
-    end
-    type = "B" + sizeof(@expression.get_type) if @expression != nil
-    ret = ""
-    case @operator
-    when :if
-      $current_predicate = "pg#{$pg_count}"
-      $predicate_queue.push($current_predicate)
-      $condition_queue.push(Expression.new([:not,@expression,nil,type]))
-      ret = Declaration.new([type,$current_predicate]).convert_to_code(conversion_type)
-      ret += Statement.new([$current_predicate,@expression,type]).convert_to_code(conversion_type)
-    when :elsif
-      $current_predicate = $predicate_queue.pop
-      cond = $condition_queue.pop
-      ret = Statement.new(["pg#{$pg_count}",Expression.new([:land,@expression,cond,type]),type]).convert_to_code(conversion_type)
-      $predicate_queue.push($current_predicate)
-      $current_predicate = "pg#{$pg_count}"
-      $condition_queue.push(Expression.new([:land,cond,Expression.new([:not,expression,nil,type]),type]))
-    when :else
-      $current_predicate = $predicate_queue.pop
-      cond = $condition_queue.pop
-      ret = Statement.new(["pg#{$pg_count}",Expression.new([:land,expression,cond,type]),type]).convert_to_code(conversion_type)
-      $predicate_queue.push($current_predicate)
-      $current_predicate = "pg#{$pg_count}"
-      $condition_queue.push(Expression.new([:land,cond,Expression.new([:not,expression,nil,type]),type]))
-    when :endif
-      $predicate_queue.pop
-      $condition_queue.pop
-
-      $current_predicate = "pg0"
-      $pg_count += 1
-    else
-      abort "undefined operator of IfElseState: #{@operator}"
-    end
-    ret
-  end
-end
-
 class FuncCall
   def convert_to_code_avx2(conversion_type)
     retval = @name
-    if $current_predicate != "pg0"
-      retval += "_mask("
-    else
-      retval += "("
-    end
+    retval += "("
     if @ops.length > 0
       @ops.each_with_index{ |op,i|
         retval += "," if i > 0
@@ -372,7 +324,7 @@ class Expression
       else
         abort "unsupported return type of operator #{@operator} for AVX2"
       end
-    elsif [:lt,:le,:gt,:ge,:eq,:neq,:land,:lor,:not].index(@operator)
+    elsif [:lt,:le,:gt,:ge,:eq,:neq,:land,:lor,:not,:landnot].index(@operator)
       case @lop.get_type
       when "F64"
         type = "pd"
@@ -383,17 +335,13 @@ class Expression
       when "F32vec"
         type = "psx3"
       when "S64"
-        type = "epi64"
+        type = "pd"
       when "S32"
-        type = "epi32"
-      when "S16"
-        type = "epi16"
+        type = "ps"
       when "U64"
-        type = "epu64"
+        type = "pd"
       when "U32"
-        type = "epu32"
-      when "U16"
-        type = "epu16"
+        type = "ps"
       when /B/
         type = "ps"
       else
@@ -402,85 +350,95 @@ class Expression
     end
 
     retval = "_mm256"
+    set1_suffix = ""
+    set1_suffix = "x" if type == "epi64"
+    lop = @lop.convert_to_code(conversion_type)
+    rop = @rop.convert_to_code(conversion_type) if @rop != nil
+    if [:lt,:le,:gt,:ge,:eq,:neq,:land,:lor,:landnot].index(@operator) && @lop.get_type =~ /(S|U)(64|32)/
+      lop = "_mm256_castsi256_#{type}(" + lop + ")"
+      rop = "_mm256_castsi256_#{type}(" + rop + ")" if @rop != nil
+    end
     case @operator
     when :uminus then
       retval += "_sub_#{type}("
-      retval += "_mm256_set1_#{type}((PIKG::#{@type})0.0)," + @lop.convert_to_code(conversion_type) + ")"
+      retval += "_mm256_set1_#{type}#{set1_suffix}((PIKG::#{@type})0.0)," + lop + ")"
     when :plus then
       retval += "_add_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+      retval += lop + "," + rop + ")"
     when :minus then
       retval += "_sub_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+      retval += lop + "," + rop + ")"
     when :mult then
       retval += "_mul_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+      retval += lop + "," + rop + ")"
     when :div then
+      abort "division of integer value is not supported in AVX2" if @type =~ /(S|U)(32|64)/
       retval += "_div_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+      retval += lop + "," + rop + ")"
     when :lt then
       retval += "_cmp_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_LT_OS)"
+      retval += lop + "," + rop + ",_CMP_LT_OS)"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :le then
       retval += "_cmp_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_LE_OS)"
+      retval += lop + "," + rop + ",_CMP_LE_OS)"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :gt then
       retval += "_cmp_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_GT_OS)"
+      retval += lop + "," + rop + ",_CMP_GT_OS)"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :ge then
       retval += "_cmp_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_GE_OS)"
+      retval += lop + "," + rop + ",_CMP_GE_OS)"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :eq then
       retval += "_cmp_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + "_CMP_EQ_OQ)"
+      retval += lop + "," + rop + ",_CMP_EQ_OQ)"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :neq then
       retval += "_cmp_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + "_CMP_NEQ_OQ)"
+      retval += lop + "," + rop + ",_CMP_NEQ_OQ)"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :and then
       retval += "_and_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
-    when :andnot then
-      retval += "_andnot_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+      retval += lop + "," + rop + ")"
     when :or then
       retval += "_or_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+      retval += lop + "," + rop + ")"
     when :land then
       retval += "_and_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+      retval += lop + "," + rop + ")"
+      retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
+    when :landnot then # PIKG assume andnot(a,b) = a & (!b), but AVX2 andnot returns (!a) & b
+      retval += "_andnot_#{type}("
+      retval += rop + "," + lop + ")"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :lor then
       retval += "_or_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
+      retval += lop + "," + rop + ")"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :not then
       retval += "_xor_#{type}("
-      retval += @lop.convert_to_code(conversion_type) + "," + "_mm256_castsi256_#{type}(_mm256_set1_epi32(-1))" + ")"
+      retval += lop + "," + "_mm256_castsi256_#{type}(_mm256_set1_epi32(-1))" + ")"
       retval = "_mm256_cast#{type}_ps(" + retval + ")" if type != "ps"
     when :dot then
       if @rop == "x" || @rop == "y" || @rop == "z" || @rop == "w"
-        retval=@lop.convert_to_code(conversion_type)+"."
+        retval=lop+"."
         retval += ["v0","v1","v2","v3"][["x","y","z","w"].index(@rop)]
-        #@rop.convert_to_code(conversion_type)
+        #rop
       elsif @rop == "v0" || @rop == "v1" || @rop == "v2" || @rop == "v3"
-        retval=@lop.convert_to_code(conversion_type)+"." + @rop
-        #@rop.convert_to_code(conversion_type)
+        retval=lop+"." + @rop
+        #rop
       else
-        #retval = "#{@lop.convert_to_code(conversion_type)}.#{@rop.convert_to_code(conversion_type)}"
-        retval = "_mm256_set1_#{type}(#{@lop.convert_to_code(conversion_type)}.#{@rop.convert_to_code(conversion_type)})"
+        #retval = "#{lop}.#{rop}"
+        retval = "_mm256_set1_#{type}#{set1_suffix}(#{lop}.#{rop})"
       end
     when :func then
       retval = @lop
-      retval += "_mask"
-      retval += "(" + @rop.convert_to_code(conversion_type) + ")"
+      #retval += "_mask"
+      retval += "(" + rop + ")"
     when :array then
-      retval = @lop.convert_to_code(conversion_type)+"[" + @rop.convert_to_code(conversion_type) + "]"
+      retval = lop+"[" + rop + "]"
     else
       abort "error: unsupported operator #{@operator} for AVX2"
     end
@@ -489,7 +447,7 @@ class Expression
 end
 
 class TableDecl
-  def convert_to_code_a64fx(conversion_code)
+  def convert_to_code_avx2(conversion_code)
     ret = ""
     simd_width = get_simd_width_avx2(@type)
     nreg = (@table.vals.length/simd_width)
@@ -523,7 +481,7 @@ class IntegerValue
   def convert_to_code_avx2(conversion_type)
     case @type
     when "S64"
-      "_mm256_set1_epi64(#{@val})"
+      "_mm256_set1_epi64x(#{@val})"
     when "S32"
       "_mm256_set1_epi32(#{@val})"
     when "S16"

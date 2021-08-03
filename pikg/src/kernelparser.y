@@ -18,6 +18,8 @@ class KernelParser
 
   innerkernel: iodeclarations functions statements {result=Kernelprogram.new(val)}
              | iodeclarations statements           {result=Kernelprogram.new(val)}
+             | functions statements                {result=Kernelprogram.new(val)}
+             | statements                          {result=Kernelprogram.new(val)}
   iodeclarations: iodeclaration
                 | iodeclarations iodeclaration {result = val[0]+val[1]}
   iodeclaration: iotype type varname ':' fdpsname EOL          {result = [Iodeclaration.new([val[0],val[1],val[2],val[4],nil])]}
@@ -66,16 +68,15 @@ class KernelParser
 
   statement : var "="  expression EOL {result = [Statement.new([val[0],val[2]])]}
             | var "="  table EOL      {result = [TableDecl.new([val[0],val[2]])]}
-            | var '+=' expression EOL {result = [Statement.new([val[0],Expression.new([:plus, val[0], val[2]])])]}
-            | var '-=' expression EOL {result = [Statement.new([val[0],Expression.new([:minus,val[0], val[2]])])]}
-            | var '*=' expression EOL {result = [Statement.new([val[0],Expression.new([:mult,val[0], val[2]])])]}
-            | var '/=' expression EOL {result = [Statement.new([val[0],Expression.new([:div,val[0], val[2]])])]}
+            | var '+=' expression EOL {result = [Statement.new([val[0],val[2],nil,:plus])]}
+            | var '-=' expression EOL {result = [Statement.new([val[0],val[2],nil,:minus])]}
+            | var '*=' expression EOL {result = [Statement.new([val[0],val[2],nil,:mult])]}
+            | var '/=' expression EOL {result = [Statement.new([val[0],val[2],nil,:div])]}
             | pragma EOL {result = [val[0]]}
             | "if" expression EOL    {result = [IfElseState.new([:if,val[1]])]}
             | "else" EOL             {result = [IfElseState.new([:else,nil])]}
             | "elsif" expression EOL {result = [IfElseState.new([:elsif,val[1]])]}
             | "endif" EOL            {result = [IfElseState.new([:endif,nil])]}
-
   pragma: "#pragma" TEXT {result = Pragma.new([val[1],nil])}
         | "#pragma" TEXT options {result = Pragma.new([val[1],val[2]])}
   options: option { result = val[0]}
@@ -102,6 +103,7 @@ class KernelParser
         | funccall           {result = val[0]}
 	| '-' binary =UMINUS {result = Expression.new([:uminus,val[1], nil])}
         | var
+	| number
 
   table: '{' args '}' {result = Table.new(val[1])}
 
@@ -110,20 +112,21 @@ class KernelParser
       | args ',' arg {result = val[0] + val[2]}
   arg: binary {result = [val[0]]}
 
-  var: IDENT               {result = val[0]}
-     | IDENT '.' IDENT     {result = Expression.new([:dot,val[0],val[2]])}
-     | IDENT '[' var ']'   {result = Expression.new([:array,val[0],val[2]])}
-     | number
+  var: IDENT             {result = val[0]}
+     | var '.' IDENT     {result = Expression.new([:dot,val[0],val[2]])}
+     | IDENT '[' number ']' {result = Expression.new([:array,val[0],val[2]])}
 
-  number: DEC                {result = IntegerValue.new(val[0])}
-        | DEC 'l'            {result = IntegerValue.new(val[0]+val[1])}
-        | DEC 's'            {result = IntegerValue.new(val[0]+val[1])}
-        | DEC 'u'            {result = IntegerValue.new(val[0]+val[1])}
-        | DEC "ul"           {result = IntegerValue.new(val[0]+val[1])}
-        | DEC "us"           {result = IntegerValue.new(val[0]+val[1])}
+  number: DEC             {result = IntegerValue.new(val[0])}
+        | DEC 'l'         {result = IntegerValue.new(val[0]+val[1])}
+        | DEC 's'         {result = IntegerValue.new(val[0]+val[1])}
+        | DEC 'u'         {result = IntegerValue.new(val[0]+val[1])}
+        | DEC "ul"        {result = IntegerValue.new(val[0]+val[1])}
+        | DEC "us"        {result = IntegerValue.new(val[0]+val[1])}
         | DEC '.' DEC     {result = FloatingPoint.new(val[0]+val[1]+val[2])}
 	| DEC '.' DEC "f" {result = FloatingPoint.new(val[0]+val[1]+val[2]+val[3])}
         | DEC '.' DEC "h" {result = FloatingPoint.new(val[0]+val[1]+val[2]+val[3])}
+
+
 
 end
 
@@ -164,14 +167,14 @@ def parse(filename)
   open(filename){ |f|
     count = 0
     f.each_line{|str|
-      a=str.chomp.split(/(\s|:|\=\=|\!\=|\+\=|-\=|\*\=|\&\&|\|\||\&|\||\+|-|\*|\/|\=|\(|\)|,|\.|>\=|<\=|>|<|\[|\]|;|~|\^)/).select{|s| s=~/\S+/}
-      symbols = /(\=\=|\!\=|\&\&|\|\||\&|\||\+|-|\*|\/|\(|\)|,|\.|>\=|<\=|>|<|\[|\]|\{|\})/
-      if a == []
+      a=str.chomp.split(/(\/\/|\s|:|\=\=|\!\=|\+\=|-\=|\*\=|\&\&|\|\||\&|\||\+|-|\*|\/|\=|\(|\)|,|\.|>\=|<\=|>|<|\[|\]|;|~|\^)/).select{|s| s=~/\S+/}
+      symbols = /^(\=\=|\!\=|\&\&|\|\||\&|\||\+|-|\*|\/|\(|\)|,|\.|>\=|<\=|>|<|\[|\]|\{|\})$/
+      if a == [] || a[0] == "//"
         next
       end
       count += 1
       $lines.push([count,str])
-      if a[0] =~ /(EPI|EPJ|FORCE|MEMBER|ACCUM|TABLE)/
+      if a[0] =~ /(EPI|EPJ|FORCE|MEMBER|ACCUM|TABLE)/ && a[1] != '.'
         io = a[0]
         @q << iotype(a.shift) # iotype
       end
@@ -200,6 +203,8 @@ def parse(filename)
             @q << [',', x]
           elsif x  == ')'
             @q << [')', x]
+	  elsif x == "//"
+	       break
           else
             @q << [:IDENT, x]
           end
@@ -211,6 +216,8 @@ def parse(filename)
             @q << [x, x]
 	  elsif x =~ /^\d+(f|h|s|l|u|us|ul)?$/
             @q << [:DEC, x]
+	  elsif x == "//"
+		break
           else
             @q << [:IDENT, x]
           end
@@ -221,7 +228,12 @@ def parse(filename)
         #p a
         @q << ["#pragma",a.shift]
         a.each{|x|
-	  @q << [:TEXT,x]
+	  if x == "//"
+	       break
+	  else
+	    @q << [:TEXT,x]
+          end
+	       
         }
       elsif a[0] == "if"
         @q << ["if","if"]
@@ -231,6 +243,8 @@ def parse(filename)
 	    @q << [x,x]
 	  elsif x =~ /^\d+(f|h|s|l|u|us|ul)?$/
             @q << [:DEC, x]
+	  elsif x == "//"
+	    break
           else
             @q << [:IDENT, x]
 	  end
@@ -243,6 +257,8 @@ def parse(filename)
 	    @q << [x,x]
 	  elsif x =~ /^\d+(f|h|s|l|u|us|ul)?$/
 	    @q << [:DEC, x]
+	  elsif x == "//"
+	    break
 	  else
             @q << [:IDENT, x]
 	  end
@@ -262,10 +278,12 @@ def parse(filename)
             @q << [x,x]
 	  elsif x =~/^\d+(f|h|s|l|u|us|ul)?$/
             @q << [:DEC,x]
+          elsif x == "//"
+	    break   
           else
             @q << [:IDENT,x]
           end
-        }
+	}
       elsif a[3] =~ /(\=|\+\=|-\=)/
         #print "statement \n"
         @q << [:IDENT,a.shift] # var
@@ -279,6 +297,8 @@ def parse(filename)
             @q << [x,x]
 	  elsif x =~/^\d+(f|h|s|l|u|us|ul)?$/
             @q << [:DEC,x]
+	  elsif x == "break"
+	    break
           else
             @q << [:IDENT,x]
           end
@@ -320,7 +340,7 @@ def on_error(id,val,stack)
   line1 = line1.join('')
 
   #warning = "parse error :line #{lineno}: #{line}"
-  warning = line0 + line1
+  warning = line0 + line1 + "\n"
   for i in 1..line0.length
     warning += " "
   end

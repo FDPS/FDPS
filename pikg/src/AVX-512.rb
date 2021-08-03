@@ -141,59 +141,10 @@ class Kernelprogram
   end
 end
 
-class IfElseState
-  def convert_to_code_avx512(conversion_type)
-    if $predicate_queue == nil
-      $predicate_queue = Array.new()
-    end
-    if $condition_queue == nil
-      $condition_queue = Array.new()
-    end
-    type = "B" + sizeof(@expression.get_type) if @expression != nil
-    ret = ""
-    case @operator
-    when :if
-      $current_predicate = "pg#{$pg_count}"      
-      $predicate_queue.push($current_predicate)
-      $condition_queue.push(Expression.new([:not,@expression,nil,type]))
-      $pg_count += 1
-      ret = Declaration.new([type,$current_predicate]).convert_to_code(conversion_type)
-      ret += Statement.new([$current_predicate,@expression,type]).convert_to_code(conversion_type)
-    when :elsif
-      $current_predicate = $predicate_queue.pop
-      cond = $condition_queue.pop
-      ret = Statement.new(["pg#{$pg_count}",Expression.new([:land,expression,cond,type]),type]).convert_to_code(conversion_type)
-      $predicate_queue.push($current_predicate)
-      $current_predicate = "pg#{$pg_count}"
-      $condition_queue.push(Expression.new([:land,cond,Expression.new([:not,expression,nil,type]),type]))
-    when :else
-      $current_predicate = $predicate_queue.pop
-      cond = $condition_queue.pop
-      ret = Statement.new(["pg#{$pg_count}",Expression.new([:land,expression,cond,type]),type]).convert_to_code(conversion_type)
-      $predicate_queue.push($current_predicate)
-      $current_predicate = "pg#{$pg_count}"
-      $condition_queue.push(Expression.new([:land,cond,Expression.new([:not,expression,nil,type]),type]))
-    when :endif
-      $predicate_queue.pop
-      $condition_queue.pop
-
-      $current_predicate = "pg0"
-      $pg_count += 1
-    else
-      abort "undefined operator of IfElseState: #{@operator}"
-    end
-    ret
-  end
-end
-
 class FuncCall
   def convert_to_code_avx512(conversion_type)
     retval = @name
-    if $current_predicate != "pg0"
-      retval += "_mask("
-    else
-      retval += "("
-    end
+    retval += "("
     if @ops.length > 0
       @ops.each_with_index{ |op,i|
         retval += "," if i > 0
@@ -209,7 +160,7 @@ class Expression
   def convert_to_code_avx512(conversion_type)
     if @operator != :array && @operator != :func
       if [:eq,:neq,:gt,:ge,:lt,:le].index(@operator)
-      suffix = get_type_suffix_avx512(@lop.get_type)
+        suffix = get_type_suffix_avx512(@lop.get_type)
       else
         suffix = get_type_suffix_avx512(self.get_type)
       end
@@ -234,22 +185,52 @@ class Expression
       retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ")"
     when :lt then
       retval += "_cmp_#{suffix}_mask("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_LT_OQ)"
+      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type)
+      if suffix =~ /epi/
+        retval += ",_MM_CMPINT_LT)"
+      else
+        retval += ",_CMP_LT_OQ)"
+      end
     when :le then
       retval += "_cmp_#{suffix}_mask("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_LE_OQ)"
+      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type)
+      if suffix =~ /epi/
+        retval += ",_MM_CMPINT_LE)"
+      else
+        retval += ",_CMP_LE_OQ)"
+      end
     when :gt then
       retval += "_cmp_#{suffix}_mask("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_GT_OQ)"
+      retval += @rop.convert_to_code(conversion_type) + "," + @lop.convert_to_code(conversion_type)
+      if suffix =~ /epi/
+        retval += ",_MM_CMPINT_LT)"
+      else
+        retval += ",_CMP_LT_OQ)"
+      end
     when :ge then
       retval += "_cmp_#{suffix}_mask("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_GE_OQ)"
+      retval += @rop.convert_to_code(conversion_type) + "," + @lop.convert_to_code(conversion_type)
+      if suffix =~ /epi/
+        retval += ",_MM_CMPINT_LE)"
+      else
+        retval += ",_CMP_LE_OQ)"
+      end
     when :eq then
       retval += "_cmp_#{suffix}_mask("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_EQ_OQ)"
+      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type)
+      if suffix =~ /epi/
+        retval += ",_MM_CMPINT_EQ)"
+      else
+        retval += ",_CMP_EQ_OQ)"
+      end
     when :neq then
       retval += "_cmp_#{suffix}_mask("
-      retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type) + ",_CMP_NEQ_OQ)"
+        retval += @lop.convert_to_code(conversion_type) + "," + @rop.convert_to_code(conversion_type)
+      if suffix =~ /epi/
+        retval += ",_MM_CMPINT_NE)"
+      else
+        retval += ",_CMP_NEQ_OQ)"
+      end
     when :and then
       if @lop.get_type == @lop.get_type
         retval += "_and_#{suffix}_mask("
@@ -282,9 +263,17 @@ class Expression
         p self
         abort "unsupported operands for :lor in convert_to_code_avx512"
       end
+    when :landnot then
+      if @lop.get_type =~ /B/ && @rop.get_type =~ /B/
+        retval = "_kand_#{suffix}("
+        retval += @lop.convert_to_code(conversion_type) + ",_knot_#{suffix}(" + @rop.convert_to_code(conversion_type) + "))"
+      else
+        p self
+        abort "unsupported operands for :land in convert_to_code_avx512"
+      end
     when :not then
       if true #@lop.get_type =~ /B/
-        retval = "_kor_#{suffix}("
+        retval = "_knot_#{suffix}("
         retval += @lop.convert_to_code(conversion_type) + ")"
       else
         p self
@@ -315,7 +304,7 @@ class Expression
 end
 
 class TableDecl
-  def convert_to_code_a64fx(conversion_type)
+  def convert_to_code_avx512(conversion_type)
     ret = ""
     nelem = get_num_elem(@type,conversion_type)
     nreg = (@table.vals.length/nelem)
@@ -367,7 +356,7 @@ end
 class String
   def convert_to_code_avx512(conversion_type,h=$varhash)
     name = get_name(self)
-    #abort "error: undefined reference to #{name} in convert_to_code_a64fx of String"
+    #abort "error: undefined reference to #{name} in convert_to_code_avx512 of String"
     s = self
     if h[name] != nil
       iotype = h[name][0]

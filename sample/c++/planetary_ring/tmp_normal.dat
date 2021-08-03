@@ -1,0 +1,730 @@
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599952183e-08 pot= -1.87370668956655e-07 kin= 9.36853089614369e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.00390625 n_loop= 1 (eng_now.tot-eng_init.tot)/eng_init.tot= 7.09031933210479e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 7.09031933210479e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 7.09031933210479e-12
+n_int_ep_ep= 2363022 n_int_ep_sp= 842185 <n_epi>= 44.063829787234 <n_epj>= 285.251327860937 <n_spj>= 101.664051183003
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599955477e-08 pot= -1.87370668941753e-07 kin= 9.36853089462051e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.0078125 n_loop= 2 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.06066600074469e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.06066600074469e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.06066600074469e-11
+n_int_ep_ep= 2370884 n_int_ep_sp= 841348 <n_epi>= 44.2994652406417 <n_epj>= 286.200386286818 <n_spj>= 101.56301303718
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599958878e-08 pot= -1.87370668916695e-07 kin= 9.36853089208068e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.01171875 n_loop= 3 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.42370052195694e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.42370052195694e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.42370052195694e-11
+n_int_ep_ep= 2367576 n_int_ep_sp= 843518 <n_epi>= 44.2994652406417 <n_epj>= 285.801062288749 <n_spj>= 101.824963785611
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599963572e-08 pot= -1.87370668881723e-07 kin= 9.36853088853656e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.015625 n_loop= 4 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.92469889771658e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.92469889771658e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.92469889771658e-11
+n_int_ep_ep= 2381795 n_int_ep_sp= 843719 <n_epi>= 44.7783783783784 <n_epj>= 287.517503621439 <n_spj>= 101.849227426364
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599956956e-08 pot= -1.87370668835478e-07 kin= 9.36853088397821e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.01953125 n_loop= 5 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.21850648270844e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.21850648270844e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.21850648270844e-11
+n_int_ep_ep= 2370446 n_int_ep_sp= 843216 <n_epi>= 44.5376344086022 <n_epj>= 286.147513278609 <n_spj>= 101.788507967166
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599953313e-08 pot= -1.87370668779405e-07 kin= 9.36853087840736e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.0234375 n_loop= 6 (eng_now.tot-eng_init.tot)/eng_init.tot= 8.29690266375467e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 8.29690266375467e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 8.29690266375467e-12
+n_int_ep_ep= 2357544 n_int_ep_sp= 842911 <n_epi>= 44.063829787234 <n_epj>= 284.590053114437 <n_spj>= 101.751690004829
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599963137e-08 pot= -1.87370668714626e-07 kin= 9.36853087183122e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.02734375 n_loop= 7 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.87826359258682e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.87826359258682e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.87826359258682e-11
+n_int_ep_ep= 2371472 n_int_ep_sp= 846267 <n_epi>= 44.7783783783784 <n_epj>= 286.271366489619 <n_spj>= 102.156808305167
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599958223e-08 pot= -1.8737066863831e-07 kin= 9.36853086424881e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.03125 n_loop= 8 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.35378621557203e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.35378621557203e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.35378621557203e-11
+n_int_ep_ep= 2365286 n_int_ep_sp= 842806 <n_epi>= 44.063829787234 <n_epj>= 285.524625784645 <n_spj>= 101.739014968614
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599942716e-08 pot= -1.87370668550811e-07 kin= 9.3685308556539e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.03515625 n_loop= 9 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.01398611178434e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.01398611178434e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.01398611178434e-12
+n_int_ep_ep= 2337536 n_int_ep_sp= 840432 <n_epi>= 43.3717277486911 <n_epj>= 282.174794785128 <n_spj>= 101.452438435538
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599933402e-08 pot= -1.87370668453753e-07 kin= 9.36853084604124e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.0390625 n_loop= 10 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.29559728285846e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.29559728285846e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.29559728285846e-11
+n_int_ep_ep= 2300955 n_int_ep_sp= 843198 <n_epi>= 42.701030927835 <n_epj>= 277.758932882665 <n_spj>= 101.786335103815
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359993937e-08 pot= -1.87370668348112e-07 kin= 9.36853083541745e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.04296875 n_loop= 11 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.58570445555014e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.58570445555014e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.58570445555014e-12
+n_int_ep_ep= 2314316 n_int_ep_sp= 841700 <n_epi>= 42.9222797927461 <n_epj>= 279.371801062289 <n_spj>= 101.605504587156
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599935463e-08 pot= -1.87370668231352e-07 kin= 9.36853082378055e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.046875 n_loop= 12 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.07564057434906e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.07564057434906e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.07564057434906e-11
+n_int_ep_ep= 2295879 n_int_ep_sp= 843888 <n_epi>= 42.4820512820513 <n_epj>= 277.146185417673 <n_spj>= 101.869628198938
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599942559e-08 pot= -1.87370668105581e-07 kin= 9.36853081113247e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.05078125 n_loop= 13 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.18195562136538e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.18195562136538e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.18195562136538e-12
+n_int_ep_ep= 2317434 n_int_ep_sp= 841368 <n_epi>= 42.701030927835 <n_epj>= 279.748189280541 <n_spj>= 101.565427329792
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599955741e-08 pot= -1.87370667970375e-07 kin= 9.36853079748009e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.0546875 n_loop= 14 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.08887753233707e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.08887753233707e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.08887753233707e-11
+n_int_ep_ep= 2379200 n_int_ep_sp= 838719 <n_epi>= 44.2994652406417 <n_epj>= 287.204249154998 <n_spj>= 101.245654273298
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599947154e-08 pot= -1.87370667822921e-07 kin= 9.36853078282055e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.05859375 n_loop= 15 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.72292358187587e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.72292358187587e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.72292358187587e-12
+n_int_ep_ep= 2343008 n_int_ep_sp= 838359 <n_epi>= 43.1458333333333 <n_epj>= 282.835345243844 <n_spj>= 101.202197006277
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599941748e-08 pot= -1.87370667665667e-07 kin= 9.36853076714923e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.0625 n_loop= 16 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.04709042092325e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.04709042092325e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.04709042092325e-12
+n_int_ep_ep= 2322321 n_int_ep_sp= 841224 <n_epi>= 42.9222797927461 <n_epj>= 280.338121680348 <n_spj>= 101.548044422984
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.368535999386e-08 pot= -1.87370667498495e-07 kin= 9.36853075046354e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.06640625 n_loop= 17 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.40761076904258e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.40761076904258e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.40761076904258e-12
+n_int_ep_ep= 2295704 n_int_ep_sp= 845554 <n_epi>= 42.701030927835 <n_epj>= 277.125060357315 <n_spj>= 102.070738773539
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599931959e-08 pot= -1.87370667320946e-07 kin= 9.36853073277503e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.0703125 n_loop= 18 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.44959523272751e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.44959523272751e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.44959523272751e-11
+n_int_ep_ep= 2295453 n_int_ep_sp= 843218 <n_epi>= 42.4820512820513 <n_epj>= 277.094760985031 <n_spj>= 101.788749396427
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599932162e-08 pot= -1.8737066713403e-07 kin= 9.36853071408134e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.07421875 n_loop= 19 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.42791035491364e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.42791035491364e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.42791035491364e-11
+n_int_ep_ep= 2299295 n_int_ep_sp= 840536 <n_epi>= 42.265306122449 <n_epj>= 277.558546595847 <n_spj>= 101.464992757122
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599934924e-08 pot= -1.87370666937215e-07 kin= 9.3685306943723e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.078125 n_loop= 20 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.13319379403225e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.13319379403225e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.13319379403225e-11
+n_int_ep_ep= 2301504 n_int_ep_sp= 842813 <n_epi>= 42.701030927835 <n_epj>= 277.825205214872 <n_spj>= 101.739859971028
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599935688e-08 pot= -1.87370666730077e-07 kin= 9.36853067365085e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.08203125 n_loop= 21 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.05163887571338e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.05163887571338e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.05163887571338e-11
+n_int_ep_ep= 2307584 n_int_ep_sp= 840386 <n_epi>= 42.4820512820513 <n_epj>= 278.559150169 <n_spj>= 101.44688556253
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599931764e-08 pot= -1.87370666512354e-07 kin= 9.36853065191776e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.0859375 n_loop= 22 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.47048900099247e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.47048900099247e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.47048900099247e-11
+n_int_ep_ep= 2298108 n_int_ep_sp= 842381 <n_epi>= 42.4820512820513 <n_epj>= 277.415258329309 <n_spj>= 101.687711250604
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599923211e-08 pot= -1.87370666284119e-07 kin= 9.36853062917983e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.08984375 n_loop= 23 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.3834435473907e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.3834435473907e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.3834435473907e-11
+n_int_ep_ep= 2267444 n_int_ep_sp= 842706 <n_epi>= 41.6281407035176 <n_epj>= 273.713664896185 <n_spj>= 101.726943505553
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599930938e-08 pot= -1.87370666047443e-07 kin= 9.36853060543496e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.09375 n_loop= 24 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.558641207871e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.558641207871e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.558641207871e-11
+n_int_ep_ep= 2292321 n_int_ep_sp= 841910 <n_epi>= 42.265306122449 <n_epj>= 276.716682761951 <n_spj>= 101.630854659585
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599928192e-08 pot= -1.87370665799589e-07 kin= 9.36853058067698e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.09765625 n_loop= 25 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.85174729574211e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.85174729574211e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.85174729574211e-11
+n_int_ep_ep= 2290892 n_int_ep_sp= 839337 <n_epi>= 41.8383838383838 <n_epj>= 276.544181554804 <n_spj>= 101.320255915017
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599927234e-08 pot= -1.87370665541818e-07 kin= 9.3685305549095e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.1015625 n_loop= 26 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.95396995102625e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.95396995102625e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.95396995102625e-11
+n_int_ep_ep= 2276366 n_int_ep_sp= 842004 <n_epi>= 41.6281407035176 <n_epj>= 274.790680830517 <n_spj>= 101.642201834862
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599934887e-08 pot= -1.87370665274781e-07 kin= 9.36853052812927e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.10546875 n_loop= 27 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.13713521482057e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.13713521482057e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.13713521482057e-11
+n_int_ep_ep= 2293266 n_int_ep_sp= 842345 <n_epi>= 42.0507614213198 <n_epj>= 276.83075808788 <n_spj>= 101.683365523902
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599948935e-08 pot= -1.87370664998343e-07 kin= 9.368530500345e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.109375 n_loop= 28 (eng_now.tot-eng_init.tot)/eng_init.tot= 3.62370554269416e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 3.62370554269416e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 3.62370554269416e-12
+n_int_ep_ep= 2329536 n_int_ep_sp= 842992 <n_epi>= 43.1458333333333 <n_epj>= 281.209077740222 <n_spj>= 101.761467889908
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599941034e-08 pot= -1.87370664709692e-07 kin= 9.36853047155886e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.11328125 n_loop= 29 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.80923970956054e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.80923970956054e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.80923970956054e-12
+n_int_ep_ep= 2306535 n_int_ep_sp= 842690 <n_epi>= 42.4820512820513 <n_epj>= 278.432520521487 <n_spj>= 101.725012071463
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359994035e-08 pot= -1.87370664411629e-07 kin= 9.36853044175945e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.1171875 n_loop= 30 (eng_now.tot-eng_init.tot)/eng_init.tot= -5.54002715536604e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -5.54002715536604e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -5.54002715536604e-12
+n_int_ep_ep= 2287624 n_int_ep_sp= 847905 <n_epi>= 42.701030927835 <n_epj>= 276.14968614196 <n_spj>= 102.354538870111
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599932241e-08 pot= -1.87370664102831e-07 kin= 9.36853041096065e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.12109375 n_loop= 31 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.41954719682516e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.41954719682516e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.41954719682516e-11
+n_int_ep_ep= 2281189 n_int_ep_sp= 841605 <n_epi>= 41.8383838383838 <n_epj>= 275.372887493964 <n_spj>= 101.594036697248
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599947186e-08 pot= -1.87370663786388e-07 kin= 9.3685303791669e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.125 n_loop= 32 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.75668700726685e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.75668700726685e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.75668700726685e-12
+n_int_ep_ep= 2316922 n_int_ep_sp= 843211 <n_epi>= 42.9222797927461 <n_epj>= 279.686383389667 <n_spj>= 101.787904394013
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599949489e-08 pot= -1.87370663458644e-07 kin= 9.36853034636955e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.12890625 n_loop= 33 (eng_now.tot-eng_init.tot)/eng_init.tot= 4.2150599305043e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 4.2150599305043e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 4.2150599305043e-12
+n_int_ep_ep= 2325406 n_int_ep_sp= 842575 <n_epi>= 42.9222797927461 <n_epj>= 280.710526315789 <n_spj>= 101.711129888943
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599964814e-08 pot= -1.87370663122188e-07 kin= 9.36853031257061e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.1328125 n_loop= 34 (eng_now.tot-eng_init.tot)/eng_init.tot= 2.05735101672129e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 2.05735101672129e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 2.05735101672129e-11
+n_int_ep_ep= 2380600 n_int_ep_sp= 841733 <n_epi>= 44.5376344086022 <n_epj>= 287.373249637856 <n_spj>= 101.609488169966
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599947875e-08 pot= -1.8737066277248e-07 kin= 9.36853027776925e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.13671875 n_loop= 35 (eng_now.tot-eng_init.tot)/eng_init.tot= 2.49227761819073e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 2.49227761819073e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 2.49227761819073e-12
+n_int_ep_ep= 2319393 n_int_ep_sp= 844009 <n_epi>= 43.1458333333333 <n_epj>= 279.984669241912 <n_spj>= 101.884234669242
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599934429e-08 pot= -1.87370662413078e-07 kin= 9.36853024196348e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.140625 n_loop= 36 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.18597210250952e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.18597210250952e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.18597210250952e-11
+n_int_ep_ep= 2280385 n_int_ep_sp= 844111 <n_epi>= 42.0507614213198 <n_epj>= 275.275832930951 <n_spj>= 101.896547561564
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359993694e-08 pot= -1.87370662045217e-07 kin= 9.36853020515229e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.14453125 n_loop= 37 (eng_now.tot-eng_init.tot)/eng_init.tot= -9.1795548890384e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -9.1795548890384e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -9.1795548890384e-12
+n_int_ep_ep= 2284147 n_int_ep_sp= 845867 <n_epi>= 42.265306122449 <n_epj>= 275.729961371318 <n_spj>= 102.108522452921
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599957939e-08 pot= -1.87370661669169e-07 kin= 9.36853016733754e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.1484375 n_loop= 38 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.32351214837e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.32351214837e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.32351214837e-11
+n_int_ep_ep= 2357375 n_int_ep_sp= 842109 <n_epi>= 43.8306878306878 <n_epj>= 284.569652341864 <n_spj>= 101.654876871077
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599951469e-08 pot= -1.87370661280384e-07 kin= 9.36853012852366e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.15234375 n_loop= 39 (eng_now.tot-eng_init.tot)/eng_init.tot= 6.32915893040365e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 6.32915893040365e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 6.32915893040365e-12
+n_int_ep_ep= 2347426 n_int_ep_sp= 840819 <n_epi>= 43.6 <n_epj>= 283.368662481893 <n_spj>= 101.499154997586
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599949494e-08 pot= -1.87370660882061e-07 kin= 9.36853008871117e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.15625 n_loop= 40 (eng_now.tot-eng_init.tot)/eng_init.tot= 4.22085198255882e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 4.22085198255882e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 4.22085198255882e-12
+n_int_ep_ep= 2352287 n_int_ep_sp= 840808 <n_epi>= 43.8306878306878 <n_epj>= 283.955456301304 <n_spj>= 101.497827136649
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599947115e-08 pot= -1.87370660473696e-07 kin= 9.36853004789846e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.16015625 n_loop= 41 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.68110779143349e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.68110779143349e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.68110779143349e-12
+n_int_ep_ep= 2320988 n_int_ep_sp= 841457 <n_epi>= 42.9222797927461 <n_epj>= 280.17720907774 <n_spj>= 101.576170931917
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599944793e-08 pot= -1.87370660055325e-07 kin= 9.3685300060846e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.1640625 n_loop= 42 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.97325409651314e-13 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.97325409651314e-13 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.97325409651314e-13
+n_int_ep_ep= 2319676 n_int_ep_sp= 841254 <n_epi>= 42.9222797927461 <n_epj>= 280.018831482376 <n_spj>= 101.551665861902
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599947451e-08 pot= -1.8737065962748e-07 kin= 9.36852996327351e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.16796875 n_loop= 43 (eng_now.tot-eng_init.tot)/eng_init.tot= 2.03964994056444e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 2.03964994056444e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 2.03964994056444e-12
+n_int_ep_ep= 2323571 n_int_ep_sp= 842201 <n_epi>= 42.9222797927461 <n_epj>= 280.489014968614 <n_spj>= 101.665982617093
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.368535999425e-08 pot= -1.87370659188895e-07 kin= 9.36852991946452e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.171875 n_loop= 44 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.24439676790434e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.24439676790434e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.24439676790434e-12
+n_int_ep_ep= 2305667 n_int_ep_sp= 843273 <n_epi>= 42.701030927835 <n_epj>= 278.327740222115 <n_spj>= 101.795388701111
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599949829e-08 pot= -1.87370658741549e-07 kin= 9.36852987465665e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.17578125 n_loop= 45 (eng_now.tot-eng_init.tot)/eng_init.tot= 4.57854651431593e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 4.57854651431593e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 4.57854651431593e-12
+n_int_ep_ep= 2347569 n_int_ep_sp= 841789 <n_epi>= 43.6 <n_epj>= 283.385924674071 <n_spj>= 101.616248189281
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599949006e-08 pot= -1.87370658283459e-07 kin= 9.36852982885582e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.1796875 n_loop= 46 (eng_now.tot-eng_init.tot)/eng_init.tot= 3.69999110633905e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 3.69999110633905e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 3.69999110633905e-12
+n_int_ep_ep= 2339934 n_int_ep_sp= 839287 <n_epi>= 43.1458333333333 <n_epj>= 282.464268469338 <n_spj>= 101.314220183486
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599955097e-08 pot= -1.87370657816096e-07 kin= 9.36852978205861e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.18359375 n_loop= 47 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.02012163636306e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.02012163636306e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.02012163636306e-11
+n_int_ep_ep= 2353379 n_int_ep_sp= 842398 <n_epi>= 43.8306878306878 <n_epj>= 284.087276677933 <n_spj>= 101.689763399324
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599955671e-08 pot= -1.87370657338208e-07 kin= 9.36852973426404e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.1875 n_loop= 48 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.08141849944734e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.08141849944734e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.08141849944734e-11
+n_int_ep_ep= 2353239 n_int_ep_sp= 842584 <n_epi>= 43.8306878306878 <n_epj>= 284.070376629648 <n_spj>= 101.712216320618
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599952726e-08 pot= -1.87370656850065e-07 kin= 9.3685296854792e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.19140625 n_loop= 49 (eng_now.tot-eng_init.tot)/eng_init.tot= 7.6702308853682e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 7.6702308853682e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 7.6702308853682e-12
+n_int_ep_ep= 2321112 n_int_ep_sp= 844100 <n_epi>= 43.1458333333333 <n_epj>= 280.192177691936 <n_spj>= 101.895219700628
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359995436e-08 pot= -1.87370656352424e-07 kin= 9.36852963569884e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.1953125 n_loop= 50 (eng_now.tot-eng_init.tot)/eng_init.tot= 9.41462744071448e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 9.41462744071448e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 9.41462744071448e-12
+n_int_ep_ep= 2355011 n_int_ep_sp= 842428 <n_epi>= 43.8306878306878 <n_epj>= 284.284282955094 <n_spj>= 101.693384838242
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599963586e-08 pot= -1.87370655845579e-07 kin= 9.36852958492207e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.19921875 n_loop= 51 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.92621048203325e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.92621048203325e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.92621048203325e-11
+n_int_ep_ep= 2383104 n_int_ep_sp= 842115 <n_epi>= 44.5376344086022 <n_epj>= 287.675519072912 <n_spj>= 101.65560115886
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599959779e-08 pot= -1.87370655327486e-07 kin= 9.36852953315083e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.203125 n_loop= 52 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.51989096693064e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.51989096693064e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.51989096693064e-11
+n_int_ep_ep= 2359001 n_int_ep_sp= 843392 <n_epi>= 44.063829787234 <n_epj>= 284.765934331241 <n_spj>= 101.809753742154
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599965227e-08 pot= -1.87370654800406e-07 kin= 9.36852948038835e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.20703125 n_loop= 53 (eng_now.tot-eng_init.tot)/eng_init.tot= 2.10144124711679e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 2.10144124711679e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 2.10144124711679e-11
+n_int_ep_ep= 2390463 n_int_ep_sp= 841169 <n_epi>= 44.7783783783784 <n_epj>= 288.563858039594 <n_spj>= 101.5414051183
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599971093e-08 pot= -1.87370654263454e-07 kin= 9.36852942663446e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.2109375 n_loop= 54 (eng_now.tot-eng_init.tot)/eng_init.tot= 2.72753382029781e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 2.72753382029781e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 2.72753382029781e-11
+n_int_ep_ep= 2396660 n_int_ep_sp= 844410 <n_epi>= 45.2677595628415 <n_epj>= 289.311926605505 <n_spj>= 101.932641236118
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599967728e-08 pot= -1.87370653715633e-07 kin= 9.36852937188598e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.21484375 n_loop= 55 (eng_now.tot-eng_init.tot)/eng_init.tot= 2.36834183118026e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 2.36834183118026e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 2.36834183118026e-11
+n_int_ep_ep= 2380631 n_int_ep_sp= 845331 <n_epi>= 45.0217391304348 <n_epj>= 287.376991791405 <n_spj>= 102.043819410913
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599963113e-08 pot= -1.87370653157825e-07 kin= 9.36852931615134e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.21875 n_loop= 56 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.87572074046532e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.87572074046532e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.87572074046532e-11
+n_int_ep_ep= 2370463 n_int_ep_sp= 842906 <n_epi>= 44.2994652406417 <n_epj>= 286.14956542733 <n_spj>= 101.751086431676
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599976441e-08 pot= -1.87370652592003e-07 kin= 9.36852925943589e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.22265625 n_loop= 57 (eng_now.tot-eng_init.tot)/eng_init.tot= 3.29834761374875e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 3.29834761374875e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 3.29834761374875e-11
+n_int_ep_ep= 2386475 n_int_ep_sp= 847416 <n_epi>= 45.2677595628415 <n_epj>= 288.082448092709 <n_spj>= 102.295509415741
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599966576e-08 pot= -1.87370652014057e-07 kin= 9.36852920173996e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.2265625 n_loop= 58 (eng_now.tot-eng_init.tot)/eng_init.tot= 2.24535255023724e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 2.24535255023724e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 2.24535255023724e-11
+n_int_ep_ep= 2377761 n_int_ep_sp= 843481 <n_epi>= 44.5376344086022 <n_epj>= 287.030540801545 <n_spj>= 101.820497344278
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599956424e-08 pot= -1.87370651426228e-07 kin= 9.36852914305855e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.23046875 n_loop= 59 (eng_now.tot-eng_init.tot)/eng_init.tot= 1.16173024561793e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 1.16173024561793e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 1.16173024561793e-11
+n_int_ep_ep= 2358917 n_int_ep_sp= 840708 <n_epi>= 43.8306878306878 <n_epj>= 284.755794302269 <n_spj>= 101.485755673588
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599943372e-08 pot= -1.87370650828269e-07 kin= 9.36852908339323e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.234375 n_loop= 60 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.31427796968601e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.31427796968601e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.31427796968601e-12
+n_int_ep_ep= 2323829 n_int_ep_sp= 841390 <n_epi>= 43.1458333333333 <n_epj>= 280.520159343312 <n_spj>= 101.568083051666
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599936142e-08 pot= -1.87370650221043e-07 kin= 9.36852902274284e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.23828125 n_loop= 61 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.00316928888642e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.00316928888642e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.00316928888642e-11
+n_int_ep_ep= 2309271 n_int_ep_sp= 841439 <n_epi>= 42.9222797927461 <n_epj>= 278.762795750845 <n_spj>= 101.573998068566
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599939204e-08 pot= -1.87370649604946e-07 kin= 9.36852896110261e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.2421875 n_loop= 62 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.76342156493025e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.76342156493025e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.76342156493025e-12
+n_int_ep_ep= 2311567 n_int_ep_sp= 841874 <n_epi>= 42.701030927835 <n_epj>= 279.039956542733 <n_spj>= 101.626508932883
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599945918e-08 pot= -1.87370648979383e-07 kin= 9.36852889847913e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.24609375 n_loop= 63 (eng_now.tot-eng_init.tot)/eng_init.tot= 4.03889678630955e-13 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= 4.03889678630955e-13 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= 4.03889678630955e-13
+n_int_ep_ep= 2325436 n_int_ep_sp= 840492 <n_epi>= 42.9222797927461 <n_epj>= 280.714147754708 <n_spj>= 101.459681313375
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599943576e-08 pot= -1.87370648343149e-07 kin= 9.36852883487915e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.25 n_loop= 64 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.09587522636196e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.09587522636196e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.09587522636196e-12
+n_int_ep_ep= 2342163 n_int_ep_sp= 838180 <n_epi>= 43.1458333333333 <n_epj>= 282.733341380975 <n_spj>= 101.180589087397
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599935628e-08 pot= -1.87370647696614e-07 kin= 9.36852877030513e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.25390625 n_loop= 65 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.05801013297335e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.05801013297335e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.05801013297335e-11
+n_int_ep_ep= 2320709 n_int_ep_sp= 836189 <n_epi>= 42.4820512820513 <n_epj>= 280.143529695799 <n_spj>= 100.940246257846
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599942545e-08 pot= -1.87370647041725e-07 kin= 9.36852870474709e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.2578125 n_loop= 66 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.19707146453205e-12 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.19707146453205e-12 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.19707146453205e-12
+n_int_ep_ep= 2321745 n_int_ep_sp= 840531 <n_epi>= 42.9222797927461 <n_epj>= 280.268590053114 <n_spj>= 101.464389183969
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599934439e-08 pot= -1.87370646375509e-07 kin= 9.36852863820655e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.26171875 n_loop= 67 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.184898453836e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.184898453836e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.184898453836e-11
+n_int_ep_ep= 2290002 n_int_ep_sp= 842133 <n_epi>= 42.265306122449 <n_epj>= 276.436745533559 <n_spj>= 101.657774022211
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359993299e-08 pot= -1.8737064570029e-07 kin= 9.36852857069914e-08
+eng_now.disp= 0
+param.getTimeSys()= 0.265625 n_loop= 68 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.33956037064788e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.33956037064788e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.33956037064788e-11
+n_int_ep_ep= 2287892 n_int_ep_sp= 843945 <n_epi>= 42.4820512820513 <n_epj>= 276.182037662965 <n_spj>= 101.876508932883
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599926985e-08 pot= -1.87370645014919e-07 kin= 9.36852850222205e-08
+eng_now.disp= 5.09749875724338e-22
+param.getTimeSys()= 0.26953125 n_loop= 69 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.98058513656457e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.98004102820468e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.98112924492447e-11
+n_int_ep_ep= 2297595 n_int_ep_sp= 841836 <n_epi>= 42.265306122449 <n_epj>= 277.353331723805 <n_spj>= 101.621921776919
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599924804e-08 pot= -1.87370644320101e-07 kin= 9.36852843276205e-08
+eng_now.disp= 1.53524828762341e-21
+param.getTimeSys()= 0.2734375 n_loop= 70 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.21331261350638e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.21167388544075e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.21495134157202e-11
+n_int_ep_ep= 2311018 n_int_ep_sp= 839591 <n_epi>= 42.701030927835 <n_epj>= 278.973684210526 <n_spj>= 101.350917431193
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599911664e-08 pot= -1.87370643614387e-07 kin= 9.36852836232205e-08
+eng_now.disp= 2.57205485818977e-21
+param.getTimeSys()= 0.27734375 n_loop= 71 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.61597809763606e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.61323267950634e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.61872351576579e-11
+n_int_ep_ep= 2269695 n_int_ep_sp= 840925 <n_epi>= 41.6281407035176 <n_epj>= 273.985393529696 <n_spj>= 101.511950748431
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359991435e-08 pot= -1.87370642900498e-07 kin= 9.36852829090626e-08
+eng_now.disp= 3.61946331417829e-21
+param.getTimeSys()= 0.28125 n_loop= 72 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.3291867592e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.32532333452576e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.33305018387424e-11
+n_int_ep_ep= 2269229 n_int_ep_sp= 842017 <n_epi>= 41.8383838383838 <n_epj>= 273.92914051183 <n_spj>= 101.64377112506
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599914418e-08 pot= -1.87370642176592e-07 kin= 9.36852821851502e-08
+eng_now.disp= 4.67743895436003e-21
+param.getTimeSys()= 0.28515625 n_loop= 73 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.32192550369751e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.31693279303852e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.32691821435649e-11
+n_int_ep_ep= 2274788 n_int_ep_sp= 840294 <n_epi>= 41.6281407035176 <n_epj>= 274.600193143409 <n_spj>= 101.435779816514
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359992169e-08 pot= -1.87370641443709e-07 kin= 9.36852814515403e-08
+eng_now.disp= 5.74594530502495e-21
+param.getTimeSys()= 0.2890625 n_loop= 74 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.5457481475233e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.53961491037146e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.55188138467514e-11
+n_int_ep_ep= 2291186 n_int_ep_sp= 841410 <n_epi>= 42.265306122449 <n_epj>= 276.579671656205 <n_spj>= 101.570497344278
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599908034e-08 pot= -1.87370640699012e-07 kin= 9.3685280708209e-08
+eng_now.disp= 8.25414063029704e-21
+param.getTimeSys()= 0.29296875 n_loop= 75 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.00339574530221e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.99458525385427e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.01220623675016e-11
+n_int_ep_ep= 2276936 n_int_ep_sp= 840375 <n_epi>= 41.6281407035176 <n_epj>= 274.859488169966 <n_spj>= 101.445557701593
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599914421e-08 pot= -1.87370639946613e-07 kin= 9.36852799551708e-08
+eng_now.disp= 1.22160761553084e-20
+param.getTimeSys()= 0.296875 n_loop= 76 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.3216005837042e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.3085611118422e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.33464005556621e-11
+n_int_ep_ep= 2298588 n_int_ep_sp= 838949 <n_epi>= 42.0507614213198 <n_epj>= 277.473201352004 <n_spj>= 101.273418638339
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599911929e-08 pot= -1.87370639183661e-07 kin= 9.36852791924679e-08
+eng_now.disp= 1.69494588563116e-20
+param.getTimeSys()= 0.30078125 n_loop= 77 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.58762529648138e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.56953339945788e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.60571719350488e-11
+n_int_ep_ep= 2292118 n_int_ep_sp= 842142 <n_epi>= 42.0507614213198 <n_epj>= 276.692177691936 <n_spj>= 101.658860453887
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599912713e-08 pot= -1.87370638411396e-07 kin= 9.36852784201246e-08
+eng_now.disp= 2.35905682323726e-20
+param.getTimeSys()= 0.3046875 n_loop= 78 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.50392308081547e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.47874244615308e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.52910371547786e-11
+n_int_ep_ep= 2329991 n_int_ep_sp= 840139 <n_epi>= 42.9222797927461 <n_epj>= 281.264002897151 <n_spj>= 101.417069048769
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599898399e-08 pot= -1.8737063762794e-07 kin= 9.36852776380999e-08
+eng_now.disp= 3.20756578049176e-20
+param.getTimeSys()= 0.30859375 n_loop= 79 (eng_now.tot-eng_init.tot)/eng_init.tot= -5.03183815888506e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.99760051726551e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -5.0660758005046e-11
+n_int_ep_ep= 2305364 n_int_ep_sp= 840670 <n_epi>= 42.265306122449 <n_epj>= 278.291163689039 <n_spj>= 101.481168517624
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599885232e-08 pot= -1.87370636834896e-07 kin= 9.36852768463733e-08
+eng_now.disp= 4.41397389750447e-20
+param.getTimeSys()= 0.3125 n_loop= 80 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.43732903426084e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.39021416062679e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.4844439078949e-11
+n_int_ep_ep= 2316693 n_int_ep_sp= 841703 <n_epi>= 42.9222797927461 <n_epj>= 279.658739739256 <n_spj>= 101.605866731048
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599874079e-08 pot= -1.87370636032445e-07 kin= 9.36852760450371e-08
+eng_now.disp= 5.9159831520282e-20
+param.getTimeSys()= 0.31640625 n_loop= 81 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.62779350885167e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.56464614887599e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.69094086882736e-11
+n_int_ep_ep= 2275432 n_int_ep_sp= 840706 <n_epi>= 41.6281407035176 <n_epj>= 274.677933365524 <n_spj>= 101.485514244326
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359987364e-08 pot= -1.87370635221514e-07 kin= 9.368527523415e-08
+eng_now.disp= 7.5107668627286e-20
+param.getTimeSys()= 0.3203125 n_loop= 82 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.6745819878872e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.59441186458122e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.75475211119318e-11
+n_int_ep_ep= 2296764 n_int_ep_sp= 842407 <n_epi>= 42.4820512820513 <n_epj>= 277.253017865765 <n_spj>= 101.690849831
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599883486e-08 pot= -1.87370634402012e-07 kin= 9.36852744136633e-08
+eng_now.disp= 9.19871143196006e-20
+param.getTimeSys()= 0.32421875 n_loop= 83 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.62362120607289e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.52543391797905e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.72180849416672e-11
+n_int_ep_ep= 2327110 n_int_ep_sp= 841235 <n_epi>= 42.9222797927461 <n_epj>= 280.916224046354 <n_spj>= 101.549372283921
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599884916e-08 pot= -1.87370633572064e-07 kin= 9.36852735835723e-08
+eng_now.disp= 1.09003634831128e-19
+param.getTimeSys()= 0.328125 n_loop= 84 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.47096531704574e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.354614550141e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.58731608395048e-11
+n_int_ep_ep= 2331682 n_int_ep_sp= 841246 <n_epi>= 43.1458333333333 <n_epj>= 281.468131337518 <n_spj>= 101.550700144858
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599868657e-08 pot= -1.87370632730825e-07 kin= 9.36852727439593e-08
+eng_now.disp= 1.28354624429274e-19
+param.getTimeSys()= 0.33203125 n_loop= 85 (eng_now.tot-eng_init.tot)/eng_init.tot= -8.20651839779171e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -8.06951233362466e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -8.34352446195877e-11
+n_int_ep_ep= 2328443 n_int_ep_sp= 843675 <n_epi>= 43.3717277486911 <n_epj>= 281.077136648962 <n_spj>= 101.843915982617
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599857393e-08 pot= -1.87370631880551e-07 kin= 9.36852718948117e-08
+eng_now.disp= 1.50061112362283e-19
+param.getTimeSys()= 0.3359375 n_loop= 86 (eng_now.tot-eng_init.tot)/eng_init.tot= -9.40879300779127e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -9.24861738123553e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -9.56896863434702e-11
+n_int_ep_ep= 2290929 n_int_ep_sp= 843896 <n_epi>= 42.4820512820513 <n_epj>= 276.548647996137 <n_spj>= 101.870593915983
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599847063e-08 pot= -1.87370631020802e-07 kin= 9.36852710360953e-08
+eng_now.disp= 1.71941772238278e-19
+param.getTimeSys()= 0.33984375 n_loop= 87 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.05114301954969e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.03278990949618e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.0694961296032e-10
+n_int_ep_ep= 2271972 n_int_ep_sp= 843040 <n_epi>= 41.8383838383838 <n_epj>= 274.260260743602 <n_spj>= 101.767262192178
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599876653e-08 pot= -1.87370630155469e-07 kin= 9.36852701678037e-08
+eng_now.disp= 1.93992538784771e-19
+param.getTimeSys()= 0.34375 n_loop= 88 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.35303833712403e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.14597019030146e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.56010648394659e-11
+n_int_ep_ep= 2353245 n_int_ep_sp= 841389 <n_epi>= 43.6 <n_epj>= 284.071100917431 <n_spj>= 101.567962337035
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599870164e-08 pot= -1.87370629276976e-07 kin= 9.36852692899596e-08
+eng_now.disp= 2.16212227642008e-19
+param.getTimeSys()= 0.34765625 n_loop= 89 (eng_now.tot-eng_init.tot)/eng_init.tot= -8.0455982393697e-11 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.8148127381403e-11 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -8.27638374059911e-11
+n_int_ep_ep= 2343160 n_int_ep_sp= 842435 <n_epi>= 43.6 <n_epj>= 282.853693867697 <n_spj>= 101.694229840657
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599844748e-08 pot= -1.87370628387103e-07 kin= 9.36852684026284e-08
+eng_now.disp= 2.40459541795832e-19
+param.getTimeSys()= 0.3515625 n_loop= 90 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.07585247869251e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.05018576387071e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.10151919351432e-10
+n_int_ep_ep= 2324165 n_int_ep_sp= 839722 <n_epi>= 42.9222797927461 <n_epj>= 280.560719459198 <n_spj>= 101.366731047803
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599841794e-08 pot= -1.87370627489937e-07 kin= 9.36852675057575e-08
+eng_now.disp= 2.67938842179635e-19
+param.getTimeSys()= 0.35546875 n_loop= 91 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.10738949578156e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.07878963319948e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.13598935836363e-10
+n_int_ep_ep= 2322393 n_int_ep_sp= 842317 <n_epi>= 43.1458333333333 <n_epj>= 280.346813133752 <n_spj>= 101.679985514244
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599841204e-08 pot= -1.87370626583439e-07 kin= 9.36852665993182e-08
+eng_now.disp= 2.96817931243363e-19
+param.getTimeSys()= 0.359375 n_loop= 92 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.11368870556475e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.08200628141005e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.14537112971946e-10
+n_int_ep_ep= 2314890 n_int_ep_sp= 842852 <n_epi>= 42.9222797927461 <n_epj>= 279.441091260261 <n_spj>= 101.744567841622
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599827486e-08 pot= -1.87370625666204e-07 kin= 9.36852656834558e-08
+eng_now.disp= 3.27968160772789e-19
+param.getTimeSys()= 0.36328125 n_loop= 93 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.26010754341612e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.22510013555732e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.29511495127492e-10
+n_int_ep_ep= 2321085 n_int_ep_sp= 841909 <n_epi>= 42.9222797927461 <n_epj>= 280.18891839691 <n_spj>= 101.630733944954
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599817344e-08 pot= -1.87370624739944e-07 kin= 9.36852647582094e-08
+eng_now.disp= 3.62664503029732e-19
+param.getTimeSys()= 0.3671875 n_loop= 94 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.36836523440194e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.32965432983256e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.40707613897132e-10
+n_int_ep_ep= 2311956 n_int_ep_sp= 844008 <n_epi>= 42.9222797927461 <n_epj>= 279.086914534042 <n_spj>= 101.884113954611
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599812243e-08 pot= -1.87370623804725e-07 kin= 9.36852638235003e-08
+eng_now.disp= 3.99529502693331e-19
+param.getTimeSys()= 0.37109375 n_loop= 95 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.42281617449691e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.3801702901542e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.46546205883962e-10
+n_int_ep_ep= 2339262 n_int_ep_sp= 839855 <n_epi>= 43.1458333333333 <n_epj>= 282.383148237566 <n_spj>= 101.382786093675
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599806778e-08 pot= -1.87370622860073e-07 kin= 9.36852628793953e-08
+eng_now.disp= 4.38280728806503e-19
+param.getTimeSys()= 0.375 n_loop= 96 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.48115061485965e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.4343684144356e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.52793281528371e-10
+n_int_ep_ep= 2344286 n_int_ep_sp= 840973 <n_epi>= 43.3717277486911 <n_epj>= 282.989618541767 <n_spj>= 101.5177450507
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599802275e-08 pot= -1.87370621906132e-07 kin= 9.36852619259047e-08
+eng_now.disp= 4.79765294605696e-19
+param.getTimeSys()= 0.37890625 n_loop= 97 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.52921758343404e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.47800730953067e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.58042785733741e-10
+n_int_ep_ep= 2355865 n_int_ep_sp= 839796 <n_epi>= 43.6 <n_epj>= 284.387373249638 <n_spj>= 101.375663930468
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599788472e-08 pot= -1.87370620941828e-07 kin= 9.36852609629808e-08
+eng_now.disp= 5.25417699996673e-19
+param.getTimeSys()= 0.3828125 n_loop= 98 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.67655184804915e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.62046862437074e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.73263507172755e-10
+n_int_ep_ep= 2361800 n_int_ep_sp= 840445 <n_epi>= 43.8306878306878 <n_epj>= 285.103814582327 <n_spj>= 101.454007725736
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599773852e-08 pot= -1.87370619968017e-07 kin= 9.36852599906315e-08
+eng_now.disp= 5.75042559422111e-19
+param.getTimeSys()= 0.38671875 n_loop= 99 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.83260527004974e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.77122507580642e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.89398546429306e-10
+n_int_ep_ep= 2349895 n_int_ep_sp= 842690 <n_epi>= 43.8306878306878 <n_epj>= 283.666706904877 <n_spj>= 101.725012071463
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599761872e-08 pot= -1.87370618985085e-07 kin= 9.36852590088974e-08
+eng_now.disp= 6.26292584450203e-19
+param.getTimeSys()= 0.390625 n_loop= 100 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.96047400167479e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.8936233662621e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.02732463708747e-10
+n_int_ep_ep= 2330763 n_int_ep_sp= 840217 <n_epi>= 42.9222797927461 <n_epj>= 281.357194591985 <n_spj>= 101.426484789957
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599776058e-08 pot= -1.87370617995398e-07 kin= 9.36852580177927e-08
+eng_now.disp= 6.77921471726238e-19
+param.getTimeSys()= 0.39453125 n_loop= 101 (eng_now.tot-eng_init.tot)/eng_init.tot= -1.80905563401344e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.73669411757526e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -1.88141715045161e-10
+n_int_ep_ep= 2373891 n_int_ep_sp= 843229 <n_epi>= 44.5376344086022 <n_epj>= 286.563375181072 <n_spj>= 101.790077257364
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599750953e-08 pot= -1.87370616992402e-07 kin= 9.36852570173062e-08
+eng_now.disp= 7.32968538675862e-19
+param.getTimeSys()= 0.3984375 n_loop= 102 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.07702280327231e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.99878554841003e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.1552600581346e-10
+n_int_ep_ep= 2345983 n_int_ep_sp= 841389 <n_epi>= 43.6 <n_epj>= 283.194471269918 <n_spj>= 101.567962337035
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599755896e-08 pot= -1.87370615983092e-07 kin= 9.36852560075025e-08
+eng_now.disp= 7.92775846285232e-19
+param.getTimeSys()= 0.40234375 n_loop= 103 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.02426144714252e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.93964034451439e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.10888254977064e-10
+n_int_ep_ep= 2383420 n_int_ep_sp= 839462 <n_epi>= 44.2994652406417 <n_epj>= 287.713664896185 <n_spj>= 101.335345243844
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599750447e-08 pot= -1.87370614963401e-07 kin= 9.36852549883563e-08
+eng_now.disp= 8.54836016160691e-19
+param.getTimeSys()= 0.40625 n_loop= 104 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.08243201481298e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -1.99118659330738e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.17367743631858e-10
+n_int_ep_ep= 2373197 n_int_ep_sp= 844121 <n_epi>= 44.5376344086022 <n_epj>= 286.479599227426 <n_spj>= 101.897754707871
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599744109e-08 pot= -1.87370613934325e-07 kin= 9.36852539599136e-08
+eng_now.disp= 9.19403679732026e-19
+param.getTimeSys()= 0.41015625 n_loop= 105 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.15007894472289e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.05194155380232e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.24821633564347e-10
+n_int_ep_ep= 2380703 n_int_ep_sp= 843888 <n_epi>= 44.7783783783784 <n_epj>= 287.385683244809 <n_spj>= 101.869628198938
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599733668e-08 pot= -1.87370612895608e-07 kin= 9.3685252922241e-08
+eng_now.disp= 9.85987306445229e-19
+param.getTimeSys()= 0.4140625 n_loop= 106 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.26152508972995e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.15628054495769e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.36676963450221e-10
+n_int_ep_ep= 2368139 n_int_ep_sp= 841119 <n_epi>= 44.063829787234 <n_epj>= 285.869024625785 <n_spj>= 101.53536938677
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599726084e-08 pot= -1.87370611847919e-07 kin= 9.36852518753109e-08
+eng_now.disp= 1.05384219195652e-18
+param.getTimeSys()= 0.41796875 n_loop= 107 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.34247537432215e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.22998798119928e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.45496276744503e-10
+n_int_ep_ep= 2346954 n_int_ep_sp= 844308 <n_epi>= 43.8306878306878 <n_epj>= 283.311685176243 <n_spj>= 101.920328343795
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599715786e-08 pot= -1.87370610790726e-07 kin= 9.36852508191479e-08
+eng_now.disp= 1.12457991025571e-18
+param.getTimeSys()= 0.421875 n_loop= 108 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.4524014588388e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.33236350303428e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.57243941464333e-10
+n_int_ep_ep= 2376357 n_int_ep_sp= 842835 <n_epi>= 44.2994652406417 <n_epj>= 286.861057460164 <n_spj>= 101.742515692902
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599699204e-08 pot= -1.8737060972369e-07 kin= 9.36852497537692e-08
+eng_now.disp= 1.19883221839772e-18
+param.getTimeSys()= 0.42578125 n_loop= 109 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.62940091884241e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.50143725211076e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -2.75736458557405e-10
+n_int_ep_ep= 2346177 n_int_ep_sp= 842136 <n_epi>= 43.6 <n_epj>= 283.217889908257 <n_spj>= 101.658136166103
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599676539e-08 pot= -1.87370608646852e-07 kin= 9.36852486791976e-08
+eng_now.disp= 1.27501049166791e-18
+param.getTimeSys()= 0.4296875 n_loop= 110 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.87132363159467e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.73522867591088e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.00741858727846e-10
+n_int_ep_ep= 2296164 n_int_ep_sp= 840598 <n_epi>= 42.265306122449 <n_epj>= 277.180589087397 <n_spj>= 101.47247706422
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599668683e-08 pot= -1.87370607562322e-07 kin= 9.36852475954542e-08
+eng_now.disp= 1.35472203195506e-18
+param.getTimeSys()= 0.43359375 n_loop= 111 (eng_now.tot-eng_init.tot)/eng_init.tot= -2.95517983108349e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.81057644459559e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.09978321757139e-10
+n_int_ep_ep= 2339704 n_int_ep_sp= 842318 <n_epi>= 43.6 <n_epj>= 282.436504104297 <n_spj>= 101.680106228875
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599661708e-08 pot= -1.87370606468676e-07 kin= 9.36852465025051e-08
+eng_now.disp= 1.43798832409912e-18
+param.getTimeSys()= 0.4375 n_loop= 112 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.02963171580965e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.87614046336821e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.18312296825109e-10
+n_int_ep_ep= 2333743 n_int_ep_sp= 840520 <n_epi>= 43.3717277486911 <n_epj>= 281.716924191212 <n_spj>= 101.463061323032
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599662547e-08 pot= -1.87370605366602e-07 kin= 9.36852454003475e-08
+eng_now.disp= 1.52314146014475e-18
+param.getTimeSys()= 0.44140625 n_loop= 113 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.02067805095074e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -2.85809753034076e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.18325857156071e-10
+n_int_ep_ep= 2333837 n_int_ep_sp= 842896 <n_epi>= 43.3717277486911 <n_epj>= 281.72827136649 <n_spj>= 101.749879285369
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599643482e-08 pot= -1.87370604253372e-07 kin= 9.36852442890239e-08
+eng_now.disp= 1.61198274972576e-18
+param.getTimeSys()= 0.4453125 n_loop= 114 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.22416979197346e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.05210632871522e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.3962332552317e-10
+n_int_ep_ep= 2323122 n_int_ep_sp= 839712 <n_epi>= 42.701030927835 <n_epj>= 280.434814099469 <n_spj>= 101.365523901497
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599629494e-08 pot= -1.87370603131636e-07 kin= 9.36852431686867e-08
+eng_now.disp= 1.7044772427775e-18
+param.getTimeSys()= 0.44921875 n_loop= 115 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.37348324315646e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.19154689334934e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.55541959296358e-10
+n_int_ep_ep= 2313632 n_int_ep_sp= 838225 <n_epi>= 42.4820512820513 <n_epj>= 279.289232254949 <n_spj>= 101.186021245775
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599623059e-08 pot= -1.87370602001553e-07 kin= 9.36852420392469e-08
+eng_now.disp= 1.80108855346021e-18
+param.getTimeSys()= 0.453125 n_loop= 116 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.44217415513181e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.24992548857762e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.634422821686e-10
+n_int_ep_ep= 2324209 n_int_ep_sp= 840676 <n_epi>= 42.9222797927461 <n_epj>= 280.566030902945 <n_spj>= 101.481892805408
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599616355e-08 pot= -1.87370600862335e-07 kin= 9.36852409006994e-08
+eng_now.disp= 1.90055149934072e-18
+param.getTimeSys()= 0.45703125 n_loop= 117 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.51372860113508e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.31086323354177e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.7165939687284e-10
+n_int_ep_ep= 2312191 n_int_ep_sp= 841868 <n_epi>= 42.701030927835 <n_epj>= 279.115282472236 <n_spj>= 101.625784645099
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599595212e-08 pot= -1.87370599712695e-07 kin= 9.36852397531743e-08
+eng_now.disp= 2.00275152964512e-18
+param.getTimeSys()= 0.4609375 n_loop= 118 (eng_now.tot-eng_init.tot)/eng_init.tot= -3.73941237770035e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.52563815195563e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -3.95318660344507e-10
+n_int_ep_ep= 2298908 n_int_ep_sp= 843129 <n_epi>= 42.4820512820513 <n_epj>= 277.5118300338 <n_spj>= 101.778005794302
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599567792e-08 pot= -1.87370598553309e-07 kin= 9.36852385965296e-08
+eng_now.disp= 2.10939534604792e-18
+param.getTimeSys()= 0.46484375 n_loop= 119 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.03208618071081e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.80692876591616e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.25724359550545e-10
+n_int_ep_ep= 2275556 n_int_ep_sp= 844035 <n_epi>= 42.0507614213198 <n_epj>= 274.69290197972 <n_spj>= 101.887373249638
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599559951e-08 pot= -1.87370597386758e-07 kin= 9.36852374307627e-08
+eng_now.disp= 2.21924259475097e-18
+param.getTimeSys()= 0.46875 n_loop= 120 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.11578415828985e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.87890161923786e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.35266669734184e-10
+n_int_ep_ep= 2286410 n_int_ep_sp= 841836 <n_epi>= 42.265306122449 <n_epj>= 276.003138580396 <n_spj>= 101.621921776919
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599554624e-08 pot= -1.87370596211437e-07 kin= 9.36852362559749e-08
+eng_now.disp= 2.33061025855149e-18
+param.getTimeSys()= 0.47265625 n_loop= 121 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.17264656981337e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.92387661699609e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.42141652263065e-10
+n_int_ep_ep= 2267985 n_int_ep_sp= 841492 <n_epi>= 41.6281407035176 <n_epj>= 273.778971511347 <n_spj>= 101.580395943988
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359954639e-08 pot= -1.87370595026737e-07 kin= 9.36852350720982e-08
+eng_now.disp= 2.44556973267605e-18
+param.getTimeSys()= 0.4765625 n_loop= 122 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.26053742800163e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -3.99949667063909e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.52157818536417e-10
+n_int_ep_ep= 2275445 n_int_ep_sp= 842738 <n_epi>= 41.8383838383838 <n_epj>= 274.679502655722 <n_spj>= 101.730806373732
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599537355e-08 pot= -1.87370593832933e-07 kin= 9.36852338791977e-08
+eng_now.disp= 2.56430840993961e-18
+param.getTimeSys()= 0.48046875 n_loop= 123 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.35698074549186e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.08326579044567e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.63069570053806e-10
+n_int_ep_ep= 2296236 n_int_ep_sp= 840764 <n_epi>= 42.265306122449 <n_epj>= 277.189280540802 <n_spj>= 101.492515692902
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599515875e-08 pot= -1.87370592628967e-07 kin= 9.36852326773795e-08
+eng_now.disp= 2.68652880712286e-18
+param.getTimeSys()= 0.484375 n_loop= 124 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.58624994354844e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.29948915111736e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.87301073597951e-10
+n_int_ep_ep= 2298434 n_int_ep_sp= 842773 <n_epi>= 42.4820512820513 <n_epj>= 277.454611298889 <n_spj>= 101.735031385804
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599510775e-08 pot= -1.87370591417686e-07 kin= 9.36852314666089e-08
+eng_now.disp= 2.81238965059345e-18
+param.getTimeSys()= 0.48828125 n_loop= 125 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.64068958207842e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.34049437006697e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -4.94088479408988e-10
+n_int_ep_ep= 2296891 n_int_ep_sp= 842855 <n_epi>= 42.265306122449 <n_epj>= 277.268348623853 <n_spj>= 101.744929985514
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359948448e-08 pot= -1.87370590195305e-07 kin= 9.36852302468569e-08
+eng_now.disp= 2.94294994708075e-18
+param.getTimeSys()= 0.4921875 n_loop= 126 (eng_now.tot-eng_init.tot)/eng_init.tot= -4.92136536116229e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.60723410871774e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -5.23549661360683e-10
+n_int_ep_ep= 2291195 n_int_ep_sp= 843011 <n_epi>= 42.265306122449 <n_epj>= 276.58075808788 <n_spj>= 101.76376146789
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599448843e-08 pot= -1.87370588963082e-07 kin= 9.36852290181976e-08
+eng_now.disp= 3.08032573577113e-18
+param.getTimeSys()= 0.49609375 n_loop= 127 (eng_now.tot-eng_init.tot)/eng_init.tot= -5.30175908619062e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.9729643058802e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -5.63055386650103e-10
+n_int_ep_ep= 2279862 n_int_ep_sp= 843094 <n_epi>= 41.8383838383838 <n_epj>= 275.21269917914 <n_spj>= 101.773780782231
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599457083e-08 pot= -1.87370587726354e-07 kin= 9.36852277806461e-08
+eng_now.disp= 3.22090816338438e-18
+param.getTimeSys()= 0.5 n_loop= 128 (eng_now.tot-eng_init.tot)/eng_init.tot= -5.21380606939494e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -4.87000548373549e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -5.55760665505438e-10
+n_int_ep_ep= 2322091 n_int_ep_sp= 839846 <n_epi>= 42.701030927835 <n_epj>= 280.310357315307 <n_spj>= 101.381699661999
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599425583e-08 pot= -1.87370586476763e-07 kin= 9.36852265342045e-08
+eng_now.disp= 3.36644926107901e-18
+param.getTimeSys()= 0.50390625 n_loop= 129 (eng_now.tot-eng_init.tot)/eng_init.tot= -5.55002904037726e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -5.19069335961831e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -5.90936472113621e-10
+n_int_ep_ep= 2319383 n_int_ep_sp= 842029 <n_epi>= 42.9222797927461 <n_epj>= 279.983462095606 <n_spj>= 101.645219700628
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359941027e-08 pot= -1.87370585219937e-07 kin= 9.36852252789104e-08
+eng_now.disp= 3.51934193497279e-18
+param.getTimeSys()= 0.5078125 n_loop= 130 (eng_now.tot-eng_init.tot)/eng_init.tot= -5.71348922552952e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -5.33783374049137e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.08914471056767e-10
+n_int_ep_ep= 2323349 n_int_ep_sp= 841471 <n_epi>= 42.9222797927461 <n_epj>= 280.462216320618 <n_spj>= 101.577860936746
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599397717e-08 pot= -1.87370583954527e-07 kin= 9.36852240147558e-08
+eng_now.disp= 3.67548395911325e-18
+param.getTimeSys()= 0.51171875 n_loop= 131 (eng_now.tot-eng_init.tot)/eng_init.tot= -5.84748057998488e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -5.45515845416641e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.23980270580336e-10
+n_int_ep_ep= 2281920 n_int_ep_sp= 842936 <n_epi>= 42.0507614213198 <n_epj>= 275.461129888943 <n_spj>= 101.754707870594
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599390552e-08 pot= -1.87370582680865e-07 kin= 9.36852227418095e-08
+eng_now.disp= 3.83468167016384e-18
+param.getTimeSys()= 0.515625 n_loop= 132 (eng_now.tot-eng_init.tot)/eng_init.tot= -5.92395261945201e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -5.51463768802764e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.33326755087638e-10
+n_int_ep_ep= 2308705 n_int_ep_sp= 843880 <n_epi>= 42.9222797927461 <n_epj>= 278.694471269918 <n_spj>= 101.868662481893
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599370592e-08 pot= -1.8737058139713e-07 kin= 9.36852214600705e-08
+eng_now.disp= 3.99982795919189e-18
+param.getTimeSys()= 0.51953125 n_loop= 133 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.1370083098428e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -5.71006562003252e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.56395099965307e-10
+n_int_ep_ep= 2319784 n_int_ep_sp= 843307 <n_epi>= 42.9222797927461 <n_epj>= 280.031868662482 <n_spj>= 101.799492998551
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599350969e-08 pot= -1.87370580104685e-07 kin= 9.36852201695886e-08
+eng_now.disp= 4.17177295637982e-18
+param.getTimeSys()= 0.5234375 n_loop= 134 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.34647010256854e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -5.90117395847278e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -6.7917662466643e-10
+n_int_ep_ep= 2326798 n_int_ep_sp= 840178 <n_epi>= 42.9222797927461 <n_epj>= 280.878561081603 <n_spj>= 101.421776919363
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599330779e-08 pot= -1.87370578803467e-07 kin= 9.3685218870389e-08
+eng_now.disp= 4.35028861375045e-18
+param.getTimeSys()= 0.52734375 n_loop= 135 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.56197116908284e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.09762021670316e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.02632212146252e-10
+n_int_ep_ep= 2316866 n_int_ep_sp= 847099 <n_epi>= 43.3717277486911 <n_epj>= 279.679623370352 <n_spj>= 102.257242877837
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599302068e-08 pot= -1.87370577492624e-07 kin= 9.36852175624167e-08
+eng_now.disp= 4.53424551633499e-18
+param.getTimeSys()= 0.53125 n_loop= 136 (eng_now.tot-eng_init.tot)/eng_init.tot= -6.86843853215679e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.38445197154598e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.3524250927676e-10
+n_int_ep_ep= 2301794 n_int_ep_sp= 848581 <n_epi>= 43.1458333333333 <n_epj>= 277.86021245775 <n_spj>= 102.436141960406
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599267999e-08 pot= -1.87370576172491e-07 kin= 9.36852162456908e-08
+eng_now.disp= 4.72334815246206e-18
+param.getTimeSys()= 0.53515625 n_loop= 137 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.23209322674756e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.72792180095204e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.73626465254308e-10
+n_int_ep_ep= 2276888 n_int_ep_sp= 847488 <n_epi>= 42.265306122449 <n_epj>= 274.853693867697 <n_spj>= 102.304200869145
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599258947e-08 pot= -1.87370574846156e-07 kin= 9.36852149202608e-08
+eng_now.disp= 4.91874487322577e-18
+param.getTimeSys()= 0.5390625 n_loop= 138 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.3287088931038e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.80368076987177e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -7.85373701633583e-10
+n_int_ep_ep= 2326082 n_int_ep_sp= 841770 <n_epi>= 42.9222797927461 <n_epj>= 280.792129406084 <n_spj>= 101.613954611299
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599241134e-08 pot= -1.87370573510235e-07 kin= 9.36852135861216e-08
+eng_now.disp= 5.12164090267979e-18
+param.getTimeSys()= 0.54296875 n_loop= 139 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.51884500970618e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -6.97215971085292e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -8.06553030855944e-10
+n_int_ep_ep= 2342771 n_int_ep_sp= 843981 <n_epi>= 43.6 <n_epj>= 282.806735876388 <n_spj>= 101.880854659585
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599221216e-08 pot= -1.87370572165444e-07 kin= 9.36852122433221e-08
+eng_now.disp= 5.33012980290264e-18
+param.getTimeSys()= 0.546875 n_loop= 140 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.73145570097571e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.16251624200234e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -8.30039515994907e-10
+n_int_ep_ep= 2332173 n_int_ep_sp= 841313 <n_epi>= 43.1458333333333 <n_epj>= 281.527402221149 <n_spj>= 101.558788025109
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599213109e-08 pot= -1.87370570813189e-07 kin= 9.36852108918782e-08
+eng_now.disp= 5.54326429175853e-18
+param.getTimeSys()= 0.55078125 n_loop= 141 (eng_now.tot-eng_init.tot)/eng_init.tot= -7.81798895867022e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.22629946822254e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -8.4096784491179e-10
+n_int_ep_ep= 2343352 n_int_ep_sp= 843402 <n_epi>= 43.8306878306878 <n_epj>= 282.876871076774 <n_spj>= 101.81096088846
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599195121e-08 pot= -1.87370569451349e-07 kin= 9.36852095318366e-08
+eng_now.disp= 5.76145816165935e-18
+param.getTimeSys()= 0.5546875 n_loop= 142 (eng_now.tot-eng_init.tot)/eng_init.tot= -8.00998983349502e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.39501027190778e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -8.62496939508226e-10
+n_int_ep_ep= 2321842 n_int_ep_sp= 840656 <n_epi>= 42.9222797927461 <n_epj>= 280.280299372284 <n_spj>= 101.479478512796
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599173544e-08 pot= -1.87370568080568e-07 kin= 9.36852081632139e-08
+eng_now.disp= 5.98346318829318e-18
+param.getTimeSys()= 0.55859375 n_loop= 143 (eng_now.tot-eng_init.tot)/eng_init.tot= -8.24030866439953e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.60163222779929e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -8.87898510099976e-10
+n_int_ep_ep= 2315456 n_int_ep_sp= 840967 <n_epi>= 42.701030927835 <n_epj>= 279.509415741188 <n_spj>= 101.517020762916
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599145313e-08 pot= -1.87370566700445e-07 kin= 9.36852067859139e-08
+eng_now.disp= 6.21153283624707e-18
+param.getTimeSys()= 0.5625 n_loop= 144 (eng_now.tot-eng_init.tot)/eng_init.tot= -8.54164087888368e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -7.87862022799349e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -9.20466152977386e-10
+n_int_ep_ep= 2322647 n_int_ep_sp= 843355 <n_epi>= 43.1458333333333 <n_epj>= 280.377474649928 <n_spj>= 101.805287300821
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.36853599118775e-08 pot= -1.87370565311921e-07 kin= 9.36852054000431e-08
+eng_now.disp= 6.44626695217724e-18
+param.getTimeSys()= 0.56640625 n_loop= 145 (eng_now.tot-eng_init.tot)/eng_init.tot= -8.82490895443584e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -8.13683272218867e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -9.51298518668301e-10
+n_int_ep_ep= 2299269 n_int_ep_sp= 843173 <n_epi>= 42.4820512820513 <n_epj>= 277.555408015451 <n_spj>= 101.783317238049
+tot= -9.3685359994554e-08 pot= -1.87370668961046e-07 kin= 9.36853089664919e-08
+tot= -9.3685359911477e-08 pot= -1.87370563917219e-07 kin= 9.36852040057418e-08
+eng_now.disp= 6.68618297907193e-18
+param.getTimeSys()= 0.5703125 n_loop= 146 (eng_now.tot-eng_init.tot)/eng_init.tot= -8.86765571129381e-10 (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= -8.15397077914853e-10 (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= -9.58134064343909e-10
+n_int_ep_ep= 2354925 n_int_ep_sp= 840226 <n_epi>= 43.6 <n_epj>= 284.273901496861 <n_spj>= 101.427571221632

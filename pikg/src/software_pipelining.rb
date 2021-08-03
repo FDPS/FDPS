@@ -87,7 +87,7 @@ end
 
 class String
   def copy_for_swpl(n,index,map)
-    if (map.index(self) || self == index) && $varhash[self][0] != "EPI" && $varhash[self][0] != "FORCE"
+    if (map.index(self) || self == index) && $varhash[self][0] != "EPI" && $varhash[self][0] != "MEMBER"
       self + "_swpl#{n}"
     elsif self == index
       NonSimdExp.new([:plus,self,"#{n}","S32"])
@@ -357,11 +357,16 @@ def software_pipelining(orig,nstage = $swpl_stage)
 end
 
 
-def loop_unroll(orig,nstage = $swpl_stage)
-  warn "loop unrolling is applied"
+def loop_unroll(orig,accum_hash,nstage = $swpl_stage)
+  #warn "loop unrolling is applied"
   result = []
   orig.statements.each{ |s|
     result.push(get_name(s)) if s.class == StoreState || (isStatement(s) && $varhash[get_name(s)][0] == "FORCE")
+    if s.class == ConditionalBranch
+      s.get_related_variable.each{|v|
+        result.push(v[0]) if $varhash[v[0]] != nil && $varhash[v[0]][0] == "FORCE"
+      }
+    end
   }
   result.uniq!
 
@@ -376,11 +381,11 @@ def loop_unroll(orig,nstage = $swpl_stage)
     tmpvar_map.each{ |v|
       iotype = $varhash[v][0]
       type = $varhash[v][1]
-      decl.push(Declaration.new([type,v]).copy_for_swpl(i,orig.index,tmpvar_map)) if iotype != "EPI" && iotype != "FORCE"
+      decl.push(Declaration.new([type,v]).copy_for_swpl(i,orig.index,tmpvar_map)) if iotype != "EPI" && iotype != "MEMBER"
     }
   end
 
-  loop_tmp = Loop.new([orig.index,orig.loop_beg,orig.loop_end,orig.interval*nstage,[]])
+  loop_tmp = Loop.new([orig.index,orig.loop_beg,orig.loop_end,orig.interval*nstage,[],orig.option])
   for i in 0...nstage
     index = orig.index+"_swpl#{i}"
     $varhash[index] = [nil,"S32",nil,nil]
@@ -389,20 +394,7 @@ def loop_unroll(orig,nstage = $swpl_stage)
     loop_tmp.statements.push(NonSimdState.new([index,NonSimdExp.new([:plus,orig.index,"#{i}","S32"])]))
     lstate = Hash.new()
     orig.statements.each{ |s|
-      s.name.get_type if isStatement(s)
-      tmp = s.copy_for_swpl(i,orig.index,tmpvar_map)
-      if s.class == ConditionalBranch
-        tmp.bodies.zip(s.bodies){ |bstmp,bs|
-          bstmp.zip(bs){ |btmp,b|
-            iotype = $varhash[get_name(b)][0]
-            $varhash[get_name(btmp)] = $varhash[get_name(b)].dup if $varhash[get_name(tmp)] == nil
-          }
-        }
-      else
-        iotype = $varhash[get_name(s)][0]
-        $varhash[get_name(tmp)] = $varhash[get_name(s)].dup if $varhash[get_name(tmp)] == nil
-      end
-      pipeline[i].push(tmp) if s.class != Declaration
+      pipeline[i] += unroll_statement_recursive(s,i,orig.index,nstage,tmpvar_map)
     }
   end
 
@@ -410,13 +402,79 @@ def loop_unroll(orig,nstage = $swpl_stage)
 
   ret = Nest.new([])
   ret.body += decl
-
+  #initialize unrolled FORCE var
+  tmpvar_map.each{|v|
+    iotype = $varhash[v][0]
+    type   = $varhash[v][1]
+    if iotype == "FORCE"
+      type_single = get_single_element_type(type)
+      get_vector_elements(type).zip(accum_hash[v]){ |dim,op|
+        for i in 0...nstage
+          name = v + "_swpl#{i}"
+          name = Expression.new([:dot,name,dim,type_single]) if type =~ /vec/
+          ret.body += [Duplicate.new([name,get_initial_value(op,type_single),type_single])]
+        end
+      }
+    end
+  }
   for i in 0...length
     for j in 0...nstage
       loop_tmp.statements.push(pipeline[j][i])
     end
   end
   ret.body += [loop_tmp]
+  # accumulate unrolled FORCE var to original FORCE var
+  tmpvar_map.each{|v|
+    iotype = $varhash[v][0]
+    type   = $varhash[v][1]
+    if iotype == "FORCE"
+      type_single = get_single_element_type(type)
+      get_vector_elements(type).zip(accum_hash[v]){ |dim,op|
+        for i in 0...nstage
+          src = v + "_swpl#{i}"
+          src = Expression.new([:dot,src,dim,type_single]) if type =~ /vec/
+          name = v
+          name = Expression.new([:dot,name,dim,type_single]) if type =~ /vec/
+          if op == "max" || op == "min"
+            ret.body += [Statement.new([name,FuncCall.new([op,[name,src],type_single])])]
+          elsif op == :plus || op == :minus
+            ret.body += [Statement.new([name,Expression.new([:plus,name,src,type_single]),type_single])]
+          elsif op == :mult || :div
+            ret.body += [Statement.new([name,Expression.new([:mult,name,src,type_single]),type_single])]
+          else
+            abort "unsupported accumulate operator #{op}"
+          end
+        end
+      }
+    end
+  }
+
+  ret
+end
+
+def unroll_statement_recursive(s,i,index,unroll_stage=$unroll_stage,tmpvar_map)
+  ret = Array.new
+
+  s.name.get_type if isStatement(s)
+  if s.class == ConditionalBranch
+    cb = ConditionalBranch.new([[],[]])
+    s.conditions.each{ |c|
+      cb.conditions.push(c.copy_for_swpl(i,index,tmpvar_map))
+    }
+    s.bodies.each{ |b|
+      tmp = Array.new
+      b.each{ |bs|
+        tmp += unroll_statement_recursive(bs,i,index,unroll_stage,tmpvar_map)
+      }
+      cb.bodies.push(tmp)
+    }
+    ret.push(cb)
+  else
+    tmp = s.copy_for_swpl(i,index,tmpvar_map)
+    iotype = $varhash[get_name(s)][0]
+    $varhash[get_name(tmp)] = $varhash[get_name(s)].dup if $varhash[get_name(tmp)] == nil
+    ret.push(tmp) if s.class != Declaration
+  end
 
   ret
 end

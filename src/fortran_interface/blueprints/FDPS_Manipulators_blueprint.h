@@ -4,6 +4,7 @@
 #include <vector>
 /* FDPS headers */
 #include <particle_simulator.hpp>
+#include <FDPS_comm_info.h>
 /* User-defined headers */
 #include "user_defined.hpp"
 
@@ -71,6 +72,7 @@ namespace FDPS_Manipulators {
                                            const int dinfo_num);
    extern void sort_particle(const int psys_num,
                              bool (*pfunc_comp)(const void *, const void *));
+   extern void set_psys_comm_info(int psys_num, fdps_comm_info *ci);
 
    //----------------------------
    // DomainInfo manipulators
@@ -100,6 +102,7 @@ namespace FDPS_Manipulators {
    extern void decompose_domain_all(const int dinfo_num,
                                     const int psys_num,
                                     const float weight);
+   extern void set_dinfo_comm_info(int dinfo_num, fdps_comm_info *ci);
 
    //----------------------------
    // TreeForForce manipulators
@@ -164,7 +167,8 @@ namespace FDPS_Manipulators {
    extern void * get_epj_from_id(const int tree_num,
                                  const PS::S64 id);
 
-
+   extern void set_tree_comm_info(int tree_num, fdps_comm_info *ci);
+   extern void set_exchange_let_mode(int tree_num, int mode);
    //----------------------------
    // Utility functions
    //----------------------------

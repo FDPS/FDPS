@@ -1,0 +1,133 @@
+25599c25599
+< 	vxorps	%xmm5, %xmm5, %xmm5
+---
+> 	vxorps	%xmm4, %xmm4, %xmm4
+25603c25603
+< 	vcmpps	$0, %ymm5, %ymm5, %ymm13
+---
+> 	vcmpps	$0, %ymm4, %ymm4, %ymm13
+25655c25655
+< 	vcmpps	$12, %ymm4, %ymm13, %ymm4
+---
+> 	vcmpps	$0, %ymm4, %ymm13, %ymm4
+25682c25682
+< 	vmovdqa	.LC81(%rip), %ymm2
+---
+> 	vmovaps	%ymm13, %ymm2
+25685,25687c25685,25687
+< 	vmovaps	%ymm13, %ymm5
+< 	vgatherdps	%ymm5, (%rax,%ymm2,4), %ymm0
+< 	vmovaps	%ymm13, %ymm5
+---
+> 	vmovdqa	%ymm5, %ymm3
+> 	vgatherdps	%ymm2, (%rax,%ymm5,4), %ymm0
+> 	vmovaps	%ymm13, %ymm2
+25698,25699c25698,25699
+< 	vgatherdps	%ymm5, 4(%rax,%ymm2,4), %ymm0
+< 	vmovaps	%ymm13, %ymm5
+---
+> 	vgatherdps	%ymm2, 4(%rax,%ymm5,4), %ymm0
+> 	vmovaps	%ymm13, %ymm2
+25710c25710
+< 	vgatherdps	%ymm5, 8(%rax,%ymm2,4), %ymm0
+---
+> 	vgatherdps	%ymm2, 8(%rax,%ymm5,4), %ymm0
+25711a25712
+> 	vmovdqa	%ymm3, %ymm2
+25722,25723c25723,25725
+< 	vgatherdps	%ymm5, 12(%rax,%ymm2,4), %ymm0
+< 	vmovaps	%ymm13, %ymm5
+---
+> 	vgatherdps	%ymm5, 12(%rax,%ymm3,4), %ymm0
+> 	vmovaps	%ymm13, %ymm3
+> 	vmovdqa	%ymm2, %ymm5
+25733,25734c25735,25737
+< 	vgatherdps	%ymm5, 16(%rax,%ymm2,4), %ymm0
+< 	vmovaps	%ymm13, %ymm5
+---
+> 	vgatherdps	%ymm3, 16(%rax,%ymm2,4), %ymm0
+> 	vmovaps	%ymm13, %ymm2
+> 	vmovaps	%ymm13, %ymm3
+25744,25745c25747
+< 	vgatherdps	%ymm5, 20(%rax,%ymm2,4), %ymm0
+< 	vmovaps	%ymm13, %ymm5
+---
+> 	vgatherdps	%ymm2, 20(%rax,%ymm5,4), %ymm0
+25755c25757
+< 	vgatherdps	%ymm5, 24(%rax,%ymm2,4), %ymm0
+---
+> 	vgatherdps	%ymm3, 24(%rax,%ymm5,4), %ymm0
+25775a25778
+> 	vxorps	%xmm11, %xmm11, %xmm11
+25777d25779
+< 	vmovss	.LC83(%rip), %xmm14
+25797,25798c25799,25800
+< 	vmovss	4(%r10), %xmm11
+< 	vmovss	8(%r10), %xmm12
+---
+> 	vmovss	4(%r10), %xmm12
+> 	vmovss	8(%r10), %xmm13
+25801c25803,25805
+< 	vxorps	%xmm5, %xmm5, %xmm5
+---
+> 	vmovaps	%xmm11, %xmm5
+> 	vmovaps	%xmm11, %xmm7
+> 	vmovaps	%xmm11, %xmm8
+25803,25805c25807
+< 	vmovaps	%xmm5, %xmm7
+< 	vmovaps	%xmm5, %xmm8
+< 	vmovaps	%xmm5, %xmm6
+---
+> 	vmovaps	%xmm11, %xmm6
+25814,25815c25816,25817
+< 	je	.L2889
+< 	vsubss	%xmm2, %xmm11, %xmm2
+---
+> 	jne	.L2889
+> 	vsubss	%xmm2, %xmm12, %xmm2
+25817,25820c25819,25822
+< 	vsubss	%xmm1, %xmm12, %xmm1
+< 	vmulss	%xmm2, %xmm2, %xmm13
+< 	vmovaps	%xmm13, %xmm0
+< 	vmovaps	%xmm3, %xmm13
+---
+> 	vsubss	%xmm1, %xmm13, %xmm1
+> 	vmulss	%xmm2, %xmm2, %xmm14
+> 	vmovaps	%xmm14, %xmm0
+> 	vmovaps	%xmm3, %xmm14
+25822,25826c25824,25828
+< 	vfmadd132ss	%xmm3, %xmm15, %xmm13
+< 	vaddss	%xmm0, %xmm13, %xmm13
+< 	vrsqrtss	%xmm13, %xmm13, %xmm0
+< 	vmulss	%xmm13, %xmm0, %xmm13
+< 	vmulss	%xmm0, %xmm13, %xmm13
+---
+> 	vfmadd132ss	%xmm3, %xmm15, %xmm14
+> 	vaddss	%xmm0, %xmm14, %xmm14
+> 	vrsqrtss	%xmm14, %xmm14, %xmm0
+> 	vmulss	%xmm14, %xmm0, %xmm14
+> 	vmulss	%xmm0, %xmm14, %xmm14
+25828,25829c25830,25831
+< 	vaddss	%xmm14, %xmm13, %xmm13
+< 	vmulss	%xmm0, %xmm13, %xmm0
+---
+> 	vaddss	.LC83(%rip), %xmm14, %xmm14
+> 	vmulss	%xmm0, %xmm14, %xmm0
+25869,25872c25871,25874
+< 	vxorps	%xmm5, %xmm5, %xmm5
+< 	vmovaps	%xmm5, %xmm7
+< 	vmovaps	%xmm5, %xmm8
+< 	vmovaps	%xmm5, %xmm6
+---
+> 	vmovaps	%xmm11, %xmm5
+> 	vmovaps	%xmm11, %xmm7
+> 	vmovaps	%xmm11, %xmm8
+> 	vmovaps	%xmm11, %xmm6
+25990c25992
+< 	vcmpps	$12, %ymm4, %ymm0, %ymm4
+---
+> 	vcmpps	$0, %ymm4, %ymm0, %ymm4
+26118c26120
+< 	vcmpps	$12, %ymm4, %ymm14, %ymm4
+---
+> 	vcmpps	$0, %ymm4, %ymm14, %ymm4

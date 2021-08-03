@@ -32,9 +32,9 @@ namespace ParticleSimulator{
     //////////////////////////////////////////////////////////////
     //////////// Walk+Force, Kernel:Index, List:Index ////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceMultiWalkIndex(Tfunc_dispatch pfunc_dispatch,
                             Tfunc_retrieve pfunc_retrieve,
                             const S32 tag_max,
@@ -57,9 +57,9 @@ namespace ParticleSimulator{
 
     //////////// Walk+Force, Kernel:Index, List:Index, Force:Long //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceMultiWalkIndexImpl(TagForceLong,
                                 Tfunc_dispatch pfunc_dispatch,
                                 Tfunc_retrieve pfunc_retrieve,
@@ -87,7 +87,7 @@ namespace ParticleSimulator{
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         const S32 n_ipg = ipg_.size();
         if(n_ipg <= 0) return 0;
-        n_walk_local_ += n_ipg;
+        //n_walk_local_ += n_ipg;
         if(flag_keep_list){
             interaction_list_.n_ep_.resizeNoInitialize(n_ipg);
             interaction_list_.n_disp_ep_.resizeNoInitialize(n_ipg+1);
@@ -99,29 +99,32 @@ namespace ParticleSimulator{
         const S32 n_loop_max = n_ipg/n_walk_limit + ((n_ipg%n_walk_limit)==0 ? 0 : 1);
         ReallocatableArray<Tforce*> ptr_force_per_walk[2];
         ReallocatableArray<S32> n_epi_per_walk[2];
-        ReallocatableArray<Tepi*> ptr_epi_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32> n_epj_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32> n_spj_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32*> ptr_adr_epj_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32*> ptr_adr_spj_per_walk(n_walk_limit, n_walk_limit, 1);
+        ReallocatableArray<Tepi*> ptr_epi_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_epj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_spj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32*> ptr_adr_epj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32*> ptr_adr_spj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
         ReallocatableArray<S32> * n_epj_disp_per_thread;
         ReallocatableArray<S32> * n_spj_disp_per_thread;
-        ptr_force_per_walk[0].initialize(n_walk_limit, n_walk_limit, 1); // array of pointer *[n_walk]
-        ptr_force_per_walk[1].initialize(n_walk_limit, n_walk_limit, 1); // array of pointer *[n_walk]
-        n_epi_per_walk[0].initialize(n_walk_limit, n_walk_limit, 1);
-        n_epi_per_walk[1].initialize(n_walk_limit, n_walk_limit, 1);        
+        ptr_force_per_walk[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // array of pointer *[n_walk]
+        ptr_force_per_walk[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // array of pointer *[n_walk]
+        n_epi_per_walk[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        n_epi_per_walk[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
         n_epj_disp_per_thread = new ReallocatableArray<S32>[n_thread];
         n_spj_disp_per_thread = new ReallocatableArray<S32>[n_thread];
         for(int i=0; i<n_thread; i++){
-            n_epj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, 1);
-            n_spj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, 1);
+            n_epj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, MemoryAllocMode::Pool);
+            n_spj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, MemoryAllocMode::Pool);
         }
-        const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
-        const S32 adr_tree_sp_first = comm_table_.n_sp_recv_tot_;
+        //const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
+        //const S32 adr_tree_sp_first = comm_table_.n_sp_recv_tot_;
+        //const auto adr_tree_sp_first = spj_sorted_.size() - tc_glb_.size();
+        const auto adr_tree_sp_first = n_let_sp_;
         bool first_loop = true;
         S32 n_walk_prev = 0;
         S64 n_interaction_ep_ep_tmp = 0;
         S64 n_interaction_ep_sp_tmp = 0;
+	const auto len_peri = p_domain_info_->getLenRootDomain();
         if(n_ipg > 0){
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = n_ipg/n_loop_max + (((n_ipg%n_loop_max) > wg) ? 1 : 0);
@@ -134,7 +137,7 @@ namespace ParticleSimulator{
 #endif
                 {
                     const S32 ith = Comm::getThreadNum();
-                    ReallocatableArray<S32> iwloc2iw(n_walk_limit, n_walk_limit, 1);
+                    ReallocatableArray<S32> iwloc2iw(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
                     S32 n_walk_loc = 0;
                     S32 n_ep_cum = 0;
                     S32 n_sp_cum = 0;
@@ -158,14 +161,14 @@ namespace ParticleSimulator{
                         target_box.set(ipg_[id_ipg]);
                         S32 adr_tc = 0;
                         MakeListUsingTreeRecursiveTop
-                            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj, 
-                             Tspj, WALK_MODE_NORMAL, TagChopLeafTrue, TagCopyInfoCloseWithTpAdrptcl>
+                            <TSM, TreeCellGlb, TreeParticle, Tepj, 
+                             Tspj, TagChopLeafTrue, TagCopyInfoCloseWithTpAdrptcl, CALC_DISTANCE_TYPE>
                             (tc_glb_,  adr_tc, tp_glb_,
                              epj_sorted_, adr_epj_for_force_[ith],
                              spj_sorted_, adr_spj_for_force_[ith],
                              target_box,
-                             r_crit_sq, n_leaf_limit_,
-                             adr_tree_sp_first, F64vec(0.0));
+                             n_leaf_limit_,
+                             adr_tree_sp_first, len_peri, theta_);
                         n_epj_per_walk[iw] = adr_epj_for_force_[ith].size() - n_ep_cum;
                         n_spj_per_walk[iw] = adr_spj_for_force_[ith].size() - n_sp_cum;
                         n_ep_cum = adr_epj_for_force_[ith].size();
@@ -264,9 +267,9 @@ namespace ParticleSimulator{
     
     //////////// Walk+Force, Kernel:Index, List:Index, Force:Short //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceMultiWalkIndexImpl(TagForceShort,
                                 Tfunc_dispatch pfunc_dispatch,
                                 Tfunc_retrieve pfunc_retrieve,
@@ -291,7 +294,7 @@ namespace ParticleSimulator{
         const S32 n_ipg = ipg_.size();
         if(n_ipg <= 0) return 0;
         //const S32 n_ipg_amari = (n_ipg > 0) ? n_ipg%n_walk_limit : 0;
-        n_walk_local_ += n_ipg;
+        //n_walk_local_ += n_ipg;
         if(flag_keep_list){
             interaction_list_.n_ep_.resizeNoInitialize(n_ipg);
             interaction_list_.n_disp_ep_.resizeNoInitialize(n_ipg+1);
@@ -300,25 +303,25 @@ namespace ParticleSimulator{
         const S32 n_loop_max = n_ipg/n_walk_limit + ((n_ipg%n_walk_limit)==0 ? 0 : 1);
         ReallocatableArray<Tforce*> ptr_force_per_walk[2];
         ReallocatableArray<S32> n_epi_per_walk[2];
-        ReallocatableArray<Tepi*> epi_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32> n_epj_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32*> adr_epj_per_walk(n_walk_limit, n_walk_limit, 1);
+        ReallocatableArray<Tepi*> epi_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_epj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32*> adr_epj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
         ReallocatableArray<S32> * n_epj_disp_per_thread;
 
-        ptr_force_per_walk[0].initialize(n_walk_limit, n_walk_limit, 1); // array of pointer *[n_walk]
-        ptr_force_per_walk[1].initialize(n_walk_limit, n_walk_limit, 1); // array of pointer *[n_walk]
-        n_epi_per_walk[0].initialize(n_walk_limit, n_walk_limit, 1);
-        n_epi_per_walk[1].initialize(n_walk_limit, n_walk_limit, 1);        
+        ptr_force_per_walk[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // array of pointer *[n_walk]
+        ptr_force_per_walk[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // array of pointer *[n_walk]
+        n_epi_per_walk[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        n_epi_per_walk[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
         n_epj_disp_per_thread = new ReallocatableArray<S32>[n_thread];
         for(int i=0; i<n_thread; i++){
-            n_epj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, 1);
+            n_epj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, MemoryAllocMode::Pool);
         }
         
-        const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
+        //const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
         bool first_loop = true;
         S32 n_walk_prev = 0;
         S64 n_interaction_ep_ep_tmp = 0;
-
+	const auto len_peri = p_domain_info_->getLenRootDomain();
         if(n_ipg > 0){
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = n_ipg/n_loop_max + (((n_ipg%n_loop_max) > wg) ? 1 : 0);
@@ -331,7 +334,7 @@ namespace ParticleSimulator{
 #endif
                 {
                     const S32 ith = Comm::getThreadNum();
-                    ReallocatableArray<S32> iwloc2iw(n_walk_limit, n_walk_limit, 1);
+                    ReallocatableArray<S32> iwloc2iw(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
                     S32 n_walk_loc = 0;
                     S32 n_ep_cum = 0;
                     n_epj_disp_per_thread[ith][0] = 0;
@@ -353,13 +356,13 @@ namespace ParticleSimulator{
                         target_box.set(ipg_[id_ipg]);
                         S32 adr_tc = 0;
                         MakeListUsingTreeRecursiveTop
-                            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj,
-                             WALK_MODE_NORMAL, TagChopLeafTrue>
+                            <TSM, TreeCellGlb, TreeParticle, Tepj, TagChopLeafTrue, CALC_DISTANCE_TYPE>
                             (tc_glb_,  adr_tc, tp_glb_,
                              epj_sorted_, adr_epj_for_force_[ith],
                              target_box,
-                             r_crit_sq, n_leaf_limit_,
-                             F64vec(0.0));
+                             n_leaf_limit_,
+			     len_peri);
+                        
                         n_epj_per_walk[iw] = adr_epj_for_force_[ith].size() - n_ep_cum;
                         n_ep_cum = adr_epj_for_force_[ith].size();
                         n_epj_disp_per_thread[ith][n_walk_loc+1] = n_ep_cum;
@@ -438,9 +441,9 @@ namespace ParticleSimulator{
     //////////////////////////////////////////////////
     //////////// Walk+Force, Kernel:Ptcl, List:Index //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceMultiWalkPtcl(Tfunc_dispatch pfunc_dispatch,
                            Tfunc_retrieve pfunc_retrieve,
                            const S32 tag_max,
@@ -463,9 +466,9 @@ namespace ParticleSimulator{
 
     //////////// Walk+Force, Kernel:Ptcl, List:Index Force:Long //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceMultiWalkPtclImpl(TagForceLong,
                                Tfunc_dispatch pfunc_dispatch,
                                Tfunc_retrieve pfunc_retrieve,
@@ -480,7 +483,7 @@ namespace ParticleSimulator{
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         const S32 n_ipg = ipg_.size();
         if(n_ipg <= 0) return 0;
-        n_walk_local_ += n_ipg;
+        //n_walk_local_ += n_ipg;
         if(flag_keep_list){
             interaction_list_.n_ep_.resizeNoInitialize(n_ipg);
             interaction_list_.n_disp_ep_.resizeNoInitialize(n_ipg+1);
@@ -492,29 +495,32 @@ namespace ParticleSimulator{
         const S32 n_loop_max = n_ipg/n_walk_limit + ((n_ipg%n_walk_limit)==0 ? 0 : 1);
         ReallocatableArray<Tforce*> ptr_force_per_walk[2];
         ReallocatableArray<S32> n_epi_per_walk[2];
-        ReallocatableArray<Tepi*> ptr_epi_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32> n_epj_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32> n_spj_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<Tepj*> ptr_epj_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<Tspj*> ptr_spj_per_walk(n_walk_limit, n_walk_limit, 1);        
+        ReallocatableArray<Tepi*> ptr_epi_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_epj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_spj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tepj*> ptr_epj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tspj*> ptr_spj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
         ReallocatableArray<S32> * n_epj_disp_per_thread;
         ReallocatableArray<S32> * n_spj_disp_per_thread;
-        ptr_force_per_walk[0].initialize(n_walk_limit, n_walk_limit, 1); // array of pointer *[n_walk]
-        ptr_force_per_walk[1].initialize(n_walk_limit, n_walk_limit, 1); // array of pointer *[n_walk]
-        n_epi_per_walk[0].initialize(n_walk_limit, n_walk_limit, 1);
-        n_epi_per_walk[1].initialize(n_walk_limit, n_walk_limit, 1);        
+        ptr_force_per_walk[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // array of pointer *[n_walk]
+        ptr_force_per_walk[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // array of pointer *[n_walk]
+        n_epi_per_walk[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        n_epi_per_walk[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
         n_epj_disp_per_thread = new ReallocatableArray<S32>[n_thread];
         n_spj_disp_per_thread = new ReallocatableArray<S32>[n_thread];
         for(int i=0; i<n_thread; i++){
-            n_epj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, 1);
-            n_spj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, 1);
+            n_epj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, MemoryAllocMode::Pool);
+            n_spj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, MemoryAllocMode::Pool);
         }
-        const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
-        const S32 adr_tree_sp_first = comm_table_.n_sp_recv_tot_;
+        //const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
+        //const S32 adr_tree_sp_first = comm_table_.n_sp_recv_tot_;
+        //const auto adr_tree_sp_first = spj_sorted_.size() - tc_glb_.size();
+        const auto adr_tree_sp_first = n_let_sp_;
         bool first_loop = true;
         S32 n_walk_prev = 0;
         S64 n_interaction_ep_ep_tmp = 0;
         S64 n_interaction_ep_sp_tmp = 0;
+	const auto len_peri = p_domain_info_->getLenRootDomain();
         if(n_ipg > 0){
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = n_ipg/n_loop_max + (((n_ipg%n_loop_max) > wg) ? 1 : 0);
@@ -527,7 +533,7 @@ namespace ParticleSimulator{
 #endif
                 {
                     const S32 ith = Comm::getThreadNum();
-                    ReallocatableArray<S32> iwloc2iw(n_walk_limit, n_walk_limit, 1);
+                    ReallocatableArray<S32> iwloc2iw(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
                     S32 n_walk_loc = 0;
                     S32 n_ep_cum = 0;
                     S32 n_sp_cum = 0;
@@ -551,14 +557,13 @@ namespace ParticleSimulator{
                         target_box.set(ipg_[id_ipg]);
                         S32 adr_tc = 0;
                         MakeListUsingTreeRecursiveTop
-                            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj, 
-                             Tspj, WALK_MODE_NORMAL, TagChopLeafTrue, TagCopyInfoCloseWithTpAdrptcl>
+                            <TSM, TreeCellGlb, TreeParticle, Tepj, Tspj, TagChopLeafTrue, TagCopyInfoCloseWithTpAdrptcl, CALC_DISTANCE_TYPE>
                             (tc_glb_,  adr_tc, tp_glb_,
                              epj_sorted_, adr_epj_for_force_[ith],
                              spj_sorted_, adr_spj_for_force_[ith],
                              target_box,
-                             r_crit_sq, n_leaf_limit_,
-                             adr_tree_sp_first, F64vec(0.0));
+                             n_leaf_limit_,
+                             adr_tree_sp_first, len_peri, theta_);
                         n_epj_per_walk[iw] = adr_epj_for_force_[ith].size() - n_ep_cum;
                         n_spj_per_walk[iw] = adr_spj_for_force_[ith].size() - n_sp_cum;
                         n_ep_cum = adr_epj_for_force_[ith].size();
@@ -669,9 +674,9 @@ namespace ParticleSimulator{
     }
     //////////// Walk+Force, Kernel:Ptcl, List:Index Force:Short //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    S32 TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceMultiWalkPtclImpl(TagForceShort,
                                Tfunc_dispatch pfunc_dispatch,
                                Tfunc_retrieve pfunc_retrieve,
@@ -687,7 +692,7 @@ namespace ParticleSimulator{
         const S32 n_ipg = ipg_.size();
         if(n_ipg <= 0) return 0;
         const S32 n_ipg_amari = (n_ipg > 0) ? n_ipg%n_walk_limit : 0;
-        n_walk_local_ += n_ipg;
+        //n_walk_local_ += n_ipg;
         if(flag_keep_list){
             interaction_list_.n_ep_.resizeNoInitialize(n_ipg);
             interaction_list_.n_disp_ep_.resizeNoInitialize(n_ipg+1);
@@ -696,22 +701,23 @@ namespace ParticleSimulator{
         const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg_amari==0 ? 0 : 1);
         ReallocatableArray<Tforce*> ptr_force_per_walk[2];
         ReallocatableArray<S32> n_epi_per_walk[2];
-        ReallocatableArray<Tepi*> ptr_epi_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<S32> n_epj_per_walk(n_walk_limit, n_walk_limit, 1);
-        ReallocatableArray<Tepj*> ptr_epj_per_walk(n_walk_limit, n_walk_limit, 1); // new
+        ReallocatableArray<Tepi*> ptr_epi_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_epj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tepj*> ptr_epj_per_walk(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // new
         ReallocatableArray<S32> * n_epj_disp_per_thread;
-        ptr_force_per_walk[0].initialize(n_walk_limit, n_walk_limit, 1); // array of pointer *[n_walk]
-        ptr_force_per_walk[1].initialize(n_walk_limit, n_walk_limit, 1); // array of pointer *[n_walk]
-        n_epi_per_walk[0].initialize(n_walk_limit, n_walk_limit, 1);
-        n_epi_per_walk[1].initialize(n_walk_limit, n_walk_limit, 1);        
+        ptr_force_per_walk[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // array of pointer *[n_walk]
+        ptr_force_per_walk[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool); // array of pointer *[n_walk]
+        n_epi_per_walk[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        n_epi_per_walk[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
         n_epj_disp_per_thread = new ReallocatableArray<S32>[n_thread];
         for(int i=0; i<n_thread; i++){
-            n_epj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, 1);
+            n_epj_disp_per_thread[i].initialize(n_walk_limit+1, n_walk_limit+1, MemoryAllocMode::Pool);
         }
-        const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
+        //const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
         bool first_loop = true;
         S32 n_walk_prev = 0;
         S64 n_interaction_ep_ep_tmp = 0;
+	const auto len_peri = p_domain_info_->getLenRootDomain();
         if(n_ipg > 0){
             for(int wg=0; wg<n_loop_max; wg++){
                 const S32 n_walk = n_ipg/n_loop_max + (((n_ipg%n_loop_max) > wg) ? 1 : 0);
@@ -724,7 +730,7 @@ namespace ParticleSimulator{
 #endif
                 {
                     const S32 ith = Comm::getThreadNum();
-                    ReallocatableArray<S32> iwloc2iw(n_walk_limit, n_walk_limit, 1);
+                    ReallocatableArray<S32> iwloc2iw(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
                     S32 n_walk_loc = 0;
                     S32 n_ep_cum = 0;
                     n_epj_disp_per_thread[ith][0] = 0;
@@ -746,13 +752,12 @@ namespace ParticleSimulator{
                         target_box.set(ipg_[id_ipg]);
                         S32 adr_tc = 0;
                         MakeListUsingTreeRecursiveTop
-                            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj,
-                             WALK_MODE_NORMAL, TagChopLeafTrue>
+                            <TSM, TreeCellGlb, TreeParticle, Tepj, TagChopLeafTrue, CALC_DISTANCE_TYPE>
                             (tc_glb_,  adr_tc, tp_glb_,
                              epj_sorted_, adr_epj_for_force_[ith],
                              target_box,
-                             r_crit_sq, n_leaf_limit_,
-                             F64vec(0.0));
+                             n_leaf_limit_,
+                             len_peri);
                         n_epj_per_walk[iw] = adr_epj_for_force_[ith].size() - n_ep_cum;
                         n_ep_cum = adr_epj_for_force_[ith].size();
                         n_epj_disp_per_thread[ith][n_walk_loc+1] = n_ep_cum;
@@ -848,9 +853,9 @@ namespace ParticleSimulator{
 
     //////////// Force Only, Kernel:Index, List:Index, Force:Long //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+	     class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceNoWalkForMultiWalkIndexImpl(TagForceLong,
                                          Tfunc_dispatch pfunc_dispatch,
                                          Tfunc_retrieve pfunc_retrieve,
@@ -859,26 +864,19 @@ namespace ParticleSimulator{
         F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
-        static ReallocatableArray<Tepi*> epi_ar;
-        epi_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32>  n_epi_ar[2];
-        n_epi_ar[0].resizeNoInitialize(n_walk_limit);
-        n_epi_ar[1].resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<Tforce*> force_ar[2];
-        force_ar[0].resizeNoInitialize(n_walk_limit);
-        force_ar[1].resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32> n_epj_ar;
-        n_epj_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32*> id_epj_ar;
-        id_epj_ar.resizeNoInitialize(n_walk_limit);
-
-        static ReallocatableArray<S32> n_spj_ar;
-        n_spj_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32*> id_spj_ar;
-        id_spj_ar.resizeNoInitialize(n_walk_limit);
-
+        ReallocatableArray<Tepi*> epi_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32>  n_epi_ar[2];
+        n_epi_ar[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        n_epi_ar[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tforce*> force_ar[2];
+        force_ar[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        force_ar[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_epj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32*> id_epj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_spj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool );
+        ReallocatableArray<S32*> id_spj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        
         force_sorted_.resizeNoInitialize(n_loc_tot_);
-        //force_org_.resizeNoInitialize(n_loc_tot_);
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
@@ -903,10 +901,9 @@ namespace ParticleSimulator{
         const S64 n_ipg = ipg_.size();
         if(n_ipg <= 0) return;
         const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg%n_walk_limit==0 ? 0 : 1);
-        static std::vector<S32> n_walk_ar;
-        n_walk_ar.resize(n_loop_max); // group of walk (n_walk_ar[i] < n_walk_limit)
-        static std::vector<S32> n_disp_walk_ar;
-        n_disp_walk_ar.resize(n_loop_max+1);
+        ReallocatableArray<S32> n_walk_ar(n_loop_max, n_loop_max, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_disp_walk_ar(n_loop_max+1, n_loop_max+1, MemoryAllocMode::Pool);
+        
         n_disp_walk_ar[0] = 0;
         for(int wg=0; wg<n_ipg%n_loop_max; wg++){
             n_walk_ar[wg] = n_ipg / n_loop_max + 1;
@@ -964,9 +961,9 @@ namespace ParticleSimulator{
 
     //////////// Force Only, Kernel:Index, List:Index, Force:Short //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+	     class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceNoWalkForMultiWalkIndexImpl(TagForceShort,
                                          Tfunc_dispatch pfunc_dispatch,
                                          Tfunc_retrieve pfunc_retrieve,
@@ -975,29 +972,23 @@ namespace ParticleSimulator{
         F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
-        static ReallocatableArray<Tepi*> epi_ar;
-        epi_ar.resizeNoInitialize(n_walk_limit);
-        // overlape version
-        static ReallocatableArray<S32>  n_epi_ar[2];
-        n_epi_ar[0].resizeNoInitialize(n_walk_limit);
-        n_epi_ar[1].resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<Tforce*> force_ar[2];
-        force_ar[0].resizeNoInitialize(n_walk_limit);
-        force_ar[1].resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32> n_epj_ar;
-        n_epj_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32*> id_epj_ar;
-        id_epj_ar.resizeNoInitialize(n_walk_limit);
-
+        ReallocatableArray<Tepi*> epi_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32>  n_epi_ar[2];
+        n_epi_ar[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        n_epi_ar[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tforce*> force_ar[2];
+        force_ar[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        force_ar[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_epj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32*> id_epj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        
         force_sorted_.resizeNoInitialize(n_loc_tot_);
-        //force_org_.resizeNoInitialize(n_loc_tot_);
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
 #endif
             for(S32 i=0; i<n_loc_tot_; i++){
                 force_sorted_[i].clear();
-                //force_org_[i].clear();
             }
         }
         Tepi ** epi_dummy = NULL;
@@ -1012,10 +1003,8 @@ namespace ParticleSimulator{
         const S64 n_ipg = ipg_.size();
         if(n_ipg <= 0) return;
         const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg%n_walk_limit==0 ? 0 : 1);
-        static std::vector<S32> n_walk_ar;
-        n_walk_ar.resize(n_loop_max); // group of walk (n_walk_ar[i] < n_walk_limit)
-        static std::vector<S32> n_disp_walk_ar;
-        n_disp_walk_ar.resize(n_loop_max+1);
+        ReallocatableArray<S32> n_walk_ar(n_loop_max, n_loop_max, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_disp_walk_ar(n_loop_max+1, n_loop_max+1, MemoryAllocMode::Pool);
         n_disp_walk_ar[0] = 0;
         for(int wg=0; wg<n_ipg%n_loop_max; wg++){
             n_walk_ar[wg] = n_ipg / n_loop_max + 1;
@@ -1071,9 +1060,9 @@ namespace ParticleSimulator{
 
     //////////// Force Only, Kernel:Ptcl, List:Index, Force:Long //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+	     class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceNoWalkForMultiWalkPtclImpl(TagForceLong,
                                         Tfunc_dispatch pfunc_dispatch,
                                         Tfunc_retrieve pfunc_retrieve,
@@ -1083,27 +1072,19 @@ namespace ParticleSimulator{
         //F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
-        static ReallocatableArray<Tepi*> epi_ar;
-        epi_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32>  n_epi_ar[2];
-        n_epi_ar[0].resizeNoInitialize(n_walk_limit);
-        n_epi_ar[1].resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<Tforce*> force_ar[2];
-        force_ar[0].resizeNoInitialize(n_walk_limit);
-        force_ar[1].resizeNoInitialize(n_walk_limit);
+        ReallocatableArray<Tepi*> epi_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool) ;
+        ReallocatableArray<S32>  n_epi_ar[2];
+        n_epi_ar[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        n_epi_ar[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tforce*> force_ar[2];
+        force_ar[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        force_ar[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_epj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tepj*> epj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_spj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tspj*> spj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
         
-        static ReallocatableArray<S32> n_epj_ar;
-        n_epj_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<Tepj*> epj_ar;
-        epj_ar.resizeNoInitialize(n_walk_limit);
-
-        static ReallocatableArray<S32> n_spj_ar;
-        n_spj_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<Tspj*> spj_ar;
-        spj_ar.resizeNoInitialize(n_walk_limit);
-
         force_sorted_.resizeNoInitialize(n_loc_tot_);
-        //force_org_.resizeNoInitialize(n_loc_tot_);
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
@@ -1116,10 +1097,8 @@ namespace ParticleSimulator{
         const S64 n_ipg = ipg_.size();
         if(n_ipg <= 0) return;
         const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg%n_walk_limit==0 ? 0 : 1);
-        static std::vector<S32> n_walk_ar;
-        n_walk_ar.resize(n_loop_max); // group of walk (n_walk_ar[i] < n_walk_limit)
-        static std::vector<S32> n_disp_walk_ar;
-        n_disp_walk_ar.resize(n_loop_max+1);
+        ReallocatableArray<S32> n_walk_ar(n_loop_max, n_loop_max, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_disp_walk_ar(n_loop_max+1, n_loop_max+1, MemoryAllocMode::Pool);        
         n_disp_walk_ar[0] = 0;
         for(int wg=0; wg<n_ipg%n_loop_max; wg++){
             n_walk_ar[wg] = n_ipg / n_loop_max + 1;
@@ -1191,9 +1170,9 @@ namespace ParticleSimulator{
 
     //////////// Force Only, Kernel:Ptcl, List:Index, Force:Short //////////////
     template<class TSM, class Tforce, class Tepi, class Tepj,
-	     class Tmomloc, class Tmomglb, class Tspj>
+	     class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_dispatch, class Tfunc_retrieve>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceNoWalkForMultiWalkPtclImpl(TagForceShort,
                                         Tfunc_dispatch pfunc_dispatch,
                                         Tfunc_retrieve pfunc_retrieve,
@@ -1202,21 +1181,17 @@ namespace ParticleSimulator{
         F64 time_offset = GetWtime();
         S32 ret = 0;
         S32 tag = 0;
-        static ReallocatableArray<Tepi*> epi_ar;
-        epi_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32>  n_epi_ar[2];
-        n_epi_ar[0].resizeNoInitialize(n_walk_limit);
-        n_epi_ar[1].resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<Tforce*> force_ar[2];
-        force_ar[0].resizeNoInitialize(n_walk_limit);
-        force_ar[1].resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<S32> n_epj_ar;
-        n_epj_ar.resizeNoInitialize(n_walk_limit);
-        static ReallocatableArray<Tepj*> epj_ar;
-        epj_ar.resizeNoInitialize(n_walk_limit);
-
+        ReallocatableArray<Tepi*> epi_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32>  n_epi_ar[2];
+        n_epi_ar[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        n_epi_ar[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tforce*> force_ar[2];
+        force_ar[0].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        force_ar[1].initialize(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_epj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        ReallocatableArray<Tepj*> epj_ar(n_walk_limit, n_walk_limit, MemoryAllocMode::Pool);
+        
         force_sorted_.resizeNoInitialize(n_loc_tot_);
-        //force_org_.resizeNoInitialize(n_loc_tot_);
         if(clear){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for
@@ -1229,10 +1204,8 @@ namespace ParticleSimulator{
         const S64 n_ipg = ipg_.size();
         if(n_ipg <= 0) return;
         const S32 n_loop_max = n_ipg/n_walk_limit + (n_ipg%n_walk_limit==0 ? 0 : 1);
-        static std::vector<S32> n_walk_ar;
-        n_walk_ar.resize(n_loop_max); // group of walk (n_walk_ar[i] < n_walk_limit)
-        static std::vector<S32> n_disp_walk_ar;
-        n_disp_walk_ar.resize(n_loop_max+1);
+        ReallocatableArray<S32> n_walk_ar(n_loop_max, n_loop_max, MemoryAllocMode::Pool);
+        ReallocatableArray<S32> n_disp_walk_ar(n_loop_max+1, n_loop_max+1, MemoryAllocMode::Pool);
         n_disp_walk_ar[0] = 0;
         for(int wg=0; wg<n_ipg%n_loop_max; wg++){
             n_walk_ar[wg] = n_ipg / n_loop_max + 1;
@@ -1295,15 +1268,15 @@ namespace ParticleSimulator{
     //////////// Walk+Force, Kernel:Ptcl, List:  ////////////    
     // SHORT
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_ep_ep>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForce(Tfunc_ep_ep pfunc_ep_ep,
               const bool clear){
         F64 time_offset = GetWtime();
         force_sorted_.resizeNoInitialize(n_loc_tot_);
         const S64 n_ipg = ipg_.size();
-        n_walk_local_ += n_ipg;
+        //n_walk_local_ += n_ipg;
         S64 ni_tmp = 0;
         S64 nj_tmp = 0;
         S64 n_interaction_ep_ep_tmp = 0;
@@ -1349,9 +1322,9 @@ namespace ParticleSimulator{
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_ep_ep>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceOnly(Tfunc_ep_ep pfunc_ep_ep,
                   const S32 adr_ipg,
                   const bool clear){
@@ -1366,56 +1339,175 @@ namespace ParticleSimulator{
         pfunc_ep_ep(epi_sorted_.getPointer(offset),     n_epi,
                     epj_for_force_[ith].getPointer(),   n_epj,
                     force_sorted_.getPointer(offset));
+#if 0
+        // for debug
+        if (n_epj == 510418) {
+            const F64vec lo = ipg_[adr_ipg].vertex_out_.low_;
+            const F64vec hi = ipg_[adr_ipg].vertex_out_.high_;
+            std::cout << "ipg_[adr_ipg].vertex_out_ : " << std::endl;
+            std::cout << lo.x << "   " << lo.y << "   " << lo.z << std::endl;
+            std::cout << hi.x << "   " << lo.y << "   " << lo.z << std::endl;
+            std::cout << lo.x << "   " << hi.y << "   " << lo.z << std::endl;
+            std::cout << hi.x << "   " << hi.y << "   " << lo.z << std::endl;
+            std::cout << lo.x << "   " << lo.y << "   " << hi.z << std::endl;
+            std::cout << hi.x << "   " << lo.y << "   " << hi.z << std::endl;
+            std::cout << lo.x << "   " << hi.y << "   " << hi.z << std::endl;
+            std::cout << hi.x << "   " << hi.y << "   " << hi.z << std::endl;
+            std::cout << "epi[].pos : " << std::endl;
+            for (S32 i = 0; i < n_epi; i++) {
+                const Tepi * epi = epi_sorted_.getPointer(offset + i);
+                const F64vec pos = epi->getPos();
+                const F64 r_phy = epi->getRPhysical();
+                const F64 r_srch = epi->getRSearch();
+                std::cout << pos.x << "   "
+                          << pos.y << "   "
+                          << pos.z << "   "
+                          << r_phy << "   "
+                          << r_srch << "   "
+                          << std::endl;
+            }
+        }
+#endif
     }
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     makeInteractionListImpl(TagForceShort, const S32 adr_ipg, const bool clear){
         const S32 ith = Comm::getThreadNum();
         if (clear){
             epj_for_force_[ith].clearSize();
         }
-        const F64 r_crit_sq = 9999.9;
+        //const F64 r_crit_sq = 9999.9;
         TargetBox<TSM> target_box;
         target_box.set(ipg_[adr_ipg]);
         S32 adr_tc = 0;
         S32 n_head = adr_epj_for_force_[ith].size();
+	const auto len_peri = p_domain_info_->getLenRootDomain();
         MakeListUsingTreeRecursiveTop
-            <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj, WALK_MODE_NORMAL, TagChopLeafTrue>
+            <TSM, TreeCellGlb, TreeParticle, Tepj, TagChopLeafTrue, CALC_DISTANCE_TYPE>
             (tc_glb_,  adr_tc, tp_glb_,
              epj_sorted_, adr_epj_for_force_[ith],
              target_box,
-             r_crit_sq, n_leaf_limit_,
-             F64vec(0.0));
+             n_leaf_limit_,
+             len_peri);
         S32 n_tail = adr_epj_for_force_[ith].size();
         CopyPjForForceST(adr_epj_for_force_[ith], epj_sorted_, n_head, n_tail, epj_for_force_[ith]);
     }
 
-
+    //////////
     ///// LONG
-
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_ep_ep, class Tfunc_ep_sp>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForce(Tfunc_ep_ep pfunc_ep_ep,
               Tfunc_ep_sp pfunc_ep_sp,
               const bool clear){
         const F64 time_offset = GetWtime();
         force_sorted_.resizeNoInitialize(n_loc_tot_);
-        const S64 n_ipg = ipg_.size();
-        n_walk_local_ += n_ipg;
+        const S32 n_ipg = ipg_.size();
         S64 ni_tmp = 0;
         S64 nj_tmp = 0;
         S64 n_interaction_ep_ep_tmp = 0;
         S64 n_interaction_ep_sp_tmp = 0;
         for(S32 i=0; i<Comm::getNumberOfThread(); i++) n_cell_open_[i] = 0;
         if(n_ipg > 0){
+#ifdef LOOP_TREE
+            const auto n_thread = Comm::getNumberOfThread();
+            //std::cerr<<"n_thread= "<<n_thread<<std::endl;
+            const F64 inv_theta_sq = 1.0 / (theta_*theta_);
+            constexpr S32 size_vec_limit = SIMD_VEC_LEN*2;
+            ReallocatableArray<S32> adr_epj[N_THREAD_LIMIT][size_vec_limit];
+            ReallocatableArray<S32> adr_spj[N_THREAD_LIMIT][size_vec_limit];
+            for(S32 i=0; i<n_thread; i++){
+                for(S32 j=0; j<size_vec_limit; j++){
+                    adr_epj[i][j].reserve(100000);
+                    adr_spj[i][j].reserve(100000);
+                }
+            }
+            TargetBox<TSM> target_box[N_THREAD_LIMIT][size_vec_limit];
+            S32 n_epj[N_THREAD_LIMIT][size_vec_limit];
+            S32 n_spj[N_THREAD_LIMIT][size_vec_limit];
+            S32 n_disp_epj[N_THREAD_LIMIT][size_vec_limit+1];
+            S32 n_disp_spj[N_THREAD_LIMIT][size_vec_limit+1];
+            const S32 adr_tree_sp_first = n_let_sp_;
+            const S32 n_n_ipg = ((n_ipg-1) / size_vec_limit)+1;
+            //std::cerr<<"n_ipg= "<<n_ipg<<" n_n_ipg= "<<n_n_ipg<<std::endl;
+#pragma omp parallel for schedule(dynamic, 4) reduction(+ : n_interaction_ep_ep_tmp, n_interaction_ep_sp_tmp)
+            for(S32 i=0; i<n_n_ipg; i++){
+                const S32 ith = Comm::getThreadNum();
+                const S32 ipg_head = i*size_vec_limit;
+                const S32 size_vec = std::min( (n_ipg-ipg_head), size_vec_limit);
+                const S32 ipg_end  = ipg_head + size_vec;
+                //std::cerr<<"ith= "<<ith<<" size_vec= "<<size_vec<<" ipg_head= "<<ipg_head<<std::endl;
+                for(S32 j=0; j<size_vec; j++){
+                    const S32 adr_ipg = ipg_head + j;
+                    target_box[ith][j].set(ipg_[adr_ipg]);
+                    adr_epj[ith][j].clearSize();
+                    adr_spj[ith][j].clearSize();
+                    //if(ith==0){
+                    //std::cerr<<"check A"<<std::endl;
+                    //std::cerr<<"adr_epj[ith][j].size()= "<<adr_epj[ith][j].size()<<std::endl;
+                    //std::cerr<<"adr_spj[ith][j].size()= "<<adr_spj[ith][j].size()<<std::endl;
+                        //}
+                }
+                MakeListUsingTreeLoop(tc_glb_, tp_glb_, target_box[ith], adr_epj[ith], adr_spj[ith], size_vec, n_leaf_limit_, adr_tree_sp_first, inv_theta_sq);
+                for(S32 j=0; j<size_vec; j++){
+                    //if(ith==0){
+                    //std::cerr<<"check B"<<std::endl;
+                    //std::cerr<<"adr_epj[ith][j].size()= "<<adr_epj[ith][j].size()<<std::endl;
+                    //std::cerr<<"adr_spj[ith][j].size()= "<<adr_spj[ith][j].size()<<std::endl;
+                        //}
+                    const S32 ith = Comm::getThreadNum();
+                    const S32 n_epj_head = 0;
+                    const S32 n_epj_tail = adr_epj[ith][j].size();
+                    const S32 n_epj = n_epj_tail - n_epj_head;
+                    const S32 n_spj_head = 0;
+                    const S32 n_spj_tail = adr_spj[ith][j].size();
+                    const S32 n_spj = n_spj_tail - n_spj_head;
+                    const S32 adr_ipg = ipg_head + j;
+                    n_interaction_ep_ep_tmp += ipg_[adr_ipg].n_ptcl_ * n_epj;
+                    n_interaction_ep_sp_tmp += ipg_[adr_ipg].n_ptcl_ * n_spj;
+                    epj_for_force_[ith].resizeNoInitialize(n_epj);
+                    spj_for_force_[ith].resizeNoInitialize(n_spj);
+                    CopyPjForForceST(adr_epj[ith][j], epj_sorted_, n_epj_head, n_epj_tail, epj_for_force_[ith]);
+                    CopyPjForForceST(adr_spj[ith][j], spj_sorted_, tc_glb_, adr_tree_sp_first, n_spj_head, n_spj_tail, spj_for_force_[ith]);
+                    F64 cm_mass = 0.0;
+                    for(auto j=0; j<n_epj; j++){
+                        cm_mass += epj_for_force_[ith][j].getCharge();
+                    }
+                    for(auto j=0; j<n_spj; j++){
+                        cm_mass += spj_for_force_[ith][j].getCharge();
+                    }
+                    assert(cm_mass == 1.0);
+                    //std::cerr<<"cm_mass= "<<cm_mass<<std::endl;
+                    const S32 offset = ipg_[adr_ipg].adr_ptcl_;
+                    const S32 n_epi = ipg_[adr_ipg].n_ptcl_;
+                    if(clear){
+                        for(S32 i=offset; i<offset+n_epi; i++) force_sorted_[i].clear();
+                    }
+                    pfunc_ep_ep(epi_sorted_.getPointer(offset),     n_epi,
+                                epj_for_force_[ith].getPointer(),   n_epj,
+                                force_sorted_.getPointer(offset));
+                    pfunc_ep_sp(epi_sorted_.getPointer(offset),     n_epi,
+                                spj_for_force_[ith].getPointer(),   n_spj,
+                                force_sorted_.getPointer(offset));
+                }
+            }
+            //sleep(1);
+            //Abort();
+            n_interaction_ep_ep_ = n_interaction_ep_ep_tmp;
+            n_interaction_ep_sp_ = n_interaction_ep_sp_tmp;
+            n_interaction_ep_ep_local_ += n_interaction_ep_ep_tmp;
+            n_interaction_ep_sp_local_ += n_interaction_ep_sp_tmp;
+            for(S32 i=1; i<Comm::getNumberOfThread(); i++) n_cell_open_[0] += n_cell_open_[i];
+#else
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp, n_interaction_ep_sp_tmp)
 #endif
             for(S32 i=0; i<n_ipg; i++){
+                //std::cerr<<"i= "<<i<<" n_ipg= "<<n_ipg<<std::endl;
                 const S32 ith = Comm::getThreadNum();
                 epj_for_force_[ith].clearSize();
                 spj_for_force_[ith].clearSize();                
@@ -1436,12 +1528,12 @@ namespace ParticleSimulator{
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_tmp;
             n_interaction_ep_sp_local_ += n_interaction_ep_sp_tmp;
             for(S32 i=1; i<Comm::getNumberOfThread(); i++) n_cell_open_[0] += n_cell_open_[i];
+#endif
         }
         else{
             ni_ave_ = nj_ave_ = n_interaction_ep_ep_ = n_interaction_ep_sp_ = 0;
             n_interaction_ep_ep_local_ = n_interaction_ep_sp_local_ = 0;
         }
-        //PROFILE::Stop(profile.calc_force);
         copyForceOriginalOrder();
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
@@ -1450,11 +1542,11 @@ namespace ParticleSimulator{
 #endif
         time_profile_.calc_force += GetWtime() - time_offset;
     }
-    
+
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_ep_ep, class Tfunc_ep_sp>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceOnly(Tfunc_ep_ep pfunc_ep_ep,
                   Tfunc_ep_sp pfunc_ep_sp,
                   const S32 adr_ipg,
@@ -1475,10 +1567,12 @@ namespace ParticleSimulator{
                     spj_for_force_[ith].getPointer(),   n_spj,
                     force_sorted_.getPointer(offset));
     }
+
+
     
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     makeInteractionListImpl(TagForceLong,
                             const S32 adr_ipg,
                             const bool clear){
@@ -1490,37 +1584,37 @@ namespace ParticleSimulator{
             adr_spj_for_force_[ith].clearSize();
         }
         if (theta_ > 0.0){
-            const F64 r_crit_sq = (length_ * length_) / (theta_ * theta_);
-            S32 adr_tree_sp_first = spj_sorted_.size() - tc_glb_.size();
+            //S32 adr_tree_sp_first = spj_sorted_.size() - tc_glb_.size();
+            const auto adr_tree_sp_first = n_let_sp_;
             S32 adr_tc = 0;
             TargetBox<TSM> target_box;
             target_box.set(ipg_[adr_ipg]);
             S32 n_epj_head = adr_epj_for_force_[ith].size();
             S32 n_spj_head = adr_spj_for_force_[ith].size();
+	    const auto len_peri = p_domain_info_->getLenRootDomain();
             MakeListUsingTreeRecursiveTop
-                <TSM, TreeCell<Tmomglb>, TreeParticle, Tepj, Tspj,
-                 WALK_MODE_NORMAL, TagChopLeafTrue, TagCopyInfoCloseWithTpAdrptcl>
+                <TSM, TreeCellGlb, TreeParticle, Tepj, Tspj, TagChopLeafTrue,
+                 TagCopyInfoCloseWithTpAdrptcl, CALC_DISTANCE_TYPE>
                 (tc_glb_,  adr_tc, tp_glb_,
                  epj_sorted_, adr_epj_for_force_[ith],
                  spj_sorted_, adr_spj_for_force_[ith],
                  target_box,
-                 r_crit_sq, n_leaf_limit_,
-                 adr_tree_sp_first, F64vec(0.0));
+                 n_leaf_limit_,
+                 adr_tree_sp_first, len_peri, theta_);
             S32 n_epj_tail = adr_epj_for_force_[ith].size();
             S32 n_spj_tail = adr_spj_for_force_[ith].size();
             CopyPjForForceST(adr_epj_for_force_[ith], epj_sorted_, n_epj_head, n_epj_tail, epj_for_force_[ith]);
-            CopyPjForForceST(adr_spj_for_force_[ith], spj_sorted_, n_spj_head, n_spj_tail, spj_for_force_[ith]);
+            CopyPjForForceST(adr_spj_for_force_[ith], spj_sorted_, tc_glb_, n_let_sp_, n_spj_head, n_spj_tail, spj_for_force_[ith]);
         } else {
-            // theta_ = 0 case
             makeInteractionListLongForZeroTheta(typename TraitsForCutoff<typename TSM::search_type>::type_cutoff(), adr_ipg);
         }
     }
 
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_ep_ep>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceNoWalk(Tfunc_ep_ep pfunc_ep_ep,
                     const bool clear){
         F64 time_offset = GetWtime();
@@ -1566,9 +1660,9 @@ namespace ParticleSimulator{
 
     
     template<class TSM, class Tforce, class Tepi, class Tepj,
-             class Tmomloc, class Tmomglb, class Tspj>
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tfunc_ep_ep, class Tfunc_ep_sp>
-    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj>::
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     calcForceNoWalk(Tfunc_ep_ep pfunc_ep_ep,
                     Tfunc_ep_sp pfunc_ep_sp,
                     const bool clear){
@@ -1612,10 +1706,23 @@ namespace ParticleSimulator{
                             epj_for_force_[ith].getPointer(),   n_epj,
                             force_sorted_.getPointer(adr_epi_head));
                 S32 n_sp_cnt = 0;
+#if 0
+                // must use this combinig with AddMomentAsSpImpl()
                 for(S32 j=adr_spj_head; j<adr_spj_end; j++, n_sp_cnt++){
                     const S32 adr_spj = interaction_list_.adr_sp_[j];
                     spj_for_force_[ith][n_sp_cnt] = spj_sorted_[adr_spj];
                 }
+#else
+                for(S32 j=adr_spj_head; j<adr_spj_end; j++, n_sp_cnt++){
+                    const S32 adr_spj = interaction_list_.adr_sp_[j];
+                    if(adr_spj < n_let_sp_){
+                        spj_for_force_[ith][n_sp_cnt] = spj_sorted_[adr_spj];
+                    }
+                    else{
+                        spj_for_force_[ith][n_sp_cnt].copyFromMoment(tc_glb_[adr_spj-n_let_sp_].mom_);
+                    }
+                }
+#endif
                 pfunc_ep_sp(epi_sorted_.getPointer(adr_epi_head),     n_epi,
                             spj_for_force_[ith].getPointer(),   n_spj,
                             force_sorted_.getPointer(adr_epi_head));
@@ -1627,6 +1734,13 @@ namespace ParticleSimulator{
         time_profile_.calc_force += GetWtime() - time_offset;
     }
     
+
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
+    makeInteractionList(const S32 adr_ipg, const bool clear){
+        makeInteractionListImpl(typename TSM::force_type(), adr_ipg, clear);
+    }
     
 }
 

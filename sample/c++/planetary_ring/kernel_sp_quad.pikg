@@ -1,0 +1,22 @@
+F32 eps2
+
+rij = EPI.pos - EPJ.pos
+r2  = rij * rij + eps2
+tr  = EPJ.quad_xx + EPJ.quad_yy + EPJ.quad_zz
+qr.x = EPJ.quad_xx * rij.x + EPJ.quad_xy * rij.y + EPJ.quad_xz * rij.z
+qr.y = EPJ.quad_yy * rij.y + EPJ.quad_yz * rij.z + EPJ.quad_xy * rij.x
+qr.z = EPJ.quad_zz * rij.z + EPJ.quad_xz * rij.x + EPJ.quad_yz * rij.y
+
+qrr = qr * rij
+
+r_inv  = rsqrt(r2)
+r2_inv  = r_inv  * r_inv
+r3_inv  = r2_inv * r_inv
+r5_inv  = r2_inv * r3_inv * 1.5f
+qrr_r5  = r5_inv * qrr
+qrr_r7  = r2_inv * qrr_r5
+A = EPJ.mass * r3_inv - tr*r5_inv + 5.0f*qrr_r7
+B = -2.0f * r5_inv
+
+FORCE.acc -= A*rij + B*qr
+FORCE.pot -= 0.5f * (EPJ.mass*r_inv - 0.5f*tr*r3_inv + qrr_r5)

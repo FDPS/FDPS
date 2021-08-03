@@ -8,3 +8,16 @@ See kernel_orig.hpp which is the hand-written source code of interaction kernel 
 # how to compile and run
 make
 ./nbody.out
+
+# for AVX2 mode
+use_avx2=yes make
+./nbody.out
+# for AVX-512 mode
+use_avx512=yes make
+./nbody.out
+# for ARM SVE mode
+use_arm_sve=yes make
+./nbody.out
+# for CUDA mode
+use_cuda=yes make
+./nbody.out

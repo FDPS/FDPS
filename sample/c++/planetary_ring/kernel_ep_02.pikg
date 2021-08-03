@@ -1,0 +1,29 @@
+F32 eps2
+F32 kappa
+F32 eta
+
+acc_sprg_tmp.x = 0.0f
+acc_sprg_tmp.y = 0.0f
+acc_sprg_tmp.z = 0.0f
+acc_dash_tmp.x = 0.0f
+acc_dash_tmp.y = 0.0f
+acc_dash_tmp.z = 0.0f
+pot_sprg_tmp = 0.0f
+pot_grav_tmp = 0.0f
+
+rij = EPI.pos - EPJ.pos
+if  rij.x != 0.0f && rij.y != 0.0f && rij.z != 0.0f
+    r_real_sq = (rij * rij) + 0.001f
+    over_r_real    = rsqrt(r_real_sq)
+    over_r_real_sq = over_r_real * over_r_real
+    m_over_r_real = EPJ.mass * over_r_real
+    acc_grav_tmp = m_over_r_real * over_r_real_sq * rij
+    pot_grav_tmp = -0.5f * m_over_r_real
+endif
+
+FORCE.acc      += acc_grav_tmp + acc_sprg_tmp + acc_dash_tmp
+FORCE.acc_dash += acc_dash_tmp
+FORCE.pot      += pot_grav_tmp + pot_sprg_tmp
+
+
+

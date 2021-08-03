@@ -1,0 +1,8 @@
+dr = EPI.pos - EPJ.pos
+r2 = dr * dr
+if r2 < 1.0f
+  if EPI.id != EPJ.id
+    FORCE.r2min = min(r2,FORCE.r2min)
+    FORCE.count += 1
+  endif
+endif

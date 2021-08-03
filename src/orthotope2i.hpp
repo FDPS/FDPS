@@ -31,6 +31,15 @@ namespace ParticleSimulator{
             high_ = -low_;
         }
 
+        unsigned int isNotValid() const {
+            return (this->high_.x < this->low_.x)
+                || (this->high_.y < this->low_.y);
+        }
+
+        unsigned int isValid() const {
+            return isNotValid() ^ 0x1;
+        }
+
         Orthotope2i shift(const Vector2<T> & vec) const {
             return Orthotope2i(low_ + vec, high_ + vec);
         }
@@ -54,6 +63,49 @@ namespace ParticleSimulator{
             this->high_.y = ( this->high_.y > vec.y + size ) ? this->high_.y : vec.y + size;
             this->low_.x = ( this->low_.x <= vec.x - size) ? this->low_.x : vec.x - size;
             this->low_.y = ( this->low_.y <= vec.y - size) ? this->low_.y : vec.y - size;
+        }
+
+        unsigned int isNotContainedBy(const Orthotope2i & a) const {
+            const Vector2<T> a_high = a.high_;
+            const Vector2<T> a_low = a.low_;
+            const Vector2<T> b_high = this->high_;
+            const Vector2<T> b_low = this->low_;
+            return (b_low.x < a_low.x) || (a_high.x < b_high.x)
+                || (b_low.y < a_low.y) || (a_high.y < b_high.y);
+        }
+
+        unsigned int isContainedBy(const Orthotope2i & a) const {
+            if (a.isValid()) return isNotContainedBy(a) ^ 0x1;
+            else return 0;
+            // The result is the same as that of the following code:
+            //return (a_low.x <= b_low.x) && (b_high.x <= a_high.x)
+            //    && (a_low.y <= b_low.y) && (b_high.y <= a_high.y);
+        }
+
+        unsigned int doesNotContain(const Vector2<T> & pos) const {
+            return (pos.x < this->low_.x) || (this->high_.x < pos.x)
+                || (pos.y < this->low_.y) || (this->high_.y < pos.y);
+        }
+
+        unsigned int contains(const Vector2<T> & pos) const {
+            return doesNotContain(pos) ^ 0x1;
+            // The result is the same as that of the following code:
+            //return (this->low_.x <= pos.x) && (pos.x <= this->high_.x)
+            //    && (this->low_.y <= pos.y) && (pos.y <= this->high_.y);
+            // Note that it differs from orthotope2.hpp.
+        }
+
+        unsigned int doesNotContain(const Orthotope2i & a) const {
+            return (a.low_.x < this->low_.x) || (this->high_.x < a.high_.x)
+                || (a.low_.y < this->low_.y) || (this->high_.y < a.high_.y);
+        }
+
+        unsigned int contains(const Orthotope2i & a) const {
+            if (a.isValid()) return doesNotContain(a) ^ 0x1;
+            else return 0;
+            // The result is the same as that of the following code:
+            //return (this->low_.x <= a.low_.x) && (a.high_.x <= this->high_.x)
+            //    && (this->low_.y <= a.low_.y) && (a.high_.y <= this->high_.y);
         }
 
         unsigned int notOverlapped(const Vector2<T> & pos) const {
@@ -83,6 +135,19 @@ namespace ParticleSimulator{
             T dx = (vec.x > b_high.x) ? (vec.x - b_high.x) : ( (vec.x < b_low.x) ? (b_low.x - vec.x) : T(0) );
             T dy = (vec.y > b_high.y) ? (vec.y - b_high.y) : ( (vec.y < b_low.y) ? (b_low.y - vec.y) : T(0) );
             return Vector2<T>(dx, dy);
+        }
+
+        bool calcIntersection(const Orthotope2i & tgt,
+                              Orthotope2i & ret) const {
+            if (overlapped(tgt)) {
+                ret.low_.x  = std::max(this->low_.x, tgt.low_.x);
+                ret.high_.x = std::min(this->high_.x, tgt.high_.x);
+                ret.low_.y  = std::max(this->low_.y, tgt.low_.y);
+                ret.high_.y = std::min(this->high_.y, tgt.high_.y);
+                return true;
+            } else {
+                return false;
+            }
         }
         
         //Cast to Orthotope2i<U>

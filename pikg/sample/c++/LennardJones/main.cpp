@@ -5,6 +5,7 @@
 #include <random>
 #include <cmath>
 #include <cassert>
+#include <chrono>
 
 struct Particle{
   double rx,ry,rz;
@@ -149,6 +150,7 @@ int main(int argc,char **argv){
   std::cerr << "dth= " << dth << std::endl;
   const int nstep = 2000;
   double etot = 0.0;
+  double time = 0.0;
   for(int s=-2000;s<nstep;s++){
     //std::cerr << s << std::endl;
     // equilibration
@@ -158,13 +160,15 @@ int main(int argc,char **argv){
       ptcls[i].vx += ptcls[i].fx * dth;
       ptcls[i].vy += ptcls[i].fy * dth;
       ptcls[i].vz += ptcls[i].fz * dth;
+      //std::cout << ptcls[i].fx << " " << ptcls[i].fy << " " << ptcls[i].fz << std::endl;
     }
     // drift
+    //std::cout << "pbc" << std::endl;
     for(int i=0;i<N;i++){
       ptcls[i].rx += ptcls[i].vx * dt;
       ptcls[i].ry += ptcls[i].vy * dt;
       ptcls[i].rz += ptcls[i].vz * dt;
-
+      //std::cout << ptcls[i].rx << " " << ptcls[i].ry << " " << ptcls[i].rz << std::endl;
       // periodic boundary condition
       while(ptcls[i].rx < -lh) ptcls[i].rx += l;
       while(ptcls[i].rx >= lh) ptcls[i].rx -= l;
@@ -173,10 +177,15 @@ int main(int argc,char **argv){
       while(ptcls[i].rz < -lh) ptcls[i].rz += l;
       while(ptcls[i].rz >= lh) ptcls[i].rz -= l;
     }
+    //std::cout << "calcForce" << std::endl;
     // calc force and pot
     copyToEp(ep,ptcls,N);
     clear(force,N);
+    std::chrono::system_clock::time_point start,end;
+    start = std::chrono::system_clock::now();
     calcForce(ep,N,ep,N,force);
+    end = std::chrono::system_clock::now();
+    if(s>=0) time += std::chrono::duration_cast<std::chrono::nanoseconds>(end-start).count();
     copyFromForce(ptcls,force,N);
 
     // second kick
@@ -206,8 +215,11 @@ int main(int argc,char **argv){
   // check total energy error
   Energy e = calcEnergy(ptcls,N);
   const double error = std::abs((e.p + e.k - etot)/etot);
-  if(error > 1.5e-4) std::cerr << "test failed" << std::endl;
-  else               std::cerr << "test passed" << std::endl;
+  if(error > 1.5e-4){ std::cerr << "test failed" << std::endl; return -1;}
+  else                std::cerr << "test passed" << std::endl;
 
+  // print flops
+  //std::cerr << "elapsed_time_for_one_kernel(ns): " << time/nstep << std::endl;
+  std::cerr << "kernel_performance(GFlops): " << 26.0 * N * N * nstep / (time*1e-9) / 1e9 << std::endl;
   return 0;
 }

@@ -31,6 +31,10 @@ LDFLAGS =
 
 #use_pikg_x86=yes
 
+#use_pikg_x86=yes
+PIKG_ROOT = $(FDPS_LOC)/pikg/
+PIKG = $(PIKG_ROOT)/bin/pikg
+
 ifeq ($(use_pikg_x86),yes)
 PIKG_ROOT = $(FDPS_LOC)/pikg
 PIKG_HDR_DIR = $(PIKG_ROOT)/inc
@@ -41,6 +45,7 @@ CXXFLAGS += -DUSE_PIKG_KERNEL -DPIKG_USE_FDPS_VECTOR -I$(PIKG_HDR_DIR)
 # Set convertion type
 # (i) Reference mode
 CONVERSION_TYPE=reference
+
 # (ii) AVX2 mode
 #CONVERSION_TYPE = AVX2
 #CXXFLAGS += -mavx2 -mfma -ffast-math
@@ -56,6 +61,7 @@ EPJ = epj_grav
 FORCE = force_grav
 SRC_CXX_PIKG = kernel_epep.cpp
 HDR_C_PIKG = kernel_epep.h 
+
 else
 PIKG_HDR_DIR =
 PIKG =
@@ -92,6 +98,7 @@ OBJ_CXX_PIKG	= $(SRC_CXX_PIKG:cpp=o)
 OBJ_CXX_ALL	= $(OBJ_CXX_FDPS) $(OBJ_CXX_PIKG)
 OBJ		= $(OBJ_USER) $(OBJ_CXX_ALL)
 
+
 TARGET = nbody.out
 
 $(TARGET): $(OBJ) result
@@ -99,6 +106,7 @@ $(TARGET): $(OBJ) result
 
 result:
 	mkdir -p result
+
 
 $(OBJ_USER): FDPS_c_if.h  $(HDR_C_PIKG)
 

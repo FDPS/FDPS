@@ -34,6 +34,37 @@ def byte_count(type)
   byte
 end
 
+def fission_loop_body(ss)
+  bodies = Array.new
+  body = Array.new
+  pragmas = Array.new
+  pragma = Array.new
+
+  ss.each{ |s|
+    if s.class == Pragma
+      if s.name == "statement" && s.option == ["loop_fission_point"] 
+        bodies.push(body)
+        pragmas.push(pragma)
+        body = Array.new
+        pragma = Array.new
+      else
+        pragma.push(s)
+      end
+    end
+    if s.class ==  Statement
+      body.push(s)
+    end
+    # do not fission loop in conditional branch
+    if s.class ==  ConditionalBranch
+      body.push(s)
+    end
+  }
+  bodies.push(body) if body != []
+  pragmas.push(pragma) if pragma != []
+
+  return bodies,pragmas
+end
+
 def find_loop_fission_load_store_vars(ss)
   # build related vars list
   ls = []
@@ -60,6 +91,7 @@ def find_loop_fission_load_store_vars(ss)
     }
     seed += [tmp.sort.uniq]
   }
+
   ls.zip(seed){ |l1,l2|
     l1.each{ |l|
       l2.delete(l[0])
@@ -75,7 +107,7 @@ def find_loop_fission_load_store_vars(ss)
     result += [tmp.uniq]
   }
 
-  ret = [[[],seed.shift]]
+  ret = []
   count = 0
   seed.zip(result){ |s,r|
     lload  = []

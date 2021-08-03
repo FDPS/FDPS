@@ -232,64 +232,93 @@ void makeOutputDirectory(char * dir_name) {
 }
 
 void SetupIC(PS::ParticleSystem<FP>& sph_system, PS::F64 *end_time, boundary *box){
-   // Place SPH particles
-   std::vector<FP> ptcl;
+   // Set the interparticle distance and the box size
    const PS::F64 dx = 1.0 / 128.0;
    box->x = 1.0;
    box->y = box->z = box->x / 8.0;
-   PS::S32 i = 0;
+   // Count # of particles in the computational domain
+   PS::S32 nx_left {0}, ny_left {0}, nz_left {0};
+   for(PS::F64 x = 0 ; x < box->x * 0.5 ; x += dx) nx_left++;
+   for(PS::F64 y = 0 ; y < box->y ; y += dx) ny_left++;
+   for(PS::F64 z = 0 ; z < box->z ; z += dx) nz_left++;
+   PS::S32 nx_right {0}, ny_right {0}, nz_right {0};
+   for(PS::F64 x = box->x * 0.5 ; x < box->x * 1.0 ; x += dx * 2.0) nx_right++;
+   for(PS::F64 y = 0 ; y < box->y ; y += dx) ny_right++;
+   for(PS::F64 z = 0 ; z < box->z ; z += dx) nz_right++;
+   const PS::S64 n_ptcl_glb = (nx_left * ny_left * nz_left)
+                            + (nx_right * ny_right * nz_right);
+   // Set # of local particles
+   const PS::S32 n_proc = PS::Comm::getNumberOfProc();
+   const PS::S32 my_rank = PS::Comm::getRank();
+   const PS::S32 n_ptcl_quot = n_ptcl_glb / n_proc; // quotient
+   const PS::S32 n_ptcl_rem = n_ptcl_glb % n_proc; // remainder
+   if (my_rank == 0) {
+       std::cout << "n_ptcl_glb  = " << n_ptcl_glb << std::endl;
+       std::cout << "n_ptcl_quot = " << n_ptcl_quot << std::endl;
+       std::cout << "n_ptcl_rem  = " << n_ptcl_rem << std::endl;
+   }
+   const PS::S32 n_ptcl_loc = n_ptcl_quot + ((my_rank < n_ptcl_rem) ? 1 : 0);
+   sph_system.setNumberOfParticleLocal(n_ptcl_loc);
+   const PS::S64 i_head = n_ptcl_quot * my_rank
+                        + ((my_rank > (n_ptcl_rem-1)) ? n_ptcl_rem : my_rank);
+   const PS::S64 i_tail = i_head + n_ptcl_loc;
+   for (PS::S32 rank = 0; rank < n_proc; rank++) {
+      if (rank == my_rank) {
+          std::cout << "my_rank = " << my_rank
+                    << ", n_ptcl_loc = " << n_ptcl_loc
+                    << ", i_head = " << i_head
+                    << ", i_tail = " << i_tail
+                    << std::endl;
+      }
+      PS::Comm::barrier();
+   }
+   // Set local particles 
+   const PS::F64 sv = (box->x * box->y * box->z)
+                    / static_cast<PS::F64>(n_ptcl_glb);
+   PS::S64 i = 0;
    for(PS::F64 x = 0 ; x < box->x * 0.5 ; x += dx){
       for(PS::F64 y = 0 ; y < box->y ; y += dx){
          for(PS::F64 z = 0 ; z < box->z ; z += dx){
-            FP ith;
-            ith.pos.x = x;
-            ith.pos.y = y;
-            ith.pos.z = z;
-            ith.dens = 1.0;
-            ith.mass = 0.75;
-            ith.eng  = 2.5;
-            ith.id   = i++;
-            ith.smth = 0.012;
-            ptcl.push_back(ith);
+            if (i_head <= i && i < i_tail) {
+                const PS::S32 ii = i - i_head;
+                sph_system[ii].pos.x = x;
+                sph_system[ii].pos.y = y;
+                sph_system[ii].pos.z = z;
+                sph_system[ii].dens = 1.0;
+                sph_system[ii].mass = 0.75 * sv;
+                sph_system[ii].eng  = 2.5;
+                sph_system[ii].id   = i;
+                sph_system[ii].smth = 0.012;
+            }
+            i++;
          }
       }
    }
    for(PS::F64 x = box->x * 0.5 ; x < box->x * 1.0 ; x += dx * 2.0){
       for(PS::F64 y = 0 ; y < box->y ; y += dx){
          for(PS::F64 z = 0 ; z < box->z ; z += dx){
-            FP ith;
-            ith.pos.x = x;
-            ith.pos.y = y;
-            ith.pos.z = z;
-            ith.dens = 0.5;
-            ith.mass = 0.75;
-            ith.eng  = 2.5;
-            ith.id   = i++;
-            ith.smth = 0.012;
-            ptcl.push_back(ith);
+            if(i_head <= i && i < i_tail) {
+                const PS::S32 ii = i - i_head;
+                sph_system[ii].pos.x = x;
+                sph_system[ii].pos.y = y;
+                sph_system[ii].pos.z = z;
+                sph_system[ii].dens = 0.5;
+                sph_system[ii].mass = 0.75 * sv;
+                sph_system[ii].eng  = 2.5;
+                sph_system[ii].id   = i;
+                sph_system[ii].smth = 0.012;
+            }
+            i++;
          }
       }
    }
-   for(PS::U32 i = 0 ; i < ptcl.size() ; ++ i){
-      ptcl[i].mass = ptcl[i].mass * box->x * box->y * box->z / (PS::F64)(ptcl.size());
-   }
-   std::cout << "# of ptcls is... " << ptcl.size() << std::endl;
-   // Scatter SPH particles
-   assert(ptcl.size() % PS::Comm::getNumberOfProc() == 0);
-   const PS::S32 numPtclLocal = ptcl.size() / PS::Comm::getNumberOfProc();
-   sph_system.setNumberOfParticleLocal(numPtclLocal);
-   const PS::U32 i_head = numPtclLocal * PS::Comm::getRank();
-   const PS::U32 i_tail = numPtclLocal * (PS::Comm::getRank() + 1);
-   for(PS::U32 i = 0 ; i < ptcl.size() ; ++ i){
-      if(i_head <= i && i < i_tail){
-         const PS::U32 ii = i - numPtclLocal * PS::Comm::getRank();
-         sph_system[ii] = ptcl[i];
-      }
-   }
+   assert(i == n_ptcl_glb);
    // Set the end time
    *end_time = 0.12;
    // Fin.
-   std::cout << "setup..." << std::endl;
+   if (my_rank == 0) {
+       std::cout << "SetupIC() is completed." << std::endl;
+   }
 }
 
 void Initialize(PS::ParticleSystem<FP>& sph_system){
@@ -366,14 +395,17 @@ int main(int argc, char* argv[]){
    sprintf(dir_name,"./result");
    makeOutputDirectory(dir_name);
    // Display # of MPI processes and threads
-   PS::S32 nprocs = PS::Comm::getNumberOfProc();
-   PS::S32 nthrds = PS::Comm::getNumberOfThread();
-   std::cout << "===========================================" << std::endl
-             << " This is a sample program of "               << std::endl
-             << " Smoothed Particle Hydrodynamics on FDPS!"   << std::endl
-             << " # of processes is " << nprocs               << std::endl
-             << " # of thread is    " << nthrds               << std::endl
-             << "===========================================" << std::endl;
+   const PS::S32 n_proc = PS::Comm::getNumberOfProc();
+   const PS::S32 my_rank = PS::Comm::getRank();
+   const PS::S32 n_thread = PS::Comm::getNumberOfThread();
+   if (my_rank == 0) {
+       std::cout << "===========================================" << std::endl
+                 << " This is a sample program of "               << std::endl
+                 << " Smoothed Particle Hydrodynamics on FDPS!"   << std::endl
+                 << " # of processes is " << n_proc               << std::endl
+                 << " # of thread is    " << n_thread             << std::endl
+                 << "===========================================" << std::endl;
+   }
    // Make an instance of ParticleSystem and initialize it
    PS::ParticleSystem<FP> sph_system;
    sph_system.initialize();
@@ -440,14 +472,14 @@ int main(int argc, char* argv[]){
          char filename[256];
          sprintf(filename, "result/%04d.txt", step);
          sph_system.writeParticleAscii(filename, header);
-         if (PS::Comm::getRank() == 0){
+         if (my_rank == 0){
             std::cout << "================================" << std::endl;
             std::cout << "output " << filename << "." << std::endl;
             std::cout << "================================" << std::endl;
          }
       }
       // Output information to STDOUT
-      if (PS::Comm::getRank() == 0){
+      if (my_rank == 0){
          std::cout << "================================" << std::endl;
          std::cout << "time = " << time << std::endl;
          std::cout << "step = " << step << std::endl;

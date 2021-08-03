@@ -11,7 +11,7 @@
 #include<cstdio>
 #include<cstring>
 #include<map>
-#include "time.h"
+#include<random>
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #include"mpi.h"
@@ -19,7 +19,33 @@
 
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #include<omp.h>
+#define PS_OMP(...) _Pragma(#__VA_ARGS__)
+#define PS_OMP_PARALLEL_FOR _Pragma("omp parallel for")
+#define PS_OMP_PARALLEL _Pragma("omp parallel")
+#define PS_OMP_FOR _Pragma("omp for")
+#define PS_OMP_CRITICAL _Pragma("omp critical")
+#define PS_OMP_BARRIER _Pragma("omp barrier")
+#define PS_OMP_SINGLE _Pragma("omp single")
+#else
+#define PS_OMP(...)
+#define PS_OMP_PARALLEL_FOR
+#define PS_OMP_PARALLEL
+#define PS_OMP_FOR
+#define PS_OMP_CRITICAL
+#define PS_OMP_BARRIER
+#define PS_OMP_SINGLE
 #endif
+
+#ifdef __GNUC__
+#define PS_INLINE inline __attribute__((always_inline))
+#else
+#define PS_INLINE inline
+#endif
+
+#define PS_SET_CALLER_INFO(obj)					\
+    do {							\
+	obj.setCallerInfo(__LINE__, __FUNCTION__, __FILE__);	\
+    } while(0);							\
 
 #include"memory_pool.hpp"
 #include"vector2.hpp"
@@ -31,7 +57,6 @@
 #include"matrix_sym2.hpp"
 #include"matrix_sym3.hpp"
 #include"matrix2.hpp"
-
 
 #define PS_DEBUG_CALL(func) \
     do {                                              \
@@ -75,11 +100,20 @@
 #define PARTICLE_SIMULATOR_PRINT_LINE_INFO() \
     { std::cout<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl; }
 
+template<typename Tcomm>
+void DEBUG_PRINT_MAKING_TREE(Tcomm & comm_info){
+#if defined(DEBUG_PRINT_MAKING_TREE)
+    comm_info.barrier();
+    if(comm_info.getRank()==0)
+	PARTICLE_SIMULATOR_PRINT_LINE_INFO();
+#endif
+}
+
 namespace ParticleSimulator{
     static const long long int LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1ll<<30;
     static inline void Abort(const int err = -1){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-      MPI_Abort(MPI_COMM_WORLD,err);
+      MPI_Abort(MPI_COMM_WORLD, err);
 #else
         exit(err);
 #endif
@@ -93,12 +127,8 @@ namespace ParticleSimulator{
     typedef unsigned int U32;
 #ifdef PARTICLE_SIMULATOR_ALL_64BIT_PRECISION
     typedef double F32;
-    //typedef long long int S32;
-    //typedef unsigned long long int U32;
 #else
     typedef float F32;
-    //typedef int S32;
-    //typedef unsigned int U32;
 #endif
     typedef long long int S64;
     typedef unsigned long long int U64;
@@ -135,9 +165,9 @@ namespace ParticleSimulator{
     static const S32 DIMENSION = 2;
     static const S32 N_CHILDREN = 4;
     static const S32 TREE_LEVEL_LIMIT = 30;
-    static const F32vec SHIFT_CENTER[N_CHILDREN] = 
-        { F32vec(-0.5, -0.5), F32vec(-0.5, 0.5),
-          F32vec( 0.5, -0.5), F32vec( 0.5, 0.5) };
+    static const F64vec SHIFT_CENTER[N_CHILDREN] = 
+        { F64vec(-0.5, -0.5), F64vec(-0.5, 0.5),
+          F64vec( 0.5, -0.5), F64vec( 0.5, 0.5) };
 #else
     typedef S32vec3 S32vec;
     typedef F32vec3 F32vec;
@@ -149,13 +179,24 @@ namespace ParticleSimulator{
     typedef F64ort3 F64ort;
     static const S32 DIMENSION = 3;
     static const S32 N_CHILDREN = 8;
+#if defined(PARTICLE_SIMULATOR_USE_64BIT_KEY)
     static const S32 TREE_LEVEL_LIMIT = 21;
-    static const F32vec SHIFT_CENTER[N_CHILDREN] = 
-        { F32vec(-0.5, -0.5, -0.5), F32vec(-0.5, -0.5, 0.5),
-          F32vec(-0.5,  0.5, -0.5), F32vec(-0.5,  0.5,  0.5),
-          F32vec( 0.5, -0.5, -0.5), F32vec( 0.5, -0.5,  0.5),
-          F32vec( 0.5,  0.5, -0.5), F32vec( 0.5,  0.5,  0.5) };
+#elif defined(PARTICLE_SIMULATOR_USE_96BIT_KEY)
+    static const S32 TREE_LEVEL_LIMIT = 31;
+    static const S32 KEY_LEVEL_MAX_HI = 21;
+    static const S32 KEY_LEVEL_MAX_LO = 10;
+#else
+    static const S32 TREE_LEVEL_LIMIT = 42;
+    static const S32 KEY_LEVEL_MAX_HI = 21;
+    static const S32 KEY_LEVEL_MAX_LO = 21;
 #endif
+    static const F64vec SHIFT_CENTER[N_CHILDREN] = 
+        { F64vec(-0.5, -0.5, -0.5), F64vec(-0.5, -0.5, 0.5),
+          F64vec(-0.5,  0.5, -0.5), F64vec(-0.5,  0.5,  0.5),
+          F64vec( 0.5, -0.5, -0.5), F64vec( 0.5, -0.5,  0.5),
+          F64vec( 0.5,  0.5, -0.5), F64vec( 0.5,  0.5,  0.5) };
+#endif
+    
 #ifdef PARTICLE_SIMULATOR_SPMOM_F32
     typedef S32    SSP;
     typedef F32    FSP;
@@ -168,7 +209,6 @@ namespace ParticleSimulator{
     typedef F64mat FSPmat;
 #endif
     typedef U64 CountT;
-
     static const F64 LARGE_DOUBLE = std::numeric_limits<F64>::max()*0.0625;
     static const F64 LARGE_FLOAT  = std::numeric_limits<F32>::max()*0.0625;
     static const S64 LARGE_INT    = std::numeric_limits<S32>::max()*0.0625;
@@ -181,6 +221,12 @@ namespace ParticleSimulator{
 
     //////////////////
     /// enum
+    enum EXCHANGE_LET_MODE{
+        EXCHANGE_LET_A2A,
+        EXCHANGE_LET_P2P_EXACT,
+        EXCHANGE_LET_P2P_FAST,
+    };
+    
     enum INTERACTION_LIST_MODE{
         MAKE_LIST,
         MAKE_LIST_FOR_REUSE,
@@ -202,6 +248,18 @@ namespace ParticleSimulator{
         FORCE_TYPE_LONG,
         FORCE_TYPE_SHORT,
     };
+
+    enum CALC_DISTANCE_TYPE{
+        CALC_DISTANCE_TYPE_NORMAL = 0,
+        CALC_DISTANCE_TYPE_NEAREST_X = 1,
+	CALC_DISTANCE_TYPE_NEAREST_Y = 2,
+        CALC_DISTANCE_TYPE_NEAREST_XY = 3,
+	CALC_DISTANCE_TYPE_NEAREST_Z = 4,
+	CALC_DISTANCE_TYPE_NEAREST_XZ = 5,
+	CALC_DISTANCE_TYPE_NEAREST_YZ = 6,
+	CALC_DISTANCE_TYPE_NEAREST_XYZ = 7,
+    };
+
     struct TagForceLong{
         enum{
             force_type = FORCE_TYPE_LONG,
@@ -213,9 +271,24 @@ namespace ParticleSimulator{
         };
     };
 
+    // GEOMETRY OF TREE CELL
+    struct TagGeometrySize{};
+    struct TagGeometrySizeOut{};
+    struct TagGeometrySizeInOut{};
+    struct TagGeometryIn{};
+    struct TagGeometryOut{};
+    struct TagGeometryInAndOut{};
+
+    // LOCAL TREE MOMENT TYPE
+    struct TagCalcMomLongEpjLt{};
+    struct TagCalcMomShortEpjLt{};
+    struct TagCalcMomShortEpiLt{};
+    
+    // IS PERIODIC BOUNDARY CONDITION AVAILABLE
     struct TagSearchBoundaryConditionOpenOnly{};
     struct TagSearchBoundaryConditionOpenPeriodic{};
-    
+
+    // SEARCH TYPE
     struct TagSearchLong{};
     struct TagSearchLongCutoff{};
     struct TagSearchLongScatter{};
@@ -225,6 +298,7 @@ namespace ParticleSimulator{
     struct TagSearchShortScatter{};
     struct TagSearchShortSymmetry{};
 
+    // IP-GROUP TYPE
     struct TagIpgLongNormal{};
     struct TagIpgIn{};
     struct TagIpgInAndOut{};
@@ -233,72 +307,51 @@ namespace ParticleSimulator{
     struct TagWithoutCutoff{};
     struct TagWithCutoff{};
 
+    // NEIGHBOR SEARCH TYPE
     struct TagNeighborSearchSymmetry{};
     struct TagNeighborSearchGather{};
     struct TagNeighborSearchScatter{};
     struct TagNeighborSearchNo{};
-    
+
     struct SEARCH_MODE_LONG{
         typedef TagForceLong force_type;
         typedef TagSearchLong search_type;
         typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
         typedef TagIpgLongNormal ipg_type;
         typedef TagNeighborSearchNo neighbor_search_type;
-        enum{
-            search_type_id = LONG_NO_CUTOFF,
-        };
+        using tree_cell_loc_geometry_type = TagGeometrySize;
+        using tree_cell_glb_geometry_type = TagGeometrySize;
+        using calc_moment_local_tree_type = TagCalcMomLongEpjLt;
+      //enum{
+      //    search_type_id = LONG_NO_CUTOFF,
+      //};
     };
+    
     struct SEARCH_MODE_LONG_CUTOFF{
         typedef TagForceLong force_type;
         typedef TagSearchLongCutoff search_type;
         typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
         typedef TagIpgLongNormal ipg_type;
         typedef TagNeighborSearchNo neighbor_search_type;
-        enum{
-            search_type_id = LONG_CUTOFF,
-        };
+        using tree_cell_loc_geometry_type = TagGeometrySizeOut;
+        using tree_cell_glb_geometry_type = TagGeometrySizeOut;
+        using calc_moment_local_tree_type = TagCalcMomLongEpjLt;
+      //enum{
+      //    search_type_id = LONG_CUTOFF,
+      //};
     };
-    struct SEARCH_MODE_GATHER{
-        typedef TagForceShort force_type;
-        typedef TagSearchShortGather search_type;
-        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
-        typedef TagIpgOut ipg_type;
-        typedef TagNeighborSearchGather neighbor_search_type;
-        enum{
-            search_type_id = SHORT_GATHER,
-        };
-    };
-    struct SEARCH_MODE_SCATTER{
-        typedef TagForceShort force_type;
-        typedef TagSearchShortScatter search_type;
-        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
-        typedef TagIpgIn ipg_type;
-        typedef TagNeighborSearchScatter neighbor_search_type;
-        enum{
-            search_type_id = SHORT_SCATTER,
-        };
-    };
-    struct SEARCH_MODE_SYMMETRY{
-        typedef TagForceShort force_type;
-        typedef TagSearchShortSymmetry search_type;
-        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
-        typedef TagIpgInAndOut ipg_type;
-        typedef TagNeighborSearchSymmetry neighbor_search_type;
-        enum{
-            search_type_id = SHORT_SYMMETRY,
-        };
-    };
-
-    // new TAG for P^3T
     struct SEARCH_MODE_LONG_SCATTER{
         typedef TagForceLong force_type;
         typedef TagSearchLongScatter search_type;
         typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
         typedef TagIpgIn ipg_type;
         typedef TagNeighborSearchScatter neighbor_search_type;
-        enum{
-            search_type_id = LONG_SCATTER,
-        };
+        using tree_cell_loc_geometry_type = TagGeometrySizeInOut;
+        using tree_cell_glb_geometry_type = TagGeometrySizeInOut;
+        using calc_moment_local_tree_type = TagCalcMomLongEpjLt;
+      //enum{
+      //    search_type_id = LONG_SCATTER,
+      //};
     };
     struct SEARCH_MODE_LONG_SYMMETRY{
         typedef TagForceLong force_type;
@@ -306,21 +359,53 @@ namespace ParticleSimulator{
         typedef TagSearchBoundaryConditionOpenOnly search_boundary_type;
         typedef TagIpgInAndOut ipg_type;
         typedef TagNeighborSearchSymmetry neighbor_search_type;
-        enum{
-            search_type_id = LONG_SYMMETRY,
-        };
+        using tree_cell_loc_geometry_type = TagGeometrySizeInOut;
+        using tree_cell_glb_geometry_type = TagGeometrySizeInOut;
+        using calc_moment_local_tree_type = TagCalcMomLongEpjLt;
+      //enum{
+      //    search_type_id = LONG_SYMMETRY,
+      //};
     };
-    /*
-    struct SEARCH_MODE_LONG_CUTOFF_SCATTER{
-        typedef TagForceLong force_type;
-        typedef TagSearchLongCutoffScatter search_type;
+    
+    struct SEARCH_MODE_GATHER{
+        typedef TagForceShort force_type;
+        typedef TagSearchShortGather search_type;
+        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
+        typedef TagIpgOut ipg_type;
+        typedef TagNeighborSearchGather neighbor_search_type;
+        using tree_cell_loc_geometry_type = TagGeometryInAndOut;
+        using tree_cell_glb_geometry_type = TagGeometryIn;
+        using calc_moment_local_tree_type = TagCalcMomShortEpiLt;
+      //enum{
+      //    search_type_id = SHORT_GATHER,
+      //};
+    };
+    struct SEARCH_MODE_SCATTER{
+        typedef TagForceShort force_type;
+        typedef TagSearchShortScatter search_type;
+        typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
+        typedef TagIpgIn ipg_type;
+        typedef TagNeighborSearchScatter neighbor_search_type;
+        using tree_cell_loc_geometry_type = TagGeometryInAndOut;
+        using tree_cell_glb_geometry_type = TagGeometryInAndOut;
+        using calc_moment_local_tree_type = TagCalcMomShortEpjLt;
+      //enum{
+      //    search_type_id = SHORT_SCATTER,
+      //};
+    };
+    struct SEARCH_MODE_SYMMETRY{
+        typedef TagForceShort force_type;
+        typedef TagSearchShortSymmetry search_type;
         typedef TagSearchBoundaryConditionOpenPeriodic search_boundary_type;
         typedef TagIpgInAndOut ipg_type;
-        enum{
-            search_type_id = LONG_CUTOFF_SCATTER,
-        };
+        typedef TagNeighborSearchSymmetry neighbor_search_type;
+        using tree_cell_loc_geometry_type = TagGeometryInAndOut;
+        using tree_cell_glb_geometry_type = TagGeometryInAndOut;
+        using calc_moment_local_tree_type = TagCalcMomShortEpjLt;
+      //enum{
+      //    search_type_id = SHORT_SYMMETRY,
+      //};
     };
-    */
 
     template<class T> class ValueTypeReduction;
     template<> class ValueTypeReduction<float>{};
@@ -342,12 +427,6 @@ namespace ParticleSimulator{
     };
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-    typedef MPI_Request MpiRequest;
-#else
-    typedef int MpiRequest;
-#endif
-
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
     template<class T> 
     inline MPI_Datatype GetDataType(){
       static MPI_Datatype type = MPI_DATATYPE_NULL;
@@ -356,24 +435,24 @@ namespace ParticleSimulator{
           MPI_Type_commit(&type);
       }
       return type;
-    };
+    }
     template<class T> 
         inline MPI_Datatype GetDataType(const T &){
         return GetDataType<T>();
     }
     template<> inline MPI_Datatype GetDataType<int>(){return MPI_INT;}
     template<> inline MPI_Datatype GetDataType<long>(){return MPI_LONG;}
-    //template<> inline MPI_Datatype GetDataType<long long int>(){return MPI_LONG_LONG_INT;}
     template<> inline MPI_Datatype GetDataType<long long int>(){return MPI_LONG_LONG_INT;}
     template<> inline MPI_Datatype GetDataType<unsigned int>(){return MPI_UNSIGNED;}
     template<> inline MPI_Datatype GetDataType<unsigned long>(){return MPI_UNSIGNED_LONG;}
-    //template<> inline MPI_Datatype GetDataType<unsigned long long int>(){return MPI_UNSIGNED_LONG;}
     template<> inline MPI_Datatype GetDataType<unsigned long long int>(){return MPI_UNSIGNED_LONG_LONG;}
     template<> inline MPI_Datatype GetDataType<float>(){return MPI_FLOAT;}
     template<> inline MPI_Datatype GetDataType<double>(){return MPI_DOUBLE;}
 
     template<class Tfloat, class Tint> 
     inline MPI_Datatype GetDataType();
+    template<> inline MPI_Datatype GetDataType<int, int>(){return MPI_2INT;}
+    template<> inline MPI_Datatype GetDataType<long, int>(){return MPI_LONG_INT;}
     template<> inline MPI_Datatype GetDataType<float, int>(){return MPI_FLOAT_INT;}
     template<> inline MPI_Datatype GetDataType<double, int>(){return MPI_DOUBLE_INT;}
 #endif
@@ -516,19 +595,19 @@ namespace ParticleSimulator{
             }
         }
 
-        // alltoallv
         void executeV(const ReallocatableArray<T> & val_send,
                       ReallocatableArray<T> & val_recv,
                       const int n_send[],
-                      int n_recv[]){
+                      int n_recv[],
+                      const int n_send_offset=0,
+                      const int n_recv_offset=0){
             int cnt = 0;
-            //val_recv.reserveAtLeast( val_send.capacity() );
-            val_recv.reserveAtLeast( val_send.size() );
-            val_recv.clearSize();
+            val_recv.reserveAtLeast(n_recv_offset+val_send.size()-n_send_offset);
+            val_recv.resizeNoInitialize(n_recv_offset);
             for(int ib=0; ib<n_proc_glb_; ib++){
                 n_recv[ib] = n_send[ib];
                 for(int ip=0; ip<n_recv[ib]; ip++, cnt++){
-                    val_recv.pushBackNoCheck(val_send[cnt]);
+                    val_recv.pushBackNoCheck(val_send[cnt+n_send_offset]);
                 }
             }
             for(int d=DIM_COMM-1; d>=0; d--){
@@ -537,15 +616,14 @@ namespace ParticleSimulator{
                 for(int i=0; i<n_proc_glb_; i++){
                     n_recv_disp_glb_[i+1] = n_recv_disp_glb_[i] + n_recv[i];
                 }
-                val_send_glb_.reserveAtLeast( val_recv.size() );
+                val_send_glb_.reserveAtLeast( val_recv.size()-n_recv_offset );
                 val_send_glb_.clearSize();
                 for(int ib0=0; ib0<n_proc_glb_; ib0++){
                     int id_send = (ib0 % radix) * n_proc_1d_[d] + ib0 / radix;
                     n_send_glb_[ib0] = n_recv[id_send];
                     int offset = n_recv_disp_glb_[id_send];
-                    //val_send_glb_.reserveEmptyAreaAtLeast(n_send_glb_[ib0]);
                     for(int ib1=0; ib1<n_send_glb_[ib0]; ib1++){
-                        val_send_glb_.pushBackNoCheck(val_recv[ib1 + offset]);
+                        val_send_glb_.pushBackNoCheck(val_recv[ib1 + offset + n_recv_offset]);
                     }
                 }
                 MPI_Alltoall(n_send_glb_, radix, MPI_INT,
@@ -561,166 +639,970 @@ namespace ParticleSimulator{
                     n_send_disp_1d_[ib0+1] = n_send_disp_1d_[ib0] + n_send_1d_[ib0];
                     n_recv_disp_1d_[ib0+1] = n_recv_disp_1d_[ib0] + n_recv_1d_[ib0];
                 }
-                val_recv.resizeNoInitialize( n_recv_disp_1d_[n_proc_1d_[d]] );
+                val_recv.resizeNoInitialize(n_recv_disp_1d_[n_proc_1d_[d]] + n_recv_offset);
                 MPI_Alltoallv(val_send_glb_.getPointer(), n_send_1d_, n_send_disp_1d_, GetDataType<T>(),
-                              val_recv.getPointer(), n_recv_1d_, n_recv_disp_1d_, GetDataType<T>(), comm_1d_[d]);
+                              val_recv.getPointer(n_recv_offset), n_recv_1d_, n_recv_disp_1d_, GetDataType<T>(), comm_1d_[d]);
             }
         }
     }; //CommForAllToAll
 #endif
+
+
+    template <int DIM>
+    inline void SetNumberOfDomainMultiDimension(const int n_proc, const int my_rank,
+                                                int np[], int rank[]){
+        for (int i=0; i<DIMENSION_LIMIT; i++){
+            np[i] = 1;
+            rank[i] = 1;
+        }
+        std::vector<S32> npv;
+        npv.resize(DIM);
+        auto np_tmp = n_proc;
+        for(int d=DIM, cid=0; cid<DIM-1; d--, cid++){
+            int tmp = (S32)pow(np_tmp+0.000001, (1.0/d)*1.000001 );
+            while(np_tmp%tmp){
+                tmp--;
+            }
+            npv[cid] = tmp;
+            np_tmp /= npv[cid];
+        }
+        npv[DIM-1] = np_tmp;
+        int rank_tmp = my_rank;
+        std::sort(npv.begin(), npv.end(), std::greater<S32>());
+        for(int i=DIM-1; i>=0; i--){
+            np[i] = npv[i];
+            rank[i] = rank_tmp % np[i];
+            rank_tmp /= np[i];
+        }
+    }
+
+    class CommInfo{
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        MPI_Comm comm_;
+#endif
+        int rank_;
+        int n_proc_;
+        S32 rank_multi_dim_[DIMENSION];
+        S32 n_proc_multi_dim_[DIMENSION];
+        template<class T>
+        T allreduceMin(const T & val) const {
+            T ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            T val_tmp = val;
+            MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MIN, comm_);
+#endif
+            return ret;
+        }
+        template<class T>
+        Vector2<T> allreduceMin(const Vector2<T> & val) const {
+            Vector2<T> ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            Vector2<T> val_tmp = val;
+            MPI_Allreduce((T*)&val_tmp.x, (T*)&ret.x, 2, GetDataType<T>(), MPI_MIN, comm_);
+#endif
+            return ret;
+        }
+        template<class T>
+        Vector3<T> allreduceMin(const Vector3<T> & val) const {
+            Vector3<T> ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            Vector3<T> val_tmp = val;
+            MPI_Allreduce((T*)&val_tmp.x, (T*)&ret.x, 3, GetDataType<T>(), MPI_MIN, comm_);
+#endif
+            return ret;
+        }
+        
+        template<class T>
+        T allreduceMax(const T & val) const {
+            T ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            T val_tmp = val;
+            MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MAX, comm_);
+#endif
+            return ret;
+        }
+        template<class T>
+        Vector2<T> allreduceMax(const Vector2<T> & val) const {
+            Vector2<T> ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            Vector2<T> val_tmp = val;
+            MPI_Allreduce((T*)&val_tmp.x, (T*)&ret.x, 2, GetDataType<T>(), MPI_MAX, comm_);
+#endif
+            return ret;
+        }
+        template<class T>
+        Vector3<T> allreduceMax(const Vector3<T> & val) const {
+            Vector3<T> ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            Vector3<T> val_tmp = val;
+            MPI_Allreduce((T*)&val_tmp.x, (T*)&ret.x, 3, GetDataType<T>(), MPI_MAX, comm_);
+#endif
+            return ret;
+        }
+        template<class T>
+        T allreduceSum(const T & val) const {
+            T ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            T val_tmp = val;
+            MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_SUM, comm_);
+#endif
+            return ret;
+        }
+
+        template<class T>
+        Vector2<T> allreduceSum(const Vector2<T> & val) const {
+            Vector2<T> ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            Vector2<T> val_tmp = val;
+            MPI_Allreduce((T*)&val_tmp.x, (T*)&ret.x, 2, GetDataType<T>(), MPI_SUM, comm_);
+#endif
+            return ret;
+        }
+        template<class T>
+        Vector3<T> allreduceSum(const Vector3<T> & val) const {
+            Vector3<T> ret = val;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            Vector3<T> val_tmp = val;
+            MPI_Allreduce((T*)&val_tmp.x, (T*)&ret.x, 3, GetDataType<T>(), MPI_SUM, comm_);
+#endif
+            return ret;
+        }
+        
+        template<class Tfloat>
+        void allreduceMin(const Tfloat & f_in,
+                          const int & i_in,
+                          Tfloat & f_out,
+                          int & i_out){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            struct{
+                Tfloat x;
+                int y;
+            } loc, glb;
+            loc.x = f_in;
+            loc.y = i_in;
+            MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MINLOC, comm_);
+            f_out = glb.x;
+            i_out = glb.y;
+#else
+            f_out = f_in;
+            i_out = i_in;
+#endif
+        }
+
+        template<class Tfloat>
+        void allreduceMax(const Tfloat & f_in,
+                          const int & i_in,
+                          Tfloat & f_out,
+                          int & i_out){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            struct{
+                Tfloat x;
+                int y;
+            } loc, glb;
+            loc.x = f_in;
+            loc.y = i_in;
+            MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MAXLOC, comm_);
+            f_out = glb.x;
+            i_out = glb.y;
+#else
+            f_out = f_in;
+            i_out = i_in;
+#endif
+        }
+    public:
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        CommInfo(const MPI_Comm & c = MPI_COMM_NULL){
+            setCommunicator(c);
+        }
+#else
+        CommInfo(){
+            setCommunicator();
+        }
+#endif
+        void free(){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            if(comm_ != MPI_COMM_NULL){
+                MPI_Comm_free(&comm_);
+            }
+#endif
+        }
+        
+        CommInfo create(const int n, const int rank[]) const {
+            CommInfo comm_info_new = *this;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Group grp_old;
+            MPI_Group grp_new;
+            MPI_Comm comm_new;
+            MPI_Comm_group(comm_, &grp_old);
+            MPI_Group_incl(grp_old, n, rank, &grp_new);
+            MPI_Comm_create(comm_, grp_new, &comm_new);
+            comm_info_new.setCommunicator(comm_new);
+#endif
+            return comm_info_new;
+        }
+
+        ~CommInfo(){
+            // DON'T call free in destructor, because all free function in the same communicater must be called at the same time.
+        }
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        MPI_Comm getCommunicator() const {
+            return comm_;
+        }
+        void setCommunicator(const MPI_Comm & c = MPI_COMM_WORLD){
+            //std::cerr<<"A) setCommunicator"<<std::endl;
+            //std::cerr<<"c= "<<c
+            //         <<" MPI_COMM_WORLD= "<<MPI_COMM_WORLD
+            //         <<" comm_= "<<comm_
+            //         <<std::endl;
+            if(c != MPI_COMM_NULL){
+                //std::cerr<<"b1) setCommunicator"<<std::endl;
+                MPI_Comm_dup(c, &comm_);
+                MPI_Comm_rank(comm_, &rank_);
+                MPI_Comm_size(comm_, &n_proc_);
+            }
+            else{
+                //std::cerr<<"b2) setCommunicator"<<std::endl;
+                comm_ = c;
+                rank_ = -1;
+                n_proc_ = -1;
+            }
+            //std::cerr<<"C) setCommunicator"<<std::endl;
+        }
+#else
+        void setCommunicator(){
+            rank_ = 0;
+            n_proc_ = 1;
+        }
+#endif
+        int getRank() const {
+            //std::cerr<<"CommInfo::getRank()"<<std::endl;
+            return rank_;
+        }
+        void setNumberOfProcMultiDim(const S32 id, const S32 n) {
+            n_proc_multi_dim_[id] = n;
+        }
+        void setRankMultiDim(const S32 id, const S32 r) {
+            rank_multi_dim_[id] = r;
+        }
+        S32 getRankMultiDim(const S32 id) {
+            return rank_multi_dim_[id];
+        }
+        S32 getNumberOfProcMultiDim(const S32 id) {
+            return n_proc_multi_dim_[id];
+        }
+
+
+        int getNumberOfProc() const {
+            return n_proc_;
+        }
+
+        bool isCommNull() const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            return this->comm_ == MPI_COMM_NULL;
+#else
+            return true;
+#endif
+        }
+        bool isNotCommNull() const {
+            return !isCommNull();
+        }
+
+        CommInfo split(int color, int key) const {
+            CommInfo comm_info_new = *this;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Comm comm_new;
+            MPI_Comm_split(comm_, color, key, &comm_new);
+            comm_info_new.setCommunicator(comm_new);
+#endif
+            return comm_info_new;
+        }
+
+        const CommInfo & operator = (const CommInfo & rhs){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Comm c = rhs.getCommunicator();
+            if(c != MPI_COMM_NULL){
+                MPI_Comm_dup(c, &comm_);
+            }
+            else{
+                comm_ = MPI_COMM_NULL;
+            }
+#endif
+            rank_ = rhs.rank_;
+            n_proc_ = rhs.n_proc_;
+            return (*this);
+        }
+        
+        void barrier(){
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Barrier(comm_);
+#endif
+        }
+        bool synchronizeConditionalBranchAND(const bool & local){
+            bool global = local;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            bool local_tmp = local;
+            MPI_Allreduce(&local_tmp, &global, 1, MPI_C_BOOL, MPI_LAND, comm_);
+#endif
+            return global;
+        }
+        bool synchronizeConditionalBranchOR(const bool & local){
+            bool global = local;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            bool local_tmp = local;
+            MPI_Allreduce(&local_tmp, &global, 1, MPI_C_BOOL, MPI_LOR, comm_);
+#endif
+            return global;
+        }
+        
+        ///////////////////////
+        // MPI BCAST WRAPPER //
+        template<class T>
+        inline void broadcast(T * val, const int n, const int src=0) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
+            MPI_Bcast(val, n, GetDataType<T>(), src, comm_);
+#endif
+        }
+
+        ////////////////////////
+        // MPI GATHER WRAPPER //
+        template<class T>
+        inline void gather(T * val_send, // in
+                           int n, // in
+                           T * val_recv, // out
+                           int dst=0 // in
+                           ) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Gather(val_send, n, GetDataType<T>(),
+                       val_recv, n, GetDataType<T>(), dst, comm_);
+#else
+            for(int i=0; i<n; i++) val_recv[i] = val_send[i];
+#endif
+        }
+
+        template<class T> 
+        inline void gatherV(T * val_send, // in
+                            int n_send,   // in
+                            T * val_recv, // out
+                            int * n_recv, // in
+                            int * n_recv_disp, // in
+                            int dst=0
+                            ) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Gatherv(val_send, n_send, GetDataType<T>(),
+                        val_recv, n_recv, n_recv_disp, GetDataType<T>(), dst, comm_);
+#else
+            for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
+#endif
+        }
+
+        template<class T>
+        inline void gatherVAll(ReallocatableArray<T> & val_send,
+                               int n_send,
+                               ReallocatableArray<T> & val_recv,
+                               int dst=0) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            //const auto n_proc = this->getNumberOfProc();
+            ReallocatableArray<int> n_recv(n_proc_, n_proc_, MemoryAllocMode::Pool);
+            ReallocatableArray<int> n_disp_recv(n_proc_, n_proc_, MemoryAllocMode::Pool);
+            this->gather(&n_send, 1, &n_recv[0], dst);
+            n_disp_recv[0] = 0;
+            for(S32 i=0; i<n_proc_; i++){
+                n_disp_recv[i+1] = n_disp_recv[i] + n_recv[i];
+            }
+            int n_recv_tot = 0;
+            if(rank_ == dst){
+                //if(this->getRank() == dst){
+                n_recv_tot = n_disp_recv[n_proc_];
+            }
+            val_recv.resizeNoInitialize(n_recv_tot);
+            this->gatherV(val_send.getPointer(), n_send, val_recv.getPointer(), n_recv.getPointer(), n_disp_recv.getPointer(), dst);
+#else
+            const int n = n_send;
+            for(int i=0; i<n; i++)val_recv[i] = val_send[i];
+#endif
+        }
+
+
+        /////////////////////////
+        // MPI SCATTER WRAPPER //
+        template<class T>
+        inline void scatter(T * val_send,
+                            int n,
+                            T * val_recv,
+                            int src = 0) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Scatter(val_send, n, GetDataType<T>(),
+                        val_recv, n, GetDataType<T>(),
+                        src, comm_);
+#else
+            for(int i=0; i<n; i++)
+                val_recv[i] = val_send[i];
+#endif
+        }
+        template<class T>
+        inline void scatterV(T * val_send,
+                             int * n_send,
+                             int * n_send_disp,
+                             T * val_recv, // output
+                             int n_recv,
+                             int src = 0) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Scatterv(val_send, n_send, n_send_disp, GetDataType<T>(),
+                         val_recv, n_recv, GetDataType<T>(), 
+                         src, comm_);
+#else
+            //const auto n_proc = this->getNumberOfProc();
+            for(int i=0; i<n_send_disp[n_proc_]; i++) val_recv[i] = val_send[i];
+#endif
+        }
+        template<class T>
+        inline void scatterVAll(ReallocatableArray<T> & val_send,
+                                int * n_send,
+                                ReallocatableArray<T> & val_recv, // output
+                                int src = 0) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            int n_recv = 0;
+            this->scatter(n_send, 1, &n_recv, src);
+            //const auto n_proc = this->getNumberOfProc();
+            ReallocatableArray<int> n_disp_send(n_proc_+1, n_proc_+1, MemoryAllocMode::Pool);
+            n_disp_send[0] = 0;
+            if(rank_ == src){
+                //if(this->getRank() == src){
+                for(int i=0; i<n_proc_; i++){
+                    n_disp_send[i+1] = n_disp_send[i] + n_send[i];
+                }
+            }
+            else{
+                for(int i=0; i<n_proc_; i++){
+                    n_send[i] = 0;
+                    n_disp_send[i+1] = n_disp_send[i] + n_send[i];
+                }
+            }
+            val_recv.resizeNoInitialize(n_recv);
+            this->scatterV(val_send.getPointer(), n_send, n_disp_send.getPointer(),
+                           val_recv.getPointer(), n_recv, src);
+#else
+            for(int i=0; i<n_send[0]; i++) val_recv[i] = val_send[i];
+#endif
+        }
+
+        ///////////////////////////
+        // MPI ALLGATHER WRAPPER //
+        template<class T>
+        inline void allGather(const T * val_send, // in
+                              const int n,  // in
+                              T * val_recv  // out
+                              ) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Allgather(val_send, n, GetDataType<T>(),
+                          val_recv, n, GetDataType<T>(), 
+                          comm_);
+#else
+            for(int i=0; i<n; i++)val_recv[i] = val_send[i];
+#endif
+        }
+
+
+
+        template<class T>
+        inline void allGatherV(T * val_send, // in
+                               int n_send,   // in
+                               T * val_recv, // out
+                               int * n_recv, // in
+                               int * n_recv_disp //in
+                               ) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Allgatherv(val_send, n_send, GetDataType<T>(),
+                           val_recv, n_recv, n_recv_disp, GetDataType<T>(), 
+                           comm_);
+#else
+            for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
+            n_recv[0] = n_recv_disp[1] = n_send;
+            n_recv_disp[0] = 0;
+#endif
+        }
+
+        template<class T>
+        inline void allGatherVAll(ReallocatableArray<T> & val_send, // in
+                                  int n_send,   // in
+                                  ReallocatableArray<T> & val_recv // out
+                                  ) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            //const auto n_proc = this->getNumberOfProc();
+            ReallocatableArray<int> n_recv(n_proc_, n_proc_, MemoryAllocMode::Pool);
+            this->allGather(&n_send, 1, n_recv.getPointer());
+            ReallocatableArray<int> n_disp_recv(n_proc_+1, n_proc_+1, MemoryAllocMode::Pool);
+            n_disp_recv[0] = 0;
+            for(int i=0; i<n_proc_; i++){
+                n_disp_recv[i+1] = n_disp_recv[i] + n_recv[i];
+            }
+            const auto n_recv_tot = n_disp_recv[n_proc_];
+            val_recv.resizeNoInitialize(n_recv_tot);
+            this->allGatherV(val_send.getPointer(), n_send,
+                             val_recv.getPointer(), n_recv.getPointer(),
+                             n_disp_recv.getPointer());
+#else
+            for(int i=0; i<n_send; i++){ val_recv[i] = val_send[i]; }
+#endif
+        }
+        
+        ///////////////////////////
+        // MPI ALLTOALL WRAPPER //
+        template<class T>
+        inline void allToAll(T * val_send, // in 
+                             const int n, // in
+                             T * val_recv // out
+                             ) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Alltoall(val_send, n, GetDataType<T>(), val_recv, n, GetDataType<T>(), comm_);
+#else
+            for(int i=0; i<n; i++) val_recv[i] = val_send[i];
+#endif
+        }
+
+
+        template<class T>
+        inline void allToAllV(T * val_send, // in
+                              int * n_send, // in
+                              int * n_send_disp, // in
+                              T * val_recv, // out
+                              int * n_recv, // in
+                              int * n_recv_disp // in
+                              ) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Alltoallv(val_send, n_send, n_send_disp, GetDataType<T>(),
+                          val_recv, n_recv, n_recv_disp, GetDataType<T>(),
+                          comm_);
+#else
+            for(int i=0; i<n_send[0]; i++) val_recv[i] = val_send[i];
+            n_recv[0] = n_send[0];
+            n_recv_disp[0] = n_send_disp[0];
+            n_recv_disp[1] = n_send_disp[1];
+#endif
+        }
+
+        template<class T>
+        inline void allToAllVAll(ReallocatableArray<T> & val_send, // in
+                                 int * n_send, // in
+                                 ReallocatableArray<T> & val_recv // out
+                                 ) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            //const auto n_proc = this->getNumberOfProc();
+            ReallocatableArray<int> n_recv(n_proc_, n_proc_, MemoryAllocMode::Pool);
+            this->allToAll(n_send, 1, n_recv.getPointer());
+            ReallocatableArray<int> n_disp_recv(n_proc_+1, n_proc_+1, MemoryAllocMode::Pool);
+            ReallocatableArray<int> n_disp_send(n_proc_+1, n_proc_+1, MemoryAllocMode::Pool);
+            n_disp_recv[0] = n_disp_send[0] = 0;
+            for(int i=0; i<n_proc_; i++){
+                n_disp_recv[i+1] = n_disp_recv[i] + n_recv[i];
+                n_disp_send[i+1] = n_disp_send[i] + n_send[i];
+            }
+            const auto n_recv_tot = n_disp_recv[n_proc_];
+            val_recv.resizeNoInitialize(n_recv_tot);
+            this->allToAllV(val_send.getPointer(), n_send, n_disp_send.getPointer(), val_recv.getPointer(), n_recv.getPointer(), n_disp_recv.getPointer());
+#else
+            for(int i=0; i<n_send[0]; i++) val_recv[i] = val_send[i];
+#endif
+        }
+        
+        ///////////////////////////////////////
+        // MPI ALLTOALL WRAPPER (send+irecv) //
+        // under construction
+
+        // val_send[n_rank_send*n_send]
+        // val_recv[n_rank_recv*n_recv]
+        template<class T>
+        inline void sendIrecv(T * val_send, const int * rank_send, const int n_send, const int n_rank_send,
+                              T * val_recv, const int * rank_recv, const int n_recv, const int n_rank_recv) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            const int tag = 0;
+            ReallocatableArray<MPI_Request> req_recv(n_rank_recv, n_rank_recv, MemoryAllocMode::Pool);
+            ReallocatableArray<MPI_Status> status_recv(n_rank_recv, n_rank_recv, MemoryAllocMode::Pool);
+            for(int i=0; i<n_rank_recv; i++){
+                S32 rank = rank_recv[i];
+                MPI_Irecv(&val_recv[n_recv*i], n_recv, GetDataType<T>(), rank, tag, comm_, req_recv.getPointer(i));
+            }
+            for(int i=0; i<n_rank_send; i++){
+                S32 rank = rank_send[i];
+                MPI_Send(&val_send[n_send*i], n_send, GetDataType<T>(), rank, tag, comm_);
+            }
+            MPI_Waitall(n_rank_recv, req_recv.getPointer(), status_recv.getPointer());
+#else
+            for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
+#endif
+        }
+
+        template<class T>
+        inline void sendIrecvV(T * val_send, const int * rank_send, const int * n_send, const int * n_disp_send, const int n_rank_send,
+                               T * val_recv, const int * rank_recv, const int * n_recv, const int * n_disp_recv, const int n_rank_recv) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            const int tag = 0;
+            ReallocatableArray<MPI_Request> req_recv(n_rank_recv, n_rank_recv, MemoryAllocMode::Pool);
+            ReallocatableArray<MPI_Status> status_recv(n_rank_recv, n_rank_recv, MemoryAllocMode::Pool);
+            for(int i=0; i<n_rank_recv; i++){
+                S32 rank = rank_recv[i];
+                MPI_Irecv(&val_recv[n_disp_recv[i]], n_recv[i], GetDataType<T>(), rank, tag, comm_, &req_recv[i]);
+            }
+            for(int i=0; i<n_rank_send; i++){
+                S32 rank = rank_send[i];
+                MPI_Send(&val_send[n_disp_send[i]], n_send[i], GetDataType<T>(), rank, tag, comm_);
+            }
+            MPI_Waitall(n_rank_recv, req_recv.getPointer(), status_recv.getPointer());
+#else
+            for(int i=0; i<n_send[0]; i++) val_recv[i] = val_send[i];
+#endif
+        }
+        template<class T0, class T1>
+        inline void sendIrecvV(T0 * val_send_0, const int * rank_send_0, const int * n_send_0, const int * n_disp_send_0, const int n_rank_send_0,
+                               T1 * val_send_1, const int * rank_send_1, const int * n_send_1, const int * n_disp_send_1, const int n_rank_send_1,
+                               T0 * val_recv_0, const int * rank_recv_0, const int * n_recv_0, const int * n_disp_recv_0, const int n_rank_recv_0,
+                               T1 * val_recv_1, const int * rank_recv_1, const int * n_recv_1, const int * n_disp_recv_1, const int n_rank_recv_1) const {
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            const int tag_0 = 0;
+            const int tag_1 = 0;
+            ReallocatableArray<MPI_Request> req_recv(n_rank_recv_0+n_rank_recv_1, n_rank_recv_0+n_rank_recv_1, MemoryAllocMode::Pool);
+            ReallocatableArray<MPI_Status> status_recv(n_rank_recv_0+n_rank_recv_1, n_rank_recv_0+n_rank_recv_1, MemoryAllocMode::Pool);
+            for(int i=0; i<n_rank_recv_0; i++){
+                S32 rank = rank_recv_0[i];
+                MPI_Irecv(&val_recv_0[n_disp_recv_0[i]], n_recv_0[i], GetDataType<T0>(), rank, tag_0, comm_, &req_recv[i]);
+            }
+            for(int i=0; i<n_rank_recv_1; i++){
+                S32 rank = rank_recv_1[i];
+                MPI_Irecv(&val_recv_1[n_disp_recv_1[i]], n_recv_1[i], GetDataType<T1>(), rank, tag_1, comm_, &req_recv[i+n_rank_recv_0]);
+            }
+            for(int i=0; i<n_rank_send_0; i++){
+                S32 rank = rank_send_0[i];
+                MPI_Send(&val_send_0[n_disp_send_0[i]], n_send_0[i], GetDataType<T0>(), rank, tag_0, comm_);
+            }
+            for(int i=0; i<n_rank_send_1; i++){
+                S32 rank = rank_send_1[i];
+                MPI_Send(&val_send_1[n_disp_send_1[i]], n_send_1[i], GetDataType<T1>(), rank, tag_1, comm_);
+            }
+            MPI_Waitall(n_rank_recv_0+n_rank_recv_1, req_recv.getPointer(), status_recv.getPointer());
+#else
+            for(int i=0; i<n_send_0[0]; i++) val_recv_0[i] = val_send_0[i];
+            for(int i=0; i<n_send_1[0]; i++) val_recv_1[i] = val_send_1[i];
+#endif
+        }
+
+        ///////////////////////////
+        // MPI SEND/RECV WRAPPER //
+        template<typename T>
+        inline int send(const T * val, const int n, const int dst=0, const int tag=0) const {
+            int ret = 0;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            ret = MPI_Send(val, n, GetDataType<T>(), dst, tag, comm_);
+#endif
+            return ret;
+        }
+        template<typename T>
+        inline int recv(T * val, const int n, const int src=0, const int tag=0) const {
+            int ret = 0;
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+            MPI_Status * stat;
+            ret = MPI_Recv(val, n, GetDataType<T>(), src, tag, comm_, stat);
+#endif
+            return ret;
+        }
+        
+        ///////////////////////////
+        // MPI ALLREDUCE WRAPPER //
+        template<typename T>
+        inline T getMinValue(const T & val) const {
+            return allreduceMin(val);
+        }
+        template<typename T>
+        inline T getMaxValue(const T & val) const {
+            return allreduceMax(val);
+        }
+        template<class Tfloat>
+        inline void getMinValue(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out) {
+            static_assert(std::is_floating_point<Tfloat>::value == true,
+                          "Tfloat must be floating point type.");
+            allreduceMin(f_in, i_in, f_out, i_out);
+        }
+        template<class Tfloat>
+        inline void getMaxValue(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out) {
+            static_assert(std::is_floating_point<Tfloat>::value == true,
+                          "Tfloat must be floating point type.");
+            allreduceMax(f_in, i_in, f_out, i_out);
+        }
+        template<typename T>
+        inline T getSum(const T & val) const {
+            return allreduceSum(val);
+        }
+    };
+
     
     class Comm{
     private:
         Comm(){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-          MPI_Comm_rank(MPI_COMM_WORLD,&rank_);
-          MPI_Comm_size(MPI_COMM_WORLD,&n_proc_);
+            comm_info_.setCommunicator(MPI_COMM_WORLD);
 #else
-          rank_ = 0;
-          n_proc_ = 1;
+            comm_info_.setCommunicator();
 #endif
-          //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+            rank_ = comm_info_.getRank();
+            n_proc_ = comm_info_.getNumberOfProc();
 #if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
-          n_thread_ = omp_get_max_threads();
+            n_thread_ = omp_get_max_threads();
 #else
-          n_thread_ = 1;
+            n_thread_ = 1;
 #endif
+
+#ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
+            constexpr int DIM = 2;
+#else
+            constexpr int DIM = 3;
+#endif
+            SetNumberOfDomainMultiDimension<DIM>(n_proc_, rank_,
+                                                 n_proc_multi_dim_,
+                                                 rank_multi_dim_);
         }
         ~Comm(){}
-        Comm(const Comm & c);
+        Comm(const Comm & c){}
         Comm & operator=(const Comm& c);
+        CommInfo comm_info_;
         S32 rank_;
         S32 n_proc_;
         S32 n_thread_;
         S32 rank_multi_dim_[DIMENSION];
         S32 n_proc_multi_dim_[DIMENSION];
-        //S32 boundary_condition_;
         static Comm & getInstance(){
             static Comm inst;
             return inst;
         }
-
-    template<class T>
-    static T allreduceMin(const T & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        T ret;
-        T val_tmp = val;
-        MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MIN, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-}
-
-    template<class T>
-    static T allreduceMax(const T & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        T ret;
-        T val_tmp = val;
-        MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_MAX, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<class T>
-    static T allreduceSum(const T & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        T ret;
-        T val_tmp = val;
-        MPI_Allreduce(&val_tmp, &ret, 1, GetDataType<T>(), MPI_SUM, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-
-/*
-    template<class Tfloat, class Tint>
-    static void allreduceMin(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        struct{
-            Tfloat x;
-            Tint y;
-        } loc, glb;
-        loc.x = f_in;
-        loc.y = i_in;
-        MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI_MINLOC, MPI_COMM_WORLD);
-        f_out = glb.x;
-        i_out = glb.y;
-#else
-        f_out = f_in;
-        i_out = i_in;
-#endif
-    }
-*/
-    template<class Tfloat>
-    static void allreduceMin(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        struct{
-            Tfloat x;
-            int y;
-        } loc, glb;
-        loc.x = f_in;
-        loc.y = i_in;
-        MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MINLOC, MPI_COMM_WORLD);
-        f_out = glb.x;
-        i_out = glb.y;
-#else
-        f_out = f_in;
-        i_out = i_in;
-#endif
-    }
-
-/*
-    template<class Tfloat, class Tint>
-    static void allreduceMax(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        struct{
-            Tfloat x;
-            Tint y;
-        } loc, glb;
-        loc.x = f_in;
-        loc.y = i_in;
-        MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, Tint>(), MPI_MAXLOC, MPI_COMM_WORLD);
-        f_out = glb.x;
-        i_out = glb.y;
-        //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
-#else
-        f_out = f_in;
-        i_out = i_in;
-#endif
-    }
-*/
-    template<class Tfloat>
-    static void allreduceMax(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        struct{
-            Tfloat x;
-            int y;
-        } loc, glb;
-        loc.x = f_in;
-        loc.y = i_in;
-        MPI_Allreduce(&loc, &glb, 1, GetDataType<Tfloat, int>(), MPI_MAXLOC, MPI_COMM_WORLD);
-        f_out = glb.x;
-        i_out = glb.y;
-        //if(Comm::getRank() == 0){std::cout<<"glb.x="<<glb.x<<" glb.y="<<glb.y<<std::endl;}
-#else
-        f_out = f_in;
-        i_out = i_in;
-#endif
-    }
     public:
-    static void setNumberOfProcMultiDim(const S32 id, const S32 n) {
-        getInstance().n_proc_multi_dim_[id] = n;
-    }
-    static void setRankMultiDim(const S32 id, const S32 r) {
-        getInstance().rank_multi_dim_[id] = r;
-    }
-        static S32 getRank() { return getInstance().rank_; }
-        static S32 getNumberOfProc() { return getInstance().n_proc_; }
-        static S32 getRankMultiDim(const S32 id) { return getInstance().rank_multi_dim_[id]; }
-        static S32 getNumberOfProcMultiDim(const S32 id) { return getInstance().n_proc_multi_dim_[id]; }
+        static CommInfo create(const int n, const int rank[]) {
+            return getInstance().comm_info_.create(n, rank);
+        }
+        static CommInfo getCommInfo() {
+            CommInfo ret = getInstance().comm_info_;
+            return ret;
+        }
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+        static MPI_Comm getCommunicator(){
+            return getInstance().comm_info_.getCommunicator();
+        }
+#endif
+        static void setNumberOfProcMultiDim(const S32 id, const S32 n) {
+            getInstance().n_proc_multi_dim_[id] = n;
+        }
+        static void setRankMultiDim(const S32 id, const S32 r) {
+            getInstance().rank_multi_dim_[id] = r;
+        }
+        static S32 getRank() {
+            return getInstance().comm_info_.getRank();
+        }
+        static S32 getNumberOfProc() {
+            return getInstance().comm_info_.getNumberOfProc();
+        }
+        static S32 getRankMultiDim(const S32 id) {
+            return getInstance().rank_multi_dim_[id];
+        }
+        static S32 getNumberOfProcMultiDim(const S32 id) {
+            return getInstance().n_proc_multi_dim_[id];
+        }
+        static CommInfo split(int color, int key){
+            return getInstance().comm_info_.split(color, key);
+        }
+
+        static void barrier(){
+            getInstance().comm_info_.barrier();
+        }
+        static bool synchronizeConditionalBranchAND(const bool & local){
+            return getInstance().comm_info_.synchronizeConditionalBranchAND(local);
+        }
+        static bool synchronizeConditionalBranchOR(const bool & local){
+            return getInstance().comm_info_.synchronizeConditionalBranchOR(local);
+        }
+
+        ///////////////////////
+        // MPI BCAST WRAPPER //
+        template<class T>
+        static inline void broadcast(T * val,
+                                     const int n,
+                                     const int src=0){
+            getInstance().comm_info_.broadcast(val, n, src);
+        }
+        
+        ////////////////////////
+        // MPI GATHER WRAPPER //
+        template<class T>
+        static inline void gather(T * val_send, // in
+                           int n, // in
+                           T * val_recv, // out
+                           int dst=0 // in
+                           ){
+            getInstance().comm_info_.gather(val_send, n, val_recv, dst);
+        }
+
+        template<class T> 
+        static inline void gatherV(T * val_send, // in
+                            int n_send,   // in
+                            T * val_recv, // out
+                            int * n_recv, // in
+                            int * n_disp_recv, // in
+                            int dst=0
+                            ){
+            getInstance().comm_info_.gatherV(val_send, n_send, val_recv, n_recv, n_disp_recv, dst);
+        }
+
+        template<class T>
+        static inline void gatherVAll(ReallocatableArray<T> & val_send,
+                               int n_send,
+                               ReallocatableArray<T> & val_recv,
+                               int dst=0){
+            getInstance().comm_info_.gatherVAll(val_send, n_send, val_recv, dst);
+        }
+        
+        /////////////////////////
+        // MPI SCATTER WRAPPER //
+        template<class T>
+        static inline void scatter(T * val_send,
+                                   int n,
+                                   T * val_recv,
+                                   int src = 0){
+            getInstance().comm_info_.scatter(val_send, n, val_recv, src);
+        }
+        template<class T>
+        static inline void scatterV(T * val_send,
+                                    int * n_send,
+                                    int * n_disp_send,
+                                    T * val_recv, // output
+                                    int n_recv,
+                                    int src = 0){
+            getInstance().comm_info_.scatterV(val_send, n_send, n_disp_send, val_recv, n_recv, src);
+        }
+        template<class T>
+        static inline void scatterVAll(ReallocatableArray<T> & val_send,
+                                       int * n_send,
+                                       ReallocatableArray<T> & val_recv, // output
+                                       int src = 0){
+            getInstance().comm_info_.scatterVAll(val_send, n_send, val_recv, src);
+        }
+
+        ///////////////////////////
+        // MPI ALLGATHER WRAPPER //
+        template<class T>
+        static inline void allGather(const T * val_send, // in
+                                     const int n,  // in
+                                     T * val_recv  // out
+                                     ){
+            getInstance().comm_info_.allGather(val_send, n, val_recv);
+        }
+        template<class T>
+        static inline void allGatherV(T * val_send, // in
+                                      int n_send,   // in
+                                      T * val_recv, // out
+                                      int * n_recv, // in
+                                      int * n_disp_recv //in
+                                      ){
+            getInstance().comm_info_.allGatherV(val_send, n_send, val_recv, n_recv, n_disp_recv);
+        }
+        template<class T>
+        static inline void allGatherVAll(ReallocatableArray<T> & val_send, // in
+                                         int n_send,   // in
+                                         ReallocatableArray<T> & val_recv // out
+                                         ){
+            getInstance().comm_info_.allGatherVAll(val_send, n_send, val_recv);
+        }
+        
+        ///////////////////////////
+        // MPI ALLTOALL WRAPPER //
+        template<class T>
+        static inline void allToAll(T * val_send, // in 
+                                    const int n, // in
+                                    T * val_recv // out
+                                    ){
+            getInstance().comm_info_.allToAll(val_send, n, val_recv);
+        }
+        template<class T>
+        static inline void allToAllV(T * val_send, // in
+                                     int * n_send, // in
+                                     int * n_disp_send, // in
+                                     T * val_recv, // out
+                                     int * n_recv, // in
+                                     int * n_disp_recv // in
+                                     ){
+            getInstance().comm_info_.allToAllV(val_send, n_send, n_disp_send, val_recv, n_recv, n_disp_recv);
+        }
+        template<class T>
+        static inline void allToAllVAll(ReallocatableArray<T> & val_send, // in
+                                        int * n_send, // in
+                                        ReallocatableArray<T> & val_recv // out
+                                        ){
+            getInstance().comm_info_.allToAllVAll(val_send, n_send, val_recv);
+        }
+        
+        ///////////////////////////////////////
+        // MPI ALLTOALL WRAPPER (send+irecv) //
+        // under construction
+        template<class T>
+        static inline void sendIrecv(T * val_send, const int * rank_send, const int n_send, const int n_rank_send,
+                                     T * val_recv, const int * rank_recv, const int n_recv, const int n_rank_recv){
+            getInstance().comm_info_.sendIrecv(val_send, rank_send, n_send, n_rank_send,
+                                               val_recv, rank_recv, n_recv, n_rank_recv);
+        }
+
+        template<class T>
+        static inline void sendIrecvV(T * val_send, const int * rank_send, const int * n_send, const int * n_disp_send, const int n_rank_send,
+                                      T * val_recv, const int * rank_recv, const int * n_recv, const int * n_disp_recv, const int n_rank_recv){
+            getInstance().comm_info_.sendIrecvV(val_send, rank_send, n_send, n_disp_send, n_rank_send,
+                                                val_recv, rank_recv, n_recv, n_disp_recv, n_rank_recv);
+        }
+
+        template<class T0, class T1>
+        static inline void sendIrecvV(T0 * val_send_0, const int * rank_send_0, const int * n_send_0, const int * n_disp_send_0, const int n_rank_send_0,
+                                      T1 * val_send_1, const int * rank_send_1, const int * n_send_1, const int * n_disp_send_1, const int n_rank_send_1,
+                                      T0 * val_recv_0, const int * rank_recv_0, const int * n_recv_0, const int * n_disp_recv_0, const int n_rank_recv_0,
+                                      T1 * val_recv_1, const int * rank_recv_1, const int * n_recv_1, const int * n_disp_recv_1, const int n_rank_recv_1){
+            getInstance().comm_info_.sendIrecvV(val_send_0, rank_send_0, n_send_0, n_disp_send_0, n_rank_send_0,
+                                                val_send_1, rank_send_1, n_send_1, n_disp_send_1, n_rank_send_1,
+                                                val_recv_0, rank_recv_0, n_recv_0, n_disp_recv_0, n_rank_recv_0,
+                                                val_recv_1, rank_recv_1, n_recv_1, n_disp_recv_1, n_rank_recv_1);
+        }
+
+        ///////////////////////////
+        // MPI SEND/RECV WRAPPER //
+        template<typename T>
+        static inline int send(const T * val, const int n, const int dst=0, const int tag=0) {
+            return getInstance().comm_info_.send(val, n, dst, tag);
+        }
+        template<typename T>
+        static inline int recv(T * val, const int n, const int src=0, const int tag=0) {
+            return getInstance().comm_info_.recv(val, n, src, tag);
+        }
+        
+        
+        
+        ///////////////////////////
+        // MPI ALLREDUCE WRAPPER //
+        template<typename T>
+        static inline T getMinValue(const T & val){
+            return getInstance().comm_info_.getMinValue(val);
+        }
+        template<typename T>
+        static inline T getMaxValue(const T & val){
+            return getInstance().comm_info_.getMaxValue(val);
+        }
+        template<class Tfloat>
+        static inline void getMinValue(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out) {
+            static_assert(std::is_floating_point<Tfloat>::value == true,
+                          "Tfloat must be floating point type.");
+            return getInstance().comm_info_.getMinValue(f_in, i_in, f_out, i_out);
+        }
+        template<class Tfloat>
+        static inline void getMaxValue(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out) {
+            static_assert(std::is_floating_point<Tfloat>::value == true,
+                          "Tfloat must be floating point type.");
+            return getInstance().comm_info_.getMaxValue(f_in, i_in, f_out, i_out);
+        }
+        template<typename T>
+        static inline T getSum(const T & val){
+            return getInstance().comm_info_.getSum(val);
+        }
+        
         static S32 getNumberOfThread() { return getInstance().n_thread_; }
         static S32 getNumThreads() {
 #if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
@@ -730,210 +1612,12 @@ namespace ParticleSimulator{
 #endif
         }
         static S32 getThreadNum(){
-        //#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL) && defined(_OPENMP)
             return omp_get_thread_num();
 #else
             return 0;
 #endif
         }
-
-        static void barrier(){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
-        }
-
-        static bool synchronizeConditionalBranchAND(const bool & local){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            bool global;
-            bool local_tmp = local;
-            MPI_Allreduce(&local_tmp, &global, 1, MPI_C_BOOL, MPI_LAND, MPI_COMM_WORLD);
-            return global;
-#else
-            return local;
-#endif
-        }
-        static bool synchronizeConditionalBranchOR(const bool & local){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            bool global;
-            bool local_tmp = local;
-            //std::cerr<<"rank="<<Comm::getRank()<<" local="<<local<<std::endl;
-            MPI_Allreduce(&local_tmp, &global, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
-            //std::cerr<<"rank="<<Comm::getRank()<<" global="<<global<<std::endl;
-            return global;
-#else
-            return local;
-#endif
-        }
-
-        ///////////////////////////
-        // MPI ALLREDUCE WRAPPER //
-        template<class T> static inline T getMinValue(const T & val);
-        template<class T> static inline T getMaxValue(const T & val);
-        //template<class Tfloat, class Tint> static inline void getMinValue(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out);
-        //template<class Tfloat, class Tint> static inline void getMaxValue(const Tfloat & f_in, const Tint & i_in, Tfloat & f_out, Tint & i_out);
-        template<class Tfloat> static inline void getMinValue(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out);
-        template<class Tfloat> static inline void getMaxValue(const Tfloat & f_in, const int & i_in, Tfloat & f_out, int & i_out);
-        template<class T> static inline T getSum(const T & val);
-
-        ///////////////////////
-        // MPI BCAST WRAPPER //
-        // new functions 10 Feb 2015
-        template<class T>
-        static inline void broadcast(T * val, const int n, const int src=0){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-            MPI_Bcast(val, n, GetDataType<T>(), src, MPI_COMM_WORLD);
-#else
-            // NOP
-#endif
-        }
-
-        ///////////////////////////
-        // MPI GATHER WRAPPER //
-        template<class T> static inline void gather(T * val_send,
-                                                    int n,
-                                                    T * val_recv){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            MPI_Gather(val_send, n, GetDataType<T>(),
-                       val_recv, n, GetDataType<T>(), 0, MPI_COMM_WORLD);
-#else
-            for(int i=0; i<n; i++)val_recv[i] = val_send[i];
-#endif
-        }
-
-        template<class T> static inline void gatherV(T * val_send,
-                                                     int n_send,
-                                                     T * val_recv){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-            const int n_proc = Comm::getNumberOfProc();
-            int * n_recv      = new int[n_proc];
-            int * n_disp_recv = new int[n_proc+1];
-            gather(&n_send, 1, n_recv);
-            n_disp_recv[0] = 0;
-            for(S32 i=0; i<n_proc; i++){
-                n_disp_recv[i+1] = n_disp_recv[i] + n_recv[i];
-            }
-            MPI_Gatherv(val_send, n_send, GetDataType<T>(),
-                        val_recv, n_recv, n_disp_recv, GetDataType<T>(), 0, MPI_COMM_WORLD);
-            delete[] n_recv;
-            delete[] n_disp_recv;
-#else
-            int n = n_send;
-            for(int i=0; i<n; i++)val_recv[i] = val_send[i];
-#endif
-        }
-
-        template<class T> static inline void gatherV(T * val_send, // in
-                                                     int n_send,   // in
-                                                     T * val_recv, // out
-                                                     int * n_recv, // in
-                                                     int * n_recv_disp // in
-                                                     ){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            MPI_Gatherv(val_send, n_send, GetDataType<T>(),
-                        val_recv, n_recv, n_recv_disp, GetDataType<T>(), 0, MPI_COMM_WORLD);
-#else
-            for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
-            //n_recv[0] = n_recv_disp[1] = n_send; //not needed ?
-            //n_recv_disp[0] = 0; //not needed ?
-#endif
-        }
-
-        ///////////////////////////
-        // MPI SCATTER WRAPPER //
-        template<class T> static inline void scatterV(T * val_send,
-                                                      int * n_send,
-                                                      int * n_send_disp,
-                                                      T * val_recv, // output
-                                                      int n_recv,
-                                                      int root=0){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            MPI_Scatterv(val_send, n_send, n_send_disp, GetDataType<T>(),
-                         val_recv, n_recv, GetDataType<T>(), 
-                         root, MPI_COMM_WORLD);
-#else
-            S32 n_proc = Comm::getNumberOfProc();
-            for(int i=0; i<n_send_disp[n_proc]; i++) val_recv[i] = val_send[i];
-#endif
-        }
-
-
-
-        ///////////////////////////
-        // MPI ALLGATHER WRAPPER //
-        template<class T> static inline void allGather(const T * val_send, // in
-                                                       const int n,        // in
-                                                       T * val_recv  // out
-                                                       ){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            T * val_send_tmp = const_cast<T*>(val_send);
-            MPI_Allgather(val_send_tmp, n, GetDataType<T>(),
-                          val_recv, n, GetDataType<T>(), 
-                          MPI_COMM_WORLD);
-#else
-            for(int i=0; i<n; i++)val_recv[i] = val_send[i];
-#endif
-        }
-
-        template<class T> static inline void allGatherV(const T * val_send, // in
-                                                        const int n_send,   // in
-                                                        T * val_recv, // out
-                                                        int * n_recv, // in
-                                                        int * n_recv_disp //in
-                                                        ){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            T * val_send_tmp = const_cast<T*>(val_send);
-            int * n_recv_tmp = const_cast<int*>(n_recv);
-            int * n_recv_disp_tmp = const_cast<int*>(n_recv_disp);
-            MPI_Allgatherv(val_send_tmp, n_send, GetDataType<T>(),
-                           val_recv, n_recv_tmp, n_recv_disp_tmp, GetDataType<T>(), 
-                           MPI_COMM_WORLD);
-#else
-            for(int i=0; i<n_send; i++) val_recv[i] = val_send[i];
-            n_recv[0] = n_recv_disp[1] = n_send;
-            n_recv_disp[0] = 0;
-#endif
-        }
-
-
-
-        ///////////////////////////
-        // MPI ALLTOALL WRAPPER //
-        template<class T>
-        static inline void allToAll(const T * val_send, const int n, T * val_recv){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            T * val_send_tmp = const_cast<T*>(val_send);
-            MPI_Alltoall(val_send_tmp, n, GetDataType<T>(),
-                         val_recv, n, GetDataType<T>(), MPI_COMM_WORLD);
-#else
-            for(int i=0; i<n; i++) val_recv[i] = val_send[i];
-#endif
-        }
-        template<class T>
-        static inline void allToAllV(const T * val_send,
-                                     const int * n_send,
-                                     const int * n_send_disp,
-                                     T * val_recv,
-                                     int * n_recv,
-                                     int * n_recv_disp){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            T * val_send_tmp = const_cast<T*>(val_send);
-            int * n_send_tmp = const_cast<int*>(n_send);
-            int * n_send_disp_tmp = const_cast<int*>(n_send_disp);
-            int * n_recv_tmp = const_cast<int*>(n_recv);
-            int * n_recv_disp_tmp = const_cast<int*>(n_recv_disp);
-            MPI_Alltoallv(val_send_tmp, n_send_tmp, n_send_disp_tmp, GetDataType<T>(),
-                          val_recv,     n_recv_tmp, n_recv_disp_tmp, GetDataType<T>(),
-                          MPI_COMM_WORLD);
-#else
-            for(int i=0; i<n_send[0]; i++) val_recv[i] = val_send[i];
-            n_recv[0] = n_send[0];
-            n_recv_disp[0] = n_send_disp[0];
-            n_recv_disp[1] = n_send_disp[1];
-#endif
-        }
-
     }; // END OF Comm
 
     static inline void Initialize(int &argc,
@@ -961,7 +1645,7 @@ namespace ParticleSimulator{
             std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
             std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
             std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-            std::cerr << "     ||     Version 6.0b2 (2020/09)      ||"   << std::endl;
+            std::cerr << "     ||     Version 7.0 (2021/08)        ||"   << std::endl;
             std::cerr << "     \\\\==================================//" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
@@ -1008,9 +1692,10 @@ namespace ParticleSimulator{
     }
 
     static inline void Finalize(){
+        MemoryPool::finalize();
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
         MPI_Finalize();
-#endif
+#endif  
         bool flag_monar = false;
         if(Comm::getRank() == 0) {
             if(flag_monar){
@@ -1020,257 +1705,24 @@ namespace ParticleSimulator{
             }
         }
     }
-
-    template<> inline float Comm::getMinValue<float>(const float & val){
-        return allreduceMin(val);
-    }
-    template<> inline double Comm::getMinValue<double>(const double & val){
-        return allreduceMin(val);
-    }
-    template<> inline int Comm::getMinValue<int>(const int & val){
-        return allreduceMin(val);
-    }
-    template<> inline long Comm::getMinValue<long>(const long & val){
-        return allreduceMin(val);
-    }
-    template<> inline long long Comm::getMinValue<long long>(const long long & val){
-        return allreduceMin(val);
-    }
-    template<> inline unsigned int Comm::getMinValue<unsigned int>(const unsigned int & val){
-        return allreduceMin(val);
-    }    
-    template<> inline unsigned long Comm::getMinValue<unsigned long>(const unsigned long & val){
-        return allreduceMin(val);
-    }    
-    template<> inline unsigned long long Comm::getMinValue<unsigned long long>(const unsigned long long & val){
-        return allreduceMin(val);
-    }    
-    template<> inline
-    Vector2<float> Comm::getMinValue< Vector2<float> >(const Vector2<float> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-        Vector2<float> ret;
-        MPI_Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline Vector2<double> Comm::getMinValue< Vector2<double> >(const Vector2<double> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-        Vector2<double> ret;
-        MPI_Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline
-    Vector3<float> Comm::getMinValue< Vector3<float> >(const Vector3<float> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-        Vector3<float> ret;
-        MPI_Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline
-    Vector3<double> Comm::getMinValue< Vector3<double> >(const Vector3<double> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-        Vector3<double> ret;
-        MPI_Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-
-    template<> inline float Comm::getMaxValue<float>(const float & val){
-        return allreduceMax(val);
-    }
-    template<> inline double Comm::getMaxValue<double>(const double & val){
-        return allreduceMax(val);
-    }
-    template<> inline int Comm::getMaxValue<int>(const int & val){
-        return allreduceMax(val);
-    }
-    template<> inline long Comm::getMaxValue<long>(const long & val){
-        return allreduceMax(val);
-    }
-    template<> inline long long Comm::getMaxValue<long long>(const long long & val){
-        return allreduceMax(val);
-    }
-    template<> inline unsigned int Comm::getMaxValue<unsigned int>(const unsigned int & val){
-        return allreduceMax(val);
-    }    
-    template<> inline unsigned long Comm::getMaxValue<unsigned long>(const unsigned long & val){
-        return allreduceMax(val);
-    }    
-    template<> inline unsigned long long Comm::getMaxValue<unsigned long long>(const unsigned long long & val){
-        return allreduceMax(val);
-    }    
-    template<> inline
-    Vector2<float> Comm::getMaxValue< Vector2<float> >(const Vector2<float> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-        Vector2<float> ret;
-        MPI_Allreduce((float*)&val.x, (float*)&ret.x, 2, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline
-    Vector2<double> Comm::getMaxValue< Vector2<double> >(const Vector2<double> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-        Vector2<double> ret;
-        MPI_Allreduce((double*)&val.x, (double*)&ret.x, 2, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline
-    Vector3<float> Comm::getMaxValue< Vector3<float> >(const Vector3<float> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-        Vector3<float> ret;
-        MPI_Allreduce((float*)&val.x, (float*)&ret.x, 3, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline
-    Vector3<double> Comm::getMaxValue< Vector3<double> >(const Vector3<double> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-        Vector3<double> ret;
-        MPI_Allreduce((double*)&val.x, (double*)&ret.x, 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
     
-    template<> inline float Comm::getSum(const float & val){
-        return allreduceSum(val);
-    }
-    template<> inline double Comm::getSum(const double & val){
-        return allreduceSum(val);
-    }
-    template<> inline int Comm::getSum(const int & val){
-        return allreduceSum(val);
-    }
-    template<> inline unsigned int Comm::getSum(const unsigned int & val){
-        return allreduceSum(val);
-    }
-    template<> inline long Comm::getSum(const long & val){
-        return allreduceSum(val);
-    }
-    template<> inline unsigned long Comm::getSum(const unsigned long & val){
-        return allreduceSum(val);
-    }
-    template<> inline long long int Comm::getSum(const long long int & val){
-        return allreduceSum(val);
-    }
-    template<> inline unsigned long long int Comm::getSum(const unsigned long long int & val){
-        return allreduceSum(val);
-    }
-    template<> inline Vector3<float> Comm::getSum(const Vector3<float> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        Vector3<float> ret;
-        MPI_Allreduce((float*)&val, (float*)&ret, 3, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline Vector3<double> Comm::getSum(const Vector3<double> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        Vector3<double> ret;
-        MPI_Allreduce((double*)&val, (double*)&ret, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline Vector2<float> Comm::getSum(const Vector2<float> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        Vector2<float> ret;
-        MPI_Allreduce((float*)&val, (float*)&ret, 2, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-    template<> inline Vector2<double> Comm::getSum(const Vector2<double> & val){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        Vector2<double> ret;
-        MPI_Allreduce((double*)&val, (double*)&ret, 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        return ret;
-#else
-        return val;
-#endif
-    }
-
-/*
-    template<> inline void Comm::getMinValue<float, int>(const float & f_in, const int & i_in, 
-                                                         float & f_out, int & i_out){
-        allreduceMin(f_in, i_in, f_out, i_out);
-    }
-    template<> inline void Comm::getMinValue<double, int>(const double & f_in, const int & i_in, 
-                                                          double & f_out, int & i_out){
-        allreduceMin(f_in, i_in, f_out, i_out);
-    }
-*/
-    template<> inline void Comm::getMinValue<float>(const float & f_in, const int & i_in, 
-                                                    float & f_out, int & i_out){
-        allreduceMin(f_in, i_in, f_out, i_out);
-    }
-    template<> inline void Comm::getMinValue<double>(const double & f_in, const int & i_in, 
-                                                     double & f_out, int & i_out){
-        allreduceMin(f_in, i_in, f_out, i_out);
-    }
-/*
-    template<> inline
-    void Comm::getMaxValue<float, int>(const float & f_in, const int & i_in, 
-                                       float & f_out, int & i_out){
-        allreduceMax(f_in, i_in, f_out, i_out);
-    }
-
-    template<> inline
-    void Comm::getMaxValue<double, int>(const double & f_in, const int & i_in, 
-                                        double & f_out, int & i_out){
-        allreduceMax(f_in, i_in, f_out, i_out);
-    }
-*/
-    template<> inline
-    void Comm::getMaxValue<float>(const float & f_in, const int & i_in, 
-                                  float & f_out, int & i_out){
-        allreduceMax(f_in, i_in, f_out, i_out);
-    }
-
-    template<> inline
-    void Comm::getMaxValue<double>(const double & f_in, const int & i_in, 
-                                   double & f_out, int & i_out){
-        allreduceMax(f_in, i_in, f_out, i_out);
-    }
-
     static const S32 N_SMP_PTCL_TOT_PER_PSYS_DEFAULT = 1000000;
 
     ////////
     // util 
-    inline F32 CalcSeparationSQPointToBox(const F32vec & point, 
-                                          const F32vec & center, 
-                                          const F32vec & half_length ){
+    inline F64 CalcSeparationSQPointToBox(const F64vec & point, 
+                                          const F64vec & center, 
+                                          const F64vec & half_length ){
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
-        F32 dx = fabs(point.x - center.x);
-        F32 dy = fabs(point.y - center.y);
+        auto dx = fabs(point.x - center.x);
+        auto dy = fabs(point.y - center.y);
         dx = ( half_length.x < dx ) ? (dx - half_length.x) : 0.0;
         dy = ( half_length.y < dy ) ? (dy - half_length.y) : 0.0;
         return dx*dx + dy*dy;
 #else
-        F32 dx = fabs(point.x - center.x);
-        F32 dy = fabs(point.y - center.y);
-        F32 dz = fabs(point.z - center.z);
+        auto dx = fabs(point.x - center.x);
+        auto dy = fabs(point.y - center.y);
+        auto dz = fabs(point.z - center.z);
         dx = ( half_length.x < dx ) ? (dx - half_length.x) : 0.0;
         dy = ( half_length.y < dy ) ? (dy - half_length.y) : 0.0;
         dz = ( half_length.z < dz ) ? (dz - half_length.z) : 0.0;
@@ -1279,11 +1731,11 @@ namespace ParticleSimulator{
     }
 
     // for check function
-    inline bool IsInBox(const F32vec & pos,
-                        const F32vec & center,
-                        const F32 half_length,
-                        const F32 tolerance=1e-6){
-        const F32 tol = -std::abs(tolerance);
+    inline bool IsInBox(const F64vec & pos,
+                        const F64vec & center,
+                        const F64 half_length,
+                        const F64 tolerance=1e-6){
+        const F64 tol = -std::fabs(tolerance);
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
         return ((pos.x - (center.x-half_length)) >= tol) && (((center.x+half_length) - pos.x) >= tol) &&
             ((pos.y - (center.y-half_length)) >= tol) && (((center.y+half_length) - pos.y) >= tol);
@@ -1318,19 +1770,6 @@ namespace ParticleSimulator{
         return ret;
     }
 
-/*
-    template<class T>
-    inline T GetMSB(const T val);
-    template<>
-    inline unsigned long long int GetMSB(const unsigned long long int val){
-        return (val>>63) & 0x1;
-    }
-    template<>
-    inline unsigned int GetMSB(const unsigned int val){
-        return (val>>31) & 0x1;
-    }
-*/
-
     template<class T>
     inline T GetMSB(const T val);
     template<>
@@ -1341,18 +1780,6 @@ namespace ParticleSimulator{
     inline U32 GetMSB(const U32 val){
         return (val>>31) & 0x1;
     }
-/*
-    template<class T>
-    inline T ClearMSB(const T val);
-    template<>
-    inline unsigned long long int ClearMSB(const unsigned long long int val){
-        return val & 0x7fffffffffffffff;
-    }
-    template<>
-    inline unsigned int ClearMSB(const unsigned int val){
-        return val & 0x7fffffff;
-    }
-*/
 
     template<class T>
     inline T ClearMSB(const T val);
@@ -1364,19 +1791,6 @@ namespace ParticleSimulator{
     inline U32 ClearMSB(const U32 val){
         return val & 0x7fffffff;
     }
-
-/*
-    template<class T>
-    inline T SetMSB(const T val);
-    template<>
-    inline unsigned long long int SetMSB(const unsigned long long int val){
-        return val | 0x8000000000000000;
-    }
-    template<>
-    inline unsigned int SetMSB(const unsigned int val){
-        return val | 0x80000000;
-    }
-*/
 
     template<class T>
     inline T SetMSB(const T val);
@@ -1422,7 +1836,6 @@ namespace ParticleSimulator{
                 box_loc.merge(box_loc_tmp);
             }
         }
-        //std::cerr<<"box_loc="<<box_loc<<std::endl;
         const F64vec xlow_loc = box_loc.low_;
         const F64vec xhigh_loc = box_loc.high_;
         const F64vec xlow_glb = Comm::getMinValue(xlow_loc);
@@ -1560,12 +1973,16 @@ namespace ParticleSimulator{
     template<typename Tptcl>
     struct HasgetRSearchMethod
     {
-       template<typename U, float(U::*)() > struct SFINAE0 {};
-       template<typename U, float(U::*)() const > struct SFINAE1 {};
-       template<typename U, double(U::*)() > struct SFINAE2 {};
-       template<typename U, double(U::*)() const > struct SFINAE3 {};
+#ifndef PARTICLE_SIMULATOR_ALL_64BIT_PRECISION
+       template<typename U, F32(U::*)() > struct SFINAE0 {};
+       template<typename U, F32(U::*)() const > struct SFINAE1 {};
+#endif
+       template<typename U, F64(U::*)() > struct SFINAE2 {};
+       template<typename U, F64(U::*)() const > struct SFINAE3 {};
+#ifndef PARTICLE_SIMULATOR_ALL_64BIT_PRECISION
        template<typename U> static char Test(SFINAE0<U, &U::getRSearch> *);
        template<typename U> static char Test(SFINAE1<U, &U::getRSearch> *);
+#endif
        template<typename U> static char Test(SFINAE2<U, &U::getRSearch> *);
        template<typename U> static char Test(SFINAE3<U, &U::getRSearch> *);
        template<typename U> static int Test(...);
@@ -1626,6 +2043,8 @@ namespace ParticleSimulator{
         F64 calc_force__copy_original_order;
 
         F64 exchange_particle__find_particle;
+        F64 exchange_particle__find_particle_2;
+        F64 exchange_particle__find_particle_3;
         F64 exchange_particle__exchange_particle;
 
         F64 decompose_domain__sort_particle_1st;
@@ -1641,31 +2060,58 @@ namespace ParticleSimulator{
         F64 decompose_domain__exchange_pos_domain;
 
         F64 exchange_LET_1st__a2a_n;
-        F64 exchange_LET_1st__icomm_sp;
+        F64 exchange_LET_1st__icomm_ptcl;
         F64 exchange_LET_1st__a2a_sp;
-        F64 exchange_LET_1st__icomm_ep;
         F64 exchange_LET_1st__a2a_ep;
 
         F64 add_moment_as_sp_local;
         F64 add_moment_as_sp_global;
 
-        void dump(std::ostream & fout=std::cout) const {
-            fout<<"collect_sample_particle= "<<collect_sample_particle<<std::endl;
-            fout<<"decompose_domain= "<<decompose_domain<<std::endl;
-            fout<<"exchange_particle= "<<exchange_particle<<std::endl;
-            fout<<"set_particle_local_tree= "<<set_particle_local_tree<<std::endl;
-            fout<<"set_particle_global_tree= "<<set_particle_global_tree<<std::endl;
-            fout<<"make_local_tree= "<<make_local_tree<<std::endl;
-            fout<<"make_global_tree= "<<make_global_tree<<std::endl;
-            fout<<"set_root_cell= "<<set_root_cell<<std::endl;
-            fout<<"calc_force= "<<calc_force<<std::endl;
-            fout<<"calc_moment_local_tree= "<<calc_moment_local_tree<<std::endl;
-            fout<<"calc_moment_global_tree= "<<calc_moment_global_tree<<std::endl;
-            fout<<"make_LET_1st= "<<make_LET_1st<<std::endl;
-            fout<<"make_LET_2nd= "<<make_LET_2nd<<std::endl;
-            fout<<"exchange_LET_1st= "<<exchange_LET_1st<<std::endl;
-            fout<<"exchange_LET_2nd= "<<exchange_LET_2nd<<std::endl;
-            fout<<"write_back= "<<write_back<<std::endl;
+        F64 make_LET_1st__find_particle;
+        F64 make_LET_1st__exchange_n;
+        F64 make_LET_1st__exchange_top_moment;
+
+        F64 getTotalTime() const {
+            return collect_sample_particle + decompose_domain + exchange_particle
+                + set_particle_local_tree + set_particle_global_tree
+                + set_root_cell
+                + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
+                + morton_sort_local_tree + link_cell_local_tree 
+                + morton_sort_global_tree + link_cell_global_tree
+                + add_moment_as_sp_local + add_moment_as_sp_global
+                + write_back;
+        }
+        
+        void dump(std::ostream & fout=std::cout,
+                  const S32 level=0) const {
+            fout<<"total_time= "<<getTotalTime()<<std::endl;
+            fout<<"  collect_sample_particle= "<<collect_sample_particle<<std::endl;
+            fout<<"  decompose_domain= "<<decompose_domain<<std::endl;
+            fout<<"  exchange_particle= "<<exchange_particle<<std::endl;
+            fout<<"  set_particle_local_tree= "<<set_particle_local_tree<<std::endl;
+            fout<<"  set_particle_global_tree= "<<set_particle_global_tree<<std::endl;
+            fout<<"  set_root_cell= "<<set_root_cell<<std::endl;
+            fout<<"  morton_sort_local_tree= "<<morton_sort_local_tree<<std::endl;
+            fout<<"  link_cell_local_tree= "<<link_cell_local_tree<<std::endl;
+            fout<<"  morton_sort_global_tree= "<<morton_sort_global_tree<<std::endl;
+            fout<<"  link_cell_global_tree= "<<link_cell_global_tree<<std::endl;
+            fout<<"  calc_force= "<<calc_force<<std::endl;
+            fout<<"  calc_moment_local_tree= "<<calc_moment_local_tree<<std::endl;
+            fout<<"  calc_moment_global_tree= "<<calc_moment_global_tree<<std::endl;
+            fout<<"  add_moment_as_sp_global= "<<add_moment_as_sp_global<<std::endl;
+            fout<<"  make_LET_1st= "<<make_LET_1st<<std::endl;
+            if(level > 0){
+                fout<<"    make_LET_1st__find_particle= "<<make_LET_1st__find_particle<<std::endl;
+                fout<<"    make_LET_1st__exchange_n= "<<make_LET_1st__exchange_n<<std::endl;
+                fout<<"    make_LET_1st__exchange_top_moment= "<<make_LET_1st__exchange_top_moment<<std::endl;
+            }
+            fout<<"  make_LET_2nd= "<<make_LET_2nd<<std::endl;
+            fout<<"  exchange_LET_1st= "<<exchange_LET_1st<<std::endl;
+            if(level > 0){
+                fout<<"    exchange_LET_1st__icomm_ptcl= "<<exchange_LET_1st__icomm_ptcl<<std::endl;
+            }
+            fout<<"  exchange_LET_2nd= "<<exchange_LET_2nd<<std::endl;
+            fout<<"  write_back= "<<write_back<<std::endl;
         }
 
         TimeProfile () {
@@ -1679,13 +2125,16 @@ namespace ParticleSimulator{
 
             exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
 
+	    exchange_particle__find_particle_2 = exchange_particle__find_particle_3 = 0.0;
+
             decompose_domain__sort_particle_1st = decompose_domain__sort_particle_2nd = decompose_domain__sort_particle_3rd = decompose_domain__gather_particle = 0.0;
             decompose_domain__setup = decompose_domain__determine_coord_1st = decompose_domain__migrae_particle_1st = decompose_domain__determine_coord_2nd 
                 = decompose_domain__determine_coord_3rd = decompose_domain__exchange_pos_domain = 0.0;
-            exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ep = exchange_LET_1st__icomm_sp = exchange_LET_1st__a2a_ep = 0.0;
+            exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ptcl = exchange_LET_1st__a2a_ep = 0.0;
 
             add_moment_as_sp_local = add_moment_as_sp_global = 0.0;
             write_back = 0.0;
+            make_LET_1st__find_particle = make_LET_1st__exchange_n = make_LET_1st__exchange_top_moment = 0.0;
         }
 
         TimeProfile operator + (const TimeProfile & rhs) const{
@@ -1742,29 +2191,27 @@ namespace ParticleSimulator{
             ret.decompose_domain__exchange_pos_domain = this->decompose_domain__exchange_pos_domain + rhs.decompose_domain__exchange_pos_domain;
 
             ret.exchange_LET_1st__a2a_n    = this->exchange_LET_1st__a2a_n    + rhs.exchange_LET_1st__a2a_n;
-            ret.exchange_LET_1st__icomm_ep   = this->exchange_LET_1st__icomm_ep   + rhs.exchange_LET_1st__icomm_ep;
+            ret.exchange_LET_1st__icomm_ptcl   = this->exchange_LET_1st__icomm_ptcl   + rhs.exchange_LET_1st__icomm_ptcl;
             ret.exchange_LET_1st__a2a_sp   = this->exchange_LET_1st__a2a_sp   + rhs.exchange_LET_1st__a2a_sp;
-            ret.exchange_LET_1st__icomm_sp = this->exchange_LET_1st__icomm_sp + rhs.exchange_LET_1st__icomm_sp;
             ret.exchange_LET_1st__a2a_ep   = this->exchange_LET_1st__a2a_ep   + rhs.exchange_LET_1st__a2a_ep;
 
             ret.add_moment_as_sp_local = this->add_moment_as_sp_local + rhs.add_moment_as_sp_local;
             ret.add_moment_as_sp_global = this->add_moment_as_sp_global + rhs.add_moment_as_sp_global;
 
             ret.write_back = this->write_back + rhs.write_back;
+
+            ret.make_LET_1st__find_particle = this->make_LET_1st__find_particle + rhs.make_LET_1st__find_particle;
+            ret.make_LET_1st__exchange_n = this->make_LET_1st__exchange_n + rhs.make_LET_1st__exchange_n;
+            ret.make_LET_1st__exchange_top_moment = this->make_LET_1st__exchange_top_moment + rhs.make_LET_1st__exchange_top_moment;
+            
             return ret;
         }
-        F64 getTotalTime() const {
-            /*
-            return collect_sample_particle + decompose_domain + exchange_particle + set_particle_local_tree + set_particle_global_tree + make_local_tree + make_global_tree + set_root_cell
-                + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd;
-            */
-            return collect_sample_particle + decompose_domain + exchange_particle + set_particle_local_tree + set_particle_global_tree + make_local_tree + make_global_tree + set_root_cell
-                + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
-                + morton_sort_local_tree + link_cell_local_tree 
-                + morton_sort_global_tree + link_cell_global_tree
-                + add_moment_as_sp_local + add_moment_as_sp_global
-                + write_back;
+
+        const TimeProfile & operator += (const TimeProfile & rhs) {
+            (*this) = (*this) + rhs;
+            return (*this);
         }
+
         void clear(){
             collect_sample_particle = decompose_domain = exchange_particle = make_local_tree = make_global_tree = set_particle_local_tree = set_particle_global_tree = set_root_cell
                 = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd = exchange_LET_1st = exchange_LET_2nd = 0.0;
@@ -1779,115 +2226,18 @@ namespace ParticleSimulator{
             calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
             exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
 
+	    exchange_particle__find_particle_2 = exchange_particle__find_particle_3 = 0.0;
 
             decompose_domain__sort_particle_1st = decompose_domain__sort_particle_2nd = decompose_domain__sort_particle_3rd = decompose_domain__gather_particle = 0.0;
             decompose_domain__setup = decompose_domain__determine_coord_1st = decompose_domain__migrae_particle_1st = decompose_domain__determine_coord_2nd 
                 = decompose_domain__determine_coord_3rd = decompose_domain__exchange_pos_domain = 0.0;
-            exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ep = exchange_LET_1st__icomm_sp = exchange_LET_1st__a2a_ep = 0.0;
+            exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ptcl = exchange_LET_1st__a2a_ep = 0.0;
 
             add_moment_as_sp_local = add_moment_as_sp_global = 0.0;
             write_back = 0.0;
+            make_LET_1st__find_particle = make_LET_1st__exchange_n = make_LET_1st__exchange_top_moment = 0.0;
         }
     };
-
-    inline F64 GetDistanceMinSq(const F64ort & pos0,
-                                const F64ort & pos1,
-                                const F64vec & len_peri){
-        const F64vec cen0 = pos0.getCenter();
-        const F64vec cen1 = pos1.getCenter();
-        const F64vec len = pos0.getHalfLength() + pos1.getHalfLength();
-        F64 dis = 0.0;
-        
-        F64 dx = fabs(cen0.x-cen1.x);
-        dx = (dx < (len_peri.x-dx)) ? dx : (len_peri.x-dx);
-        dx = (len.x < dx) ? dx-len.x : 0.0;
-
-        F64 dy = fabs(cen0.y-cen1.y);
-        dy = (dy < (len_peri.y-dy)) ? dy : (len_peri.y-dy);
-        dy = (len.y < dy) ? dy-len.y : 0.0;
-        dis = dx*dx + dy*dy;
-
-#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
-        F64 dz = fabs(cen0.z-cen1.z);
-        dz = (dz < (len_peri.z-dz)) ? dz : (len_peri.z-dz);
-        dz = (len.z < dz) ? dz-len.z : 0.0;
-        dis += dz*dz;
-#endif
-        
-        return dis;
-    }
-    
-    inline F64 GetDistanceMinSq(const F64ort & pos0,
-                                const F64vec & pos1,
-                                const F64vec & len_peri){
-        const F64vec cen0 = pos0.getCenter();
-        const F64vec len  = pos0.getHalfLength();
-        F64 dis = 0.0;
-        
-        F64 dx = fabs(cen0.x-pos1.x);
-        dx = (dx < (len_peri.x-dx)) ? dx : (len_peri.x-dx);
-        dx = (len.x < dx) ? dx-len.x : 0.0;
-        
-        F64 dy = fabs(cen0.y-pos1.y);
-        dy = (dy < (len_peri.y-dy)) ? dy : (len_peri.y-dy);
-        dy = (len.y < dy) ? dy-len.y : 0.0;
-        
-        dis = dx*dx + dy*dy;
-        
-#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
-        F64 dz = fabs(cen0.z-pos1.z);
-        dz = (dz < (len_peri.z-dz)) ? dz : (len_peri.z-dz);
-        dz = (len.z < dz) ? dz-len.z : 0.0;
-        dis += dz*dz;
-#endif
-        return dis;
-    }
-
-
-    inline F64 GetDistanceMinSq(const F64ort & pos0,
-                                const F64ort & pos1){
-        const F64vec cen0 = pos0.getCenter();
-        const F64vec cen1 = pos1.getCenter();
-        const F64vec len = pos0.getHalfLength() + pos1.getHalfLength();
-        F64 dis = 0.0;
-        
-        F64 dx = fabs(cen0.x-cen1.x);
-        dx = (len.x < dx) ? dx-len.x : 0.0;
-
-        F64 dy = fabs(cen0.y-cen1.y);
-        dy = (len.y < dy) ? dy-len.y : 0.0;
-        dis = dx*dx + dy*dy;
-
-#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
-        F64 dz = fabs(cen0.z-cen1.z);
-        dz = (len.z < dz) ? dz-len.z : 0.0;
-        dis += dz*dz;
-#endif
-        
-        return dis;
-    }
-    
-    inline F64 GetDistanceMinSq(const F64ort & pos0,
-                                const F64vec & pos1){
-        const F64vec cen0 = pos0.getCenter();
-        const F64vec len  = pos0.getHalfLength();
-        F64 dis = 0.0;
-        
-        F64 dx = fabs(cen0.x-pos1.x);
-        dx = (len.x < dx) ? dx-len.x : 0.0;
-        
-        F64 dy = fabs(cen0.y-pos1.y);
-        dy = (len.y < dy) ? dy-len.y : 0.0;
-        
-        dis = dx*dx + dy*dy;
-        
-#ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
-        F64 dz = fabs(cen0.z-pos1.z);
-        dz = (len.z < dz) ? dz-len.z : 0.0;
-        dis += dz*dz;
-#endif
-        return dis;
-    }
 
     inline std::string GetBinString(const U32 val)
     {
@@ -1956,8 +2306,384 @@ namespace ParticleSimulator{
         typedef decltype(check(std::declval<T>())) value;
     };
 #endif
+
+    template<typename T>
+    inline void PackData(const ReallocatableArray<T> * data_in,
+			 const S32 n_buf,
+			 ReallocatableArray<T> & data_out,
+			 const S32 offset = 0){
+        S32 size_data = offset;
+PS_OMP(omp parallel for reduction(+:size_data))
+        for(S32 i=0; i<n_buf; i++){
+            size_data += data_in[i].size();
+        }
+        data_out.resizeNoInitialize(size_data);
+PS_OMP(omp parallel for)
+        for(S32 i=0; i<n_buf; i++){
+            S32 head_adr = offset;
+            for(S32 j=0; j<i; j++){
+                head_adr += data_in[j].size();
+            }
+            for(S32 j=0; j<data_in[i].size(); j++){
+                data_out[j+head_adr] = data_in[i][j];
+            }
+        }        
+    }
+
+    template<typename T>
+    inline void PackDataInOmp(const ReallocatableArray<T> * data_in,
+			      ReallocatableArray<T> & data_out,
+			      const S32 nth,
+			      const S32 ith,
+			      const S32 offset = 0){
+	if(ith == 0){
+	    S32 size_data = offset;
+	    for(S32 i=0; i<nth; i++){
+		size_data += data_in[i].size();
+	    }
+	    data_out.resizeNoInitialize(size_data);
+	}
+PS_OMP_BARRIER
+	S32 head_adr = offset;
+	for(S32 j=0; j<ith; j++){
+	    head_adr += data_in[j].size();
+	}
+	for(S32 j=0; j<data_in[ith].size(); j++){
+	    data_out[j+head_adr] = data_in[ith][j];
+	}
+    }
+
+
+
+    inline void CalcAdrToSplitData(S32 & head,
+                                   S32 & end,
+                                   const S32 i_th,
+                                   const S32 n_div,
+                                   const S32 n_tot){
+        head = (n_tot/n_div)*i_th + std::min(n_tot%n_div, i_th);
+        end  = (n_tot/n_div)*(i_th+1) + std::min(n_tot%n_div, (i_th+1));
+    }
+
+    template<typename Tsrc, typename Tdst, typename Tcopy>
+    inline void RandomSampling(Tsrc * val_src,
+                               Tdst * val_dst,
+                               const S32 n_src,
+                               const S32 n_dst,
+                               Tcopy copy){
+        thread_local std::mt19937 mt(Comm::getRank()*Comm::getNumberOfThread()+Comm::getThreadNum());
+        if(n_src == 0) return;
+	std::uniform_int_distribution<S32> dist(0, n_src-1);
+        ReallocatableArray<S32> record(n_dst, n_dst, MemoryAllocMode::Pool);
+        for(S32 i = 0; i < n_dst; i++) {
+            S32 j = dist(mt);
+            Tsrc hold = val_src[j];
+            val_src[j]   = val_src[i];
+            val_src[i]   = hold;
+            record[i]  = j;
+        }
+        for(S32 i=0; i<n_dst; i++) {
+            copy(val_src[i], val_dst[i]);
+        }
+        for(S32 i = n_dst - 1; i >= 0; i--) {
+            S32 j = record[i];
+            Tsrc hold = val_src[j];
+            val_src[j]   = val_src[i];
+            val_src[i]   = hold;
+        }
+    }
+
+    template<typename Tsrc, typename Tdst, typename Tcopy>
+    inline void RandomSampling(Tsrc * val_src,
+                               ReallocatableArray<Tdst> & val_dst,
+                               const S32 n_src,
+                               Tcopy copy){
+        const auto n_dst = val_dst.size();
+        thread_local std::mt19937 mt(Comm::getRank()*Comm::getNumberOfThread()+Comm::getThreadNum());
+        if(n_src == 0) return;
+	std::uniform_int_distribution<S32> dist(0, n_src-1);
+        ReallocatableArray<S32> record(n_dst, n_dst, MemoryAllocMode::Pool);
+        for(S32 i = 0; i < n_dst; i++) {
+            S32 j = dist(mt);
+            Tsrc hold = val_src[j];
+            val_src[j]   = val_src[i];
+            val_src[i]   = hold;
+            record[i]  = j;
+        }
+        for(S32 i=0; i<n_dst; i++) {
+            copy(val_src[i], val_dst[i]);
+        }
+        for(S32 i = n_dst - 1; i >= 0; i--) {
+            S32 j = record[i];
+            Tsrc hold = val_src[j];
+            val_src[j]   = val_src[i];
+            val_src[i]   = hold;
+        }
+    }
+
+    
+    template<typename Tsrc, typename Tdst, typename Tcopy>
+    inline void RandomSampling(ReallocatableArray<Tsrc> & val_src_ar,
+                               ReallocatableArray<Tdst> & val_dst_ar,
+                               Tcopy copy,
+                               const S32 offset_src=0,
+                               const S32 offset_dst=0){
+        const auto n_src = val_src_ar.size() - offset_src;
+        const auto n_dst = val_dst_ar.size() - offset_dst;
+        thread_local std::mt19937 mt(Comm::getRank()*Comm::getNumberOfThread()+Comm::getThreadNum());
+        //thread_local std::mt19937 mt(0);
+        if(n_src == 0) return;
+	std::uniform_int_distribution<S32> dist(0, n_src-1);
+        ReallocatableArray<S32> record(n_dst, n_dst, MemoryAllocMode::Pool);
+        Tsrc * val_src = val_src_ar.getPointer(offset_src);
+        Tdst * val_dst = val_dst_ar.getPointer(offset_dst);
+        for(S32 i = 0; i < n_dst; i++) {
+            S32 j = dist(mt);
+            Tsrc hold = val_src[j];
+            val_src[j]   = val_src[i];
+            val_src[i]   = hold;
+            record[i]  = j;
+        }
+        for(S32 i=0; i<n_dst; i++) {
+            copy(val_src[i], val_dst[i]);
+        }
+        for(S32 i = n_dst - 1; i >= 0; i--) {
+            S32 j = record[i];
+            Tsrc hold = val_src[j];
+            val_src[j]   = val_src[i];
+            val_src[i]   = hold;
+        }
+    }
+    
+    inline void CountNObjInBucket(const S32 n_bucket,
+                                  S32 * n_obj_in_bucket,
+                                  const S32 n_obj,
+                                  const S32 * id_bucket){
+        for(S32 i=0; i<n_bucket; i++){
+            n_obj_in_bucket[i] = 0;
+        }
+        for(S32 i=0; i<n_obj; i++){
+            n_obj_in_bucket[id_bucket[id_bucket[i]]]++;
+        }
+    }
+    
+    inline void CountNObjInBucketOMP(const S32 n_bucket,
+                                     S32 * n_obj_in_bucket,
+                                     const S32 n_obj,
+                                     const S32 * id_bucket){
+        const auto n_thread = Comm::getNumberOfThread();
+        std::vector< ReallocatableArray<S32> > n_obj_in_bucket_tmp(n_thread);
+        for(S32 i=0; i<n_thread; i++){
+            n_obj_in_bucket_tmp[i].setAllocMode(MemoryAllocMode::Pool);
+            n_obj_in_bucket_tmp[i].resizeNoInitialize(n_bucket);
+        }
+PS_OMP_PARALLEL
+        {
+            const auto ith = Comm::getThreadNum();
+            S32 head, end;
+            CalcAdrToSplitData(head, end, ith, n_thread, n_obj);
+            CountNObjInBucket(n_bucket, &n_obj_in_bucket_tmp[ith][0],
+                              end-head, &id_bucket[head]);
+        }
+        for(S32 i=0; i<n_bucket; i++){
+            n_obj_in_bucket[i] = 0;
+        }
+        for(S32 i=0; i<n_bucket; i++){
+            for(S32 j=0; j<n_thread; j++){
+                n_obj_in_bucket[i] += n_obj_in_bucket_tmp[j][i];
+            }
+        }
+    }
+#if defined(PARTICLE_SIMULATOR_USE_64BIT_KEY)
+    class KeyT{
+    public:
+        U64 hi_;
+        KeyT() : hi_(0){}
+        KeyT(const U64 hi) : hi_(hi){}
+        void init(){
+            hi_ = 0;
+        }
+        bool operator == (const KeyT & rhs) const {
+            return (hi_ == rhs.hi_);
+        }
+        bool operator != (const KeyT & rhs) const {
+            return !(*this == rhs);
+        }
+        bool operator < (const KeyT & rhs) const {
+            return (hi_ < rhs.hi_);
+        }
+        bool operator <= (const KeyT & rhs) const {
+            return (hi_ <= rhs.hi_);
+        }
+        bool operator > (const KeyT & rhs) const {
+            return !(*this <= rhs);
+        }
+        bool operator >= (const KeyT & rhs) const {
+            return !(*this < rhs);
+        }
+        
+        KeyT operator & (const KeyT & rhs) const {
+            return KeyT(hi_ & rhs.hi_);
+        }
+        KeyT operator ^ (const KeyT & rhs) const {
+            return KeyT(hi_ ^ rhs.hi_);
+        }
+        KeyT operator | (const KeyT & rhs) const {
+            return KeyT(hi_ | rhs.hi_);
+        }
+        const KeyT & operator |= (const KeyT & rhs){
+            (this->hi_) |= rhs.hi_;
+            return (*this);
+        }
+        // cast
+        operator int() const {return (int)hi_;}
+        operator unsigned int() const {return (unsigned int)hi_;}
+        operator long() const {return (long)hi_;}
+        operator unsigned long() const {return (unsigned long)hi_;}
+
+        template<typename T>
+        KeyT operator << (const T & s) const {
+            return KeyT(hi_ << s);
+        }
+        template<typename T>
+        KeyT operator >> (const T & s) const {
+            return KeyT(hi_ >> s);
+        }
+
+        void dump(std::ostream & fout=std::cerr) const {
+            fout<<std::setw(TREE_LEVEL_LIMIT)<<std::setfill('0')<<std::oct<<hi_<<std::endl;
+            fout<<std::dec;
+        }
+        
+        friend std::ostream & operator << (std::ostream & c, const KeyT & k){
+            c<<k.hi_;
+            return c;
+        }
+    };
+#else // for 96bit or 128bit
+    class KeyT{
+    public:
+        U64 hi_;
+#ifdef PARTICLE_SIMULATOR_USE_96BIT_KEY
+        U32 lo_;
+        KeyT(const U64 hi, const U32 lo) : hi_(hi), lo_(lo){}
+#else
+        U64 lo_;
+        KeyT(const U64 hi, const U64 lo) : hi_(hi), lo_(lo){}
+#endif
+        KeyT() : hi_(0), lo_(0){}
+        template<typename Tint>
+        KeyT(const Tint lo) : hi_(0), lo_(lo){}
+        void init(){
+            hi_ = 0;
+            lo_ = 0;
+        }
+        bool operator == (const KeyT & rhs) const {
+            return (hi_ == rhs.hi_) && (lo_ == rhs.lo_);
+        }
+        bool operator != (const KeyT & rhs) const {
+            return !(*this == rhs);
+        }
+        bool operator < (const KeyT & rhs) const {
+            return (hi_ < rhs.hi_) || ((hi_ == rhs.hi_) && (lo_ < rhs.lo_));
+        }
+        bool operator <= (const KeyT & rhs) const {
+            return (hi_ < rhs.hi_) || ((hi_ == rhs.hi_) && (lo_ <= rhs.lo_));
+        }
+        bool operator > (const KeyT & rhs) const {
+            return !(*this <= rhs);
+        }
+        bool operator >= (const KeyT & rhs) const {
+            return !(*this < rhs);
+        }
+        KeyT operator & (const KeyT & rhs) const {
+            return KeyT(hi_&rhs.hi_, lo_&rhs.lo_);
+        }
+        KeyT operator ^ (const KeyT & rhs) const {
+            return KeyT(hi_^rhs.hi_, lo_^rhs.lo_);
+        }
+        KeyT operator | (const KeyT & rhs) const {
+            return KeyT(hi_|rhs.hi_, lo_|rhs.lo_);
+        }
+        const KeyT & operator |= (const KeyT & rhs){
+            (this->hi_) |= rhs.hi_;
+            (this->lo_) |= rhs.lo_;
+            return (*this);
+        }
+        // cast
+        operator int() const {return (int)lo_;}
+        operator unsigned int() const {return (unsigned int)lo_;}
+        operator long() const {return (long)lo_;}
+        operator unsigned long() const {return (unsigned long)lo_;}
+
+        // shift
+        template<typename T>
+        KeyT operator << (const T & s) const {
+#if defined(PARTICLE_SIMULATOR_USE_96BIT_KEY)
+            U32 lo = ((U64)s < sizeof(lo_)*8) ? lo_<<s : 0;
+            U64 lo64 = (U64)lo_;
+            const U64 rem = ((U64)s < sizeof(hi_)*8) ? hi_<<s : 0;
+            const U64 inc = ((U64)s < sizeof(lo_)*8) ? (lo64>>(sizeof(lo_)*8-s)) : lo64<<(s-sizeof(lo_)*8);
+            U64 hi = rem | inc;
+#else
+            U64 lo = ((U64)s < sizeof(lo_)*8) ? lo_<<s : 0;
+            const U64 rem = (s==0) ? 0 : (lo_>>(sizeof(hi_)*8-s));
+            U64 hi = ((U64)s < sizeof(lo_)*8) ? ((hi_<<s) | rem) : lo_ << (s-sizeof(lo_)*8);
+#endif
+            return KeyT(hi, lo);
+        }
+        template<typename T>
+        KeyT operator >> (const T & s) const {
+#if defined(PARTICLE_SIMULATOR_USE_96BIT_KEY)
+            U64 hi = ((U64)s < sizeof(hi_)*8) ? hi_>>s : 0;
+            const U32 rem = ((U64)s < sizeof(lo_)*8) ? lo_ >> s : 0;
+            const U32 inc = (s==0) ? 0 : ((U64)s < sizeof(hi_)*8) ? (U32)((hi_<<(sizeof(hi_)*8-s))>>(sizeof(lo_)*8)) : (U32)(hi_>>(s-sizeof(lo_)*8));
+            U32 lo = rem | inc;
+#else
+            //assert(s < 128);
+            U64 hi = ((U64)s < sizeof(hi_)*8) ? hi_>>s : 0;
+            const U64 rem = (s==0) ? 0 : (hi_<<(sizeof(hi_)*8-s));
+            U64 lo = ((U64)s < sizeof(hi_)*8) ? (lo_>>s | rem) : hi_>>(s-sizeof(hi_)*8);	    
+#endif
+            return KeyT(hi, lo);
+        }
+
+        void dump(std::ostream & fout=std::cerr) const {
+            fout<<std::setw(KEY_LEVEL_MAX_HI)<<std::setfill('0')<<std::oct<<hi_
+                <<std::setw(KEY_LEVEL_MAX_LO)<<std::setfill('0')<<lo_<<std::endl;
+            fout<<std::dec;
+        }
+        
+        friend std::ostream & operator <<(std::ostream & c, const KeyT & k){
+            c<<k.hi_<<"   "<<k.lo_;
+            return c;
+        }
+    };
+    
+#endif
+    
+#ifdef LOOP_TREE
+    static const S32 ADR_TREE_CELL_NULL = 1;
+    static const S32 SIMD_VEC_LEN = 8;
+    static const S32 N_THREAD_LIMIT = 12;
+    static const S32 BUF_SIZE_INTERACTION_LIST = 100000;
+#endif
+
+
+    template<typename T>
+    struct my_is_char: std::false_type{};
+    template<>  struct my_is_char<char*>: std::true_type{};
+    template<>  struct my_is_char<const char*>: std::true_type{};
+    template<>  struct my_is_char<const char* const>: std::true_type{};
+
+    template<typename T>
+    struct my_is_string: std::false_type{};
+    template<>  struct my_is_string<std::string>: std::true_type{};
+    template<>  struct my_is_string<const std::string>: std::true_type{};
+
+
+	
+    
 }
 
 #include"util.hpp"
-
 #include"timer.hpp"

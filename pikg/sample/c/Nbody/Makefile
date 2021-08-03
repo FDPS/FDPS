@@ -9,10 +9,10 @@ PIKG=$(PIKG_ROOT)/bin/pikg
 CONVERSION_TYPE=reference
 CFLAGS += 
 
-PIKG_OPTION= --conversion-type $(CONVERSION_TYPE) --epi-name particle --epj-name particle --force-name particle --c-interface --kernel-name calc_gravity
+PIKG_OPTION= --conversion-type $(CONVERSION_TYPE) --epi-name particle --epj-name particle --force-name particle --c-interface --kernel-name calc_gravity --class-file user_defined.h
 
 # AVX2 mode
-#CONVERSION_TYPE=AVX2 
+#CONVERSION_TYPE=AVX2
 #CXXFLAGS += -mavx2 -mfma -ffast-math
 
 # AVX-512 mode
@@ -40,4 +40,4 @@ all:	nbody.out
 nbody.out:	$(OBJ) Makefile
 	$(CXX) $(CCFLAGS) $(OBJ) -o $@
 clean:
-	rm -r result nbody.out kernel.cpp kernel.h *.o
+	rm -r nbody.out kernel.cpp kernel.h *.o

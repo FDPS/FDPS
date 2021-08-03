@@ -1,8 +1,10 @@
 #define ORIGINAL_SCATTER_MODE
 
-#ifdef __HPC_ACE__
-#include<emmintrin.h>
-#endif
+// The following 3 lines are commented out because Fujitsu compiler
+// in HOKUSAI GreatWall produces a compilation error:
+// #ifdef __HPC_ACE__
+// #include<emmintrin.h>
+// #endif
 
 #ifdef FAST_WALK_AVX2
 #include<immintrin.h>
@@ -56,165 +58,43 @@ static inline __m256 _mm256_set_m128_forgcc(__m128 hi, __m128 lo){
 }
 #endif
 
+#include"tree_for_force_utils_moment.hpp"
+
 #include"stack.hpp"
 
 namespace ParticleSimulator{
 
-    inline void CalcNumberAndShiftOfImageDomain
-    (ReallocatableArray<F64vec> & shift_image_domain,
-     const F64vec & size_root_domain,
-     const F64ort & pos_my_domain,
-     const F64ort & pos_target_domain,
-     const bool periodic_axis[],
-     const bool clear = true){
-        if(clear) shift_image_domain.clearSize();
-#ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
-        if( periodic_axis[0] == false && periodic_axis[1] == false){
-            shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
-            return;
-        }
-#else
-        if( periodic_axis[0] == false
-            && periodic_axis[1] == false
-            && periodic_axis[2] == false ){
-            shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
-            return;
-        }
-#endif
-        if(pos_my_domain.overlapped(pos_target_domain)){
-            shift_image_domain.push_back(F64vec(0.0)); // NOTE: sign is plus
-        }
-#ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
-        for(S32 lev=1;; lev++){
-            S32 n_image_per_level = 0;
-            S32 lev_x = 0;
-            S32 lev_y = 0;
-            if(periodic_axis[0] == true) lev_x = lev;
-            if(periodic_axis[1] == true) lev_y = lev;
-            for(S32 ix=-lev_x; ix<=lev_x; ix++){
-                for(S32 iy=-lev_y; iy<=lev_y; iy++){
-                    if( (std::abs(ix) !=lev_x || periodic_axis[0] == false)
-                        && (std::abs(iy) != lev_y  || periodic_axis[1] == false)) continue;
-                    const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y);
-                    const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
-                    if(pos_my_domain.overlapped(pos_image_tmp)){
-                        shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
-                        n_image_per_level++;
-                    }
-                }
-            }
-            if(n_image_per_level == 0) break;
-        }
-#else
-        for(S32 lev=1;; lev++){
-            S32 n_image_per_level = 0;
-            S32 lev_x = 0;
-            S32 lev_y = 0;
-            S32 lev_z = 0;
-            if(periodic_axis[0] == true) lev_x = lev;
-            if(periodic_axis[1] == true) lev_y = lev;
-            if(periodic_axis[2] == true) lev_z = lev;
-            for(S32 ix=-lev_x; ix<=lev_x; ix++){
-                for(S32 iy=-lev_y; iy<=lev_y; iy++){
-                    for(S32 iz=-lev_z; iz<=lev_z; iz++){
-                        if( (std::abs(ix) !=lev_x || periodic_axis[0] == false)
-                            && (std::abs(iy) != lev_y  || periodic_axis[1] == false)
-                            && (std::abs(iz) != lev_z || periodic_axis[2] == false) ) continue;
-                        const F64vec shift_tmp(ix*size_root_domain.x,
-                                               iy*size_root_domain.y,
-                                               iz*size_root_domain.z);
-                        const F64ort pos_image_tmp = pos_target_domain.shift(shift_tmp);
-                        if(pos_my_domain.overlapped(pos_image_tmp)){
-                            shift_image_domain.push_back(shift_tmp); // NOTE: sign is plus
-                            n_image_per_level++;
-                        }
-                    }
-                }
-            }
-            if(n_image_per_level == 0) break;
-        }
-#endif
-    }
 
-
-    inline S32vec CalcIDOfImageDomain(const F64ort & pos_root_domain,
-                                      const F64vec & pos_target,
-                                      const bool periodic_axis[]){
-        if( pos_root_domain.contained(pos_target) ){
-            return S32vec(0.0);
-        }
-        const F64vec size_root_domain = pos_root_domain.getFullLength();
-#ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
-        for(S32 lev=1;; lev++){
-            S32 lev_x = 0;
-            S32 lev_y = 0;
-            if(periodic_axis[0] == true) lev_x = lev;
-            if(periodic_axis[1] == true) lev_y = lev;
-            for(S32 ix=-lev_x; ix<=lev_x; ix++){
-                for(S32 iy=-lev_y; iy<=lev_y; iy++){
-                    if( (std::abs(ix) !=lev_x || periodic_axis[0] == false) 
-                        && (std::abs(iy) != lev_y  || periodic_axis[1] == false) ) continue;
-                    const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y);
-                    if( pos_root_domain.contained(pos_target + shift_tmp) ){
-                        return S32vec(-ix, -iy);
-                    }
-                }
-            }
-        }
-#else
-        for(S32 lev=1;; lev++){
-            S32 lev_x = 0;
-            S32 lev_y = 0;
-            S32 lev_z = 0;
-            if(periodic_axis[0] == true) lev_x = lev;
-            if(periodic_axis[1] == true) lev_y = lev;
-            if(periodic_axis[2] == true) lev_z = lev;
-            for(S32 ix=-lev_x; ix<=lev_x; ix++){
-                for(S32 iy=-lev_y; iy<=lev_y; iy++){
-                    for(S32 iz=-lev_z; iz<=lev_z; iz++){
-                        if( (std::abs(ix) !=lev_x || periodic_axis[0] == false) 
-                            && (std::abs(iy) != lev_y  || periodic_axis[1] == false) 
-                            && (std::abs(iz) != lev_z || periodic_axis[2] == false) ) continue;
-                        const F64vec shift_tmp(ix*size_root_domain.x, iy*size_root_domain.y, iz*size_root_domain.z);
-                        if( pos_root_domain.contained(pos_target + shift_tmp) ){
-                            return S32vec(-ix, -iy, -iz);
-                        }
-                    }
-                }
-            }
-        }
-#endif
-    }
 
     template<class Tptcl>
     inline void AllGatherParticle(Tptcl *& ptcl,
                                   S32 *&n_ptcl,
                                   S32 *&n_ptcl_disp,
                                   const Tptcl ptcl_org[], 
-                                  const S32 n_loc){
-        n_ptcl = new S32[Comm::getNumberOfProc()];
-        n_ptcl_disp = new S32[Comm::getNumberOfProc()+1];
-        Comm::allGather(&n_loc, 1, n_ptcl); // TEST
+                                  const S32 n_loc,
+                                  const CommInfo & comm_info){
+        n_ptcl = new S32[comm_info.getNumberOfProc()];
+        n_ptcl_disp = new S32[comm_info.getNumberOfProc()+1];
+        comm_info.allGather(&n_loc, 1, n_ptcl);
         n_ptcl_disp[0] = 0;
-        for(S32 i=0; i<Comm::getNumberOfProc(); i++){
+        for(S32 i=0; i<comm_info.getNumberOfProc(); i++){
             n_ptcl_disp[i+1] = n_ptcl_disp[i] + n_ptcl[i];
         }
-        const S32 n_tot = n_ptcl_disp[Comm::getNumberOfProc()];
+        const S32 n_tot = n_ptcl_disp[comm_info.getNumberOfProc()];
         ptcl = new Tptcl[ n_tot ];
-        Comm::allGatherV(ptcl_org, n_loc, ptcl, n_ptcl, n_ptcl_disp); // TEST
+        comm_info.allGatherV(ptcl_org, n_loc, ptcl, n_ptcl, n_ptcl_disp); // TEST
     }
 
     template<class Tptcl>
     inline void AllGatherParticle(Tptcl *& ptcl, 
                                   S32 & n_tot, 
                                   const Tptcl ptcl_org[], 
-                                  const S32 n_loc){
-        //S32 * n_tmp = new S32[Comm::getNumberOfProc()];
-        //S32 * n_disp_tmp = new S32[Comm::getNumberOfProc()+1];
+                                  const S32 n_loc,
+                                  const CommInfo & comm_info){
         S32 * n_tmp;
         S32 * n_disp_tmp;
         AllGatherParticle(ptcl, n_tmp, n_disp_tmp, ptcl_org, n_loc);
-        n_tot = n_disp_tmp[Comm::getNumberOfProc()];
+        n_tot = n_disp_tmp[comm_info.getNumberOfProc()];
         delete [] n_tmp;
         delete [] n_disp_tmp;
     }
@@ -227,18 +107,19 @@ namespace ParticleSimulator{
                                   const S32 n_loc,
                                   const F64ort & pos_root_domain,
                                   const F64ort & pos_root_tree,
-                                  const bool periodic_axis[]){
-        const S32 n_proc = Comm::getNumberOfProc();
+                                  const bool periodic_axis[],
+                                  const CommInfo & comm_info){
+        const auto n_proc = comm_info.getNumberOfProc();
         n_ptcl = new S32[n_proc];
         n_ptcl_disp = new S32[n_proc+1];
-        Comm::allGather(&n_loc, 1, n_ptcl); // TEST
+        comm_info.allGather(&n_loc, 1, n_ptcl); // TEST
         n_ptcl_disp[0] = 0;
         for(S32 i=0; i<n_proc; i++){
             n_ptcl_disp[i+1] = n_ptcl_disp[i] + n_ptcl[i];
         }
         const S32 n_tot = n_ptcl_disp[n_proc];
         Tptcl * ptcl_tmp = new Tptcl[ n_tot ];
-        Comm::allGatherV(ptcl_org, n_loc, ptcl_tmp, n_ptcl, n_ptcl_disp); // TEST
+        comm_info.allGatherV(ptcl_org, n_loc, ptcl_tmp, n_ptcl, n_ptcl_disp); // TEST
         ReallocatableArray<F64vec> shift;
         F64vec domain_size = pos_root_domain.getFullLength();
         CalcNumberAndShiftOfImageDomain(shift, domain_size, 
@@ -277,11 +158,12 @@ namespace ParticleSimulator{
                                   const S32 n_loc,
                                   const F64ort & pos_root_domain,
                                   const F64ort & pos_root_cell,
-                                  const bool periodic_axis[]){
+                                  const bool periodic_axis[],
+                                  const CommInfo & comm_info){
         S32 * n_tmp;
         S32 * n_disp_tmp;
         AllGatherParticle(ptcl, n_tmp, n_disp_tmp, ptcl_org, n_loc, pos_root_domain, pos_root_cell, periodic_axis);
-        n_tot = n_disp_tmp[Comm::getNumberOfProc()];
+        n_tot = n_disp_tmp[comm_info.getNumberOfProc()];
         delete [] n_tmp;
         delete [] n_disp_tmp;
     }
@@ -295,10 +177,10 @@ namespace ParticleSimulator{
                               const S32 left,
                               const S32 right, 
                               const S32 ref,
-                              const S32 lev){
+                              const S32 lev,
+                              const MortonKey & morton_key){
         for(S32 i=left; i<right+1; i++){
-            //S32 tmp = MortonKey<DIMENSION>::getCellID(lev, tp[i].getKey());
-            S32 tmp = MortonKey::getCellID(lev, tp[i].getKey());
+            S32 tmp = morton_key.getCellID(lev, tp[i].getKey());
             if(ref == tmp) return i;
         }
         return -1;
@@ -310,25 +192,22 @@ namespace ParticleSimulator{
                               const S32 left,
                               const S32 right,
                               const S32 ref,
-                              const S32 lev){
-        //if( MortonKey<DIMENSION>::getCellID(lev, tp[right].getKey()) < ref) return -1;
-        //if( MortonKey<DIMENSION>::getCellID(lev, tp[left].getKey()) > ref) return -1;
-        if( MortonKey::getCellID(lev, tp[right].getKey()) < ref) return -1;
-        if( MortonKey::getCellID(lev, tp[left].getKey()) > ref) return -1;
+                              const S32 lev,
+                              const MortonKey & morton_key){
+        if( morton_key.getCellID(lev, tp[right].getKey()) < ref) return -1;
+        if( morton_key.getCellID(lev, tp[left].getKey()) > ref) return -1;
         S32 l = left;
         S32 r = right;
         while(l < r){
             S32 cen = (l+r) / 2;
-            //S32 val_cen = MortonKey<DIMENSION>::getCellID(lev, tp[cen].getKey());
-            S32 val_cen = MortonKey::getCellID(lev, tp[cen].getKey());
+            S32 val_cen = morton_key.getCellID(lev, tp[cen].getKey());
             if(ref > val_cen){
                 l = cen+1;
             }
             else{
                 r = cen;
             }
-            //if( MortonKey<DIMENSION>::getCellID(lev, tp[l].getKey()) == ref ){ return l;
-            if( MortonKey::getCellID(lev, tp[l].getKey()) == ref ) return l;
+            if( morton_key.getCellID(lev, tp[l].getKey()) == ref ) return l;
         }
         return -1;
     }
@@ -340,7 +219,8 @@ namespace ParticleSimulator{
                          const TreeParticle tp[],
                          S32 & lev_max,
                          const S32 n_tot,
-                         const S32 n_leaf_limit){
+                         const S32 n_leaf_limit,
+                         const MortonKey & morton_key){
         tc_array.resizeNoInitialize(N_CHILDREN*2);
         tc_array[0].n_ptcl_ = n_tot;
         tc_array[0].adr_tc_ = N_CHILDREN;
@@ -373,7 +253,7 @@ namespace ParticleSimulator{
                 S32 n_cnt = 0;
                 for(S32 j=0; j<N_CHILDREN; j++){
                     const S32 adr_tc_tmp = tc_array[i].adr_tc_ + j;
-                    tc_array[adr_tc_tmp].adr_ptcl_ = GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1);
+                    tc_array[adr_tc_tmp].adr_ptcl_ = GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1, morton_key);
                     tc_array[adr_tc_tmp].level_ = lev_max+1;
                     if(GetMSB(tc_array[adr_tc_tmp].adr_ptcl_)){
                         // GetPartitionID returnes -1, if there is no appropriate tree cell.
@@ -386,6 +266,36 @@ namespace ParticleSimulator{
                         n_cnt++;
                     }
                 }
+                /*
+                if(n_cnt==0){
+                    std::cerr<<"lev_max= "<<lev_max<<std::endl;
+                    std::cerr<<"adr_ptcl_tmp= "<<adr_ptcl_tmp<<std::endl;
+                    std::cerr<<"tp[adr_ptcl_tmp].getKey()= "<<tp[adr_ptcl_tmp].getKey()<<std::endl;
+                    std::cerr<<"MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp].getKey())= "
+                             <<MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp].getKey())
+                             <<std::endl;
+                    std::cerr<<"adr_ptcl_tmp+n_ptcl_tmp-1= "<<adr_ptcl_tmp+n_ptcl_tmp-1<<std::endl;
+                    std::cerr<<"tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey()= "<<tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey()<<std::endl;
+                    std::cerr<<"MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey())= "
+                             <<MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey())
+                             <<std::endl;
+                    std::cerr<<"MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey())= "
+                             <<MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey())
+                             <<std::endl;
+                    for(S32 j=0; j<N_CHILDREN; j++){
+                        const S32 adr_tc_tmp = tc_array[i].adr_tc_ + j;
+
+                        std::cerr<<"GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1)="
+                                 <<GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1)
+                                 <<std::endl;
+                        if(GetMSB(tc_array[adr_tc_tmp].adr_ptcl_)){
+                        }
+                        else{
+                            std::cerr<<"check a"<<std::endl;
+                        }
+                    }
+                }
+                */
                 S32 n_ptcl_cum = 0;
                 //if (n_cnt == 0) {
                 //    std::cout << "n_cnt = " << n_cnt << " "
@@ -452,6 +362,62 @@ namespace ParticleSimulator{
 #endif
             tc_array.resizeNoInitialize(offset);
         }
+
+#ifdef LOOP_TREE
+        auto LinkNext = [&](const U32 parent)
+            {
+                U32 parent_next = tc_array[parent].adr_tc_next_;
+                U32 first_child = tc_array[parent].adr_tc_;
+                tc_array[first_child+N_CHILDREN-1].adr_tc_next_ = parent_next; // set most left cell. point to root
+                for(U32 k=first_child; k<first_child+N_CHILDREN-1; k++){
+                    tc_array[k].adr_tc_next_ = k+1;
+                }
+            };
+        
+
+        const U32 adr_root = 0;
+        const U32 adr_null = ADR_TREE_CELL_NULL;
+        // set next pointer of root cell
+        tc_array[adr_root].adr_tc_next_ = adr_null;
+
+        // set next and more pointers of null cell
+        tc_array[adr_null].adr_tc_next_ = adr_null;
+        tc_array[adr_null].adr_tc_ = adr_null;
+
+        LinkNext(adr_root);
+        /*
+        U32 parent = adr_root;
+        U32 parent_next = tc_array[parent].adr_tc_next_;
+        U32 first_child = tc_array[parent].adr_tc_;
+        tc_array[first_child+N_CHILDREN-1].adr_tc_next_ = parent_next; // set most left cell. point to root
+        for(U32 k=first_child; k<first_child+N_CHILDREN-1; k++){
+            tc_array[k].adr_tc_next_ = k+1;
+        }
+        */
+        for(U32 i=1; i<lev_max+1; i++){
+#pragma omp parallel for schedule(dynamic, 4)
+            for(U32 j=adr_tc_level_partition[i]; j<adr_tc_level_partition[i+1]; j++){
+                if(tc_array[j].isLeaf(n_leaf_limit)) continue;
+                LinkNext(j);
+                /*
+                parent = j;
+                parent_next = tc_array[parent].adr_tc_next_;
+                first_child = tc_array[parent].adr_tc_;
+                tc_array[first_child+N_CHILDREN-1].adr_tc_next_ = parent_next; // set most left cell. point to root
+                for(U32 k=first_child; k<first_child+N_CHILDREN-1; k++){
+                    tc_array[k].adr_tc_next_ = k+1;
+                }
+                */
+            }
+        }
+        
+        //std::cerr<<"tc_array.size()= "<<tc_array.size()<<std::endl;
+        //for(S32 i=0; i<tc_array.size(); i++){
+        //    std::cerr<<"i= "<<i<<" more_= "<<tc_array[i].adr_tc_<<" next= "<<tc_array[i].adr_tc_next_<<std::endl;
+        //}
+        //Comm::barrier();
+        //Abort();
+#endif
     }
 
     template<class Ttc>
@@ -460,7 +426,8 @@ namespace ParticleSimulator{
                            const TreeParticle tp[],
                            S32 & lev_max,
                            const S32 n_tot,
-                           const S32 n_leaf_limit){
+                           const S32 n_leaf_limit,
+                           const MortonKey & morton_key){
 
         tc_array.resizeNoInitialize(N_CHILDREN*2);
         tc_array[0].n_ptcl_ = n_tot;
@@ -491,7 +458,7 @@ namespace ParticleSimulator{
                 S32 n_cnt = 0;
                 for(S32 j=0; j<N_CHILDREN; j++){
                     const S32 adr_tc_tmp = tc_array[i].adr_tc_ + j;
-                    tc_array[adr_tc_tmp].adr_ptcl_ = GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1);
+                    tc_array[adr_tc_tmp].adr_ptcl_ = GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1, morton_key);
                     tc_array[adr_tc_tmp].level_ = lev_max+1;
                     if(GetMSB(tc_array[adr_tc_tmp].adr_ptcl_)){
                         tc_array[adr_tc_tmp].n_ptcl_ = 0;
@@ -531,154 +498,8 @@ namespace ParticleSimulator{
     }
 
 
-    /////////////////////
-    //// CALC MOMENT ////
-    // from bottom to top
-    template<class Ttc, class Tepj>
-    inline void CalcMoment(S32 adr_tc_level_partition[], 
-                           Ttc tc[],
-                           Tepj epj[],
-                           const S32 lev_max,
-                           const S32 n_leaf_limit){
-        for(S32 i=lev_max; i>=0; --i){
-            const S32 head = adr_tc_level_partition[i];
-            const S32 next = adr_tc_level_partition[i+1];
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-            for(S32 j=head; j<next; j++){
-                Ttc * tc_tmp = tc + j;
-                const int n_tmp = tc_tmp->n_ptcl_;
-                tc_tmp->mom_.init();
-                if( n_tmp == 0) continue;
-                else if(tc_tmp->isLeaf(n_leaf_limit)){
-                    const S32 adr = tc_tmp->adr_ptcl_;
-                    for(S32 k=adr; k<adr+n_tmp; k++){
-                        tc_tmp->mom_.accumulateAtLeaf(epj[k]);
-                    }
-                    tc_tmp->mom_.set();
-                    for(S32 k=adr; k<adr+n_tmp; k++){
-                        tc_tmp->mom_.accumulateAtLeaf2(epj[k]);
-                    }
-                }
-                else{
-                    for(S32 k=0; k<N_CHILDREN; k++){
-                        Ttc * tc_tmp_tmp = tc + ((tc_tmp->adr_tc_)+k);
-                        if(tc_tmp_tmp->n_ptcl_ == 0) continue;
-                        tc_tmp->mom_.accumulate( tc_tmp_tmp->mom_ );
-                    }
-                    tc_tmp->mom_.set();
-                    for(S32 k=0; k<N_CHILDREN; k++){
-                        Ttc * tc_tmp_tmp = tc + ((tc_tmp->adr_tc_)+k);
-                        if(tc_tmp_tmp->n_ptcl_ == 0) continue;
-                        tc_tmp->mom_.accumulate2( tc_tmp_tmp->mom_ );
-                    }
-                }
-            }
-        }
-    }
-
-    template<class Ttc, class Tepj>
-    inline void CalcMomentST(S32 adr_tc_level_partition[], 
-                             Ttc tc[],
-                             Tepj epj[],
-                             const S32 lev_max,
-                             const S32 n_leaf_limit){
-        for(S32 i=lev_max; i>=0; --i){
-            const S32 head = adr_tc_level_partition[i];
-            const S32 next = adr_tc_level_partition[i+1];
-            for(S32 j=head; j<next; j++){
-                Ttc * tc_tmp = tc + j;
-                const int n_tmp = tc_tmp->n_ptcl_;
-                tc_tmp->mom_.init();
-                if( n_tmp == 0) continue;
-                else if(tc_tmp->isLeaf(n_leaf_limit)){
-                    const S32 adr = tc_tmp->adr_ptcl_;
-                    for(S32 k=adr; k<adr+n_tmp; k++){
-                        tc_tmp->mom_.accumulateAtLeaf(epj[k]);
-                    }
-                    tc_tmp->mom_.set();
-                    for(S32 k=adr; k<adr+n_tmp; k++){
-                        tc_tmp->mom_.accumulateAtLeaf2(epj[k]);
-                    }
-                }
-                else{
-                    for(S32 k=0; k<N_CHILDREN; k++){
-                        Ttc * tc_tmp_tmp = tc + ((tc_tmp->adr_tc_)+k);
-                        if(tc_tmp_tmp->n_ptcl_ == 0) continue;
-                        tc_tmp->mom_.accumulate( tc_tmp_tmp->mom_ );
-                    }
-                    tc_tmp->mom_.set();
-                    for(S32 k=0; k<N_CHILDREN; k++){
-                        Ttc * tc_tmp_tmp = tc + ((tc_tmp->adr_tc_)+k);
-                        if(tc_tmp_tmp->n_ptcl_ == 0) continue;
-                        tc_tmp->mom_.accumulate2( tc_tmp_tmp->mom_ );
-                    }
-                }
-            }
-        }
-    }
-
-    template<class Ttc, class Tepj, class Tspj>
-    inline void CalcMomentLongGlobalTree(S32 adr_tc_level_partition[], 
-                                         Ttc tc[],
-                                         TreeParticle tp[],
-                                         Tepj epj[],
-                                         Tspj spj[],
-                                         const S32 lev_max,
-                                         const S32 n_leaf_limit){
-        for(S32 i=lev_max; i>=0; --i){
-            const S32 head = adr_tc_level_partition[i];
-            const S32 next = adr_tc_level_partition[i+1];
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for
-#endif
-            for(S32 j=head; j<next; j++){
-                Ttc * tc_tmp = tc + j;
-                const int n_tmp = tc_tmp->n_ptcl_;
-                tc_tmp->mom_.init();
-                if( n_tmp == 0) continue;
-                else if(tc_tmp->isLeaf(n_leaf_limit)){
-                    const S32 adr = tc_tmp->adr_ptcl_;
-                    for(S32 k=adr; k<adr+n_tmp; k++){
-                        if( GetMSB(tp[k].adr_ptcl_) == 0 ){
-                            const U32 adr_ep = tp[k].adr_ptcl_;
-                            tc_tmp->mom_.accumulateAtLeaf(epj[adr_ep]);
-                        }
-                        else{
-                            const U32 adr_sp = ClearMSB(tp[k].adr_ptcl_);
-                            tc_tmp->mom_.accumulate(spj[adr_sp].convertToMoment());
-                        }
-                    }
-                    tc_tmp->mom_.set();
-                    for(S32 k=adr; k<adr+n_tmp; k++){
-                        if( GetMSB(tp[k].adr_ptcl_) == 0 ){
-                            const U32 adr_ep = tp[k].adr_ptcl_;
-                            tc_tmp->mom_.accumulateAtLeaf2(epj[adr_ep]);
-                        }
-                        else{
-                            const U32 adr_sp = ClearMSB(tp[k].adr_ptcl_);
-                            tc_tmp->mom_.accumulate2(spj[adr_sp].convertToMoment());
-                        }
-                    }
-                }
-                else{
-                    for(S32 k=0; k<N_CHILDREN; k++){
-                        Ttc * tc_tmp_tmp = tc + ((tc_tmp->adr_tc_)+k);
-                        if(tc_tmp_tmp->n_ptcl_ == 0) continue;
-                        tc_tmp->mom_.accumulate( tc_tmp_tmp->mom_ );
-                    }
-                    tc_tmp->mom_.set();
-                    for(S32 k=0; k<N_CHILDREN; k++){
-                        Ttc * tc_tmp_tmp = tc + ((tc_tmp->adr_tc_)+k);
-                        if(tc_tmp_tmp->n_ptcl_ == 0) continue;
-                        tc_tmp->mom_.accumulate2( tc_tmp_tmp->mom_ );
-                    }
-                }
-            }
-        }
-    }
-
+    //////////////////
+    //// MAKE IPG ////
     template<class Tipg, class Ttc, class Tepi>
     inline void MakeIPGroupLong(ReallocatableArray<Tipg> & ipg_first,
                                 const ReallocatableArray<Ttc> & tc_first,
@@ -801,7 +622,7 @@ namespace ParticleSimulator{
         }
     }
 
-
+    /*
     template<class Tep>
     void CheckMortonSort(const S32 n,
                          TreeParticle tp[],
@@ -835,7 +656,9 @@ namespace ParticleSimulator{
             fout<<"checkMortonSort: PASS"<<std::endl;
         }
     }
-
+    */
+    
+    /*
     template<class Tep, class Tsp>
     void CheckMortonSort(const S32 n,
                          TreeParticle tp[],
@@ -882,152 +705,8 @@ namespace ParticleSimulator{
         }
         fout<<"mass_cm_tmp="<<mass_cm_tmp<<std::endl;
     }
-
-
-
-    //////////////////////////
-    //// CHECK CALC MOMENT ///
-    template<class Tep, class Ttc>
-    void CheckCalcMomentLongLocalTree(Tep ep[],
-                                      const S32 n_ptcl,
-                                      Ttc tc[],
-                                      const F64 tolerance = 1e-5,
-                                      std::ostream & fout = std::cout){
-        F64 mass_cm = 0.0;
-        F64vec pos_cm = 0.0;
-        for(S32 i=0; i<n_ptcl; i++){
-            mass_cm += ep[i].getCharge();
-            pos_cm += ep[i].getCharge() * ep[i].getPos();
-        }
-        pos_cm /= mass_cm;
-        F64 dm = std::abs(tc[0].mom_.mass - mass_cm);
-        F64vec dx = tc[0].mom_.pos - pos_cm;
-        F64 dx_max = dx.applyEach( Abs<F64>() ).getMax();
-        if( dm >= tolerance || dx_max >= tolerance){
-            fout<<"CalcMomentLong test: FAIL"<<std::endl;
-        }
-        else{
-            fout<<"CalcMomentLong test: PASS"<<std::endl;
-        }
-        if(Comm::getRank() == 0){
-            fout<<"mass_cm="<<mass_cm<<", tc[0].mom_.mass="<<tc[0].mom_.mass<<std::endl;
-            fout<<"pos_cm="<<pos_cm<<", tc[0].mom_.pos="<<tc[0].mom_.pos<<std::endl;
-        }
-    }
-
-    template<class Tep, class Tsp, class Ttc>
-    void CheckCalcMomentLongGlobalTree(const Tep ep[],
-                                       const Tsp sp[],
-                                       const S32 n_ptcl,
-                                       const Ttc tc[],
-                                       const TreeParticle tp[],
-                                       const F64 tolerance = 1e-5,
-                                       std::ostream & fout = std::cout){
-        F64 mass_cm_glb = 0.0;
-        F64vec pos_cm_glb = 0.0;
-        for(S32 i=0; i<n_ptcl; i++){
-            if( GetMSB(tp[i].adr_ptcl_) == 0){
-                mass_cm_glb += ep[i].getCharge();
-                pos_cm_glb += ep[i].getCharge() * ep[i].getPos();
-            }
-            else{
-                mass_cm_glb += sp[i].getCharge();
-                pos_cm_glb += sp[i].getCharge() * sp[i].getPos();
-            }
-        }
-        pos_cm_glb /= mass_cm_glb;
-        F64 dm = std::abs(tc[0].mom_.mass - mass_cm_glb);
-        F64vec dx = tc[0].mom_.pos - pos_cm_glb;
-        F64 dx_max = dx.applyEach( Abs<F64>() ).getMax();
-        if( dm >= tolerance || dx_max >= tolerance){
-            fout<<"CheckCalcMomentLongGlobalTree: FAIL"<<std::endl;
-        }
-        else{
-            fout<<"CheckCalcMomentLongGlobalTree: PASS"<<std::endl;
-        }
-        if(Comm::getRank() == 0){
-            fout<<"mass_cm_glb="<<mass_cm_glb<<", tc[0].mom_.mass="<<tc[0].mom_.mass<<std::endl;
-            fout<<"pos_cm_glb="<<pos_cm_glb<<", tc[0].mom_.pos="<<tc[0].mom_.pos<<std::endl;
-        }
-    }
-
-    template<class Tep, class Ttc>
-    void CheckCalcMomentShortInAndOut(Tep ep[],
-                                      const S32 n_ptcl,
-                                      Ttc tc[],
-                                      const F64 tolerance = 1e-5,
-                                      std::ostream & fout = std::cout){
-
-        F64ort vertex_out_tmp;
-        F64ort vertex_in_tmp;
-        vertex_out_tmp.init();
-        vertex_in_tmp.init();
-        for(S32 i=0; i<n_ptcl; i++){
-            vertex_out_tmp.merge(ep[i].getPos(), ep[i].getRSearch());
-            vertex_in_tmp.merge(ep[i].getPos());
-        }
-        F64 d_out_high = (tc[0].mom_.vertex_out_.high_ - vertex_out_tmp.high_).applyEach( Abs<F64>() ).getMax();
-        F64 d_out_low = (tc[0].mom_.vertex_out_.low_ - vertex_out_tmp.low_).applyEach( Abs<F64>() ).getMax();
-        F64 d_in_high = (tc[0].mom_.vertex_in_.high_ - vertex_in_tmp.high_).applyEach( Abs<F64>() ).getMax();
-        F64 d_in_low = (tc[0].mom_.vertex_in_.low_ - vertex_in_tmp.low_).applyEach( Abs<F64>() ).getMax();
-        if( d_out_high >= tolerance || d_out_low >= tolerance || d_in_high >= tolerance || d_in_low >= tolerance){
-            fout<<"CalcMomentShort test: FAIL"<<std::endl;
-            fout<<"vertex_out_tmp.high_="<<vertex_out_tmp.high_<<" tc[0].mom_.vertex_out_.high_="<<tc[0].mom_.vertex_out_.high_<<std::endl;
-            fout<<"vertex_out_tmp.low_="<<vertex_out_tmp.low_<<" tc[0].mom_.vertex_out_.low_="<<tc[0].mom_.vertex_out_.low_<<std::endl;
-            fout<<"vertex_in_tmp.high_="<<vertex_in_tmp.high_<<" tc[0].mom_.vertex_in_.high_="<<tc[0].mom_.vertex_in_.high_<<std::endl;
-            fout<<"vertex_in_tmp.low_="<<vertex_in_tmp.low_<<" tc[0].mom_.vertex_in_.low_="<<tc[0].mom_.vertex_in_.low_<<std::endl;
-        }
-        else{
-            fout<<"CalcMomentShort test: PASS"<<std::endl;
-        }
-    }
-
-    template<class Tep, class Ttc>
-    void CheckCalcMomentShortInOnly(Tep ep[], 
-                                    const S32 n_ptcl, 
-                                    Ttc tc[], 
-                                    const F64 tolerance = 1e-5, 
-                                    std::ostream & fout = std::cout){
-        F64ort vertex_in_tmp;
-        vertex_in_tmp.init();
-        for(S32 i=0; i<n_ptcl; i++){
-            vertex_in_tmp.merge(ep[i].getPos());
-        }
-        F64 d_in_high = (tc[0].mom_.vertex_in_.high_ - vertex_in_tmp.high_).applyEach( Abs<F64>() ).getMax();
-        F64 d_in_low = (tc[0].mom_.vertex_in_.low_ - vertex_in_tmp.low_).applyEach( Abs<F64>() ).getMax();
-        if( d_in_high >= tolerance || d_in_low >= tolerance){
-            fout<<"CalcMomentShort test: FAIL"<<std::endl;
-            fout<<"vertex_in_tmp.high_="<<vertex_in_tmp.high_<<" tc[0].mom_.vertex_in_.high_="<<tc[0].mom_.vertex_in_.high_<<std::endl;
-            fout<<"vertex_in_tmp.low_="<<vertex_in_tmp.low_<<" tc[0].mom_.vertex_in_.low_="<<tc[0].mom_.vertex_in_.low_<<std::endl;
-        }
-        else{
-            fout<<"CalcMomentShort test: PASS"<<std::endl;
-        }
-    }
-
-    template<class Tep, class Ttc>
-    void CheckCalcMomentOutOnly(Tep ep[],
-                                const S32 n_ptcl,
-                                Ttc tc[],
-                                const F64 tolerance = 1e-5,
-                                std::ostream & fout = std::cout){
-        F64ort vertex_out_tmp;
-        vertex_out_tmp.init();
-        for(S32 i=0; i<n_ptcl; i++){
-            vertex_out_tmp.merge(ep[i].getPos(), ep[i].getRSearch());
-        }
-        F64 d_out_high = (tc[0].mom_.vertex_out_.high_ - vertex_out_tmp.high_).applyEach( Abs<F64>() ).getMax();
-        F64 d_out_low = (tc[0].mom_.vertex_out_.low_ - vertex_out_tmp.low_).applyEach( Abs<F64>() ).getMax();
-        if( d_out_high >= tolerance || d_out_low >= tolerance ){
-            fout<<"CalcMomentShort test: FAIL"<<std::endl;
-            fout<<"vertex_out_tmp.high_="<<vertex_out_tmp.high_<<" tc[0].mom_.vertex_out_.high_="<<tc[0].mom_.vertex_out_.high_<<std::endl;
-            fout<<"vertex_out_tmp.low_="<<vertex_out_tmp.low_<<" tc[0].mom_.vertex_out_.low_="<<tc[0].mom_.vertex_out_.low_<<std::endl;
-        }
-        else{
-            fout<<"CalcMomentOut test: PASS"<<std::endl;
-        }
-    }
-
+    */
+    /*
     template<class Ttc, class Tep>
     inline void SearchSendParticleLong(const ReallocatableArray<Ttc> & tc_first,
                                        const S32 adr_tc,
@@ -1077,7 +756,8 @@ namespace ParticleSimulator{
             }
         }
     }
-
+    */
+    
     // FOR P^3T
     template<class Ttc, class Tep>
     inline void SearchSendParticleLongScatter(const ReallocatableArray<Ttc> & tc_first,
@@ -1091,9 +771,12 @@ namespace ParticleSimulator{
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
+            //open_bits |= ( ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
+            //                 || (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut())) ) 
+            //               << i);
             open_bits |= ( ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
-                             || (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut())) ) 
-                           << i);
+                             || (pos_target_box.contained( tc_first[adr_tc+i].geo_.getVertexOut())) ) 
+                           << i);            
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             const S32 adr_tc_child = adr_tc + i;
@@ -1140,10 +823,14 @@ namespace ParticleSimulator{
                              || (pos_target_box_out.contained( tc_first[adr_tc+i].mom_.getVertexIn())) )
                            << i);
             */
+            //open_bits |= ( ( (pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
+            //                 || (pos_target_box_in.overlapped( tc_first[adr_tc+i].mom_.getVertexOut())) 
+            //                 || (pos_target_box_out.overlapped( tc_first[adr_tc+i].mom_.getVertexIn())) )
+            //               << i);
             open_bits |= ( ( (pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
-                             || (pos_target_box_in.overlapped( tc_first[adr_tc+i].mom_.getVertexOut())) 
-                             || (pos_target_box_out.overlapped( tc_first[adr_tc+i].mom_.getVertexIn())) )
-                           << i);
+                             || (pos_target_box_in.overlapped( tc_first[adr_tc+i].geo_.getVertexOut())) 
+                             || (pos_target_box_out.overlapped( tc_first[adr_tc+i].geo_.getVertexIn())) )
+                           << i);            
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             const S32 adr_tc_child = adr_tc + i;
@@ -1218,7 +905,8 @@ namespace ParticleSimulator{
             open_bits |= ( (pos_target_domain.getDistanceMinSQ(child_cell_box) <= r_cut_sq) << (i + N_CHILDREN) ); // using cutoff criterion
 #else
             // cell_box is not neede
-            open_bits |= (pos_target_domain.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            //open_bits |= (pos_target_domain.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            open_bits |= (pos_target_domain.contained( tc_first[adr_tc+i].geo_.getVertexOut() ) << (i + N_CHILDREN) );
 #endif
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1282,7 +970,8 @@ namespace ParticleSimulator{
             open_bits |= ( (pos_target_domain.getDistanceMinSQ(child_cell_box) <= r_cut_sq) << (i + N_CHILDREN) ); // using cutoff criterion
 #else
             // cell_box is not neede
-            open_bits |= (pos_target_domain.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            //open_bits |= (pos_target_domain.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            open_bits |= (pos_target_domain.contained( tc_first[adr_tc+i].geo_.getVertexOut() ) << (i + N_CHILDREN) );
 #endif
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1699,7 +1388,8 @@ namespace ParticleSimulator{
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
-            const F64ort box_tmp = tc_first[adr_tc+i].mom_.getVertexOut();
+            //const F64ort box_tmp = tc_first[adr_tc+i].mom_.getVertexOut();
+            const F64ort box_tmp = tc_first[adr_tc+i].geo_.getVertexOut();
             //open_bits |= ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) << i);
             open_bits |= ( 
                 ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
@@ -1763,8 +1453,10 @@ namespace ParticleSimulator{
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
-            const F64ort box_tmp_out = tc_first[adr_tc+i].mom_.getVertexOut();
-            const F64ort box_tmp_in = tc_first[adr_tc+i].mom_.getVertexIn();
+            //const F64ort box_tmp_out = tc_first[adr_tc+i].mom_.getVertexOut();
+            const F64ort box_tmp_out = tc_first[adr_tc+i].geo_.getVertexOut();
+            //const F64ort box_tmp_in = tc_first[adr_tc+i].mom_.getVertexIn();
+            const F64ort box_tmp_in = tc_first[adr_tc+i].geo_.getVertexIn();
             open_bits |= ( 
                 ( (pos_target_box_in.getDistanceMinSQ(pos_tmp) <= r_crit_sq) 
                   || ( pos_target_box_out.contained(box_tmp_in))
@@ -1824,7 +1516,8 @@ namespace ParticleSimulator{
             const F64vec pos_tmp = tc_first[adr_tc+i].mom_.getPos();
             open_bits |= ( (pos_target_box.getDistanceMinSQ(pos_tmp) <= r_crit_sq) << i);
 #ifdef DEBUG_2017_10_30
-            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            // open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].geo_.getVertexOut() ) << (i + N_CHILDREN) );
 #else
     #if 0
             // vertex_out is not used
@@ -1835,7 +1528,8 @@ namespace ParticleSimulator{
             // In this case, SPJ must have r_cutoff
             // becuase vertex_out of global tree depends on r_cutoff of SPJ.
             // It is not easy to tell r_cutoff to SPJ defined by users.
-            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            //open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << (i + N_CHILDREN) );
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].geo_.getVertexOut() ) << (i + N_CHILDREN) );
     #endif
 #endif
         }
@@ -1892,7 +1586,8 @@ namespace ParticleSimulator{
             const F64ort child_cell_box = makeChildCellBox(i, cell_box);
             open_bits |= ( (pos_target_box.getDistanceMinSQ(child_cell_box) <= r_cut_sq) << i);
 #else
-            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            //open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].geo_.getVertexOut() ) << i);
 #endif
         }
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -1932,7 +1627,8 @@ namespace ParticleSimulator{
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
             //open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
-            open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            //open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            open_bits |= (pos_target_box.overlapped( tc_first[adr_tc+i].geo_.getVertexOut() ) << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             if( (open_bits>>i) & 0x1){
@@ -1977,7 +1673,8 @@ namespace ParticleSimulator{
      const F64vec & shift = F64vec(0.0) ){
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            //open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) << i);
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].geo_.getVertexOut() ) << i);
         }
         for(S32 i=0; i<N_CHILDREN; i++){
             if( (open_bits>>i) & 0x1){
@@ -2042,14 +1739,23 @@ namespace ParticleSimulator{
             const S32 i1 = i*4+1;
             const S32 i2 = i*4+2;
             const S32 i3 = i*4+3;
-            const F64ort mom0_in = tc_first[adr_tc+i0].mom_.getVertexIn();
-            const F64ort mom0_out = tc_first[adr_tc+i0].mom_.getVertexOut();
-            const F64ort mom1_in = tc_first[adr_tc+i1].mom_.getVertexIn();
-            const F64ort mom1_out = tc_first[adr_tc+i1].mom_.getVertexOut();
-            const F64ort mom2_in = tc_first[adr_tc+i2].mom_.getVertexIn();
-            const F64ort mom2_out = tc_first[adr_tc+i2].mom_.getVertexOut();
-            const F64ort mom3_in = tc_first[adr_tc+i3].mom_.getVertexIn();
-            const F64ort mom3_out = tc_first[adr_tc+i3].mom_.getVertexOut();
+            //const F64ort mom0_in = tc_first[adr_tc+i0].mom_.getVertexIn();
+            //const F64ort mom0_out = tc_first[adr_tc+i0].mom_.getVertexOut();
+            //const F64ort mom1_in = tc_first[adr_tc+i1].mom_.getVertexIn();
+            //const F64ort mom1_out = tc_first[adr_tc+i1].mom_.getVertexOut();
+            //const F64ort mom2_in = tc_first[adr_tc+i2].mom_.getVertexIn();
+            //const F64ort mom2_out = tc_first[adr_tc+i2].mom_.getVertexOut();
+            //const F64ort mom3_in = tc_first[adr_tc+i3].mom_.getVertexIn();
+            //const F64ort mom3_out = tc_first[adr_tc+i3].mom_.getVertexOut();
+            
+            const F64ort mom0_in = tc_first[adr_tc+i0].geo_.getVertexIn();
+            const F64ort mom0_out = tc_first[adr_tc+i0].geo_.getVertexOut();
+            const F64ort mom1_in = tc_first[adr_tc+i1].geo_.getVertexIn();
+            const F64ort mom1_out = tc_first[adr_tc+i1].geo_.getVertexOut();
+            const F64ort mom2_in = tc_first[adr_tc+i2].geo_.getVertexIn();
+            const F64ort mom2_out = tc_first[adr_tc+i2].geo_.getVertexOut();
+            const F64ort mom3_in = tc_first[adr_tc+i3].geo_.getVertexIn();
+            const F64ort mom3_out = tc_first[adr_tc+i3].geo_.getVertexOut();            
 
             const _fjsp_v2r8 xj_h_in_a = _fjsp_set_v2r8(mom0_in.high_.x,   mom1_in.high_.x);
             const _fjsp_v2r8 xj_l_in_a = _fjsp_set_v2r8(mom0_in.low_.x,    mom1_in.low_.x);
@@ -2119,9 +1825,12 @@ namespace ParticleSimulator{
 #else //FAST_WALK_K
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= ( (pos_target_box_out.contained( tc_first[adr_tc+i].mom_.getVertexIn() ) 
-                            || pos_target_box_in.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) )
-                           << i);
+            //open_bits |= ( (pos_target_box_out.contained( tc_first[adr_tc+i].mom_.getVertexIn() ) 
+            //                || pos_target_box_in.contained( tc_first[adr_tc+i].mom_.getVertexOut() ) )
+            //               << i);
+            open_bits |= ( (pos_target_box_out.contained( tc_first[adr_tc+i].geo_.getVertexIn() ) 
+                            || pos_target_box_in.contained( tc_first[adr_tc+i].geo_.getVertexOut() ) )
+                           << i);            
         }
 #endif //FAST_WALK_K
         Ttc tc_child[N_CHILDREN];
@@ -2187,13 +1896,17 @@ namespace ParticleSimulator{
         const _fjsp_v2r8 zi_l = _fjsp_set_v2r8(pos_target_box.low_.z, pos_target_box.low_.z);
         for(S32 i=0; i<N_CHILDREN/4; i++){
             const S32 i0 = i*4;
-            const F64ort mom0 = tc_first[adr_tc+i0].mom_.getVertexIn();
+            //const F64ort mom0 = tc_first[adr_tc+i0].mom_.getVertexIn();
+            const F64ort mom0 = tc_first[adr_tc+i0].geo_.getVertexIn();
             const S32 i1 = i*4+1;
-            const F64ort mom1 = tc_first[adr_tc+i1].mom_.getVertexIn();
+            //const F64ort mom1 = tc_first[adr_tc+i1].mom_.getVertexIn();
+            const F64ort mom1 = tc_first[adr_tc+i1].geo_.getVertexIn();
             const S32 i2 = i*4+2;
-            const F64ort mom2 = tc_first[adr_tc+i2].mom_.getVertexIn();
+            //const F64ort mom2 = tc_first[adr_tc+i2].mom_.getVertexIn();
+            const F64ort mom2 = tc_first[adr_tc+i2].geo_.getVertexIn();
             const S32 i3 = i*4+3;
-            const F64ort mom3 = tc_first[adr_tc+i3].mom_.getVertexIn();
+            //const F64ort mom3 = tc_first[adr_tc+i3].mom_.getVertexIn();
+            const F64ort mom3 = tc_first[adr_tc+i3].geo_.getVertexIn();
 
             const _fjsp_v2r8 xj_h = _fjsp_set_v2r8(mom0.high_.x, mom1.high_.x);
             const _fjsp_v2r8 xj_l = _fjsp_set_v2r8(mom0.low_.x, mom1.low_.x);
@@ -2229,7 +1942,8 @@ namespace ParticleSimulator{
 #else //FAST_WALK_K
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexIn() ) << i);
+            //open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].mom_.getVertexIn() ) << i);
+            open_bits |= (pos_target_box.contained( tc_first[adr_tc+i].geo_.getVertexIn() ) << i);
         }
 #endif //FAST_WALK_K
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -2271,7 +1985,8 @@ namespace ParticleSimulator{
         if(is_overlapped) return;
         U32 open_bits = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
-            open_bits |= (tc_first[adr_tc+i].mom_.getVertexOut().contained(pos_box) << i);
+            //open_bits |= (tc_first[adr_tc+i].mom_.getVertexOut().contained(pos_box) << i);
+            open_bits |= (tc_first[adr_tc+i].geo_.getVertexOut().contained(pos_box) << i);
         }
 
         for(S32 i=0; i<N_CHILDREN; i++){
@@ -2304,7 +2019,8 @@ namespace ParticleSimulator{
             IsOverlappedUsingOuterBoundaryOfTreeImpl(tc_first, adr_tc, pos_box, n_leaf_limit, is_overlapped);
         }
         else{
-            is_overlapped = tc_first->mom_.getVertexOut().contained(pos_box);
+            //is_overlapped = tc_first->mom_.getVertexOut().contained(pos_box);
+            is_overlapped = tc_first->geo_.getVertexOut().contained(pos_box);
         }
         return is_overlapped;
     }
@@ -2322,10 +2038,14 @@ namespace ParticleSimulator{
         const U32 ONE = 1;
         //asm("# MakeLETListByDoubleWalkImpl");
         for(S32 i=0; i<N_CHILDREN; i++){
-            if( tc_first_B[adr_tc_B+i].mom_.getVertexOut().contained(pos_domain) 
-                || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B[adr_tc_B+i].mom_.getVertexIn(), n_leaf_limit_A)){
+            //if( tc_first_B[adr_tc_B+i].mom_.getVertexOut().contained(pos_domain) 
+            //    || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B[adr_tc_B+i].mom_.getVertexIn(), n_leaf_limit_A)){
+            //    open_bits |= ONE << i;
+            //}
+            if( tc_first_B[adr_tc_B+i].geo_.getVertexOut().contained(pos_domain) 
+                || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B[adr_tc_B+i].geo_.getVertexIn(), n_leaf_limit_A)){
                 open_bits |= ONE << i;
-            }
+            }            
 /*
             open_bits |= (tc_first_B[adr_tc_B+i].mom_.getVertexOut().contained(pos_domain) << i);
             if( (~(open_bits>>i)) & 0x1 ){
@@ -2362,7 +2082,8 @@ namespace ParticleSimulator{
                             continue;
                         }
 #else
-                        if( pos_domain.contained(tc_first_B[adr_tc_child].mom_.getVertexOut()) ){
+                        //if( pos_domain.contained(tc_first_B[adr_tc_child].mom_.getVertexOut()) ){
+                        if( pos_domain.contained(tc_first_B[adr_tc_child].geo_.getVertexOut()) ){
                             //std::cerr<<"new version"<<std::endl;
                             continue;
                         }
@@ -2391,7 +2112,8 @@ namespace ParticleSimulator{
                                         id_ptcl_send);
         }
         else{
-            if( tc_first_B->mom_.getVertexOut().contained(pos_domain) || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B->mom_.getVertexIn(), n_leaf_limit_A)){
+            //if( tc_first_B->mom_.getVertexOut().contained(pos_domain) || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B->mom_.getVertexIn(), n_leaf_limit_A)){
+            if( tc_first_B->geo_.getVertexOut().contained(pos_domain) || IsOverlappedUsingOuterBoundaryOfTree(tc_first_A, tc_first_B->geo_.getVertexIn(), n_leaf_limit_A)){            
                 S32 adr_ptcl_tmp = tc_first_B->adr_ptcl_;
                 const S32 n_child = tc_first_B->n_ptcl_;
                 for(S32 ip=0; ip<n_child; ip++, adr_ptcl_tmp++){
@@ -2402,7 +2124,8 @@ namespace ParticleSimulator{
                     const F64 dis_sq = pos_domain.getDistanceMinSQ(pos_tmp);
                     if(dis_sq <= len_sq) continue;
 #else
-                    if( tc_first_B->mom_.getVertexOut().contained(pos_domain) ) return;
+                    //if( tc_first_B->mom_.getVertexOut().contained(pos_domain) ) return;
+                    if( tc_first_B->geo_.getVertexOut().contained(pos_domain) ) return;
 #endif
                     id_ptcl_send.push_back(adr_ptcl_tmp);
                 }
@@ -2456,8 +2179,10 @@ namespace ParticleSimulator{
             const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
-                const F64ort vertex_cell_in  = tc_first[adr_tc_child+i].mom_.getVertexIn();
-                const F64ort vertex_cell_out = tc_first[adr_tc_child+i].mom_.getVertexOut();
+                //const F64ort vertex_cell_in  = tc_first[adr_tc_child+i].mom_.getVertexIn();
+                //const F64ort vertex_cell_out = tc_first[adr_tc_child+i].mom_.getVertexOut();
+                const F64ort vertex_cell_in  = tc_first[adr_tc_child+i].geo_.getVertexIn();
+                const F64ort vertex_cell_out = tc_first[adr_tc_child+i].geo_.getVertexOut();                
                 open_bits |= ( (vertex_cell_in.getDistanceMinSQ(pos_target) <= r_search_i_sq) || vertex_cell_out.overlapped(pos_target))<< i;
             }
             for(S32 i=0; i<N_CHILDREN; i++){
@@ -2512,7 +2237,8 @@ namespace ParticleSimulator{
             const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
-                const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexOut();
+                //const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexOut();
+                const F64ort vertex_cell = tc_first[adr_tc_child+i].geo_.getVertexOut();
                 open_bits |= vertex_cell.overlapped(pos_target) << i;
             }
             for(S32 i=0; i<N_CHILDREN; i++){
@@ -2585,7 +2311,8 @@ namespace ParticleSimulator{
             const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
-                const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexIn();
+                //const F64ort vertex_cell = tc_first[adr_tc_child+i].mom_.getVertexIn();
+                const F64ort vertex_cell = tc_first[adr_tc_child+i].geo_.getVertexIn();
                 open_bits |= (vertex_cell.getDistanceMinSQ(pos_target) <= r_search_sq)<< i;
             }
             for(S32 i=0; i<N_CHILDREN; i++){
@@ -2643,8 +2370,10 @@ namespace ParticleSimulator{
             const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
             U32 open_bits = 0;
             for(S32 i=0; i<N_CHILDREN; i++){
-                const F64ort vertex_cell_in  = tc_first[adr_tc_child+i].mom_.getVertexIn();
-                const F64ort vertex_cell_out = tc_first[adr_tc_child+i].mom_.getVertexOut();
+                //const F64ort vertex_cell_in  = tc_first[adr_tc_child+i].mom_.getVertexIn();
+                //const F64ort vertex_cell_out = tc_first[adr_tc_child+i].mom_.getVertexOut();
+                const F64ort vertex_cell_in  = tc_first[adr_tc_child+i].geo_.getVertexIn();
+                const F64ort vertex_cell_out = tc_first[adr_tc_child+i].geo_.getVertexOut();                
                 open_bits |= ( (vertex_cell_in.getDistanceMinSQ(pos_target) <= r_search_i_sq) || vertex_cell_out.overlapped(pos_target))<< i;
             }
             for(S32 i=0; i<N_CHILDREN; i++){
@@ -2658,8 +2387,69 @@ namespace ParticleSimulator{
             }
         }
 
-    }    
+    }
 
+    template<class Tvec, class Ttc, class Ttp, class Tep>
+    inline void SearchNeighborListOneParticleNumber(const Tvec & pos_target,
+                                                    const S32 n_ngb_target,
+                                                    const Ttc * tc_first,
+                                                    const Ttp * tp_first,
+                                                    const S32 adr_tc,
+                                                    const ReallocatableArray<Tep> & ep_first,
+                                                    std::vector< std::pair<Tep, F64> > & ep_md_list,
+                                                    F64ort & vertex_ep_list,
+                                                    const S32 n_leaf_limit){
+        if( tc_first[adr_tc].isLeaf(n_leaf_limit) ){
+            bool is_updated {false};
+            const S32 n_tmp = tc_first[adr_tc].n_ptcl_;
+            U32 adr_tp_tmp = tc_first[adr_tc].adr_ptcl_;
+            for(S32 ip=0; ip<n_tmp; ip++, adr_tp_tmp++){
+                U32 adr_ep_tmp = tp_first[adr_tp_tmp].adr_ptcl_;
+                if (GetMSB(adr_ep_tmp) == 1) continue;
+                const F64vec dr = ep_first[adr_ep_tmp].getPos() - pos_target;
+                std::pair<Tep, F64> ep_md_new = std::make_pair(ep_first[adr_ep_tmp], dr*dr);
+                if (ep_md_list.size() < n_ngb_target) {
+                    is_updated = true;
+                    ep_md_list.push_back( ep_md_new );
+                    std::sort(ep_md_list.begin(), ep_md_list.end(),
+                              [](const std::pair<Tep, F64> & l, const std::pair<Tep, F64> & r)
+                              ->bool{return l.second > r.second;});
+                } else {
+                    if (ep_md_new.second < ep_md_list.front().second) {
+                        is_updated = true;
+                        if (ep_md_list.size() > 1) {
+                            for (S32 i=1; i<ep_md_list.size(); i++) {
+                                if (ep_md_list[i].second > ep_md_new.second) ep_md_list[i-1] = ep_md_list[i];
+                                else ep_md_list[i-1] = ep_md_new;
+                            }
+                        } else {
+                            ep_md_list[0] = ep_md_new;
+                        }
+                    }
+                }
+            }
+            if (is_updated) {
+                F64ort vertex;
+                for (S32 i=0; i<ep_md_list.size(); i++)
+                    vertex.merge( ep_md_list[i].first.getPos() );
+                vertex_ep_list = vertex;
+            }
+        }
+        else{
+            const S32 adr_tc_child = tc_first[adr_tc].adr_tc_;
+            for(S32 i=0; i<N_CHILDREN; i++){
+                const S32 n_child = tc_first[adr_tc_child+i].n_ptcl_;
+                const F64ort vertex_cell = tc_first[adr_tc_child+i].geo_.getVertexIn();
+                if (n_child == 0) continue;
+                else if ((ep_md_list.size() < n_ngb_target) ||
+                         (ep_md_list.size() == n_ngb_target && vertex_cell.overlapped(vertex_ep_list))) {
+                    SearchNeighborListOneParticleNumber
+                        (pos_target, n_ngb_target, tc_first, tp_first, adr_tc_child+i,
+                         ep_first, ep_md_list, vertex_ep_list, n_leaf_limit);
+                }
+            }
+        }
+    }
 
 
     template<class Ttc, class Tep2, class Tep3>
@@ -2706,8 +2496,12 @@ namespace ParticleSimulator{
                 // not leaf
                 S32 adr_tc_child = tc_first[adr_tc_curr].adr_tc_;
                 for(S32 i=0; i<N_CHILDREN; i++, adr_tc_child++){
-                    if( pos_target_box_out.contained(tc_first[adr_tc_child].mom_.getVertexIn()) 
-                        || pos_target_box_in.contained(tc_first[adr_tc_child].mom_.getVertexOut()) ){
+                    //if( pos_target_box_out.contained(tc_first[adr_tc_child].mom_.getVertexIn()) 
+                    //    || pos_target_box_in.contained(tc_first[adr_tc_child].mom_.getVertexOut()) ){
+                    //    adr_tc_stack.push(adr_tc_child);
+                    //}
+                    if( pos_target_box_out.contained(tc_first[adr_tc_child].geo_.getVertexIn()) 
+                        || pos_target_box_in.contained(tc_first[adr_tc_child].geo_.getVertexOut()) ){
                         adr_tc_stack.push(adr_tc_child);
                     }
                 }
@@ -2747,7 +2541,10 @@ namespace ParticleSimulator{
             else{
                 S32 adr_tc_child = tc_first[adr_tc_curr].adr_tc_;
                 for(S32 i=0; i<N_CHILDREN; i++, adr_tc_child++){
-                    if( pos_target_box.contained( tc_first[adr_tc_child].mom_.getVertexIn()) ){
+                    //if( pos_target_box.contained( tc_first[adr_tc_child].mom_.getVertexIn()) ){
+                    //    adr_tc_stack.push(adr_tc_child);
+                    //}
+                    if( pos_target_box.contained( tc_first[adr_tc_child].geo_.getVertexIn()) ){
                         adr_tc_stack.push(adr_tc_child);
                     }
                 }
@@ -2794,7 +2591,10 @@ namespace ParticleSimulator{
             else{
                 S32 adr_tc_child = tc_first[adr_tc_curr].adr_tc_;
                 for(S32 i=0; i<N_CHILDREN; i++, adr_tc_child++){
-                    if( pos_target_box.contained( tc_first[adr_tc_child].mom_.getVertexOut()) ){
+                    //if( pos_target_box.contained( tc_first[adr_tc_child].mom_.getVertexOut()) ){
+                    //    adr_tc_stack.push(adr_tc_child);
+                    //}
+                    if( pos_target_box.contained( tc_first[adr_tc_child].geo_.getVertexOut()) ){
                         adr_tc_stack.push(adr_tc_child);
                     }
                 }

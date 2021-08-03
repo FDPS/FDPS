@@ -7,11 +7,14 @@
 #endif
 
 namespace ParticleSimulator{
+
+    enum class MemoryAllocMode : int {Default=0, Pool=1, Stack=2};
+    
     class MemoryPool{
     private:
         enum{
             ALIGN_SIZE        = 8,
-            N_SEGMENT_LIMIT   = 10000,
+            N_SEGMENT_LIMIT   = 3000000,
         };
         typedef struct {
             void * data;
@@ -62,13 +65,26 @@ namespace ParticleSimulator{
             else return false;
         }
     public:
-
+        static void checkEmpty(){
+            if(getInstance().top_ != getInstance().bottom_
+               || getInstance().n_segment_ != 0
+               || getInstance().size_ != 0){
+                MemoryPool::dump();
+            }
+            assert(getInstance().top_ == getInstance().bottom_);
+            assert(getInstance().n_segment_==0);
+            assert(getInstance().size_==0);
+        }
         static size_t getNSegment(){
             return getInstance().n_segment_;
         }
 
         static size_t getSize(){
             return getInstance().size_;
+        }
+
+        static size_t getCapacity(){
+            return getInstance().cap_;
         }
         
         static void initialize(const size_t _cap){
@@ -91,6 +107,7 @@ namespace ParticleSimulator{
 #endif
                 std::exit(-1);
             }
+	    //std::cerr<<"getInstance().cap_= "<<getInstance().cap_<<std::endl;
         }
         static void reInitialize(const size_t size_add){
             const size_t cap_old = getInstance().cap_;
@@ -163,24 +180,29 @@ namespace ParticleSimulator{
             } 
         }
 
-        static void alloc(const size_t _size, int & _id_mpool, void * ptr_data, void *& ret){
+        static void alloc(const size_t _size, int & _id_mpool, void * ptr_data, void *& ret, MemoryAllocMode mode=MemoryAllocMode::Pool){
+	    //std::cerr<<"A) getInstance().cap_= "<<getInstance().cap_<<std::endl;
             if(_size <= 0) return;
             unifyMem();
             const size_t size_align = getAlignSize(_size);
             size_t cap_cum = 0;
             bool flag_break = false;
-            for(size_t i=0; i<getInstance().n_segment_; i++){
-                if( !getInstance().used_per_seg_[i] && getInstance().cap_per_seg_[i] >= size_align){
-                    // insert to middle 
-                    getInstance().used_per_seg_[i] = true;
-                    getInstance().ptr_data_per_seg_[i] = ptr_data;
-                    _id_mpool = i;
-                    ret = (void*)((char*)getInstance().bottom_ + cap_cum);
-                    flag_break = true;
-                    break;
-                }
-                cap_cum += getInstance().cap_per_seg_[i];
-            }
+	    //std::cerr<<"B) getInstance().cap_= "<<getInstance().cap_<<std::endl;
+	    if(mode == MemoryAllocMode::Pool){
+		for(size_t i=0; i<getInstance().n_segment_; i++){
+		    if( !getInstance().used_per_seg_[i] && getInstance().cap_per_seg_[i] >= size_align){
+			// insert to middle 
+			getInstance().used_per_seg_[i] = true;
+			getInstance().ptr_data_per_seg_[i] = ptr_data;
+			_id_mpool = i;
+			ret = (void*)((char*)getInstance().bottom_ + cap_cum);
+			flag_break = true;
+			break;
+		    }
+		    cap_cum += getInstance().cap_per_seg_[i];
+		}
+	    }
+	    //std::cerr<<"C) getInstance().cap_= "<<getInstance().cap_<<std::endl;
             if(!flag_break){
                 // In this case, we add a new segment to the tail of the memory pool
                 assert(N_SEGMENT_LIMIT > getInstance().n_segment_+1);
@@ -195,6 +217,10 @@ namespace ParticleSimulator{
                 }
                 // Choose an operation mode
                 bool flag_realloc = false;
+		//std::cerr<<"getInstance().cap_= "<<getInstance().cap_
+		//	 <<" getInstance().size_= "<<getInstance().size_
+		//	 <<" size_align= "<<size_align
+		//	 <<std::endl;
                 if (getInstance().cap_ < getInstance().size_ + size_align) flag_realloc = true;
                 bool flag_use_emerg_bufs = false;
                 if (flag_realloc && inParallelRegion()) flag_use_emerg_bufs = true;
@@ -240,38 +266,107 @@ namespace ParticleSimulator{
         }
 
         static void freeMem(const int id_seg){
-            if(getInstance().cap_per_seg_[id_seg] <= 0) return;
-            if (id_seg < N_SEGMENT_LIMIT) {
-                getInstance().used_per_seg_[id_seg] = false;
-                if((size_t)id_seg == getInstance().n_segment_-1){
-                    for(int i=id_seg; i>=0; i--){
-                        if(getInstance().used_per_seg_[i] == true) break;
-                        getInstance().size_ -= getInstance().cap_per_seg_[i];
+            if (id_seg >= 0) {
+                // This condition is needed to prevent out-of-range accesses                        
+                // to the arrays cap_per_seg_[], used_per_seg_[], etc.,                             
+                // which occurs when id_seg = -1, which in turn occurs when
+                // the member function freeMem of class ReallocatableArray
+                // is executed before the destructor of the class is executed.                      
+                if (id_seg < N_SEGMENT_LIMIT) {
+                    if (getInstance().cap_per_seg_[id_seg] <= 0) return;
+                    getInstance().used_per_seg_[id_seg] = false;
+                    if((size_t)id_seg == getInstance().n_segment_-1){                               
+                        for(int i=id_seg; i>=0; i--){
+                            if(getInstance().used_per_seg_[i] == true) break;                       
+                            getInstance().size_ -= getInstance().cap_per_seg_[i];                   
+                            getInstance().cap_per_seg_[i] = 0;
+                            getInstance().ptr_data_per_seg_[i] = NULL;                              
+                            getInstance().n_segment_--;                                             
+                        }                                                                           
+                    }
+                    getInstance().top_ = ((char*)getInstance().bottom_) + getInstance().size_;      
+                } else {
+                    const int idx = id_seg - N_SEGMENT_LIMIT;                                       
+                    getInstance().emerg_bufs_[idx].used = false;                                    
+                }
+                unifyMem(); 
+            }
+        }
+
+        static void finalize() {
+            void * bottom_old = getInstance().bottom_;
+            if (bottom_old != NULL) {
+                const size_t n_segment = getInstance().n_segment_;                                  
+                for (size_t i=0; i<n_segment; i++) {
+                    //if (getInstance().used_per_seg_[i]) {
+                    if (getInstance().cap_per_seg_[i] > 0 || getInstance().used_per_seg_[i]) {
+                        getInstance().used_per_seg_[i] = false;
                         getInstance().cap_per_seg_[i] = 0;
+                        void * p_new = NULL;
+                        memcpy(getInstance().ptr_data_per_seg_[i], &p_new, sizeof(void*));
                         getInstance().ptr_data_per_seg_[i] = NULL;
                         getInstance().n_segment_--;
                     }
                 }
-                getInstance().top_ = ((char*)getInstance().bottom_) + getInstance().size_;
-            } else {
-                const int idx = id_seg - N_SEGMENT_LIMIT;
-                getInstance().emerg_bufs_[idx].used = false;
+                assert(getInstance().n_segment_ == (size_t)0);
+                getInstance().cap_ = 0;
+                getInstance().size_ = 0;
+                free(bottom_old);
+                getInstance().bottom_ = NULL;
+                getInstance().top_ = NULL;
+                getInstance().n_segment_ = 0;
+                int my_rank;
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
+                MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
+#else
+                my_rank = 0;
+#endif
+                if (my_rank == 0) {
+                    std::cout << "MemoryPool::finalize() is completed!" << std::endl;
+                }
             }
-            unifyMem();
         }
 
-        static void dump(){
-            std::cerr<<"bottom_= "<<getInstance().bottom_<<std::endl;
-            std::cerr<<"top_= "<<getInstance().top_<<std::endl;
-            std::cerr<<"cap_= "<<getInstance().cap_<<std::endl;
-            std::cerr<<"size_= "<<getInstance().size_<<std::endl;
-            std::cerr<<"n_segment= "<<getInstance().n_segment_<<std::endl;
-            for(size_t i=0; i<getInstance().n_segment_; i++){
-                std::cerr<<"i= "<<i
-                         <<" cap= "<<getInstance().cap_per_seg_[i]
-                         <<" used= "<<getInstance().used_per_seg_[i]
-                         <<std::endl;
+        static void clearAll(){
+            void * bottom_old = getInstance().bottom_;
+            if (bottom_old != NULL) {
+                const size_t n_segment = getInstance().n_segment_;
+                for (size_t i=0; i<n_segment; i++) {
+                    if (getInstance().cap_per_seg_[i] > 0 || getInstance().used_per_seg_[i]) {
+                        getInstance().used_per_seg_[i] = false;
+                        getInstance().cap_per_seg_[i] = 0;
+                        void * p_new = NULL;
+                        memcpy(getInstance().ptr_data_per_seg_[i], &p_new, sizeof(void*));
+                        getInstance().ptr_data_per_seg_[i] = NULL;
+                        getInstance().n_segment_--;
+                    }
+                }
+                assert(getInstance().n_segment_ == (size_t)0);
+                //getInstance().cap_ = 0;
+                getInstance().size_ = 0;
+                //getInstance().bottom_ = NULL;
+                getInstance().top_ = NULL;
+                getInstance().n_segment_ = 0;
             }
         }
+
+        static void dump(std::ostream & fout=std::cerr){
+            fout<<"bottom_= "<<getInstance().bottom_<<std::endl;
+            fout<<"top_= "<<getInstance().top_<<std::endl;
+            fout<<"cap_= "<<getInstance().cap_<<std::endl;
+            fout<<"size_= "<<getInstance().size_<<std::endl;
+            fout<<"n_segment= "<<getInstance().n_segment_<<std::endl;
+            for(size_t i=0; i<getInstance().n_segment_; i++){
+                fout<<"i= "<<i
+                    <<" cap= "<<getInstance().cap_per_seg_[i]
+                    <<" used= "<<getInstance().used_per_seg_[i]
+                    <<std::endl;
+            }
+        }
+
+        static size_t getRemainSize(){
+	    return getInstance().cap_ - getInstance().size_;
+	}
+	
     };
 }

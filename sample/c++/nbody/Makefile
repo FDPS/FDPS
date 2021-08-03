@@ -1,14 +1,14 @@
 PS_PATH = ../../../src/
 INC = -I$(PS_PATH)
 
-CC = time g++
-#CC = time mpicxx
+#CC = time g++
+CC = time mpicxx
 CFLAGS = -std=c++11 -O3
 #CFLAGS += -Wall
 #CFLAGS += -ffast-math
 #CFLAGS += -funroll-loops
-#CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
-#CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
+CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 #use_phantom_grape_x86 = yes
 #use_pikg_x86 = yes

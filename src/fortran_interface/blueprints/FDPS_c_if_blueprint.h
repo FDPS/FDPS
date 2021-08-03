@@ -7,6 +7,7 @@
 #include "FDPS_matrix.h"
 #include "FDPS_super_particle.h"
 #include "FDPS_time_profile.h"
+#include "FDPS_comm_info.h"
 
 //----------------------
 //  Basic
@@ -47,6 +48,7 @@ void fdps_adjust_pos_into_root_domain(const int psys_num,
                                       const int dinfo_num);
 void fdps_sort_particle(const int psys_num,
                         _Bool (*pfunc_comp)(const void *, const void *));
+void fdps_psys_set_comm_info(int psys_num, fdps_comm_info *ci);
 
 //----------------------
 //  Domain Info
@@ -76,6 +78,7 @@ void fdps_decompose_domain(const int dinfo_num);
 void fdps_decompose_domain_all(const int dinfo_num,
                                const int psys_num, 
                                const float weight);
+void fdps_dinfo_set_comm_info(int dinfo_num, fdps_comm_info *ci);
 
 //----------------------
 //  Tree 
@@ -139,62 +142,186 @@ void fdps_get_neighbor_list(const int tree_num,
                             void **cptr_to_epj);
 void * fdps_get_epj_from_id(const int tree_num,
                             const fdps_s64 id);
+void fdps_tree_set_comm_info(int tree_num, fdps_comm_info *ci);
+void fdps_set_exchange_let_mode(int tree_num, int mode);
 
 //----------------------
 //  MPI comm. 
 //----------------------
+
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#include <mpi.h>
+#endif
+
+#ifndef PARTICLE_SIMULATOR_MPI_PARALLEL
+#define MPI_Comm int
+#define MPI_Fint int
+#endif    
+fdps_comm_info * fdps_ci_initialize(MPI_Comm* comm);
+void fdps_ci_set_communicator(fdps_comm_info * ci, MPI_Comm * comm);
+
+int fdps_f_ci_initialize(MPI_Fint comm);
+void fdps_f_ci_set_communicator(int ci, MPI_Fint comm);
+void fdps_f_ci_delete(int ci);
+
+
+
+
+void fdps_ci_delete(fdps_comm_info * ci);
+fdps_comm_info * fdps_ci_create(fdps_comm_info * ci, int n, int rank[]);
+fdps_comm_info * fdps_ci_split(fdps_comm_info * ci,int color, int key);
+
+int  fdps_f_ci_create(int ci, int n, int rank[]);
+int fdps_f_ci_split(int ci,int color, int key);
+
+int fdps_ci_get_rank(fdps_comm_info * ci);
+int fdps_f_ci_get_rank(int ci);
 int fdps_get_rank();
+int fdps_ci_get_num_procs(fdps_comm_info * ci);
+int fdps_f_ci_get_num_procs(int ci);
 int fdps_get_num_procs();
+int fdps_ci_get_rank_multi_dim(fdps_comm_info * ci, const int id);
+int fdps_f_ci_get_rank_multi_dim(int ci, const int id);
 int fdps_get_rank_multi_dim(const int id);
+int fdps_ci_get_num_procs_multi_dim(fdps_comm_info * ci, const int id);
+int fdps_f_ci_get_num_procs_multi_dim(int ci, const int id);
 int fdps_get_num_procs_multi_dim(const int id);
+_Bool fdps_ci_get_logical_and(fdps_comm_info * ci, const _Bool in);
+_Bool fdps_f_ci_get_logical_and(int ci, const _Bool in);
 _Bool fdps_get_logical_and(const _Bool in);
+_Bool fdps_ci_get_logical_or(fdps_comm_info * ci, const _Bool in);
+_Bool fdps_f_ci_get_logical_or(int ci, const _Bool in);
 _Bool fdps_get_logical_or(const _Bool in);
 
+fdps_s32 fdps_ci_get_min_value_s32(fdps_comm_info * ci, const fdps_s32 f_in);
+fdps_s32 fdps_f_ci_get_min_value_s32(int ci, const fdps_s32 f_in);
 fdps_s32 fdps_get_min_value_s32(const fdps_s32 f_in);
+fdps_s64 fdps_ci_get_min_value_s64(fdps_comm_info * ci, const fdps_s64 f_in);
+fdps_s64 fdps_f_ci_get_min_value_s64(int ci, const fdps_s64 f_in);
 fdps_s64 fdps_get_min_value_s64(const fdps_s64 f_in);
+fdps_u32 fdps_ci_get_min_value_u32(fdps_comm_info * ci, const fdps_u32 f_in);
+fdps_u32 fdps_f_ci_get_min_value_u32(int ci, const fdps_u32 f_in);
 fdps_u32 fdps_get_min_value_u32(const fdps_u32 f_in);
+fdps_u64 fdps_ci_get_min_value_u64(fdps_comm_info * ci, const fdps_u64 f_in);
+fdps_u64 fdps_f_ci_get_min_value_u64(int ci, const fdps_u64 f_in);
 fdps_u64 fdps_get_min_value_u64(const fdps_u64 f_in);
+fdps_f32 fdps_ci_get_min_value_f32(fdps_comm_info * ci, const fdps_f32 f_in);
+fdps_f32 fdps_f_ci_get_min_value_f32(int ci, const fdps_f32 f_in);
 fdps_f32 fdps_get_min_value_f32(const fdps_f32 f_in);
+fdps_f64 fdps_ci_get_min_value_f64(fdps_comm_info * ci, const fdps_f64 f_in);
+fdps_f64 fdps_f_ci_get_min_value_f64(int ci, const fdps_f64 f_in);
 fdps_f64 fdps_get_min_value_f64(const fdps_f64 f_in);
+void fdps_ci_get_min_value_w_id_f32(fdps_comm_info * ci, const fdps_f32 f_in,
+                                 const int i_in,
+                                 fdps_f32 *f_out,
+                                 int *i_out);
+void fdps_f_ci_get_min_value_w_id_f32(int ci, const fdps_f32 f_in,
+                                 const int i_in,
+                                 fdps_f32 *f_out,
+                                 int *i_out);
 void fdps_get_min_value_w_id_f32(const fdps_f32 f_in,
                                  const int i_in,
                                  fdps_f32 *f_out,
+                                 int *i_out);
+void fdps_ci_get_min_value_w_id_f64(fdps_comm_info * ci, const fdps_f64 f_in,
+                                 const int i_in,
+                                 fdps_f64 *f_out,
+                                 int *i_out);
+void fdps_f_ci_get_min_value_w_id_f64(int ci, const fdps_f64 f_in,
+                                 const int i_in,
+                                 fdps_f64 *f_out,
                                  int *i_out);
 void fdps_get_min_value_w_id_f64(const fdps_f64 f_in,
                                  const int i_in,
                                  fdps_f64 *f_out,
                                  int *i_out);
 
+fdps_s32 fdps_ci_get_max_value_s32(fdps_comm_info * ci, const fdps_s32 f_in);
+fdps_s32 fdps_f_ci_get_max_value_s32(int ci, const fdps_s32 f_in);
 fdps_s32 fdps_get_max_value_s32(const fdps_s32 f_in);
+fdps_s64 fdps_ci_get_max_value_s64(fdps_comm_info * ci, const fdps_s64 f_in);
+fdps_s64 fdps_f_ci_get_max_value_s64(int ci, const fdps_s64 f_in);
 fdps_s64 fdps_get_max_value_s64(const fdps_s64 f_in);
+fdps_u32 fdps_ci_get_max_value_u32(fdps_comm_info * ci, const fdps_u32 f_in);
+fdps_u32 fdps_f_ci_get_max_value_u32(int ci, const fdps_u32 f_in);
 fdps_u32 fdps_get_max_value_u32(const fdps_u32 f_in);
+fdps_u64 fdps_ci_get_max_value_u64(fdps_comm_info * ci, const fdps_u64 f_in);
+fdps_u64 fdps_f_ci_get_max_value_u64(int ci, const fdps_u64 f_in);
 fdps_u64 fdps_get_max_value_u64(const fdps_u64 f_in);
+fdps_f32 fdps_ci_get_max_value_f32(fdps_comm_info * ci, const fdps_f32 f_in);
+fdps_f32 fdps_f_ci_get_max_value_f32(int ci, const fdps_f32 f_in);
 fdps_f32 fdps_get_max_value_f32(const fdps_f32 f_in);
+fdps_f64 fdps_ci_get_max_value_f64(fdps_comm_info * ci, const fdps_f64 f_in);
+fdps_f64 fdps_f_ci_get_max_value_f64(int ci, const fdps_f64 f_in);
 fdps_f64 fdps_get_max_value_f64(const fdps_f64 f_in);
+void fdps_ci_get_max_value_w_id_f32(fdps_comm_info * ci, const fdps_f32 f_in,
+                                 const int i_in,
+                                 fdps_f32 *f_out,
+                                 int *i_out);
+void fdps_f_ci_get_max_value_w_id_f32(int ci, const fdps_f32 f_in,
+                                 const int i_in,
+                                 fdps_f32 *f_out,
+                                 int *i_out);
 void fdps_get_max_value_w_id_f32(const fdps_f32 f_in,
                                  const int i_in,
                                  fdps_f32 *f_out,
+                                 int *i_out);
+void fdps_ci_get_max_value_w_id_f64(fdps_comm_info * ci, const fdps_f64 f_in,
+                                 const int i_in,
+                                 fdps_f64 *f_out,
+                                 int *i_out);
+void fdps_f_ci_get_max_value_w_id_f64(int ci, const fdps_f64 f_in,
+                                 const int i_in,
+                                 fdps_f64 *f_out,
                                  int *i_out);
 void fdps_get_max_value_w_id_f64(const fdps_f64 f_in,
                                  const int i_in,
                                  fdps_f64 *f_out,
                                  int *i_out);
 
+fdps_s32 fdps_ci_get_sum_s32(fdps_comm_info * ci, const fdps_s32 f_in);
+fdps_s32 fdps_f_ci_get_sum_s32(int ci, const fdps_s32 f_in);
 fdps_s32 fdps_get_sum_s32(const fdps_s32 f_in);
+fdps_s64 fdps_ci_get_sum_s64(fdps_comm_info * ci, const fdps_s64 f_in);
+fdps_s64 fdps_f_ci_get_sum_s64(int ci, const fdps_s64 f_in);
 fdps_s64 fdps_get_sum_s64(const fdps_s64 f_in);
+fdps_u32 fdps_ci_get_sum_u32(fdps_comm_info * ci, const fdps_u32 f_in);
+fdps_u32 fdps_f_ci_get_sum_u32(int ci, const fdps_u32 f_in);
 fdps_u32 fdps_get_sum_u32(const fdps_u32 f_in);
+fdps_u64 fdps_ci_get_sum_u64(fdps_comm_info * ci, const fdps_u64 f_in);
+fdps_u64 fdps_f_ci_get_sum_u64(int ci, const fdps_u64 f_in);
 fdps_u64 fdps_get_sum_u64(const fdps_u64 f_in);
+fdps_f32 fdps_ci_get_sum_f32(fdps_comm_info * ci, const fdps_f32 f_in);
+fdps_f32 fdps_f_ci_get_sum_f32(int ci, const fdps_f32 f_in);
 fdps_f32 fdps_get_sum_f32(const fdps_f32 f_in);
+fdps_f64 fdps_ci_get_sum_f64(fdps_comm_info * ci, const fdps_f64 f_in);
+fdps_f64 fdps_f_ci_get_sum_f64(int ci, const fdps_f64 f_in);
 fdps_f64 fdps_get_sum_f64(const fdps_f64 f_in);
 
+void fdps_ci_broadcast_s32(fdps_comm_info * ci, fdps_s32 *val, int n, int src);
+void fdps_f_ci_broadcast_s32(int ci, fdps_s32 *val, int n, int src);
 void fdps_broadcast_s32(fdps_s32 *val, int n, int src);
+void fdps_ci_broadcast_s64(fdps_comm_info * ci, fdps_s64 *val, int n, int src);
+void fdps_f_ci_broadcast_s64(int ci, fdps_s64 *val, int n, int src);
 void fdps_broadcast_s64(fdps_s64 *val, int n, int src);
+void fdps_ci_broadcast_u32(fdps_comm_info * ci, fdps_u32 *val, int n, int src);
+void fdps_f_ci_broadcast_u32(int ci, fdps_u32 *val, int n, int src);
 void fdps_broadcast_u32(fdps_u32 *val, int n, int src);
+void fdps_ci_broadcast_u64(fdps_comm_info * ci, fdps_u64 *val, int n, int src);
+void fdps_f_ci_broadcast_u64(int ci, fdps_u64 *val, int n, int src);
 void fdps_broadcast_u64(fdps_u64 *val, int n, int src);
+void fdps_ci_broadcast_f32(fdps_comm_info * ci, fdps_f32 *val, int n, int src);
+void fdps_f_ci_broadcast_f32(int ci, fdps_f32 *val, int n, int src);
 void fdps_broadcast_f32(fdps_f32 *val, int n, int src);
+void fdps_ci_broadcast_f64(fdps_comm_info * ci, fdps_f64 *val, int n, int src);
+void fdps_f_ci_broadcast_f64(int ci, fdps_f64 *val, int n, int src);
 void fdps_broadcast_f64(fdps_f64 *val, int n, int src);
 
+double fdps_ci_get_wtime(fdps_comm_info * ci);
+double fdps_f_ci_get_wtime(int ci);
 double fdps_get_wtime();
+void fdps_ci_barrier(fdps_comm_info * ci);
+void fdps_f_ci_barrier(int ci);
 void fdps_barrier();
 
 //----------------------

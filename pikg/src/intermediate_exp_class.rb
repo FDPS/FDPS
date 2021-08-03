@@ -3,7 +3,11 @@ class Kernelprogram
   attr_accessor :iodeclarations, :functions, :statements
   def initialize(x)
     #@iodeclarations, @functions, @statements =*x
-    @iodeclarations = x.shift
+    if x[0][0].class == Iodeclaration
+      @iodeclarations = x.shift
+    else
+      @iodeclarations = []
+    end
     if x[0][0].class == Function
       @functions = x.shift
     else
@@ -14,26 +18,55 @@ class Kernelprogram
 end
 
 class Loop
-  attr_accessor :index,:loop_beg,:loop_end,:interval,:statements
+  attr_accessor :index,:loop_beg,:loop_end,:interval,:statements,:option
   def initialize(x)
-    @index,@loop_beg,@loop_end,@interval,@statements = x
+    @index,@loop_beg,@loop_end,@interval,@statements,@option = x
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     ret = ""
     ret += "for("
     ret += "#{@index} = #{@loop_beg}" if @loop_beg  != nil
     ret += ";"
-    ret += "#{@index} < #{@loop_end};"
+    case @option
+    when :down
+      ret += "#{@index} < (#{@loop_end}/#{@interval})*#{@interval};"
+    when :up
+      ret += "#{@index} < ((#{@loop_end} + #{@interval} - 1)/#{@interval})*#{@interval};"
+    else
+      ret += "#{@index} < #{@loop_end};"
+    end
     if @interval == 1
       ret += "++#{@index}"
     else
       ret += "#{@index} += #{@interval}"
     end
     ret += "){\n"
+
+    predicate = nil
+    count = $pg_count
+    if conversion_type == "A64FX"
+      if @interval != 1 && @option == :up
+        predicate = $current_predicate
+        $current_predicate = "pg#{$pg_count}"
+        if predicate =~ /svptrue_b/
+          ret += "svbool_t #{$current_predicate} = svwhilelt_b#{$min_element_size}_s#{$min_element_size}(#{@index},#{@loop_end});\n"
+        else
+          ret += "svbool_t #{$current_predicate} = svand_b_z(svptrue_b#{$min_element_size}(),svwhilelt_b#{$min_element_size}_s#{$min_element_size}(#{@index},#{@loop_end}),#{predicate});\n"
+        end
+        $pg_count += 1
+      end
+    end
     statements.each{|s|
       ret += s.convert_to_code(conversion_type) + "\n"
     }
-    ret += "}\n"
+    ret += "} // loop of #{@index}\n"
+    if conversion_type == "A64FX"
+      if @interval != 1 && @option == :up
+        $current_predicate = predicate
+        $current_predicate = "svptrue_b#{$min_element_size}()" if $current_predicate == nil
+      end
+    end
+    $pg_count = count
     ret
   end
 end
@@ -43,7 +76,7 @@ class ILoop
   def initialize(x)
     @statements = x
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     ret = ""
     case conversion_type
     when "reference"
@@ -87,7 +120,8 @@ class ConditionalBranch
       b.each{|s|
         if isStatement(s)
           exp = s.expression.get_related_variable
-          exp = [get_name(s)] if exp == []
+          #exp = [get_name(s)] if exp == []
+          exp += [get_name(s)]
           ret.push([get_name(s),exp]) if exp != []
         elsif s.class == ConditionalBranch
           ret += s.get_related_variable
@@ -131,7 +165,7 @@ class ConditionalBranch
     ret
   end
 
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     ret = ""
     conditions.zip(bodies){ |c,b|
       #p [c,b]
@@ -175,7 +209,7 @@ class TableDecl
     end
   end
 
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     case conversion_type
     when "reference"
       ret = "PIKG::#{@type} #{@name}[] = {"
@@ -190,6 +224,10 @@ class TableDecl
       ret = convert_to_code_avx512(conversion_type)
     end
     ret
+  end
+
+  def get_related_variable
+    []
   end
 end
 
@@ -210,12 +248,19 @@ class FloatingPoint
     @type
   end
 
+  def fusion_iotag(iotag)
+    self
+  end
+
   def replace_fdpsname_recursive(h=$varhash)
     self
   end
   def replace_recursive(orig,replaced)
-    self
+    self.dup
   end
+  def replace_by_list(n,l)
+  end
+
   def isJRelated(list)
     false
   end
@@ -235,7 +280,7 @@ class FloatingPoint
     end
   end
 
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     case conversion_type
     when "reference"
       @val
@@ -268,12 +313,18 @@ class IntegerValue
     end
   end
 
+  def fusion_iotag(iotag)
+    self
+  end
   def get_type(h = $varhash)
     @type
   end
 
+  def replace_recursive(orig,replaced)
+    self.dup
+  end
   def replace_fdpsname_recursive(h=$varhash)
-    self
+    self.dup
   end
 
   def isJRelated(list)
@@ -284,7 +335,7 @@ class IntegerValue
     []
   end
 
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     case conversion_type
     when "reference"
       case @type
@@ -338,14 +389,14 @@ class Declaration
     @type = @name.get_type(h) if @type==nil
     @type
   end
-  def convert_to_code(conversion_type)
-    #p self
+  def convert_to_code(conversion_type="reference")
+    @type = @name.get_type if @type == nil
     "#{get_declare_type(@type,conversion_type)} #{@name.convert_to_code(conversion_type)};\n"
   end
 end
 
 class NonSimdDecl < Declaration
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     #p self
     "#{get_declare_type(@type,"reference")} #{@name.convert_to_code("reference")};\n"
   end
@@ -373,17 +424,17 @@ class ReturnState
     @ret = x
   end
 
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     retval = "return " + ret.convert_to_code(conversion_type) + ";\n"
     retval
   end
 end
 
 class Statement
-  attr_accessor :name, :expression, :type
+  attr_accessor :name, :expression, :type, :op
   def initialize(x)
     #p x
-    @name, @expression, @type=x
+    @name, @expression, @type, @op=x
   end
   def get_type(h = $varhash)
     @type = @expression.get_type(h) if @type==nil
@@ -396,6 +447,12 @@ class Statement
       h[name] = [nil, @type, nil]
     end
   end
+
+  def fusion_iotag(iotag)
+    @name = @name.lop + "_" + @name.rop if @name.class == Expression && @name.lop == iotag
+    @expression = @expression.fusion_iotag(iotag)
+  end
+  
   def get_related_variable
     [get_name(self)] + @expression.get_related_variable
   end
@@ -431,6 +488,10 @@ class Statement
   end
 
   def expand_tree
+    if @op !=nil
+      @expression = Expression.new([@op,@name,@expression,@type])
+      @op = nil
+    end
     ret = expand_inner_prod(@expression)
     @expression = ret
   end
@@ -457,17 +518,23 @@ class Statement
     ret
   end
 
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     #p self
     #p @name
     #p $varhash[@name]
-    ret = @name.convert_to_code(conversion_type) + " = " + @expression.convert_to_code(conversion_type) + ";"
+    if @op == nil
+      ret = @name.convert_to_code(conversion_type) + " = " + @expression.convert_to_code(conversion_type) + ";"
+    else
+      #warn "convert_to_code for non simple assigned operator is used"
+      #p self
+      ret = @name.convert_to_code(conversion_type) + " = " + Expression.new([@op,@name,@expression,@type]).convert_to_code(conversion_type) + ";"
+    end
     ret
   end
 end
 
 class NonSimdState < Statement
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     @name.convert_to_code("reference") + " = " + @expression.convert_to_code("reference") + ";"
   end
 end
@@ -481,33 +548,76 @@ class FuncCall
   def get_type(h = $varhash)
     ret_type = nil
     if $reserved_function.index(@name)
+      type = @ops[0].get_type(h)
       #ret_type = h[@ops[0]][1]
       case @name
       when "to_uint"
-        if  @ops[0].get_type(h) =~ /64/
+        if  type =~ /64/
           ret_type = "U64"
-        elsif  @ops[0].get_type(h) =~ /32/
+        elsif  type =~ /32/
           ret_type = "U32"
-        elsif  @ops[0].get_type(h) =~ /16/
+        elsif  type =~ /16/
           ret_type = "U16"
         end
       when "to_int"
-        if  @ops[0].get_type(h) =~ /64/
+        if  type =~ /64/
           ret_type = "S64"
-        elsif  @ops[0].get_type(h) =~ /32/
+        elsif  type =~ /32/
           ret_type = "S32"
-        elsif  @ops[0].get_type(h) =~ /16/
+        elsif  type =~ /16/
           ret_type = "S16"
         else
         end
       when "to_float"
-        if  @ops[0].get_type(h) =~ /64/
+        if  type =~ /64/
           ret_type = "F64"
-        elsif  @ops[0].get_type(h) =~ /32/
+        elsif  type =~ /32/
           ret_type = "F32"
-        elsif  @ops[0].get_type(h) =~ /32/
+        elsif  type =~ /32/
           ret_type = "F16"
         end
+      when "to_f16"
+        ret_type = "F16"
+      when "to_f32"
+        ret_type = "F32"
+      when "to_f64"
+        ret_type = "F64"
+      when "to_f16vec"
+        ret_type = "F16vec"
+      when "to_f32vec"
+        ret_type = "F32vec"
+      when "to_f64vec"
+        ret_type = "F64vec"
+      when "to_f16vec2"
+        ret_type = "F16vec2"
+      when "to_f32vec2"
+        ret_type = "F32vec2"
+      when "to_f64vec2"
+        ret_type = "F64vec2"
+      when "to_f16vec3"
+        ret_type = "F16vec3"
+      when "to_f32vec3"
+        ret_type = "F32vec3"
+      when "to_f64vec3"
+        ret_type = "F64vec3"
+      when "to_f16vec4"
+        ret_type = "F16vec4"
+      when "to_f32vec4"
+        ret_type = "F32vec4"
+      when "to_f64vec4"
+        ret_type = "F64vec4"
+      when "to_s16"
+        ret_type = "S16"
+      when "to_s32"
+        ret_type = "S32"
+      when "to_s64"
+        ret_type = "S64"
+      when "to_u16"
+        ret_type = "U16"
+      when "to_u32"
+        ret_type = "U32"
+      when "to_u64"
+        ret_type = "U64"
       else
         ret_type = @ops[0].get_type(h)
       end
@@ -542,7 +652,7 @@ class FuncCall
         ret_type = func.retval.ret.get_type(tmphash)
         abort "error: function returns vector type is not allowed" if ret_type =~ /vec/
       else
-        warn "error: undefined reference to function #{@name}"
+        abort "error: undefined reference to function #{@name}"
       end
     end
     abort "error: function returns vector variable is not supported" if ret_type =~ /vec/
@@ -550,6 +660,13 @@ class FuncCall
     ret_type
   end
 
+  def fusion_iotag(iotag)
+    tmp = Array.new
+    @ops.each{ |op| tmp += [op.fusion_iotag(iotag)] }
+    @ops = tmp
+    self
+  end
+  
   def find_function
     [self]
   end
@@ -577,25 +694,34 @@ class FuncCall
   end
 
   def replace_recursive(orig,replaced)
+    ops = Array.new
     @ops.each{ |op|
       if orig.class == String
-        op = op.replace_recursive(orig,replaced)
+        ops.push(op.replace_recursive(orig,replaced))
       elsif orig.class == Expression && orig.operator == :dot
-        op = op.replace_recursive(orig.lop,replaced)
+        ops.push(op.replace_recursive(orig.lop,replaced))
       else
         abort "error: #{orig} cannot be replaced with #{replaced} in FuncCall"
       end
     }
-    self
+    FuncCall.new([@name,ops,@type])
   end
 
+  def replace_fdpsname_recursive(h=$varhash)
+    ops = Array.new
+    @ops.each{ |op|
+      ops.push(op.replace_fdpsname_recursive(h))
+    }
+    FuncCall.new([@name,ops,@type])
+  end
+  
   def replace_by_list(name_list,replaced_list)
     name_list.zip(replaced_list){ |n,r|
       self.replace_recursive(n,r)
     }
   end
   
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     case conversion_type
     when "reference" then
       retval = @name
@@ -631,12 +757,23 @@ class Pragma
     @name,@option = x
   end
 
-  def convert_to_code(conversion_type)
-    ret = "#pragma #{@name}"
-    if @option != nil then
-      @option.each{ |x|
-        ret += " #{x}"
-      }
+  def get_related_variable
+    []
+  end
+
+  def declare_temporal_var
+    []
+  end
+
+  def convert_to_code(conversion_type="reference")
+    ret = String.new
+    if conversion_type != "reference"
+      ret = "#pragma #{@name}"
+      if @option != nil then
+        @option.each{ |x|
+          ret += " #{x}"
+        }
+      end
     end
     ret
   end
@@ -652,7 +789,10 @@ class IfElseState
     ret += @expression.get_related_variable if @expression != nil
     ret
   end
-  def convert_to_code(conversion_type)
+  def fusion_iotag(iotag)
+    @expression = @expression.fusion_iotag(iotag) if @operator == :if || @operator == :elsif
+  end
+  def convert_to_code(conversion_type="reference")
     ret = ""
     case conversion_type
     when "reference"
@@ -668,13 +808,121 @@ class IfElseState
       else
         abort "error: undefined if operator #{@operator}"
       end
-    when /A64FX/
-      ret = self.convert_to_code_a64fx(conversion_type)
-    when /AVX2/
-      ret = self.convert_to_code_avx2(conversion_type)
-    when /AVX-512/
-      #p self
-      ret = self.convert_to_code_avx512(conversion_type)
+    when /(A64FX|AVX2|AVX-512)/
+      if $predicate_queue == nil
+        $predicate_queue = Array.new()
+      end
+      if $nest_queue == nil
+        $nest_queue = Array.new()
+      end
+      if @expression != nil
+        abort if !(@expression.get_type =~ /(F|S|B|U)(64|32|16)/)
+        size = sizeof(@expression.get_type)
+        type = "B#{size}"
+      end
+      ret = ""
+      pg_accum = "pg_accum"
+      case @operator
+      when :if
+        $predicate_queue.push($current_predicate)
+        ret += "{\n"
+        $accumulate_predicate = "pg#{$pg_count}"
+        $varhash[$accumulate_predicate] = [nil,type,nil,nil]
+        $pg_count += 1
+        tmp_predicate = "pg#{$pg_count}"
+        $varhash[tmp_predicate] = [nil,type,nil,nil]
+        $pg_count += 1
+        #p size
+        #p $min_element_size
+        nsplit = size/$min_element_size
+        nsplit = 1 if conversion_type == "reference"
+        pred_ops = Array.new
+        accum_ops = Array.new
+        for i in 0...nsplit
+          exp = @expression
+          suffix = String.new
+          suffix = "_#{i}" if nsplit > 1
+          ret += Declaration.new([type,tmp_predicate+suffix]).convert_to_code(conversion_type)
+          ret += Declaration.new([type,$accumulate_predicate+suffix]).convert_to_code(conversion_type)
+          exp.get_related_variable.each{ |v|
+            exp = exp.replace_recursive(v,v+suffix)
+          }
+          ret += Statement.new([tmp_predicate+suffix,exp,type]).convert_to_code(conversion_type) + "\n"
+          ret += Statement.new([$accumulate_predicate+suffix,tmp_predicate+suffix,type,nil]).convert_to_code(conversion_type) + "\n"
+          pred_ops.push(tmp_predicate + suffix)
+          accum_ops.push($accumulate_predicate + suffix)
+        end
+        if nsplit > 1
+          ret += Declaration.new([type,tmp_predicate]).convert_to_code(conversion_type)
+          ret += Declaration.new([type,$accumulate_predicate]).convert_to_code(conversion_type)
+          ret += Statement.new([tmp_predicate,Fusion.new([pred_ops,type,"B#{$min_element_size}"])]).convert_to_code(conversion_type) + "\n" if
+          ret += Statement.new([$accumulate_predicate,Fusion.new([accum_ops,type,"B#{$min_element_size}"])]).convert_to_code(conversion_type) + "\n"
+        end
+        if $nest_queue.empty?
+        else
+          if conversion_type =~ /AVX/
+            $nest_queue.each{ |predicate|
+              ret += Statement.new([tmp_predicate,Expression.new([:land,tmp_predicate,predicate,type]),type,nil]).convert_to_code(conversion_type) + "\n"
+            }
+          end
+        end
+        $predicate_queue.push(tmp_predicate)
+        $nest_queue.push(tmp_predicate)
+        $current_predicate = tmp_predicate
+      when :elsif
+        $nest_queue.pop
+        tmp_predicate = $predicate_queue.pop
+        $current_predicate = "pg#{$pg_count}"
+        $varhash[$current_predicate] = [nil,type,nil,nil]
+        $pg_count += 1
+        nsplit = size/$min_element_size
+        nsplit = 1 if conversion_type == "reference"
+        pred_ops = Array.new
+        accum_ops = Array.new
+        for i in 0...nsplit
+          exp = @expression
+          suffix = String.new
+          suffix = "_#{i}" if nsplit > 1
+          ret += Declaration.new([type,$current_predicate+suffix]).convert_to_code(conversion_type)
+          ret += Declaration.new([type,$accumulate_predicate+suffix]).convert_to_code(conversion_type)
+          exp.get_related_variable.each{ |v|
+            exp = exp.replace_recursive(v,v+suffix)
+          }
+          ret += Statement.new([$current_predicate+suffix,exp,type]).convert_to_code(conversion_type) + "\n"
+          ret += Statement.new([$accumulate_predicate+suffix,$current_predicate+suffix,type,nil]).convert_to_code(conversion_type) + "\n"
+          pred_ops.push($current_predicate + suffix)
+          accum_ops.push($accumulate_predicate + suffix)
+        end
+        if nsplit > 1
+          ret += Declaration.new([type,$current_predicate]).convert_to_code(conversion_type)
+          ret += Declaration.new([type,$accumulate_predicate]).convert_to_code(conversion_type)
+          ret += Statement.new([$current_predicate,Fusion.new([pred_ops,type,"B#{$min_element_size}"])]).convert_to_code(conversion_type) + "\n" if
+          ret += Statement.new([$accumulate_predicate,Fusion.new([accum_ops,type,"B#{$min_element_size}"])]).convert_to_code(conversion_type) + "\n"
+        end
+        $nest_queue.each{ |predicate|
+          ret += Statement.new([$current_predicate,Expression.new([:land,$current_predicate,predicate,type]),type,nil]).convert_to_code(conversion_type) + "\n"
+        }
+        $predicate_queue.push(tmp_predicate)
+        $nest_queue.push($current_predicate)
+      when :else
+        $nest_queue.pop
+        $current_predicate = $predicate_queue.pop
+        ret += Statement.new([$current_predicate,Expression.new([:not,$accumulate_predicate,nil,type]),type,nil]).convert_to_code(conversion_type) + "\n"
+        $nest_queue.each{ |predicate|
+          ret += Statement.new([$current_predicate,Expression.new([:land,$current_predicate,predicate,type]),type,nil]).convert_to_code(conversion_type) + "\n"
+        }
+        $nest_queue.push($current_predicate)
+        $predicate_queue.push($current_predicate)
+      when :endif
+        $predicate_queue.pop
+        $nest_queue.pop
+        abort "pg_count < 0" if $pg_count < 0
+        $current_predicate = $predicate_queue.pop #"pg#{$pg_count}"
+        $current_predicate = "svptrue_b#{$min_element_size}()" if $current_predicate == nil
+        ret += "}\n"
+      else
+        abort "undefined operator of IfElseState: #{@operator}"
+      end
     else
       abort "error: unsupported conversion_type #{conversion_type}"
     end
@@ -691,7 +939,7 @@ class StoreState
     @type = @dest.get_type if @type == nil
     @type
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     case conversion_type
     when "reference"
       ret = @dest.convert_to_code(conversion_type) + "=" + @src.convert_to_code(conversion_type) + ";"
@@ -718,7 +966,7 @@ class LoadState
     @type = @dest.get_type if @type == nil
     @type
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     case conversion_type
     when "reference"
       ret = @dest.convert_to_code(conversion_type) + "=" + @src.convert_to_code(conversion_type) + ";"
@@ -765,14 +1013,14 @@ class PointerOf
   def get_type(h = $varhash)
     @exp.get_type(h)
   end
-  def convert_to_code(conversion_type)
-    #"(#{get_pointer_type(@type)})&#{@exp.convert_to_code(conversion_type)}"
+  def convert_to_code(conversion_type="reference")
     case conversion_type
     when "reference"
-      "#{@exp.convert_to_code("reference")}"
+      ret = @exp.convert_to_code(conversion_type)
     when /(A64FX|AVX2|AVX-512)/
-      "((#{get_pointer_type(@type)})&#{@exp.convert_to_code("reference")})"
+      ret = "((#{get_pointer_type(@type)})&#{@exp.convert_to_code("reference")})"
     end
+    ret
   end
 end
 
@@ -781,35 +1029,38 @@ class GatherLoad
   def initialize(x)
     @dest,@src,@offset,@interval,@type = x
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type,index = nil)
     $gather_load_count = 0 if $gather_load_count == nil
     ret = ""
     case conversion_type
     when /A64FX/
       index_name = "index_gather_load#{$gather_load_count}"
       vindex_name = "v" + index_name
-      nelem = get_num_elem(conversion_type)
-
-      index = "#{@offset.to_i}"
-      for i in 1...nelem
-        index +=  ",#{i*@interval.to_i + @offset.to_i}"
+      nelem = get_num_elem(@type,conversion_type)
+      if index == nil
+        index = "#{@offset.to_i}"
+        for i in 1...nelem
+          index +=  ",#{i*@interval.to_i + @offset.to_i}"
+        end
       end
-      ret += "static uint32_t #{index_name}[#{nelem}] = {#{index}};\n"
-      ret += "svuint32_t #{vindex_name} = svld1_u32(#{$current_predicate},#{index_name});\n"
-      ret += "#{@dest.convert_to_code(conversion_type)} = svld1_gather_u32index_#{get_type_suffix_a64fx(@type)}(#{$current_predicate},#{@src.convert_to_code(conversion_type)},#{vindex_name});"
+      size_single = get_single_data_size(@type)
+      ret += "uint#{size_single}_t #{index_name}[#{nelem}] = {#{index}};\n"
+      ret += "svuint#{size_single}_t #{vindex_name} = svld1_u#{size_single}(#{$current_predicate},#{index_name});\n"
+      ret += "#{@dest.convert_to_code(conversion_type)} = svld1_gather_u#{size_single}index_#{get_type_suffix_a64fx(@type)}(#{$current_predicate},#{@src.convert_to_code(conversion_type)},#{vindex_name});"
     when /AVX2/
       index_name = "index_gather_load#{$gather_load_count}"
       vindex_name = "v" + index_name
       nelem = get_num_elem(@type,conversion_type)
       scale = get_byte_size(@type)
-
-      index = "#{@offset.to_i}"
-      for i in 1...nelem
-        index +=  ",#{i*@interval.to_i + offset.to_i}"
+      if index == nil
+        index = "#{@offset.to_i}"
+        for i in 1...nelem
+          index +=  ",#{i*@interval.to_i + @offset.to_i}"
+        end
       end
-      ret += "static int #{index_name}[#{nelem}] = {#{index}};\n"
+      ret += "alignas(32) int #{index_name}[#{nelem}] = {#{index}};\n"
       index_simd_width = 32 * nelem
-      ret += "static __m#{index_simd_width}i #{vindex_name} = "
+      ret += "__m#{index_simd_width}i #{vindex_name} = "
       case index_simd_width
       when 128
         ret += "_mm_load_si128((const __m128i*)#{index_name});\n"
@@ -823,13 +1074,15 @@ class GatherLoad
       nelem = get_num_elem(type,conversion_type)
       size = get_single_data_size(@type)
       scale = get_byte_size(@type)
-      index = ""
-      for i in 0...nelem
-        index += "," if i > 0
-        index +=  "#{i*@interval.to_i + offset.to_i}"
+      if index == nil
+        index = ""
+        for i in 0...nelem
+          index += "," if i > 0
+          index +=  "#{i*@interval.to_i + @offset.to_i}"
+        end
       end
-      ret += "static int#{size}_t #{index_name}[#{nelem}] = {#{index}};\n"
-      ret += "static __m512i #{vindex_name} = _mm512_load_epi#{size}(#{index_name});\n"
+      ret += "alignas(#{size}) int#{size}_t #{index_name}[#{nelem}] = {#{index}};\n"
+      ret += "__m512i #{vindex_name} = _mm512_load_epi#{size}(#{index_name});\n"
       ret += "#{@dest.convert_to_code(conversion_type)} = _mm512_i#{size}gather_#{get_type_suffix_avx512(@type)}(#{vindex_name},#{@src.convert_to_code(conversion_type)},#{scale});"
     else
       abort "unsupported conversion type for GatherLoad"
@@ -844,7 +1097,7 @@ class ScatterStore
   def initialize(x)
     @dest,@src,@offset,@interval,@type = x
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type,index = nil)
     $scatter_store_count = 0 if $scatter_store_count == nil
     ret = ""
     case conversion_type
@@ -852,23 +1105,36 @@ class ScatterStore
       index_name = "index_scatter_store#{$scatter_store_count}"
       vindex_name = "v" + index_name
       nelem = get_num_elem(@type,conversion_type)
-      index = ""
-      for i in 0...nelem
-        index += "," if i > 0
-        index += "#{@offset.to_i + i*@interval.to_i}"
+      if index == nil
+        index = ""
+        for i in 0...nelem
+          index += "," if i > 0
+          index += "#{@offset.to_i + i*@interval.to_i}"
+        end
       end
-      ret += "static uint32_t #{index_name}[#{nelem}] = {#{index}};\n"
-      ret += "svuint32_t #{vindex_name} = svld1_u32(#{$current_predicate},#{index_name});\n"
-      ret += "svst1_scatter_u32index_#{get_type_suffix_a64fx(@type)}(#{$current_predicate},#{@dest.convert_to_code(conversion_type)},#{vindex_name},#{@src.convert_to_code(conversion_type)});"
+      size_single = get_single_data_size(@type)
+      ret += "uint#{size_single}_t #{index_name}[#{nelem}] = {#{index}};\n"
+      ret += "svuint#{size_single}_t #{vindex_name} = svld1_u#{size_single}(#{$current_predicate},#{index_name});\n"
+      ret += "svst1_scatter_u#{size_single}index_#{get_type_suffix_a64fx(@type)}(#{$current_predicate},#{@dest.convert_to_code(conversion_type)},#{vindex_name},#{@src.convert_to_code(conversion_type)});"
     when /AVX2/
       nelem = get_num_elem(@type,conversion_type)
       ret += "{\n"
       ret += NonSimdDecl.new([@type,"__fkg_store_tmp[#{nelem}]"]).convert_to_code(conversion_type)
       ret += StoreState.new(["__fkg_store_tmp",@src,@type]).convert_to_code(conversion_type) + "\n"
-      for i in 0...nelem
-        dest = Expression.new([:array,@dest,(@offset.to_i+@interval.to_i*i).to_s,@type]).convert_to_code(conversion_type)
-        ret += NonSimdState.new([dest,"__fkg_store_tmp[#{i}]",@type]).convert_to_code(conversion_type) + "\n"
+
+      if index == nil
+        index = Array.new
+        for i in 0...nelem
+          index.push((@offset.to_i+@interval.to_i*i).to_s)
+        end
+      else
+        index = index.split(",")
       end
+
+      index.each_with_index{ |a,b|
+        dest = Expression.new([:array,@dest,a,@type]).convert_to_code(conversion_type)
+        ret += NonSimdState.new([dest,"__fkg_store_tmp[#{b}]",@type]).convert_to_code(conversion_type) + "\n"
+      }
       ret += "}\n"
     when /AVX-512/
       index_name = "index_scatter_store#{$scatter_store_count}"
@@ -883,13 +1149,15 @@ class ScatterStore
       when /16/
         scale = 2
       end
-      index = ""
-      for i in 0...nelem
-        index += "," if i > 0
-        index +=  "#{@offset.to_i + i*@interval.to_i}"
+      if index == nil
+        index = ""
+        for i in 0...nelem
+          index += "," if i > 0
+          index +=  "#{@offset.to_i + i*@interval.to_i}"
+        end
       end
-      ret += "static int#{size}_t #{index_name}[#{nelem}] = {#{index}};\n"
-      ret += "static __m512i #{vindex_name} = _mm512_load_epi#{size}(#{index_name});\n"
+      ret += "int#{size}_t #{index_name}[#{nelem}] = {#{index}};\n"
+      ret += "__m512i #{vindex_name} = _mm512_load_epi#{size}(#{index_name});\n"
       ret += "_mm512_i#{size}scatter_#{get_type_suffix_avx512(@type)}(#{@dest.convert_to_code(conversion_type)},#{vindex_name},#{@src.convert_to_code(conversion_type)},#{scale});\n"
     else
       abort "unsupported conversion type for ScatterStore"
@@ -905,7 +1173,7 @@ class StructureLoad
     @dest,@src,@nelem,@type = x
     abort "nelem must be 1 to 4" if nelem > 4 || nelem <= 0
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     ret = ""
     case conversion_type
     when /A64FX/
@@ -954,7 +1222,7 @@ class StructureStore
     @dest,@src,@nelem,@type = x
     abort "nelem must be 1 to 4" if nelem > 4 || nelem <= 0
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     ret = ""
     case conversion_type
     when /A64FX/
@@ -1005,14 +1273,16 @@ class Duplicate
     @type = @expression.get_type(h) if @type == nil
     @type
   end
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     case conversion_type
     when "reference"
       ret = "#{@name.convert_to_code(conversion_type)} = #{@expression.convert_to_code(conversion_type)};"
     when /A64FX/
       ret = "#{@name.convert_to_code(conversion_type)} = svdup_n_#{get_type_suffix_a64fx(@type)}(#{@expression.convert_to_code(conversion_type)});"
     when /AVX2/
-      ret = "#{@name.convert_to_code(conversion_type)} = _mm256_set1_#{get_type_suffix_avx2(@type)}(#{@expression.convert_to_code(conversion_type)});"
+      set1_suffix = ""
+      set1_suffix = "x" if @type =~ /(S|U)64/
+      ret = "#{@name.convert_to_code(conversion_type)} = _mm256_set1_#{get_type_suffix_avx2(@type)}#{set1_suffix}(#{@expression.convert_to_code(conversion_type)});"
     when /AVX-512/
       ret = "#{@name.convert_to_code(conversion_type)} = _mm512_set1_#{get_type_suffix_avx512(@type)}(#{@expression.convert_to_code(conversion_type)});"
     end
@@ -1033,9 +1303,9 @@ class MADD
     ct = cop.get_type(h)
     if at == "F64" && bt == "F64" && ct == "F64"
       type="F64"
-    elsif at == "F32" && bt == "F32" && ct == "F32"      
+    elsif at == "F32" && bt == "F32" && ct == "F32"
       type="F32"
-    elsif at == "F16" && bt == "F16" && ct == "F16"      
+    elsif at == "F16" && bt == "F16" && ct == "F16"
       type="F16"
     else
       abort "unsupported operand types for MADD operation"
@@ -1068,10 +1338,17 @@ class MADD
   end
 
   def replace_recursive(orig,replaced)
-    @aop = @aop.replace_recursive(orig,replaced)
-    @bop = @bop.replace_recursive(orig,replaced)
-    @cop = @cop.replace_recursive(orig,replaced)
-    self
+    aop = @aop.replace_recursive(orig,replaced)
+    bop = @bop.replace_recursive(orig,replaced)
+    cop = @cop.replace_recursive(orig,replaced)
+    MADD.new([@operator,aop,bop,cop,@type])
+  end
+
+  def replace_fdpsname_recursive(h=$varhash)
+    aop = @aop.replace_fdpsname_recursive(h)
+    bop = @bop.replace_fdpsname_recursive(h)
+    cop = @cop.replace_fdpsname_recursive(h)
+    MADD.new([@operator,aop,bop,cop,@type])
   end
 
   def replace_by_list(name_list,replaced_list)
@@ -1085,13 +1362,14 @@ class MADD
     }
   end
   
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     retval=""
     case conversion_type
     when "reference" then
       case @operator
       when :madd then
-        retval = "(#{@cop.convert_to_code(conversion_type)} + #{@aop.convert_to_code(conversion_type)}*#{@bop.convert_to_code(conversion_type)})"
+      #retval = "std::fma(#{@aop.convert_to_code(conversion_type)},#{@bop.convert_to_code(conversion_type)},#{@cop.convert_to_code(conversion_type)})"
+        retval = "(#{@aop.convert_to_code(conversion_type)}*#{@bop.convert_to_code(conversion_type)}+#{@cop.convert_to_code(conversion_type)})"
       when :msub then
         retval = "(#{@cop.convert_to_code(conversion_type)} - #{@aop.convert_to_code(conversion_type)}*#{@bop.convert_to_code(conversion_type)})"
       when :nmadd then
@@ -1113,25 +1391,40 @@ class MADD
       when :nmsub
         retval += "svnmsb_#{get_type_suffix_a64fx(@type)}_z("
       end
+      $current_predicate = "svptrue_b#{$min_element_size}()" if $current_predicate == nil
       retval += $current_predicate + ","
       retval += @aop.convert_to_code(conversion_type) + ","
       retval += @bop.convert_to_code(conversion_type) + ","
       retval += @cop.convert_to_code(conversion_type) + ")"
     when /AVX2/
       self.get_type
-      case @operator
-      when :madd
-        retval += "_mm256_fmadd_#{get_type_suffix_avx2(@type)}("
-      when :msub
-        retval += "_mm256_fnmadd_#{get_type_suffix_avx2(@type)}("
-      when :nmadd
-        retval += "_mm256_fnmsub_#{get_type_suffix_avx2(@type)}("
-      when :nmsub
-        retval += "_mm256_fmsub_#{get_type_suffix_avx2(@type)}("
+      suffix = get_type_suffix_avx2(@type)
+      if @type =~ /F/
+        case @operator
+        when :madd
+          retval += "_mm256_fmadd_#{suffix}("
+        when :msub
+          retval += "_mm256_fnmadd_#{suffix}("
+        when :nmadd
+          retval += "_mm256_fnmsub_#{suffix}("
+        when :nmsub
+          retval += "_mm256_fmsub_#{suffix}("
+        end
+        retval += @aop.convert_to_code(conversion_type) + ","
+        retval += @bop.convert_to_code(conversion_type) + ","
+        retval += @cop.convert_to_code(conversion_type) + ")"
+      else
+        case @operator
+        when :madd
+          retval += "_mm256_add_#{suffix}(_mm256_mul_#{suffix}(" + @aop.convert_to_code(conversion_type) + "," + @bop.convert_to_code(conversion_type) + ")," + @cop.convert_to_code(conversion_type) + ")"
+        when :msub
+          retval += "_mm256_sub_#{suffix}(" + @cop.convert_to_code(conversion_type) + ",_mm256_mul_#{suffix}(" + @aop.convert_to_code(conversion_type) + "," + @bop.convert_to_code(conversion_type) + "))"
+        when :nmadd
+          retval += "_mm256_sub_#{suffix}(_ mm256_set1_#{suffix}(0)," + MADD.new([:madd,@aop,@bop,@cop,@type]).convert_to_code(conversion_type) + ")"
+        when :nmsub
+          retval += "_mm256_sub_#{suffix}(_mm256_mul_#{suffix}(" + @aop.convert_to_code(conversion_type) + "," + @bop.convert_to_code(conversion_type) + ")," + @cop.convert_to_code(conversion_type) + ")"
+        end
       end
-      retval += @aop.convert_to_code(conversion_type) + ","
-      retval += @bop.convert_to_code(conversion_type) + ","
-      retval += @cop.convert_to_code(conversion_type) + ")"
     when /AVX-512/
       self.get_type
       case @operator
@@ -1153,27 +1446,47 @@ class MADD
 end
 
 class Merge
-  attr_accessor :op1,:op2,:type
+  attr_accessor :op1,:op2,:type, :split_index
   def initialize(x)
-    @op1,@op2,@type = x
+    @op1,@op2,@type,@split_index = x
   end
   def get_related_variable
     [@op1,@op2]
   end
-  def convert_to_code(conversion_type)
+  def replace_recursive(orig,replaced)
+    @op1 = @op1.replace_recursive(orig,replaced)
+    @op2 = @op2.replace_recursive(orig,replaced)
+    self.dup
+  end
+  def convert_to_code(conversion_type="reference")
     ret = ""
     case conversion_type
     when /reference/
       ret = "#{@op1.convert_to_code(conversion_type)}"
     when /A64FX/
-      ret = "svsel_#{get_type_suffix_a64fx(@type)}(#{$current_predicate},#{@op1.convert_to_code(conversion_type)},#{@op2.convert_to_code(conversion_type)});"
+      predicate = $current_predicate
+      predicate += "_#{@split_index}" if @split_index != nil
+      ret = "svsel_#{get_type_suffix_a64fx(@type)}(#{predicate},#{@op1.convert_to_code(conversion_type)},#{@op2.convert_to_code(conversion_type)});"
     when /AVX2/
       suffix = get_type_suffix_avx2(@type)
       predicate = $current_predicate
-      predicate = "_mm256_castps_#{suffix}(" + predicate + ")" if suffix != "ps"
-      ret = "_mm256_blendv_#{suffix}(#{@op2.convert_to_code(conversion_type)},#{@op1.convert_to_code(conversion_type)},#{predicate});" # inactive elements come from first input
+      predicate += "_#{@split_index}" if @split_index != nil
+      # inactive elements come from first input
+      if suffix == "epi32"
+        ret = "_mm256_castps_si256(_mm256_blendv_ps(_mm256_castsi256_ps(#{@op2.convert_to_code(conversion_type)}),_mm256_castsi256_ps(#{@op1.convert_to_code(conversion_type)}),#{predicate}));"
+      elsif suffix == "epi64"
+        #predicate = "_mm256_castsi256_pd(" + predicate + ")"
+        predicate = "_mm256_castps_pd(" + predicate + ")"
+        ret = "_mm256_blendv_pd(_mm256_castsi256_pd(#{@op2.convert_to_code(conversion_type)}),_mm256_castsi256_pd(#{@op1.convert_to_code(conversion_type)}),#{predicate})"
+        ret = "_mm256_castpd_si256(#{ret});"
+      else
+        predicate = "_mm256_castps_pd(" + predicate + ")" if suffix == "pd"
+        ret = "_mm256_blendv_#{suffix}(#{@op2.convert_to_code(conversion_type)},#{@op1.convert_to_code(conversion_type)},#{predicate});"
+      end
     when /AVX-512/
-      ret = "_mm512_mask_blend_#{get_type_suffix_avx512(@type)}(#{$current_predicate},#{@op2.convert_to_code(conversion_type)},#{@op1.convert_to_code(conversion_type)});" # inactive elements come from first input
+      predicate = $current_predicate
+      predicate += "_#{@split_index}" if @split_index != nil
+     ret = "_mm512_mask_blend_#{get_type_suffix_avx512(@type)}(#{predicate},#{@op2.convert_to_code(conversion_type)},#{@op1.convert_to_code(conversion_type)});" # inactive elements come from first input
     end
     ret
   end
@@ -1188,6 +1501,8 @@ class Expression
   def derive_type (operator,lop,rop,h=$varhash)
     type=nil
     lt = lop.get_type(h)
+    rt = rop.get_type(h) if rop != nil && !["x","y","z","w"].index(rop) && operator != :array
+    abort "single element size of #{lop.convert_to_code("reference")}(#{lt}) and #{rop.convert_to_code("reference")}(#{rt}) are different" if rt != nil && get_single_data_size(lt) != get_single_data_size(rt)
     #print "derive type ", operator," ", lop," ", rop, "\n"
     #p self
     if [:plus, :minus, :mult, :div,:and,:or].index(operator)
@@ -1220,7 +1535,7 @@ class Expression
         end
         type += "vec" if lt.index("vec") ||  rt.index("vec")  
       end
-    elsif [:land,:lor,:eq,:neq,:lt,:le,:gt,:ge,:not].index(operator)
+    elsif [:land,:lor,:eq,:neq,:lt,:le,:gt,:ge,:landnot].index(operator)
       rt = rop.get_type(h)
       abort "type is not derived for #{lop} = #{lt}, #{rop} = #{rt} in derive_type" if lt == nil || rt == nil
       abort "vector type comparison is not supported. (#{lt} #{rt})" if lt =~ /(vec|mat)/ || rt =~ /(vec|mat)/
@@ -1231,10 +1546,10 @@ class Expression
       else
         type = "B16"
       end
-    elsif operator == :uminus || operator == :array
+    elsif operator == :uminus || operator == :array || operator == :not
       type = lt
     elsif operator == :dot
-      if rop == "x" || rop == "y" || rop == "z"
+      if ["x","y","z"].index(rop)
         if lt == "F64vec"
           type = "F64"
         elsif lt == "F32vec"
@@ -1242,8 +1557,8 @@ class Expression
         elsif lt == "F16vec"
           type = "F16"
         else
-          warn lop
-          warn "error: #{get_name(lop.name)} is not vector type!"
+          nil[0]
+          warn "error: #{lop} is not vector type!"
           abort
         end
       elsif lop =~ /^\d+$/ && rop =~ /^\d+(f|h)?$/
@@ -1285,6 +1600,17 @@ class Expression
     end
     abort "get_type failed" if @type == nil
     @type
+  end
+
+  def fusion_iotag(iotag)
+    if @lop == iotag && @operator == :dot
+      ret = @lop + "_" + @rop
+    else
+      @lop = @lop.fusion_iotag(iotag)
+      @rop = @rop.fusion_iotag(iotag) if @rop != nil
+      ret = self
+    end
+    ret
   end
 
   def find_function
@@ -1372,20 +1698,23 @@ class Expression
   end
 
   def replace_recursive(orig,replaced)
+    lop = @lop.dup
+    rop = @rop.dup if @rop != nil
+    type = @type.dup
     if @operator == :dot
       if orig.class == Expression && orig.operator == :dot
-        if @lop.class == String
-          @lop = replaced if @lop == orig.lop && @rop == orig.rop
+        if lop.class == String
+          lop = replaced if lop == orig.lop && rop == orig.rop
         end
       else
-        @lop = @lop.replace_recursive(orig,replaced)
-        @rop = @rop.replace_recursive(orig,replaced) if @rop != nil
+        lop = lop.replace_recursive(orig,replaced)
+        rop = rop.replace_recursive(orig,replaced) if rop != nil
       end
     else
-      @lop = @lop.replace_recursive(orig,replaced)
-      @rop = @rop.replace_recursive(orig,replaced) if @rop != nil
+      lop = lop.replace_recursive(orig,replaced)
+      rop = rop.replace_recursive(orig,replaced) if rop != nil
     end
-    self
+    Expression.new([@operator,lop,rop,type])
   end
   def replace_fdpsname_recursive(h=$varhash)
     #p self
@@ -1417,7 +1746,8 @@ class Expression
     }
   end
 
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
+    #p self
     retval=""
     case conversion_type
     when "reference"
@@ -1449,8 +1779,100 @@ class Expression
 end
 
 class NonSimdExp < Expression
-  def convert_to_code(conversion_type)
+  def convert_to_code(conversion_type="reference")
     super("reference")
   end
 end
 
+class Fusion
+  attr_accessor :ops,:from, :to
+  def initialize(x)
+    @ops, @from, @to = x
+    abort "type of Fusion must be specified" if @from == nil || @to == nil
+  end
+  def convert_to_code(conversion_type)
+    ret = String.new
+    n = @ops.length
+    case conversion_type
+    when "reference"
+    # do nothing
+    when "AVX2"
+      case n
+      when 1
+        abort "Fusion does not happen for single operand"
+      when 2
+        if @from == "F64" && @to == "F32"
+          ret = "_mm256_permute2f128_ps("
+          for i in 0...n
+            ret += "," if i>0
+            ret += "_mm256_castps128_ps256(_mm256_cvtpd_ps(#{ops[i]}))"
+          end
+          ret += ",0x20)"
+        elsif @from == "B64" && @to == "B32"
+          ret = "_mm256_permute2f128_ps("
+          for i in 0...n
+            ret += "," if i>0
+            ret += "_mm256_castsi256_ps(_mm256_castsi128_si256(_mm256_cvtepi64_epi32(_mm256_castps_si256(#{ops[i]}))))"
+          end
+          ret += ",0x20)"
+        else
+          abort "Fusion from #{@from} to #{@to} with AVX2 under construction"
+        end
+      else
+        abort "Fusion of #{n} does not happen for AVX2"
+      end
+
+    when "AVX-512"
+      case n
+      when 1
+        abort "Fusion does not happen for single operand"
+      when 2
+        if @from == "F64" && @to == "F32"
+          ret = "_mm512_insertf32x8(_mm512_castps256_ps512(_mm512_cvtpd_ps(#{ops[0]})),_mm512_cvtpd_ps(#{ops[1]}),1)"
+        end
+      else
+        abort "Fusion #{n} for AVX2 under construction"
+      end
+    else
+      abort "unsupported conversion_type #{coversion_type} for Fusion"
+    end
+    ret
+  end
+end
+
+class Fission
+  attr_accessor :op,:from, :to, :index
+  def initialize(x)
+    @op, @from, @to, @index = x
+    abort "type of Fision must be specified" if @from == nil || @to == nil
+    abort "index must be specified" if @index == nil
+  end
+  def convert_to_code(conversion_type)
+    ret = String.new
+    case conversion_type
+    when "reference"
+    # do nothing
+    when "AVX2"
+      if @from == "F32" && @to == "F64"
+        ret = @op.convert_to_code(conversion_type)
+        ret = "_mm256_castps256_ps128(#{ret})"  if @index == 0
+        ret = "_mm256_extractf128_ps(#{ret},1)" if @index == 1
+        ret = "_mm256_cvtps_pd(#{ret})"
+      else
+        abort "under costruction for AVX2 : Fission"
+      end
+    when "AVX-512"
+      if @from == "F32" && @to == "F64"
+        ret = @op.convert_to_code(conversion_type)
+        ret = "_mm512_castps512_ps256(#{ret})"  if @index == 0
+        ret = "_mm512_extractf32x8_ps(#{ret},1)" if @index == 1
+        ret = "_mm512_cvtps_pd(#{ret})"
+      else
+        abort "under costruction for AVX2 : Fission"
+      end
+    else
+      abort "unsupported conversion_type #{conversion_type} for Fission"
+    end
+    ret
+  end
+end
