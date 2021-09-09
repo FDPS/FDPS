@@ -57,13 +57,13 @@ PIKG::S32 j;
 for(i = 0;i < (ni/8)*8;i += 8){
 __m256x3 EPI_pos;
 
-alignas(32) int index_gather_load0[8] = {0,3,6,9,12,15,18,21};
+int index_gather_load0[8] = {0,3,6,9,12,15,18,21};
 __m256i vindex_gather_load0 = _mm256_load_si256((const __m256i*)index_gather_load0);
 EPI_pos.v0 = _mm256_i32gather_ps(((float*)&epi[i+0].pos.x),vindex_gather_load0,4);
-alignas(32) int index_gather_load1[8] = {0,3,6,9,12,15,18,21};
+int index_gather_load1[8] = {0,3,6,9,12,15,18,21};
 __m256i vindex_gather_load1 = _mm256_load_si256((const __m256i*)index_gather_load1);
 EPI_pos.v1 = _mm256_i32gather_ps(((float*)&epi[i+0].pos.y),vindex_gather_load1,4);
-alignas(32) int index_gather_load2[8] = {0,3,6,9,12,15,18,21};
+int index_gather_load2[8] = {0,3,6,9,12,15,18,21};
 __m256i vindex_gather_load2 = _mm256_load_si256((const __m256i*)index_gather_load2);
 EPI_pos.v2 = _mm256_i32gather_ps(((float*)&epi[i+0].pos.z),vindex_gather_load2,4);
 __m256x3 FORCE_acc;
@@ -77,15 +77,15 @@ FORCE_pot = _mm256_set1_ps(0.0f);
 for(j = 0;j < (nj/1)*1;++j){
 __m256 EPJ_mass;
 
-EPJ_mass = _mm256_set1_ps(epj[j].mass);
+EPJ_mass = _mm256_set1_ps(epj[j+0].mass);
 
 __m256x3 EPJ_pos;
 
-EPJ_pos.v0 = _mm256_set1_ps(epj[j].pos.x);
+EPJ_pos.v0 = _mm256_set1_ps(epj[j+0].pos.x);
 
-EPJ_pos.v1 = _mm256_set1_ps(epj[j].pos.y);
+EPJ_pos.v1 = _mm256_set1_ps(epj[j+0].pos.y);
 
-EPJ_pos.v2 = _mm256_set1_ps(epj[j].pos.z);
+EPJ_pos.v2 = _mm256_set1_ps(epj[j+0].pos.z);
 
 __m256x3 rij;
 
@@ -106,8 +106,8 @@ __m256 m_over_r_cu;
 rij.v0 = _mm256_sub_ps(EPI_pos.v0,EPJ_pos.v0);
 rij.v1 = _mm256_sub_ps(EPI_pos.v1,EPJ_pos.v1);
 rij.v2 = _mm256_sub_ps(EPI_pos.v2,EPJ_pos.v2);
-__fkg_tmp1 = _mm256_fmadd_ps(rij.v0,rij.v0,_mm256_set1_ps(eps2));
-__fkg_tmp0 = _mm256_fmadd_ps(rij.v1,rij.v1,__fkg_tmp1);
+__fkg_tmp1 = _mm256_mul_ps(rij.v1,rij.v1);
+__fkg_tmp0 = _mm256_fmadd_ps(rij.v0,rij.v0,__fkg_tmp1);
 r2 = _mm256_fmadd_ps(rij.v2,rij.v2,__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = _mm256_mul_ps(over_r,over_r);
@@ -116,12 +116,12 @@ m_over_r_cu = _mm256_mul_ps(over_r_sq,m_over_r);
 FORCE_acc.v0 = _mm256_fnmadd_ps(m_over_r_cu,rij.v0,FORCE_acc.v0);
 FORCE_acc.v1 = _mm256_fnmadd_ps(m_over_r_cu,rij.v1,FORCE_acc.v1);
 FORCE_acc.v2 = _mm256_fnmadd_ps(m_over_r_cu,rij.v2,FORCE_acc.v2);
-FORCE_pot = _mm256_fnmadd_ps(_mm256_set1_ps(0.5f),m_over_r,FORCE_pot);
+FORCE_pot = _mm256_sub_ps(FORCE_pot,m_over_r);
 } // loop of j
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load3[8] = {0,4,8,12,16,20,24,28};
+int index_gather_load3[8] = {0,4,8,12,16,20,24,28};
 __m256i vindex_gather_load3 = _mm256_load_si256((const __m256i*)index_gather_load3);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc.x),vindex_gather_load3,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc.v0);
@@ -141,7 +141,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load4[8] = {0,4,8,12,16,20,24,28};
+int index_gather_load4[8] = {0,4,8,12,16,20,24,28};
 __m256i vindex_gather_load4 = _mm256_load_si256((const __m256i*)index_gather_load4);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc.y),vindex_gather_load4,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc.v1);
@@ -161,7 +161,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load5[8] = {0,4,8,12,16,20,24,28};
+int index_gather_load5[8] = {0,4,8,12,16,20,24,28};
 __m256i vindex_gather_load5 = _mm256_load_si256((const __m256i*)index_gather_load5);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc.z),vindex_gather_load5,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc.v2);
@@ -181,7 +181,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load6[8] = {0,4,8,12,16,20,24,28};
+int index_gather_load6[8] = {0,4,8,12,16,20,24,28};
 __m256i vindex_gather_load6 = _mm256_load_si256((const __m256i*)index_gather_load6);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].pot),vindex_gather_load6,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_pot);
@@ -218,12 +218,12 @@ FORCE_pot = 0.0f;
 for(j = 0;j < nj;++j){
 PIKG::F32 EPJ_mass;
 
-EPJ_mass = epj[j].mass;
+EPJ_mass = epj[j+0].mass;
 PIKG::F32vec EPJ_pos;
 
-EPJ_pos.x = epj[j].pos.x;
-EPJ_pos.y = epj[j].pos.y;
-EPJ_pos.z = epj[j].pos.z;
+EPJ_pos.x = epj[j+0].pos.x;
+EPJ_pos.y = epj[j+0].pos.y;
+EPJ_pos.z = epj[j+0].pos.z;
 PIKG::F32vec rij;
 
 PIKG::F32 __fkg_tmp1;
@@ -243,8 +243,8 @@ PIKG::F32 m_over_r_cu;
 rij.x = (EPI_pos.x-EPJ_pos.x);
 rij.y = (EPI_pos.y-EPJ_pos.y);
 rij.z = (EPI_pos.z-EPJ_pos.z);
-__fkg_tmp1 = (rij.x*rij.x+eps2);
-__fkg_tmp0 = (rij.y*rij.y+__fkg_tmp1);
+__fkg_tmp1 = (rij.y*rij.y);
+__fkg_tmp0 = (rij.x*rij.x+__fkg_tmp1);
 r2 = (rij.z*rij.z+__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = (over_r*over_r);
@@ -253,7 +253,7 @@ m_over_r_cu = (over_r_sq*m_over_r);
 FORCE_acc.x = (FORCE_acc.x - m_over_r_cu*rij.x);
 FORCE_acc.y = (FORCE_acc.y - m_over_r_cu*rij.y);
 FORCE_acc.z = (FORCE_acc.z - m_over_r_cu*rij.z);
-FORCE_pot = (FORCE_pot - 0.5f*m_over_r);
+FORCE_pot = (FORCE_pot-m_over_r);
 } // loop of j
 
 force[i+0].acc.x = (force[i+0].acc.x+FORCE_acc.x);
@@ -286,20 +286,20 @@ FORCE_pot = _mm256_set1_ps(0.0f);
 for(j = 0;j < (nj/8)*8;j += 8){
 __m256 EPJ_mass;
 
-alignas(32) int index_gather_load7[8] = {0,4,8,12,16,20,24,28};
+int index_gather_load7[8] = {0,4,8,12,16,20,24,28};
 __m256i vindex_gather_load7 = _mm256_load_si256((const __m256i*)index_gather_load7);
-EPJ_mass = _mm256_i32gather_ps(((float*)&epj[j].mass),vindex_gather_load7,4);
+EPJ_mass = _mm256_i32gather_ps(((float*)&epj[j+0].mass),vindex_gather_load7,4);
 __m256x3 EPJ_pos;
 
-alignas(32) int index_gather_load8[8] = {0,4,8,12,16,20,24,28};
+int index_gather_load8[8] = {0,4,8,12,16,20,24,28};
 __m256i vindex_gather_load8 = _mm256_load_si256((const __m256i*)index_gather_load8);
-EPJ_pos.v0 = _mm256_i32gather_ps(((float*)&epj[j].pos.x),vindex_gather_load8,4);
-alignas(32) int index_gather_load9[8] = {0,4,8,12,16,20,24,28};
+EPJ_pos.v0 = _mm256_i32gather_ps(((float*)&epj[j+0].pos.x),vindex_gather_load8,4);
+int index_gather_load9[8] = {0,4,8,12,16,20,24,28};
 __m256i vindex_gather_load9 = _mm256_load_si256((const __m256i*)index_gather_load9);
-EPJ_pos.v1 = _mm256_i32gather_ps(((float*)&epj[j].pos.y),vindex_gather_load9,4);
-alignas(32) int index_gather_load10[8] = {0,4,8,12,16,20,24,28};
+EPJ_pos.v1 = _mm256_i32gather_ps(((float*)&epj[j+0].pos.y),vindex_gather_load9,4);
+int index_gather_load10[8] = {0,4,8,12,16,20,24,28};
 __m256i vindex_gather_load10 = _mm256_load_si256((const __m256i*)index_gather_load10);
-EPJ_pos.v2 = _mm256_i32gather_ps(((float*)&epj[j].pos.z),vindex_gather_load10,4);
+EPJ_pos.v2 = _mm256_i32gather_ps(((float*)&epj[j+0].pos.z),vindex_gather_load10,4);
 __m256x3 rij;
 
 __m256 __fkg_tmp1;
@@ -319,8 +319,8 @@ __m256 m_over_r_cu;
 rij.v0 = _mm256_sub_ps(EPI_pos.v0,EPJ_pos.v0);
 rij.v1 = _mm256_sub_ps(EPI_pos.v1,EPJ_pos.v1);
 rij.v2 = _mm256_sub_ps(EPI_pos.v2,EPJ_pos.v2);
-__fkg_tmp1 = _mm256_fmadd_ps(rij.v0,rij.v0,_mm256_set1_ps(eps2));
-__fkg_tmp0 = _mm256_fmadd_ps(rij.v1,rij.v1,__fkg_tmp1);
+__fkg_tmp1 = _mm256_mul_ps(rij.v1,rij.v1);
+__fkg_tmp0 = _mm256_fmadd_ps(rij.v0,rij.v0,__fkg_tmp1);
 r2 = _mm256_fmadd_ps(rij.v2,rij.v2,__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = _mm256_mul_ps(over_r,over_r);
@@ -329,7 +329,7 @@ m_over_r_cu = _mm256_mul_ps(over_r_sq,m_over_r);
 FORCE_acc.v0 = _mm256_fnmadd_ps(m_over_r_cu,rij.v0,FORCE_acc.v0);
 FORCE_acc.v1 = _mm256_fnmadd_ps(m_over_r_cu,rij.v1,FORCE_acc.v1);
 FORCE_acc.v2 = _mm256_fnmadd_ps(m_over_r_cu,rij.v2,FORCE_acc.v2);
-FORCE_pot = _mm256_fnmadd_ps(_mm256_set1_ps(0.5f),m_over_r,FORCE_pot);
+FORCE_pot = _mm256_sub_ps(FORCE_pot,m_over_r);
 } // loop of j
 
 if(j<nj){ // tail j loop
@@ -344,15 +344,15 @@ __fkg_tmp3 = FORCE_pot;
 for(;j < nj;++j){
 __m256 EPJ_mass;
 
-EPJ_mass = _mm256_set1_ps(epj[j].mass);
+EPJ_mass = _mm256_set1_ps(epj[j+0].mass);
 
 __m256x3 EPJ_pos;
 
-EPJ_pos.v0 = _mm256_set1_ps(epj[j].pos.x);
+EPJ_pos.v0 = _mm256_set1_ps(epj[j+0].pos.x);
 
-EPJ_pos.v1 = _mm256_set1_ps(epj[j].pos.y);
+EPJ_pos.v1 = _mm256_set1_ps(epj[j+0].pos.y);
 
-EPJ_pos.v2 = _mm256_set1_ps(epj[j].pos.z);
+EPJ_pos.v2 = _mm256_set1_ps(epj[j+0].pos.z);
 
 __m256x3 rij;
 
@@ -373,8 +373,8 @@ __m256 m_over_r_cu;
 rij.v0 = _mm256_sub_ps(EPI_pos.v0,EPJ_pos.v0);
 rij.v1 = _mm256_sub_ps(EPI_pos.v1,EPJ_pos.v1);
 rij.v2 = _mm256_sub_ps(EPI_pos.v2,EPJ_pos.v2);
-__fkg_tmp1 = _mm256_fmadd_ps(rij.v0,rij.v0,_mm256_set1_ps(eps2));
-__fkg_tmp0 = _mm256_fmadd_ps(rij.v1,rij.v1,__fkg_tmp1);
+__fkg_tmp1 = _mm256_mul_ps(rij.v1,rij.v1);
+__fkg_tmp0 = _mm256_fmadd_ps(rij.v0,rij.v0,__fkg_tmp1);
 r2 = _mm256_fmadd_ps(rij.v2,rij.v2,__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = _mm256_mul_ps(over_r,over_r);
@@ -383,7 +383,7 @@ m_over_r_cu = _mm256_mul_ps(over_r_sq,m_over_r);
 FORCE_acc.v0 = _mm256_fnmadd_ps(m_over_r_cu,rij.v0,FORCE_acc.v0);
 FORCE_acc.v1 = _mm256_fnmadd_ps(m_over_r_cu,rij.v1,FORCE_acc.v1);
 FORCE_acc.v2 = _mm256_fnmadd_ps(m_over_r_cu,rij.v2,FORCE_acc.v2);
-FORCE_pot = _mm256_fnmadd_ps(_mm256_set1_ps(0.5f),m_over_r,FORCE_pot);
+FORCE_pot = _mm256_sub_ps(FORCE_pot,m_over_r);
 } // loop of j
 FORCE_acc.v0 = _mm256_blend_ps(__fkg_tmp2.v0,FORCE_acc.v0,0b00000001);
 FORCE_acc.v1 = _mm256_blend_ps(__fkg_tmp2.v1,FORCE_acc.v1,0b00000001);
@@ -438,12 +438,12 @@ FORCE_pot = 0.0f;
 for(j = 0;j < nj;++j){
 PIKG::F32 EPJ_mass;
 
-EPJ_mass = epj[j].mass;
+EPJ_mass = epj[j+0].mass;
 PIKG::F32vec EPJ_pos;
 
-EPJ_pos.x = epj[j].pos.x;
-EPJ_pos.y = epj[j].pos.y;
-EPJ_pos.z = epj[j].pos.z;
+EPJ_pos.x = epj[j+0].pos.x;
+EPJ_pos.y = epj[j+0].pos.y;
+EPJ_pos.z = epj[j+0].pos.z;
 PIKG::F32vec rij;
 
 PIKG::F32 __fkg_tmp1;
@@ -463,8 +463,8 @@ PIKG::F32 m_over_r_cu;
 rij.x = (EPI_pos.x-EPJ_pos.x);
 rij.y = (EPI_pos.y-EPJ_pos.y);
 rij.z = (EPI_pos.z-EPJ_pos.z);
-__fkg_tmp1 = (rij.x*rij.x+eps2);
-__fkg_tmp0 = (rij.y*rij.y+__fkg_tmp1);
+__fkg_tmp1 = (rij.y*rij.y);
+__fkg_tmp0 = (rij.x*rij.x+__fkg_tmp1);
 r2 = (rij.z*rij.z+__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = (over_r*over_r);
@@ -473,7 +473,7 @@ m_over_r_cu = (over_r_sq*m_over_r);
 FORCE_acc.x = (FORCE_acc.x - m_over_r_cu*rij.x);
 FORCE_acc.y = (FORCE_acc.y - m_over_r_cu*rij.y);
 FORCE_acc.z = (FORCE_acc.z - m_over_r_cu*rij.z);
-FORCE_pot = (FORCE_pot - 0.5f*m_over_r);
+FORCE_pot = (FORCE_pot-m_over_r);
 } // loop of j
 
 force[i+0].acc.x = (force[i+0].acc.x+FORCE_acc.x);

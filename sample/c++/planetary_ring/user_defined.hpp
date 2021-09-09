@@ -52,9 +52,12 @@ public:
     PS::F64 r_coll;
     PS::F64vec acc_dash;
     PS::F64 r_search;
-    static inline PS::F64 kappa;
-    static inline PS::F64 eta;
-    static inline PS::F64 eps;
+    static PS::F64 kappa;
+    static PS::F64 eta;
+    static PS::F64 eps;
+    //static inline PS::F64 kappa;
+    //static inline PS::F64 eta;
+    //static inline PS::F64 eps;
     
     PS::F64vec getPos() const {
         return pos_cyl;

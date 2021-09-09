@@ -5,11 +5,8 @@
 
 #include <pikg_avx2.hpp>
 struct CalcForceEpSpImpl{
-PIKG::F32 eps2;
 CalcForceEpSpImpl(){}
-CalcForceEpSpImpl(PIKG::F32 eps2):eps2(eps2){}
-void initialize(PIKG::F32 eps2_){
-eps2 = eps2_;
+void initialize(){
 }
 int kernel_id = 0;
 void operator()(const Epi1* __restrict__ epi,const int ni,const Epj1* __restrict__ epj,const int nj,Force1* __restrict__ force,const int kernel_select = 1){
@@ -106,8 +103,8 @@ __m256 m_over_r_cu;
 rij.v0 = _mm256_sub_ps(EPI_pos.v0,EPJ_pos.v0);
 rij.v1 = _mm256_sub_ps(EPI_pos.v1,EPJ_pos.v1);
 rij.v2 = _mm256_sub_ps(EPI_pos.v2,EPJ_pos.v2);
-__fkg_tmp1 = _mm256_fmadd_ps(rij.v0,rij.v0,_mm256_set1_ps(eps2));
-__fkg_tmp0 = _mm256_fmadd_ps(rij.v1,rij.v1,__fkg_tmp1);
+__fkg_tmp1 = _mm256_mul_ps(rij.v1,rij.v1);
+__fkg_tmp0 = _mm256_fmadd_ps(rij.v0,rij.v0,__fkg_tmp1);
 r2 = _mm256_fmadd_ps(rij.v2,rij.v2,__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = _mm256_mul_ps(over_r,over_r);
@@ -116,7 +113,7 @@ m_over_r_cu = _mm256_mul_ps(over_r_sq,m_over_r);
 FORCE_acc.v0 = _mm256_fnmadd_ps(m_over_r_cu,rij.v0,FORCE_acc.v0);
 FORCE_acc.v1 = _mm256_fnmadd_ps(m_over_r_cu,rij.v1,FORCE_acc.v1);
 FORCE_acc.v2 = _mm256_fnmadd_ps(m_over_r_cu,rij.v2,FORCE_acc.v2);
-FORCE_pot = _mm256_fnmadd_ps(_mm256_set1_ps(0.5f),m_over_r,FORCE_pot);
+FORCE_pot = _mm256_sub_ps(FORCE_pot,m_over_r);
 } // loop of j
 
 {
@@ -243,8 +240,8 @@ PIKG::F32 m_over_r_cu;
 rij.x = (EPI_pos.x-EPJ_pos.x);
 rij.y = (EPI_pos.y-EPJ_pos.y);
 rij.z = (EPI_pos.z-EPJ_pos.z);
-__fkg_tmp1 = (rij.x*rij.x+eps2);
-__fkg_tmp0 = (rij.y*rij.y+__fkg_tmp1);
+__fkg_tmp1 = (rij.y*rij.y);
+__fkg_tmp0 = (rij.x*rij.x+__fkg_tmp1);
 r2 = (rij.z*rij.z+__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = (over_r*over_r);
@@ -253,7 +250,7 @@ m_over_r_cu = (over_r_sq*m_over_r);
 FORCE_acc.x = (FORCE_acc.x - m_over_r_cu*rij.x);
 FORCE_acc.y = (FORCE_acc.y - m_over_r_cu*rij.y);
 FORCE_acc.z = (FORCE_acc.z - m_over_r_cu*rij.z);
-FORCE_pot = (FORCE_pot - 0.5f*m_over_r);
+FORCE_pot = (FORCE_pot-m_over_r);
 } // loop of j
 
 force[i+0].acc.x = (force[i+0].acc.x+FORCE_acc.x);
@@ -319,8 +316,8 @@ __m256 m_over_r_cu;
 rij.v0 = _mm256_sub_ps(EPI_pos.v0,EPJ_pos.v0);
 rij.v1 = _mm256_sub_ps(EPI_pos.v1,EPJ_pos.v1);
 rij.v2 = _mm256_sub_ps(EPI_pos.v2,EPJ_pos.v2);
-__fkg_tmp1 = _mm256_fmadd_ps(rij.v0,rij.v0,_mm256_set1_ps(eps2));
-__fkg_tmp0 = _mm256_fmadd_ps(rij.v1,rij.v1,__fkg_tmp1);
+__fkg_tmp1 = _mm256_mul_ps(rij.v1,rij.v1);
+__fkg_tmp0 = _mm256_fmadd_ps(rij.v0,rij.v0,__fkg_tmp1);
 r2 = _mm256_fmadd_ps(rij.v2,rij.v2,__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = _mm256_mul_ps(over_r,over_r);
@@ -329,7 +326,7 @@ m_over_r_cu = _mm256_mul_ps(over_r_sq,m_over_r);
 FORCE_acc.v0 = _mm256_fnmadd_ps(m_over_r_cu,rij.v0,FORCE_acc.v0);
 FORCE_acc.v1 = _mm256_fnmadd_ps(m_over_r_cu,rij.v1,FORCE_acc.v1);
 FORCE_acc.v2 = _mm256_fnmadd_ps(m_over_r_cu,rij.v2,FORCE_acc.v2);
-FORCE_pot = _mm256_fnmadd_ps(_mm256_set1_ps(0.5f),m_over_r,FORCE_pot);
+FORCE_pot = _mm256_sub_ps(FORCE_pot,m_over_r);
 } // loop of j
 
 if(j<nj){ // tail j loop
@@ -373,8 +370,8 @@ __m256 m_over_r_cu;
 rij.v0 = _mm256_sub_ps(EPI_pos.v0,EPJ_pos.v0);
 rij.v1 = _mm256_sub_ps(EPI_pos.v1,EPJ_pos.v1);
 rij.v2 = _mm256_sub_ps(EPI_pos.v2,EPJ_pos.v2);
-__fkg_tmp1 = _mm256_fmadd_ps(rij.v0,rij.v0,_mm256_set1_ps(eps2));
-__fkg_tmp0 = _mm256_fmadd_ps(rij.v1,rij.v1,__fkg_tmp1);
+__fkg_tmp1 = _mm256_mul_ps(rij.v1,rij.v1);
+__fkg_tmp0 = _mm256_fmadd_ps(rij.v0,rij.v0,__fkg_tmp1);
 r2 = _mm256_fmadd_ps(rij.v2,rij.v2,__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = _mm256_mul_ps(over_r,over_r);
@@ -383,7 +380,7 @@ m_over_r_cu = _mm256_mul_ps(over_r_sq,m_over_r);
 FORCE_acc.v0 = _mm256_fnmadd_ps(m_over_r_cu,rij.v0,FORCE_acc.v0);
 FORCE_acc.v1 = _mm256_fnmadd_ps(m_over_r_cu,rij.v1,FORCE_acc.v1);
 FORCE_acc.v2 = _mm256_fnmadd_ps(m_over_r_cu,rij.v2,FORCE_acc.v2);
-FORCE_pot = _mm256_fnmadd_ps(_mm256_set1_ps(0.5f),m_over_r,FORCE_pot);
+FORCE_pot = _mm256_sub_ps(FORCE_pot,m_over_r);
 } // loop of j
 FORCE_acc.v0 = _mm256_blend_ps(__fkg_tmp2.v0,FORCE_acc.v0,0b00000001);
 FORCE_acc.v1 = _mm256_blend_ps(__fkg_tmp2.v1,FORCE_acc.v1,0b00000001);
@@ -463,8 +460,8 @@ PIKG::F32 m_over_r_cu;
 rij.x = (EPI_pos.x-EPJ_pos.x);
 rij.y = (EPI_pos.y-EPJ_pos.y);
 rij.z = (EPI_pos.z-EPJ_pos.z);
-__fkg_tmp1 = (rij.x*rij.x+eps2);
-__fkg_tmp0 = (rij.y*rij.y+__fkg_tmp1);
+__fkg_tmp1 = (rij.y*rij.y);
+__fkg_tmp0 = (rij.x*rij.x+__fkg_tmp1);
 r2 = (rij.z*rij.z+__fkg_tmp0);
 over_r = rsqrt(r2);
 over_r_sq = (over_r*over_r);
@@ -473,7 +470,7 @@ m_over_r_cu = (over_r_sq*m_over_r);
 FORCE_acc.x = (FORCE_acc.x - m_over_r_cu*rij.x);
 FORCE_acc.y = (FORCE_acc.y - m_over_r_cu*rij.y);
 FORCE_acc.z = (FORCE_acc.z - m_over_r_cu*rij.z);
-FORCE_pot = (FORCE_pot - 0.5f*m_over_r);
+FORCE_pot = (FORCE_pot-m_over_r);
 } // loop of j
 
 force[i+0].acc.x = (force[i+0].acc.x+FORCE_acc.x);

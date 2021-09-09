@@ -6,6 +6,12 @@
 #include"user_defined.hpp"
 #include"./fdps-util/my_lib.hpp"
 #include"./fdps-util/kepler.hpp"
+
+
+PS::F64 FP_t::kappa;
+PS::F64 FP_t::eta;
+PS::F64 FP_t::eps;
+
 using namespace MY_LIB::LITERAL;
 void DEBUG_PRINT_RING(){
 #if defined(DEBUG_PRINT_RING)
@@ -429,7 +435,7 @@ int main(int argc, char *argv[]) {
     cmd.appendFlag("flag_bin_out", "output binary format");
     cmd.appendNoDefault("read_file",  "i", "write file name base", false);
     cmd.appendNoDefault("write_file", "o", "write file name base", false);
-    cmd.append("sat_mode",  "satellite mode\n  0: no satellite\n  1: PAN\n  2:  few satellites", "0");
+    cmd.append("sat_mode",  "satellite mode\n  0: no satellite\n  1: PAN\n  2:  few satellites\n  (mode1 and mode2 are UNDER CONSTRUCTION.)\n", "0");
     cmd.append("n_smp",  "# of sample particles per process", "100");
     cmd.append("dt_snp",  "the interval time of snapshot", "1.0");
     cmd.appendNoDefault("log_file",  "logfile name", false);

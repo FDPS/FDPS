@@ -61,39 +61,39 @@ PIKG::S32 j;
 for(i = 0;i < (ni/8)*8;i += 8){
 __m256i EPI_id;
 
-alignas(32) int index_gather_load0[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load0[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load0 = _mm256_load_si256((const __m256i*)index_gather_load0);
 EPI_id = _mm256_i32gather_epi32(((int*)&epi[i+0].id),vindex_gather_load0,4);
 __m256 EPI_mass;
 
-alignas(32) int index_gather_load1[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load1[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load1 = _mm256_load_si256((const __m256i*)index_gather_load1);
 EPI_mass = _mm256_i32gather_ps(((float*)&epi[i+0].mass),vindex_gather_load1,4);
 __m256x3 EPI_pos;
 
-alignas(32) int index_gather_load2[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load2[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load2 = _mm256_load_si256((const __m256i*)index_gather_load2);
 EPI_pos.v0 = _mm256_i32gather_ps(((float*)&epi[i+0].pos.x),vindex_gather_load2,4);
-alignas(32) int index_gather_load3[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load3[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load3 = _mm256_load_si256((const __m256i*)index_gather_load3);
 EPI_pos.v1 = _mm256_i32gather_ps(((float*)&epi[i+0].pos.y),vindex_gather_load3,4);
-alignas(32) int index_gather_load4[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load4[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load4 = _mm256_load_si256((const __m256i*)index_gather_load4);
 EPI_pos.v2 = _mm256_i32gather_ps(((float*)&epi[i+0].pos.z),vindex_gather_load4,4);
 __m256 EPI_r_coll;
 
-alignas(32) int index_gather_load5[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load5[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load5 = _mm256_load_si256((const __m256i*)index_gather_load5);
 EPI_r_coll = _mm256_i32gather_ps(((float*)&epi[i+0].r_coll),vindex_gather_load5,4);
 __m256x3 EPI_vel;
 
-alignas(32) int index_gather_load6[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load6[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load6 = _mm256_load_si256((const __m256i*)index_gather_load6);
 EPI_vel.v0 = _mm256_i32gather_ps(((float*)&epi[i+0].vel.x),vindex_gather_load6,4);
-alignas(32) int index_gather_load7[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load7[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load7 = _mm256_load_si256((const __m256i*)index_gather_load7);
 EPI_vel.v1 = _mm256_i32gather_ps(((float*)&epi[i+0].vel.y),vindex_gather_load7,4);
-alignas(32) int index_gather_load8[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load8[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load8 = _mm256_load_si256((const __m256i*)index_gather_load8);
 EPI_vel.v2 = _mm256_i32gather_ps(((float*)&epi[i+0].vel.z),vindex_gather_load8,4);
 __m256x3 FORCE_acc;
@@ -112,37 +112,35 @@ FORCE_pot = _mm256_set1_ps(0.0f);
 for(j = 0;j < (nj/1)*1;++j){
 __m256i EPJ_id;
 
-EPJ_id = _mm256_set1_epi32(epj[j].id);
+EPJ_id = _mm256_set1_epi32(epj[j+0].id);
 
 __m256 EPJ_mass;
 
-EPJ_mass = _mm256_set1_ps(epj[j].mass);
+EPJ_mass = _mm256_set1_ps(epj[j+0].mass);
 
 __m256x3 EPJ_pos;
 
-EPJ_pos.v0 = _mm256_set1_ps(epj[j].pos.x);
+EPJ_pos.v0 = _mm256_set1_ps(epj[j+0].pos.x);
 
-EPJ_pos.v1 = _mm256_set1_ps(epj[j].pos.y);
+EPJ_pos.v1 = _mm256_set1_ps(epj[j+0].pos.y);
 
-EPJ_pos.v2 = _mm256_set1_ps(epj[j].pos.z);
+EPJ_pos.v2 = _mm256_set1_ps(epj[j+0].pos.z);
 
 __m256 EPJ_r_coll;
 
-EPJ_r_coll = _mm256_set1_ps(epj[j].r_coll);
+EPJ_r_coll = _mm256_set1_ps(epj[j+0].r_coll);
 
 __m256x3 EPJ_vel;
 
-EPJ_vel.v0 = _mm256_set1_ps(epj[j].vel.x);
+EPJ_vel.v0 = _mm256_set1_ps(epj[j+0].vel.x);
 
-EPJ_vel.v1 = _mm256_set1_ps(epj[j].vel.y);
+EPJ_vel.v1 = _mm256_set1_ps(epj[j+0].vel.y);
 
-EPJ_vel.v2 = _mm256_set1_ps(epj[j].vel.z);
+EPJ_vel.v2 = _mm256_set1_ps(epj[j+0].vel.z);
 
 __m256x3 acc_sprg_tmp;
 
 __m256x3 acc_dash_tmp;
-
-__m256x3 acc_grav_tmp;
 
 __m256 pot_sprg_tmp;
 
@@ -163,8 +161,6 @@ __m256 over_r_real_sq;
 __m256 r_coll_cu;
 
 __m256 over_r_coll_cu;
-
-__m256 tmp0;
 
 __m256 __fkg_tmp0;
 
@@ -194,9 +190,9 @@ __m256 __fkg_tmp2;
 
 __m256x3 __fkg_tmp8;
 
-__m256 m_over_r_real;
+__m256x3 acc_grav_tmp;
 
-__m256 tmp1;
+__m256 m_over_r_real;
 
 __m256 __fkg_tmp3;
 
@@ -220,9 +216,6 @@ acc_sprg_tmp.v2 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v0 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v1 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v2 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v0 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v1 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v2 = _mm256_set1_ps(0.0f);
 pot_sprg_tmp = _mm256_set1_ps(0.0f);
 pot_grav_tmp = _mm256_set1_ps(0.0f);
 {
@@ -248,11 +241,10 @@ pg3 = _mm256_and_ps(pg3,pg1);
 
 r_coll_cu = _mm256_mul_ps(r_coll_sq,r_coll_tmp);
 over_r_coll_cu = _mm256_div_ps(_mm256_set1_ps(1.0f),r_coll_cu);
-tmp0 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.0f)),EPJ_mass);
-__fkg_tmp0 = _mm256_mul_ps(tmp0,over_r_coll_cu);
-__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v0);
-__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v1);
-__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v2);
+__fkg_tmp0 = _mm256_mul_ps(EPJ_mass,over_r_coll_cu);
+__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v0);
+__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v1);
+__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v2);
 pot_offset = _mm256_div_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.5f)),r_coll_tmp);
 __fkg_tmp5 = _mm256_mul_ps(_mm256_mul_ps(_mm256_set1_ps(0.25f),EPJ_mass),_mm256_fmadd_ps(r_real_sq,over_r_coll_cu,pot_offset));
 m_red = _mm256_div_ps(EPJ_mass,_mm256_add_ps(EPI_mass,EPJ_mass));
@@ -286,11 +278,10 @@ pg3 = _mm256_xor_ps(pg2,_mm256_castsi256_ps(_mm256_set1_epi32(-1)));
 pg3 = _mm256_and_ps(pg3,pg1);
 
 m_over_r_real = _mm256_mul_ps(EPJ_mass,over_r_real);
-tmp1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.0f)),m_over_r_real);
-__fkg_tmp3 = _mm256_mul_ps(tmp1,over_r_real_sq);
-__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v0);
-__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v1);
-__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v2);
+__fkg_tmp3 = _mm256_mul_ps(m_over_r_real,over_r_real_sq);
+__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v0);
+__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v1);
+__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v2);
 __fkg_tmp5 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(0.5f)),m_over_r_real);
 acc_grav_tmp.v0 = _mm256_blendv_ps(acc_grav_tmp.v0,__fkg_tmp4.v0,pg3);;
 acc_grav_tmp.v1 = _mm256_blendv_ps(acc_grav_tmp.v1,__fkg_tmp4.v1,pg3);;
@@ -318,7 +309,7 @@ FORCE_pot = _mm256_add_ps(FORCE_pot,__fkg_tmp15);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load9[8] = {0,7,14,21,28,35,42,49};
+int index_gather_load9[8] = {0,7,14,21,28,35,42,49};
 __m256i vindex_gather_load9 = _mm256_load_si256((const __m256i*)index_gather_load9);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc.x),vindex_gather_load9,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc.v0);
@@ -338,7 +329,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load10[8] = {0,7,14,21,28,35,42,49};
+int index_gather_load10[8] = {0,7,14,21,28,35,42,49};
 __m256i vindex_gather_load10 = _mm256_load_si256((const __m256i*)index_gather_load10);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc.y),vindex_gather_load10,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc.v1);
@@ -358,7 +349,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load11[8] = {0,7,14,21,28,35,42,49};
+int index_gather_load11[8] = {0,7,14,21,28,35,42,49};
 __m256i vindex_gather_load11 = _mm256_load_si256((const __m256i*)index_gather_load11);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc.z),vindex_gather_load11,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc.v2);
@@ -378,7 +369,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load12[8] = {0,7,14,21,28,35,42,49};
+int index_gather_load12[8] = {0,7,14,21,28,35,42,49};
 __m256i vindex_gather_load12 = _mm256_load_si256((const __m256i*)index_gather_load12);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc_dash.x),vindex_gather_load12,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc_dash.v0);
@@ -398,7 +389,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load13[8] = {0,7,14,21,28,35,42,49};
+int index_gather_load13[8] = {0,7,14,21,28,35,42,49};
 __m256i vindex_gather_load13 = _mm256_load_si256((const __m256i*)index_gather_load13);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc_dash.y),vindex_gather_load13,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc_dash.v1);
@@ -418,7 +409,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load14[8] = {0,7,14,21,28,35,42,49};
+int index_gather_load14[8] = {0,7,14,21,28,35,42,49};
 __m256i vindex_gather_load14 = _mm256_load_si256((const __m256i*)index_gather_load14);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].acc_dash.z),vindex_gather_load14,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_acc_dash.v2);
@@ -438,7 +429,7 @@ _mm256_storeu_ps(__fkg_store_tmp,__fkg_tmp_accum);
 
 {
 __m256 __fkg_tmp_accum;
-alignas(32) int index_gather_load15[8] = {0,7,14,21,28,35,42,49};
+int index_gather_load15[8] = {0,7,14,21,28,35,42,49};
 __m256i vindex_gather_load15 = _mm256_load_si256((const __m256i*)index_gather_load15);
 __fkg_tmp_accum = _mm256_i32gather_ps(((float*)&force[i+0].pot),vindex_gather_load15,4);
 __fkg_tmp_accum = _mm256_add_ps(__fkg_tmp_accum,FORCE_pot);
@@ -494,28 +485,26 @@ FORCE_pot = 0.0f;
 for(j = 0;j < nj;++j){
 PIKG::S32 EPJ_id;
 
-EPJ_id = epj[j].id;
+EPJ_id = epj[j+0].id;
 PIKG::F32 EPJ_mass;
 
-EPJ_mass = epj[j].mass;
+EPJ_mass = epj[j+0].mass;
 PIKG::F32vec EPJ_pos;
 
-EPJ_pos.x = epj[j].pos.x;
-EPJ_pos.y = epj[j].pos.y;
-EPJ_pos.z = epj[j].pos.z;
+EPJ_pos.x = epj[j+0].pos.x;
+EPJ_pos.y = epj[j+0].pos.y;
+EPJ_pos.z = epj[j+0].pos.z;
 PIKG::F32 EPJ_r_coll;
 
-EPJ_r_coll = epj[j].r_coll;
+EPJ_r_coll = epj[j+0].r_coll;
 PIKG::F32vec EPJ_vel;
 
-EPJ_vel.x = epj[j].vel.x;
-EPJ_vel.y = epj[j].vel.y;
-EPJ_vel.z = epj[j].vel.z;
+EPJ_vel.x = epj[j+0].vel.x;
+EPJ_vel.y = epj[j+0].vel.y;
+EPJ_vel.z = epj[j+0].vel.z;
 PIKG::F32vec acc_sprg_tmp;
 
 PIKG::F32vec acc_dash_tmp;
-
-PIKG::F32vec acc_grav_tmp;
 
 PIKG::F32 pot_sprg_tmp;
 
@@ -536,8 +525,6 @@ PIKG::F32 over_r_real_sq;
 PIKG::F32 r_coll_cu;
 
 PIKG::F32 over_r_coll_cu;
-
-PIKG::F32 tmp0;
 
 PIKG::F32 __fkg_tmp0;
 
@@ -567,9 +554,9 @@ PIKG::F32 __fkg_tmp2;
 
 PIKG::F32vec __fkg_tmp8;
 
-PIKG::F32 m_over_r_real;
+PIKG::F32vec acc_grav_tmp;
 
-PIKG::F32 tmp1;
+PIKG::F32 m_over_r_real;
 
 PIKG::F32 __fkg_tmp3;
 
@@ -593,9 +580,6 @@ acc_sprg_tmp.z = 0.0f;
 acc_dash_tmp.x = 0.0f;
 acc_dash_tmp.y = 0.0f;
 acc_dash_tmp.z = 0.0f;
-acc_grav_tmp.x = 0.0f;
-acc_grav_tmp.y = 0.0f;
-acc_grav_tmp.z = 0.0f;
 pot_sprg_tmp = 0.0f;
 pot_grav_tmp = 0.0f;
 if((EPI_id!=EPJ_id)){
@@ -610,11 +594,10 @@ over_r_real_sq = (over_r_real*over_r_real);
 if((r_coll_sq>r_real_sq)){
 r_coll_cu = (r_coll_sq*r_coll_tmp);
 over_r_coll_cu = (1.0f/r_coll_cu);
-tmp0 = (-(1.0f)*EPJ_mass);
-__fkg_tmp0 = (tmp0*over_r_coll_cu);
-__fkg_tmp4.x = ((tmp0*over_r_coll_cu)*rij.x);
-__fkg_tmp4.y = ((tmp0*over_r_coll_cu)*rij.y);
-__fkg_tmp4.z = ((tmp0*over_r_coll_cu)*rij.z);
+__fkg_tmp0 = (EPJ_mass*over_r_coll_cu);
+__fkg_tmp4.x = ((EPJ_mass*over_r_coll_cu)*rij.x);
+__fkg_tmp4.y = ((EPJ_mass*over_r_coll_cu)*rij.y);
+__fkg_tmp4.z = ((EPJ_mass*over_r_coll_cu)*rij.z);
 pot_offset = (-(1.5f)/r_coll_tmp);
 __fkg_tmp5 = ((0.25f*EPJ_mass)*(r_real_sq*over_r_coll_cu+pot_offset));
 m_red = (EPJ_mass/(EPI_mass+EPJ_mass));
@@ -646,11 +629,10 @@ acc_dash_tmp.y = __fkg_tmp8.y;
 acc_dash_tmp.z = __fkg_tmp8.z;
 }else{
 m_over_r_real = (EPJ_mass*over_r_real);
-tmp1 = (-(1.0f)*m_over_r_real);
-__fkg_tmp3 = (tmp1*over_r_real_sq);
-__fkg_tmp4.x = ((tmp1*over_r_real_sq)*rij.x);
-__fkg_tmp4.y = ((tmp1*over_r_real_sq)*rij.y);
-__fkg_tmp4.z = ((tmp1*over_r_real_sq)*rij.z);
+__fkg_tmp3 = (m_over_r_real*over_r_real_sq);
+__fkg_tmp4.x = ((m_over_r_real*over_r_real_sq)*rij.x);
+__fkg_tmp4.y = ((m_over_r_real*over_r_real_sq)*rij.y);
+__fkg_tmp4.z = ((m_over_r_real*over_r_real_sq)*rij.z);
 __fkg_tmp5 = (-(0.5f)*m_over_r_real);
 acc_grav_tmp.x = __fkg_tmp4.x;
 acc_grav_tmp.y = __fkg_tmp4.y;
@@ -732,46 +714,44 @@ FORCE_pot = _mm256_set1_ps(0.0f);
 for(j = 0;j < (nj/8)*8;j += 8){
 __m256i EPJ_id;
 
-alignas(32) int index_gather_load16[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load16[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load16 = _mm256_load_si256((const __m256i*)index_gather_load16);
-EPJ_id = _mm256_i32gather_epi32(((int*)&epj[j].id),vindex_gather_load16,4);
+EPJ_id = _mm256_i32gather_epi32(((int*)&epj[j+0].id),vindex_gather_load16,4);
 __m256 EPJ_mass;
 
-alignas(32) int index_gather_load17[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load17[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load17 = _mm256_load_si256((const __m256i*)index_gather_load17);
-EPJ_mass = _mm256_i32gather_ps(((float*)&epj[j].mass),vindex_gather_load17,4);
+EPJ_mass = _mm256_i32gather_ps(((float*)&epj[j+0].mass),vindex_gather_load17,4);
 __m256x3 EPJ_pos;
 
-alignas(32) int index_gather_load18[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load18[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load18 = _mm256_load_si256((const __m256i*)index_gather_load18);
-EPJ_pos.v0 = _mm256_i32gather_ps(((float*)&epj[j].pos.x),vindex_gather_load18,4);
-alignas(32) int index_gather_load19[8] = {0,9,18,27,36,45,54,63};
+EPJ_pos.v0 = _mm256_i32gather_ps(((float*)&epj[j+0].pos.x),vindex_gather_load18,4);
+int index_gather_load19[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load19 = _mm256_load_si256((const __m256i*)index_gather_load19);
-EPJ_pos.v1 = _mm256_i32gather_ps(((float*)&epj[j].pos.y),vindex_gather_load19,4);
-alignas(32) int index_gather_load20[8] = {0,9,18,27,36,45,54,63};
+EPJ_pos.v1 = _mm256_i32gather_ps(((float*)&epj[j+0].pos.y),vindex_gather_load19,4);
+int index_gather_load20[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load20 = _mm256_load_si256((const __m256i*)index_gather_load20);
-EPJ_pos.v2 = _mm256_i32gather_ps(((float*)&epj[j].pos.z),vindex_gather_load20,4);
+EPJ_pos.v2 = _mm256_i32gather_ps(((float*)&epj[j+0].pos.z),vindex_gather_load20,4);
 __m256 EPJ_r_coll;
 
-alignas(32) int index_gather_load21[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load21[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load21 = _mm256_load_si256((const __m256i*)index_gather_load21);
-EPJ_r_coll = _mm256_i32gather_ps(((float*)&epj[j].r_coll),vindex_gather_load21,4);
+EPJ_r_coll = _mm256_i32gather_ps(((float*)&epj[j+0].r_coll),vindex_gather_load21,4);
 __m256x3 EPJ_vel;
 
-alignas(32) int index_gather_load22[8] = {0,9,18,27,36,45,54,63};
+int index_gather_load22[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load22 = _mm256_load_si256((const __m256i*)index_gather_load22);
-EPJ_vel.v0 = _mm256_i32gather_ps(((float*)&epj[j].vel.x),vindex_gather_load22,4);
-alignas(32) int index_gather_load23[8] = {0,9,18,27,36,45,54,63};
+EPJ_vel.v0 = _mm256_i32gather_ps(((float*)&epj[j+0].vel.x),vindex_gather_load22,4);
+int index_gather_load23[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load23 = _mm256_load_si256((const __m256i*)index_gather_load23);
-EPJ_vel.v1 = _mm256_i32gather_ps(((float*)&epj[j].vel.y),vindex_gather_load23,4);
-alignas(32) int index_gather_load24[8] = {0,9,18,27,36,45,54,63};
+EPJ_vel.v1 = _mm256_i32gather_ps(((float*)&epj[j+0].vel.y),vindex_gather_load23,4);
+int index_gather_load24[8] = {0,9,18,27,36,45,54,63};
 __m256i vindex_gather_load24 = _mm256_load_si256((const __m256i*)index_gather_load24);
-EPJ_vel.v2 = _mm256_i32gather_ps(((float*)&epj[j].vel.z),vindex_gather_load24,4);
+EPJ_vel.v2 = _mm256_i32gather_ps(((float*)&epj[j+0].vel.z),vindex_gather_load24,4);
 __m256x3 acc_sprg_tmp;
 
 __m256x3 acc_dash_tmp;
-
-__m256x3 acc_grav_tmp;
 
 __m256 pot_sprg_tmp;
 
@@ -792,8 +772,6 @@ __m256 over_r_real_sq;
 __m256 r_coll_cu;
 
 __m256 over_r_coll_cu;
-
-__m256 tmp0;
 
 __m256 __fkg_tmp0;
 
@@ -823,9 +801,9 @@ __m256 __fkg_tmp2;
 
 __m256x3 __fkg_tmp8;
 
-__m256 m_over_r_real;
+__m256x3 acc_grav_tmp;
 
-__m256 tmp1;
+__m256 m_over_r_real;
 
 __m256 __fkg_tmp3;
 
@@ -849,9 +827,6 @@ acc_sprg_tmp.v2 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v0 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v1 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v2 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v0 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v1 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v2 = _mm256_set1_ps(0.0f);
 pot_sprg_tmp = _mm256_set1_ps(0.0f);
 pot_grav_tmp = _mm256_set1_ps(0.0f);
 {
@@ -877,11 +852,10 @@ pg3 = _mm256_and_ps(pg3,pg1);
 
 r_coll_cu = _mm256_mul_ps(r_coll_sq,r_coll_tmp);
 over_r_coll_cu = _mm256_div_ps(_mm256_set1_ps(1.0f),r_coll_cu);
-tmp0 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.0f)),EPJ_mass);
-__fkg_tmp0 = _mm256_mul_ps(tmp0,over_r_coll_cu);
-__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v0);
-__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v1);
-__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v2);
+__fkg_tmp0 = _mm256_mul_ps(EPJ_mass,over_r_coll_cu);
+__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v0);
+__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v1);
+__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v2);
 pot_offset = _mm256_div_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.5f)),r_coll_tmp);
 __fkg_tmp5 = _mm256_mul_ps(_mm256_mul_ps(_mm256_set1_ps(0.25f),EPJ_mass),_mm256_fmadd_ps(r_real_sq,over_r_coll_cu,pot_offset));
 m_red = _mm256_div_ps(EPJ_mass,_mm256_add_ps(EPI_mass,EPJ_mass));
@@ -915,11 +889,10 @@ pg3 = _mm256_xor_ps(pg2,_mm256_castsi256_ps(_mm256_set1_epi32(-1)));
 pg3 = _mm256_and_ps(pg3,pg1);
 
 m_over_r_real = _mm256_mul_ps(EPJ_mass,over_r_real);
-tmp1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.0f)),m_over_r_real);
-__fkg_tmp3 = _mm256_mul_ps(tmp1,over_r_real_sq);
-__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v0);
-__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v1);
-__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v2);
+__fkg_tmp3 = _mm256_mul_ps(m_over_r_real,over_r_real_sq);
+__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v0);
+__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v1);
+__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v2);
 __fkg_tmp5 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(0.5f)),m_over_r_real);
 acc_grav_tmp.v0 = _mm256_blendv_ps(acc_grav_tmp.v0,__fkg_tmp4.v0,pg3);;
 acc_grav_tmp.v1 = _mm256_blendv_ps(acc_grav_tmp.v1,__fkg_tmp4.v1,pg3);;
@@ -962,37 +935,35 @@ __fkg_tmp18 = FORCE_pot;
 for(;j < nj;++j){
 __m256i EPJ_id;
 
-EPJ_id = _mm256_set1_epi32(epj[j].id);
+EPJ_id = _mm256_set1_epi32(epj[j+0].id);
 
 __m256 EPJ_mass;
 
-EPJ_mass = _mm256_set1_ps(epj[j].mass);
+EPJ_mass = _mm256_set1_ps(epj[j+0].mass);
 
 __m256x3 EPJ_pos;
 
-EPJ_pos.v0 = _mm256_set1_ps(epj[j].pos.x);
+EPJ_pos.v0 = _mm256_set1_ps(epj[j+0].pos.x);
 
-EPJ_pos.v1 = _mm256_set1_ps(epj[j].pos.y);
+EPJ_pos.v1 = _mm256_set1_ps(epj[j+0].pos.y);
 
-EPJ_pos.v2 = _mm256_set1_ps(epj[j].pos.z);
+EPJ_pos.v2 = _mm256_set1_ps(epj[j+0].pos.z);
 
 __m256 EPJ_r_coll;
 
-EPJ_r_coll = _mm256_set1_ps(epj[j].r_coll);
+EPJ_r_coll = _mm256_set1_ps(epj[j+0].r_coll);
 
 __m256x3 EPJ_vel;
 
-EPJ_vel.v0 = _mm256_set1_ps(epj[j].vel.x);
+EPJ_vel.v0 = _mm256_set1_ps(epj[j+0].vel.x);
 
-EPJ_vel.v1 = _mm256_set1_ps(epj[j].vel.y);
+EPJ_vel.v1 = _mm256_set1_ps(epj[j+0].vel.y);
 
-EPJ_vel.v2 = _mm256_set1_ps(epj[j].vel.z);
+EPJ_vel.v2 = _mm256_set1_ps(epj[j+0].vel.z);
 
 __m256x3 acc_sprg_tmp;
 
 __m256x3 acc_dash_tmp;
-
-__m256x3 acc_grav_tmp;
 
 __m256 pot_sprg_tmp;
 
@@ -1013,8 +984,6 @@ __m256 over_r_real_sq;
 __m256 r_coll_cu;
 
 __m256 over_r_coll_cu;
-
-__m256 tmp0;
 
 __m256 __fkg_tmp0;
 
@@ -1044,9 +1013,9 @@ __m256 __fkg_tmp2;
 
 __m256x3 __fkg_tmp8;
 
-__m256 m_over_r_real;
+__m256x3 acc_grav_tmp;
 
-__m256 tmp1;
+__m256 m_over_r_real;
 
 __m256 __fkg_tmp3;
 
@@ -1070,9 +1039,6 @@ acc_sprg_tmp.v2 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v0 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v1 = _mm256_set1_ps(0.0f);
 acc_dash_tmp.v2 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v0 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v1 = _mm256_set1_ps(0.0f);
-acc_grav_tmp.v2 = _mm256_set1_ps(0.0f);
 pot_sprg_tmp = _mm256_set1_ps(0.0f);
 pot_grav_tmp = _mm256_set1_ps(0.0f);
 {
@@ -1098,11 +1064,10 @@ pg3 = _mm256_and_ps(pg3,pg1);
 
 r_coll_cu = _mm256_mul_ps(r_coll_sq,r_coll_tmp);
 over_r_coll_cu = _mm256_div_ps(_mm256_set1_ps(1.0f),r_coll_cu);
-tmp0 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.0f)),EPJ_mass);
-__fkg_tmp0 = _mm256_mul_ps(tmp0,over_r_coll_cu);
-__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v0);
-__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v1);
-__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(tmp0,over_r_coll_cu),rij.v2);
+__fkg_tmp0 = _mm256_mul_ps(EPJ_mass,over_r_coll_cu);
+__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v0);
+__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v1);
+__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(EPJ_mass,over_r_coll_cu),rij.v2);
 pot_offset = _mm256_div_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.5f)),r_coll_tmp);
 __fkg_tmp5 = _mm256_mul_ps(_mm256_mul_ps(_mm256_set1_ps(0.25f),EPJ_mass),_mm256_fmadd_ps(r_real_sq,over_r_coll_cu,pot_offset));
 m_red = _mm256_div_ps(EPJ_mass,_mm256_add_ps(EPI_mass,EPJ_mass));
@@ -1136,11 +1101,10 @@ pg3 = _mm256_xor_ps(pg2,_mm256_castsi256_ps(_mm256_set1_epi32(-1)));
 pg3 = _mm256_and_ps(pg3,pg1);
 
 m_over_r_real = _mm256_mul_ps(EPJ_mass,over_r_real);
-tmp1 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(1.0f)),m_over_r_real);
-__fkg_tmp3 = _mm256_mul_ps(tmp1,over_r_real_sq);
-__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v0);
-__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v1);
-__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(tmp1,over_r_real_sq),rij.v2);
+__fkg_tmp3 = _mm256_mul_ps(m_over_r_real,over_r_real_sq);
+__fkg_tmp4.v0 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v0);
+__fkg_tmp4.v1 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v1);
+__fkg_tmp4.v2 = _mm256_mul_ps(_mm256_mul_ps(m_over_r_real,over_r_real_sq),rij.v2);
 __fkg_tmp5 = _mm256_mul_ps(_mm256_sub_ps(_mm256_set1_ps((PIKG::F32)0.0),_mm256_set1_ps(0.5f)),m_over_r_real);
 acc_grav_tmp.v0 = _mm256_blendv_ps(acc_grav_tmp.v0,__fkg_tmp4.v0,pg3);;
 acc_grav_tmp.v1 = _mm256_blendv_ps(acc_grav_tmp.v1,__fkg_tmp4.v1,pg3);;
@@ -1261,28 +1225,26 @@ FORCE_pot = 0.0f;
 for(j = 0;j < nj;++j){
 PIKG::S32 EPJ_id;
 
-EPJ_id = epj[j].id;
+EPJ_id = epj[j+0].id;
 PIKG::F32 EPJ_mass;
 
-EPJ_mass = epj[j].mass;
+EPJ_mass = epj[j+0].mass;
 PIKG::F32vec EPJ_pos;
 
-EPJ_pos.x = epj[j].pos.x;
-EPJ_pos.y = epj[j].pos.y;
-EPJ_pos.z = epj[j].pos.z;
+EPJ_pos.x = epj[j+0].pos.x;
+EPJ_pos.y = epj[j+0].pos.y;
+EPJ_pos.z = epj[j+0].pos.z;
 PIKG::F32 EPJ_r_coll;
 
-EPJ_r_coll = epj[j].r_coll;
+EPJ_r_coll = epj[j+0].r_coll;
 PIKG::F32vec EPJ_vel;
 
-EPJ_vel.x = epj[j].vel.x;
-EPJ_vel.y = epj[j].vel.y;
-EPJ_vel.z = epj[j].vel.z;
+EPJ_vel.x = epj[j+0].vel.x;
+EPJ_vel.y = epj[j+0].vel.y;
+EPJ_vel.z = epj[j+0].vel.z;
 PIKG::F32vec acc_sprg_tmp;
 
 PIKG::F32vec acc_dash_tmp;
-
-PIKG::F32vec acc_grav_tmp;
 
 PIKG::F32 pot_sprg_tmp;
 
@@ -1303,8 +1265,6 @@ PIKG::F32 over_r_real_sq;
 PIKG::F32 r_coll_cu;
 
 PIKG::F32 over_r_coll_cu;
-
-PIKG::F32 tmp0;
 
 PIKG::F32 __fkg_tmp0;
 
@@ -1334,9 +1294,9 @@ PIKG::F32 __fkg_tmp2;
 
 PIKG::F32vec __fkg_tmp8;
 
-PIKG::F32 m_over_r_real;
+PIKG::F32vec acc_grav_tmp;
 
-PIKG::F32 tmp1;
+PIKG::F32 m_over_r_real;
 
 PIKG::F32 __fkg_tmp3;
 
@@ -1360,9 +1320,6 @@ acc_sprg_tmp.z = 0.0f;
 acc_dash_tmp.x = 0.0f;
 acc_dash_tmp.y = 0.0f;
 acc_dash_tmp.z = 0.0f;
-acc_grav_tmp.x = 0.0f;
-acc_grav_tmp.y = 0.0f;
-acc_grav_tmp.z = 0.0f;
 pot_sprg_tmp = 0.0f;
 pot_grav_tmp = 0.0f;
 if((EPI_id!=EPJ_id)){
@@ -1377,11 +1334,10 @@ over_r_real_sq = (over_r_real*over_r_real);
 if((r_coll_sq>r_real_sq)){
 r_coll_cu = (r_coll_sq*r_coll_tmp);
 over_r_coll_cu = (1.0f/r_coll_cu);
-tmp0 = (-(1.0f)*EPJ_mass);
-__fkg_tmp0 = (tmp0*over_r_coll_cu);
-__fkg_tmp4.x = ((tmp0*over_r_coll_cu)*rij.x);
-__fkg_tmp4.y = ((tmp0*over_r_coll_cu)*rij.y);
-__fkg_tmp4.z = ((tmp0*over_r_coll_cu)*rij.z);
+__fkg_tmp0 = (EPJ_mass*over_r_coll_cu);
+__fkg_tmp4.x = ((EPJ_mass*over_r_coll_cu)*rij.x);
+__fkg_tmp4.y = ((EPJ_mass*over_r_coll_cu)*rij.y);
+__fkg_tmp4.z = ((EPJ_mass*over_r_coll_cu)*rij.z);
 pot_offset = (-(1.5f)/r_coll_tmp);
 __fkg_tmp5 = ((0.25f*EPJ_mass)*(r_real_sq*over_r_coll_cu+pot_offset));
 m_red = (EPJ_mass/(EPI_mass+EPJ_mass));
@@ -1413,11 +1369,10 @@ acc_dash_tmp.y = __fkg_tmp8.y;
 acc_dash_tmp.z = __fkg_tmp8.z;
 }else{
 m_over_r_real = (EPJ_mass*over_r_real);
-tmp1 = (-(1.0f)*m_over_r_real);
-__fkg_tmp3 = (tmp1*over_r_real_sq);
-__fkg_tmp4.x = ((tmp1*over_r_real_sq)*rij.x);
-__fkg_tmp4.y = ((tmp1*over_r_real_sq)*rij.y);
-__fkg_tmp4.z = ((tmp1*over_r_real_sq)*rij.z);
+__fkg_tmp3 = (m_over_r_real*over_r_real_sq);
+__fkg_tmp4.x = ((m_over_r_real*over_r_real_sq)*rij.x);
+__fkg_tmp4.y = ((m_over_r_real*over_r_real_sq)*rij.y);
+__fkg_tmp4.z = ((m_over_r_real*over_r_real_sq)*rij.z);
 __fkg_tmp5 = (-(0.5f)*m_over_r_real);
 acc_grav_tmp.x = __fkg_tmp4.x;
 acc_grav_tmp.y = __fkg_tmp4.y;

@@ -1,0 +1,78 @@
+EPI F64vec xi:pos
+EPI F64vec vi:vel
+EPI F64vec ai:acc
+EPI F64vec ai_s:acc_s
+EPI F64vec ai_d:acc_d
+EPI F64    mi:mass
+EPI S32    idi:id
+EPI S32    idi_loc:id_local
+EPI S32    myranki:myrank
+EPI S32    ngbi:neighbor
+F32 eps2
+
+EPJ F64    mj:mass
+EPJ F64vec xj:pos
+EPJ F64    qj_xx:quad__DOT__xx
+EPJ F64    qj_yy:quad__DOT__yy
+EPJ F64    qj_zz:quad__DOT__zz
+EPJ F64    qj_xy:quad__DOT__xy
+EPJ F64    qj_zx:quad__DOT__xz
+EPJ F64    qj_yz:quad__DOT__yz
+
+FORCE F32vec af:acc
+FORCE F32    pf:phi
+FORCE S32    ngb:neighbor
+FORCE S32    ingb:id_neighbor
+
+EPI local F32vec xiloc
+EPJ local F32vec xjloc
+EPJ local F32    mjloc
+EPJ local F32    qj_xxloc
+EPJ local F32    qj_yyloc
+EPJ local F32    qj_zzloc
+EPJ local F32    qj_xyloc
+EPJ local F32    qj_yzloc
+EPJ local F32    qj_zxloc
+
+
+xiloc = xi - xi[0]
+xjloc = xj - xi[0]
+mjloc = mj
+qj_xxloc = qj_xx
+qj_yyloc = qj_yy
+qj_zzloc = qj_zz
+qj_xyloc = qj_xy
+qj_yzloc = qj_yz
+qj_zxloc = qj_zx
+
+rij = xjloc - xiloc
+r2  = rij * rij + eps2
+r_inv  = rsqrt(r2)
+tmp    = 3.0f - r2*(r_inv*r_inv)
+r_inv *= (tmp * 0.5f)
+
+r2_inv  = r_inv  * r_inv
+r3_inv  = r2_inv * r_inv
+r4_inv  = r2_inv * r2_inv
+r5_inv  = r2_inv * r3_inv
+
+tr  = qj_xxloc + qj_yyloc + qj_zzloc
+qxx = 3.0f * qj_xxloc - tr
+qyy = 3.0f * qj_yyloc - tr
+qzz = 3.0f * qj_zzloc - tr
+qxy = 3.0f * qj_xyloc
+qyz = 3.0f * qj_yzloc
+qzx = 3.0f * qj_zxloc
+mtr = -(eps2 * tr)
+
+qr.x = qxx*rij.x + qxy*rij.y + qzx*rij.z
+qr.y = qyy*rij.y + qyz*rij.z + qxy*rij.x
+qr.z = qzz*rij.z + qzx*rij.x + qyz*rij.y
+rqr  = mtr + qr * rij
+rqr_r4_inv = rqr * r4_inv
+
+meff  =  mjloc + 0.5f * rqr_r4_inv
+meff3 = (mjloc + 2.5f * rqr_r4_inv) * r3_inv
+
+pf -= meff * r_inv
+af = af - r5_inv * qr + meff3 * rij

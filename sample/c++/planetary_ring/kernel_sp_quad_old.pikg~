@@ -1,0 +1,41 @@
+xiloc = xi - xi[0]
+xjloc = xj - xi[0]
+mjloc = mj
+qj_xxloc = qj_xx
+qj_yyloc = qj_yy
+qj_zzloc = qj_zz
+qj_xyloc = qj_xy
+qj_yzloc = qj_yz
+qj_zxloc = qj_zx
+
+rij = xjloc - xiloc
+r2  = rij * rij + eps2
+r_inv  = rsqrt(r2)
+tmp    = 3.0f - r2*(r_inv*r_inv)
+r_inv *= (tmp * 0.5f)
+
+r2_inv  = r_inv  * r_inv
+r3_inv  = r2_inv * r_inv
+r4_inv  = r2_inv * r2_inv
+r5_inv  = r2_inv * r3_inv
+
+tr  = qj_xxloc + qj_yyloc + qj_zzloc
+qxx = 3.0f * qj_xxloc - tr
+qyy = 3.0f * qj_yyloc - tr
+qzz = 3.0f * qj_zzloc - tr
+qxy = 3.0f * qj_xyloc
+qyz = 3.0f * qj_yzloc
+qzx = 3.0f * qj_zxloc
+mtr = -(eps2 * tr)
+
+qr.x = qxx*rij.x + qxy*rij.y + qzx*rij.z
+qr.y = qyy*rij.y + qyz*rij.z + qxy*rij.x
+qr.z = qzz*rij.z + qzx*rij.x + qyz*rij.y
+rqr  = mtr + qr * rij
+rqr_r4_inv = rqr * r4_inv
+
+meff  =  mjloc + 0.5f * rqr_r4_inv
+meff3 = (mjloc + 2.5f * rqr_r4_inv) * r3_inv
+
+pf -= meff * r_inv
+af = af - r5_inv * qr + meff3 * rij
