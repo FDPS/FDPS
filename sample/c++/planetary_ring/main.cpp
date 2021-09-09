@@ -762,9 +762,9 @@ int main(int argc, char *argv[]) {
             eng_init.dump(std::cout);
             eng_now.dump(std::cout);
             std::cout<<"eng_now.disp= "<<eng_now.disp<<std::endl;
-            std::cout<<"param.getTimeSys()= "<<param.getTimeSys()<<" n_loop= "<<n_loop<<" (eng_now.tot-eng_init.tot)/eng_init.tot= "<<(eng_now.tot-eng_init.tot)/eng_init.tot
-                     <<" (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot
-		     <<" (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot
+            std::cout<<"param.getTimeSys()= "<<param.getTimeSys()<<" n_loop= "<<n_loop<<" eng_now.tot-eng_init.tot)/eng_init.tot= "<<(eng_now.tot-eng_init.tot)/eng_init.tot
+                     <<" eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot
+		//<<" (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot
                      <<std::endl;
             std::cout<<"n_int_ep_ep= "<<n_int_ep_ep
                      <<" n_int_ep_sp= "<<n_int_ep_sp
@@ -777,9 +777,9 @@ int main(int argc, char *argv[]) {
             eng_init.dump(fout_log);
             eng_now.dump(fout_log);
             fout_log<<"eng_now.disp= "<<eng_now.disp<<std::endl;
-            fout_log<<"param.getTimeSys()= "<<param.getTimeSys()<<" n_loop= "<<n_loop<<" (eng_now.tot-eng_init.tot)/eng_init.tot= "<<(eng_now.tot-eng_init.tot)/eng_init.tot
-		    <<" (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot
-		    <<" (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot
+            fout_log<<"param.getTimeSys()= "<<param.getTimeSys()<<" n_loop= "<<n_loop<<" eng_now.tot-eng_init.tot)/eng_init.tot= "<<(eng_now.tot-eng_init.tot)/eng_init.tot
+		    <<" eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot
+		//<<" (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot
 		    <<std::endl;
             fout_log<<"n_int_ep_ep= "<<n_int_ep_ep
 		    <<" n_int_ep_sp= "<<n_int_ep_sp
