@@ -847,6 +847,7 @@ namespace ParticleSimulator{
                 PARTICLE_SIMULATOR_PRINT_ERROR("serialization is not yet supported.");
                 Abort(-1);
             }
+	    //	    Comm::barrier(); //for time measurement only; should not be here.
             F64 time_offset = GetWtime();
 #if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
             const S32 n_loc  = ptcl_.size();
@@ -867,6 +868,7 @@ namespace ParticleSimulator{
                 n_send[i] = n_disp_send[i] = n_recv[i] = n_disp_recv[i] = 0;
             }
             n_disp_send[n_proc] = n_disp_recv[n_proc] = 0;
+
             F64 time_offset_inner = GetWtime();
             F64ort pos_root_domain = dinfo.getPosRootDomain();
             F64vec len_peri = pos_root_domain.high_ - pos_root_domain.low_;
@@ -1008,7 +1010,13 @@ PS_OMP_BARRIER
             // ****************************************************
             // *** receive the number of receive particles ********
             time_offset_inner = GetWtime();
+	    F64 etime1;
+	    F64 etime2;
+	    F64 etime3;
+	    //	    Comm::barrier();
+	    etime1=GetWtime();
             auto dnp_max_glb = comm_info_.getMaxValue(dnp_max_loc);
+	    etime2=GetWtime();
             /*
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
             if(2*dnp_max_glb[0]*2*dnp_max_glb[1] < nproc/4){
@@ -1045,6 +1053,7 @@ PS_OMP_BARRIER
                         n_cnt++;
                     }
                 }
+		etime3=GetWtime();
                 for(S32 ib = 1; ib < n_proc; ib++) {
                     S32 idsend = (ib + my_rank) % n_proc;
                     if(n_send[idsend] > 0) {
@@ -1054,6 +1063,7 @@ PS_OMP_BARRIER
                     }
                 }
                 MPI_Waitall(n_cnt, &req_recv[0], &status[0]);
+
             }
             else{
                 comm_info_.allToAllV(ptcl_send.getPointer(), n_send.getPointer(), n_disp_send.getPointer(), ptcl_.getPointer(n_remain), n_recv.getPointer(), n_disp_recv.getPointer());
@@ -1065,7 +1075,11 @@ PS_OMP_BARRIER
 #else
             n_proc_exch_ += 2*dnp_max_glb[0]*2*dnp_max_glb[1]*2*dnp_max_glb[2];
 #endif
-            time_profile_.exchange_particle__exchange_particle += GetWtime() - time_offset_inner;
+	    auto wt=GetWtime();
+            time_profile_.exchange_particle__exchange_particle += wt - time_offset_inner;
+            time_profile_.exchange_particle__exchange_particle_1 += etime1 - time_offset_inner;
+            time_profile_.exchange_particle__exchange_particle_2 += etime2 - etime1;
+            time_profile_.exchange_particle__exchange_particle_3 += etime3 - etime2;
             n_send.freeMem();
             n_disp_send.freeMem();
             n_recv.freeMem();
@@ -1248,6 +1262,10 @@ PS_OMP_PARALLEL_FOR
 	    auto rank_vec_org = GetRankVec(n_domain, my_rank, DIMENSION);
 	    auto dnp_head = -dnp_max;
 	    auto dnp_tail =  dnp_max;
+	    // if (Comm::getRank()==0){
+	    // 	std::cerr << "exchangenop" << dnp_max.x << " " << dnp_max.y
+            //          << " " <<  dnp_max.z << "\n" ;
+	    // }
 	    for(auto k=0; k<DIMENSION; k++){
 		if(dnp_max[k]*2+1 > n_domain[k]){
 		    dnp_head[k] = -n_domain[k] / 2;

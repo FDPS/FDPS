@@ -200,17 +200,89 @@ namespace ParticleSimulator{
         S32 r = right;
         while(l < r){
             S32 cen = (l+r) / 2;
-            S32 val_cen = morton_key.getCellID(lev, tp[cen].getKey());
+	    S32 val_cen;
+	    val_cen = morton_key.getCellID(lev, tp[cen].getKey());
             if(ref > val_cen){
                 l = cen+1;
             }
             else{
                 r = cen;
             }
-            if( morton_key.getCellID(lev, tp[l].getKey()) == ref ) return l;
+	    if( morton_key.getCellID(lev, tp[l].getKey()) == ref ) return l;
+
         }
         return -1;
     }
+    template<class Ttp, int levtype=0>
+    inline S32 GetPartitionIDsub(const Ttp tp[],
+                              const S32 left,
+                              const S32 right,
+                              const S32 ref,
+                              const S32 lev,
+                              const MortonKey & morton_key){
+	if constexpr (levtype==0){
+		if( morton_key.getCellID(lev, tp[right].getKey()) < ref) return -1;
+		if( morton_key.getCellID(lev, tp[left].getKey()) > ref) return -1;
+	    }else if (levtype==1){
+	    {
+		if( morton_key.getCellIDlow(lev, tp[right].getKey()) < ref) return -1;
+		if( morton_key.getCellIDlow(lev, tp[left].getKey()) > ref) return -1;
+	    }
+	}else{
+	    if( morton_key.getCellIDhigh(lev, tp[right].getKey()) < ref) return -1;
+	    if( morton_key.getCellIDhigh(lev, tp[left].getKey()) > ref) return -1;
+	}
+	
+	
+	
+        S32 l = left;
+        S32 r = right;
+        while(l < r){
+            S32 cen = (l+r) / 2;
+	    S32 val_cen;
+	    if constexpr (levtype==0){
+		    val_cen = morton_key.getCellID(lev, tp[cen].getKey());
+		}else if (levtype==1){
+		    val_cen = morton_key.getCellIDlow(lev, tp[cen].getKey());
+		}else {
+		    val_cen = morton_key.getCellIDhigh(lev, tp[cen].getKey());
+	    }
+			
+            if(ref > val_cen){
+                l = cen+1;
+            }
+            else{
+                r = cen;
+            }
+	    if constexpr (levtype==0){
+		    if( morton_key.getCellID(lev, tp[l].getKey()) == ref ) return l;
+		}else if (levtype==1){
+		{
+		    if( morton_key.getCellIDlow(lev, tp[l].getKey()) == ref ) return l;
+		}
+	    }else{
+		if( morton_key.getCellIDhigh(lev, tp[l].getKey()) == ref ) return l;
+	    }
+        }
+        return -1;
+    }
+    template<class Ttp>
+    inline S32 GetPartitionIDnew(const Ttp tp[], // slightly faster on X86 but not on Fugaku...
+                              const S32 left,
+                              const S32 right,
+                              const S32 ref,
+                              const S32 lev,
+                              const MortonKey & morton_key){
+	if (lev <= morton_key.keylevelmaxhigh()){
+	    auto levarg= (morton_key.keylevelmaxhigh()- lev) * 3 ;
+	    return GetPartitionIDsub<Ttp,2> (tp, left,right, ref, levarg,morton_key);
+	}else{
+	    auto levarg= (morton_key.keylevelmaxlow()
+			  - (lev-morton_key.keylevelmaxhigh())) * 3 ;
+	    return GetPartitionIDsub<Ttp,1> (tp, left,right, ref, levarg,morton_key);
+	}
+    }
+	    
 #endif
   
     template<class Ttc>
@@ -243,7 +315,7 @@ namespace ParticleSimulator{
             // assign particles to child cells and count # of particles in child cells
             // but loop over parent cells because they have indexes of particles
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for reduction(+: n_cell_new)
+#pragma omp parallel for reduction(+: n_cell_new) schedule(static)
 #endif
             for(S32 i=id_cell_left; i<id_cell_right+1; i++){
                 const S32 n_ptcl_tmp = tc_array[i].n_ptcl_;
@@ -266,68 +338,7 @@ namespace ParticleSimulator{
                         n_cnt++;
                     }
                 }
-                /*
-                if(n_cnt==0){
-                    std::cerr<<"lev_max= "<<lev_max<<std::endl;
-                    std::cerr<<"adr_ptcl_tmp= "<<adr_ptcl_tmp<<std::endl;
-                    std::cerr<<"tp[adr_ptcl_tmp].getKey()= "<<tp[adr_ptcl_tmp].getKey()<<std::endl;
-                    std::cerr<<"MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp].getKey())= "
-                             <<MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp].getKey())
-                             <<std::endl;
-                    std::cerr<<"adr_ptcl_tmp+n_ptcl_tmp-1= "<<adr_ptcl_tmp+n_ptcl_tmp-1<<std::endl;
-                    std::cerr<<"tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey()= "<<tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey()<<std::endl;
-                    std::cerr<<"MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey())= "
-                             <<MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey())
-                             <<std::endl;
-                    std::cerr<<"MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey())= "
-                             <<MortonKey::getCellID(lev_max+1, tp[adr_ptcl_tmp+n_ptcl_tmp-1].getKey())
-                             <<std::endl;
-                    for(S32 j=0; j<N_CHILDREN; j++){
-                        const S32 adr_tc_tmp = tc_array[i].adr_tc_ + j;
-
-                        std::cerr<<"GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1)="
-                                 <<GetPartitionID(tp, adr_ptcl_tmp, adr_ptcl_tmp+n_ptcl_tmp-1, j, lev_max+1)
-                                 <<std::endl;
-                        if(GetMSB(tc_array[adr_tc_tmp].adr_ptcl_)){
-                        }
-                        else{
-                            std::cerr<<"check a"<<std::endl;
-                        }
-                    }
-                }
-                */
                 S32 n_ptcl_cum = 0;
-                //if (n_cnt == 0) {
-                //    std::cout << "n_cnt = " << n_cnt << " "
-                //              << "n_ptcl_tmp = " << n_ptcl_tmp << " "
-                //              << "adr_ptcl_tmp = " << adr_ptcl_tmp << " "
-                //              << "thread id = " << omp_get_thread_num() << " "
-                //              << "rank = " << Comm::getRank() << " "
-                //              << "lev_max = " << lev_max << " "
-                //              << std::endl;
-                //    //for (S32 j=0; j<N_CHILDREN; j++) {
-                //    //    const S32 adr_tc_tmp = tc_array[i].adr_tc_ + j;
-                //    //    std::cout << "j = " << j << " "
-                //    //              << "tc_array[].adr_ptcl_ = " << tc_array[adr_tc_tmp].adr_ptcl_ << " "
-                //    //              << "tc_array[].level_ = " << tc_array[adr_tc_tmp].level_ << " "
-                //    //              << std::endl;
-                //    //}
-                //    for (S32 ip=adr_ptcl_tmp; ip < adr_ptcl_tmp+n_ptcl_tmp; ip++) 
-                //        std::cout << "ip = " << ip << " "
-                //                  << "tp[ip].key_ = " << tp[ip].key_ << " "
-                //                  << "(" << GetBinString(tp[ip].key_) << ") "
-                //                  << "val[0] = " << MortonKey::getCellID(0,tp[ip].key_) << " "
-                //                  << "val[1] = " << MortonKey::getCellID(1,tp[ip].key_) << " "
-                //                  << "val[2] = " << MortonKey::getCellID(2,tp[ip].key_) << " "
-                //                  << "val[3] = " << MortonKey::getCellID(3,tp[ip].key_) << " "
-                //                  << "val    = " << MortonKey::getCellID(lev_max+1,tp[ip].key_) << " "
-                //                  << "tp[ip].adr_ptcl_ = " << tp[ip].adr_ptcl_ << " "
-                //                  << std::endl;
-                //     struct timespec ts;
-                //     ts.tv_sec  = 0;
-                //     ts.tv_nsec = 10000;
-                //     clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
-                //}
                 for(S32 j=0; j<n_cnt-1; j++){
                     tc_array[adr[j]].n_ptcl_ = tc_array[adr[j+1]].adr_ptcl_ - tc_array[adr[j]].adr_ptcl_;
                     n_ptcl_cum += tc_array[adr[j]].n_ptcl_;
@@ -343,23 +354,65 @@ namespace ParticleSimulator{
             lev_max++;
             adr_tc_level_partition[lev_max+1] = id_cell_right + 1;
             if(lev_max == TREE_LEVEL_LIMIT) break;
-#if 0
-            // probably need prefix sum
-            // under construction
-            //#pragma omp parallel for
-            for(S32 i=id_cell_left; i<id_cell_right+1; i++){
-                const S32 id_tmp = i;
-            }
-#else
             S32 offset = id_cell_right+1;
-            for(S32 i=id_cell_left; i<id_cell_right+1; i++){
-                const S32 id_tmp = i;
-                if(!tc_array[id_tmp].isLeaf(n_leaf_limit)){
-                    tc_array[id_tmp].adr_tc_ = offset;
-                    offset += N_CHILDREN;
-                }
-            }
+	    auto n_thread = Comm::getNumberOfThread();
+	    if (n_thread  == 1 || (id_cell_right +1-id_cell_left)<10000){
+		for(S32 i=id_cell_left; i<id_cell_right+1; i++){
+		    const S32 id_tmp = i;
+		    if(!tc_array[id_tmp].isLeaf(n_leaf_limit)){
+			tc_array[id_tmp].adr_tc_ = offset;
+			offset += N_CHILDREN;
+			
+		    }
+		}
+	    }else{
+#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+
+		// OpenMP test
+		S32 offset_tmp[(id_cell_right+128)];
+		S32 th_offset[n_thread+1];
+#pragma omp parallel
+		{
+		    auto  id_thread = Comm::getThreadNum();
+		    auto mywork = (id_cell_right + 1 + n_thread - id_cell_left)/n_thread;
+		    auto mystart = id_cell_left+id_thread * mywork;
+		    auto myend = mystart + mywork;
+		    if (myend > id_cell_right + 1) myend = id_cell_right + 1;
+		    // printf("idlr= %d %d, start, end=%d %d\n",
+		    // 	   id_cell_left, id_cell_right, mystart, myend);
+		    auto localoffset = 0;
+		    for (auto i = mystart; i < myend; i++){
+			if(!tc_array[i].isLeaf(n_leaf_limit)){
+			    offset_tmp[i]=localoffset;
+			    localoffset += N_CHILDREN;
+			}else{
+			    offset_tmp[i]=-1;
+			}
+		    }
+		    th_offset[id_thread+1]=localoffset;
+#pragma omp barrier
+		    if (id_thread==0){
+			th_offset[0]=offset;
+			for(auto i = 0;i<n_thread; i++){
+			    th_offset[i+1] += th_offset[i];
+			}
+			offset = th_offset[n_thread];
+			// for(auto i = 0;i<n_thread; i++){
+			//     printf("thoffset[%d]=%d\n", i,th_offset[i]);
+			// }
+			// printf("offset=%d\n", offset);
+		    }
+#pragma omp barrier
+		    for (auto i = mystart; i < myend; i++){
+			if(offset_tmp[i]>=0){
+			    tc_array[i].adr_tc_ = th_offset[id_thread]
+				+offset_tmp[i];
+			}
+		    }
+		
+		}			
 #endif
+	    }
             tc_array.resizeNoInitialize(offset);
         }
 

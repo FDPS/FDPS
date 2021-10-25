@@ -435,7 +435,9 @@ int main(int argc, char *argv[]) {
     cmd.appendFlag("flag_bin_out", "output binary format");
     cmd.appendNoDefault("read_file",  "i", "write file name base", false);
     cmd.appendNoDefault("write_file", "o", "write file name base", false);
-    cmd.append("sat_mode",  "satellite mode\n  0: no satellite\n  1: PAN\n  2:  few satellites\n  (mode1 and mode2 are UNDER CONSTRUCTION.)\n", "0");
+    cmd.append("sat_mode",  "satellite mode\n  0: no satellite\n  1: PAN\n  2: few satellites\n", "0");
+    cmd.append("sat_mass_ratio",  "satellite-mass / particle-mass (this option is available ONLY IF sat_mode=2)", "8.0");
+    cmd.append("sat_num",  "satellite number per process (this option is available ONLY IF sat_mode=2)", "10");
     cmd.append("n_smp",  "# of sample particles per process", "100");
     cmd.append("dt_snp",  "the interval time of snapshot", "1.0");
     cmd.appendNoDefault("log_file",  "logfile name", false);
@@ -469,8 +471,10 @@ int main(int argc, char *argv[]) {
     bool    flag_mtm = cmd.get("flag_mtm");
     bool    flag_rot = cmd.get("flag_rot");
     bool    flag_para_out = cmd.get("flag_para_out");
-    bool    flag_bin_out = cmd.get("flag_bin_out");    
+    bool    flag_bin_out = cmd.get("flag_bin_out");
     PS::S32 sat_mode = cmd.get("sat_mode");
+    PS::F64 sat_mass_ratio = cmd.get("sat_mass_ratio");
+    PS::S32 sat_num = cmd.get("sat_num");
     PS::S32 n_smp    = cmd.get("n_smp");
     PS::F64 dt_snp = cmd.get("dt_snp");
 
@@ -554,15 +558,15 @@ int main(int argc, char *argv[]) {
 		PS::F64 ecc = 3e-5;
 		PS::F64 inc = 4e-3_deg;
 		*/
-		/*
 		// PAN
 		PS::F64 sat_mass = 1e-11;
 		PS::F64 ecc = 1e-5;
 		PS::F64 inc = 1e-4_deg;
-		*/
+                /*
 		PS::F64 sat_mass = system[0].mass * 64.0;
 		PS::F64 ecc = 0.0;
 		PS::F64 inc = 0.0;
+                */
 		PS::F64 OMG = M_PI; // pericenter is in the direction of -x
 		PS::F64 omg = 0.0;
 		PS::F64 u = M_PI; // satellite is at the apocenter
@@ -579,14 +583,47 @@ int main(int argc, char *argv[]) {
 		sat_system_loc.setSatellite(sat_tmp);	    
 	    }
 	} else if (sat_mode == 2){
-	    const PS::S32 n_remove = 10;
+            auto n_loc_tmp = system.getNumberOfParticleLocal();
+            assert(sat_num < n_loc_tmp);
+	    const PS::S32 n_remove = sat_num;
 	    PS::S32 id_remove[n_remove];
+            MY_LIB::GetUniqueID(id_remove, n_remove, 0, n_loc_tmp, 0);
+            /*
+            if(my_rank==0){
+                std::cerr<<"n_remove= "<<n_remove
+                         <<" n_loc_tmp= "<<n_loc_tmp
+                         <<std::endl;
+                for(auto i=0; i<n_remove; i++){
+                    std::cerr<<"i= "<<i<<" id_remove[i]= "<<id_remove[i]
+                             <<" system[id_remove[i]].pos_car= "<<system[id_remove[i]].pos_car
+                             <<" system[n_loc_tmp-1-i].pos_car= "<<system[n_loc_tmp-1-i].pos_car
+                             <<std::endl;
+                }
+            }
+            */
 	    for(auto i=0; i<n_remove; i++){
-		system[i].changeMass(system[i].mass * 8);
-		sat_system_loc.setSatellite(system[i]);
-		id_remove[i] = i;
+                const auto id_tmp = id_remove[i];
+		system[id_tmp].changeMass(system[id_tmp].mass * sat_mass_ratio);
+		sat_system_loc.setSatellite(system[id_tmp]);
+		id_remove[i] = id_tmp;
 	    }
 	    system.removeParticle(id_remove, n_remove);
+
+            /*
+            if(my_rank==0){
+                std::cerr<<"n_remove= "<<n_remove
+                         <<" n_loc_tmp= "<<n_loc_tmp
+                         <<std::endl;
+                for(auto i=0; i<n_remove; i++){
+                    std::cerr<<"i= "<<i<<" id_remove[i]= "<<id_remove[i]
+                             <<" sat_system_loc[i].pos= "<<sat_system_loc[i].pos_car
+                             <<" system[id_remove[i]].pos= "<<system[id_remove[i]].pos_car
+                             <<std::endl;
+                }
+            }
+            exit(1);
+            */
+            
 	}
 	sat_system_glb.allgatherSystem(sat_system_loc);
 	sat_system_glb.setId();
@@ -762,8 +799,8 @@ int main(int argc, char *argv[]) {
             eng_init.dump(std::cout);
             eng_now.dump(std::cout);
             std::cout<<"eng_now.disp= "<<eng_now.disp<<std::endl;
-            std::cout<<"param.getTimeSys()= "<<param.getTimeSys()<<" n_loop= "<<n_loop<<" eng_now.tot-eng_init.tot)/eng_init.tot= "<<(eng_now.tot-eng_init.tot)/eng_init.tot
-                     <<" eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot
+            std::cout<<"param.getTimeSys()= "<<param.getTimeSys()<<" n_loop= "<<n_loop<<" (eng_now.tot-eng_init.tot)/eng_init.tot= "<<(eng_now.tot-eng_init.tot)/eng_init.tot
+                     <<" (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot
 		//<<" (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot
                      <<std::endl;
             std::cout<<"n_int_ep_ep= "<<n_int_ep_ep
@@ -777,8 +814,8 @@ int main(int argc, char *argv[]) {
             eng_init.dump(fout_log);
             eng_now.dump(fout_log);
             fout_log<<"eng_now.disp= "<<eng_now.disp<<std::endl;
-            fout_log<<"param.getTimeSys()= "<<param.getTimeSys()<<" n_loop= "<<n_loop<<" eng_now.tot-eng_init.tot)/eng_init.tot= "<<(eng_now.tot-eng_init.tot)/eng_init.tot
-		    <<" eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot
+            fout_log<<"param.getTimeSys()= "<<param.getTimeSys()<<" n_loop= "<<n_loop<<" (eng_now.tot-eng_init.tot)/eng_init.tot= "<<(eng_now.tot-eng_init.tot)/eng_init.tot
+		    <<" (eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot-eng_now.disp)/eng_init.tot
 		//<<" (eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot= "<<(eng_now.tot-eng_init.tot+eng_now.disp)/eng_init.tot
 		    <<std::endl;
             fout_log<<"n_int_ep_ep= "<<n_int_ep_ep

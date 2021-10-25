@@ -120,6 +120,7 @@ namespace ParticleSimulator{
         enum{
 #if defined(PARTICLE_SIMULATOR_USE_64BIT_KEY)
             kLevMax = 21,
+            kLevMaxHi = 21,
 #elif defined(PARTICLE_SIMULATOR_USE_96BIT_KEY)
             kLevMaxHi = 21,
             kLevMaxLo = 10,
@@ -153,7 +154,9 @@ namespace ParticleSimulator{
         //~MortonKey(){};
         //MortonKey(const MortonKey &);
         //MortonKey & operator = (const MortonKey &);
-        
+
+	static inline S32 keylevelmaxhigh(){return S32 (kLevMaxHi);}
+	static inline S32 keylevelmaxlow(){return S32 (kLevMaxLo);}
         void initialize(const F64 half_len,
                         const F64vec & center=0.0){
             half_len_ = half_len;
@@ -218,6 +221,30 @@ namespace ParticleSimulator{
             else{
                 s = mkey.lo_ >> ( (kLevMaxLo - (lev-kLevMaxHi)) * 3 );
             }
+#endif
+            return (S32)(s & 0x7);
+        }
+        
+        template<typename Tkey>
+        S32 getCellIDlow(const S32 lev, const Tkey & mkey) const {
+            U64 s;
+#if defined (PARTICLE_SIMULATOR_USE_64BIT_KEY)
+            s = mkey.hi_ >> ( (kLevMax - lev) * 3 );
+#else
+	    //	    s = mkey.lo_ >> ( (kLevMaxLo - (lev-kLevMaxHi)) * 3 );
+	    s = mkey.lo_ >> lev;
+#endif
+            return (S32)(s & 0x7);
+        }
+        
+        template<typename Tkey>
+        S32 getCellIDhigh(const S32 lev, const Tkey & mkey) const {
+            U64 s;
+#if defined (PARTICLE_SIMULATOR_USE_64BIT_KEY)
+            s = 0;
+#else
+	    //	    s = mkey.hi_ >> ( (kLevMaxHi - lev) * 3 );
+	    	    s = mkey.hi_ >> lev;
 #endif
             return (S32)(s & 0x7);
         }

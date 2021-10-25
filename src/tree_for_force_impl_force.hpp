@@ -1412,6 +1412,7 @@ namespace ParticleSimulator{
         S64 n_interaction_ep_ep_tmp = 0;
         S64 n_interaction_ep_sp_tmp = 0;
         for(S32 i=0; i<Comm::getNumberOfThread(); i++) n_cell_open_[i] = 0;
+
         if(n_ipg > 0){
 #ifdef LOOP_TREE
             const auto n_thread = Comm::getNumberOfThread();
@@ -1503,10 +1504,18 @@ namespace ParticleSimulator{
             n_interaction_ep_sp_local_ += n_interaction_ep_sp_tmp;
             for(S32 i=1; i<Comm::getNumberOfThread(); i++) n_cell_open_[0] += n_cell_open_[i];
 #else
+            auto n_thread = Comm::getNumberOfThread();
+	    F64 maketreetime[n_thread];
+	    F64 calcforcetime[n_thread];
+	    for(auto i=0; i< n_thread; i++){
+		maketreetime[i]=0;
+		calcforcetime[i]=0;
+	    }
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
-#pragma omp parallel for schedule(dynamic, 4) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp, n_interaction_ep_sp_tmp)
+#pragma omp parallel for schedule(guided) reduction(+ : ni_tmp, nj_tmp, n_interaction_ep_ep_tmp, n_interaction_ep_sp_tmp)
 #endif
             for(S32 i=0; i<n_ipg; i++){
+		F64 wtime_offset = GetWtime();
                 //std::cerr<<"i= "<<i<<" n_ipg= "<<n_ipg<<std::endl;
                 const S32 ith = Comm::getThreadNum();
                 epj_for_force_[ith].clearSize();
@@ -1514,13 +1523,24 @@ namespace ParticleSimulator{
                 adr_epj_for_force_[ith].clearSize();
                 adr_spj_for_force_[ith].clearSize();
                 makeInteractionList(i);
+		F64 wtime_offset2 = GetWtime();
+		maketreetime[ith] += wtime_offset2 - wtime_offset;
                 ni_tmp += ipg_[i].n_ptcl_;
                 nj_tmp += epj_for_force_[Comm::getThreadNum()].size();
                 nj_tmp += spj_for_force_[Comm::getThreadNum()].size();
                 n_interaction_ep_ep_tmp += ipg_[i].n_ptcl_ * epj_for_force_[Comm::getThreadNum()].size();
                 n_interaction_ep_sp_tmp += ipg_[i].n_ptcl_ * spj_for_force_[Comm::getThreadNum()].size();
                 calcForceOnly( pfunc_ep_ep, pfunc_ep_sp, i, clear);
+		calcforcetime[ith] += GetWtime() - wtime_offset2;
             }
+	    F64 makemax=0;
+	    F64 calcmax=0;
+            for(S32 i=0; i<n_thread; i++){
+		if (makemax < maketreetime[i])makemax = maketreetime[i];
+		if (calcmax < calcforcetime[i])calcmax = calcforcetime[i];
+	    }
+	    time_profile_.calc_force__core__walk_tree  += makemax;
+	    time_profile_.calc_force__core += calcmax;
             ni_ave_ = ni_tmp / n_ipg;
             nj_ave_ = nj_tmp / n_ipg;
             n_interaction_ep_ep_ = n_interaction_ep_ep_tmp;

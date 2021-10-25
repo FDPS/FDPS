@@ -168,5 +168,21 @@ namespace MY_LIB{
 	    return v * vel_unit_;
 	}
     };
+
+    void GetUniqueID(int id[], const int n_dst, const int min, const int max, int seed=0){
+        const auto n_src = max - min + 1;
+        assert(n_src >= n_dst);
+        std::mt19937 mt(seed);
+        std::uniform_int_distribution<int> dist(min, max);
+        bool flag[n_src] = {false};
+        for(int i=0; i<n_dst; i++){
+            int j;
+            do{
+                j = dist(mt);
+            }while(flag[j-min]==true);
+            id[i] = j;
+            flag[j-min] = true;
+        }
+    }
     
 }

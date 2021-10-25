@@ -9,7 +9,7 @@ CXXFLAGS += -Wall
 
 SRC = main.cpp
 
-#use_pikg_x86 = yes
+use_pikg_x86 = yes
 
 ifeq ($(use_pikg_x86),yes)
 PIKG_ROOT = ../../../pikg
@@ -19,15 +19,15 @@ CXXFLAGS += -DUSE_PIKG_KERNEL -DPIKG_USE_FDPS_VECTOR
 #CXXFLAGS += -DKERNEL_64BIT
 
 # reference option
-CONVERSION_TYPE=reference
+#CONVERSION_TYPE=reference
 
 # AVX2 options
 #CONVERSION_TYPE = AVX2
 #CXXFLAGS+= -mavx2 -mfma -ffast-math
 
 # AVX-512 options
-#CONVERSION_TYPE = AVX-512
-#CXXFLAGS+= -mavx512f -mavx512dq -ffast-math
+CONVERSION_TYPE = AVX-512
+CXXFLAGS+= -mavx512f -mavx512dq -ffast-math
 
 PIKG_FLAGS= --conversion-type $(CONVERSION_TYPE)
 SRC += user_defined_kernel.hpp kernel_ep.hpp kernel_sp.hpp kernel_sp_quad.hpp

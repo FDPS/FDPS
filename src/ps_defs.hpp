@@ -17,10 +17,22 @@
 #include"mpi.h"
 #endif
 
+#define PS_CPLUSPLUS_20 202002L
+#define PS_CPLUSPLUS_17 201703L
+#define PS_CPLUSPLUS_14 201402L
+#define PS_CPLUSPLUS_11 201103L
+
+
+
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
 #include<omp.h>
 #define PS_OMP(...) _Pragma(#__VA_ARGS__)
 #define PS_OMP_PARALLEL_FOR _Pragma("omp parallel for")
+#define PS_OMP_PARALLEL_FOR_G _Pragma("omp parallel for schedule(guided)")
+#define PS_OMP_PARALLEL_FOR_D _Pragma("omp parallel for schedule(dynamic,1)")
+#define PS_OMP_PARALLEL_FOR_D4 _Pragma("omp parallel for schedule(dynamic,4)")
+#define PS_OMP_PARALLEL_FOR_S _Pragma("omp parallel for schedule(static)")
+
 #define PS_OMP_PARALLEL _Pragma("omp parallel")
 #define PS_OMP_FOR _Pragma("omp for")
 #define PS_OMP_CRITICAL _Pragma("omp critical")
@@ -29,6 +41,10 @@
 #else
 #define PS_OMP(...)
 #define PS_OMP_PARALLEL_FOR
+#define PS_OMP_PARALLEL_FOR_D4
+#define PS_OMP_PARALLEL_FOR_D
+#define PS_OMP_PARALLEL_FOR_G
+#define PS_OMP_PARALLEL_FOR_S
 #define PS_OMP_PARALLEL
 #define PS_OMP_FOR
 #define PS_OMP_CRITICAL
@@ -110,6 +126,7 @@ void DEBUG_PRINT_MAKING_TREE(Tcomm & comm_info){
 }
 
 namespace ParticleSimulator{
+
     static const long long int LIMIT_NUMBER_OF_TREE_PARTICLE_PER_NODE = 1ll<<30;
     static inline void Abort(const int err = -1){
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
@@ -209,6 +226,7 @@ namespace ParticleSimulator{
     typedef F64mat FSPmat;
 #endif
     typedef U64 CountT;
+    typedef CountT Count_t;
     static const F64 LARGE_DOUBLE = std::numeric_limits<F64>::max()*0.0625;
     static const F64 LARGE_FLOAT  = std::numeric_limits<F32>::max()*0.0625;
     static const S64 LARGE_INT    = std::numeric_limits<S32>::max()*0.0625;
@@ -958,8 +976,26 @@ namespace ParticleSimulator{
         // MPI BCAST WRAPPER //
         template<class T>
         inline void broadcast(T * val, const int n, const int src=0) const {
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL	
-            MPI_Bcast(val, n, GetDataType<T>(), src, comm_);
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
+	    constexpr S64 dlimit = std::numeric_limits<int>::max()/4;
+	    MPI_Datatype dtype = MPI_BYTE;
+	    int factor = 1;
+	    if(sizeof(T) % sizeof(long long int) == 0){
+		factor = sizeof(T) / sizeof(long long int);
+		dtype = MPI_LONG_LONG_INT;
+	    } else if (sizeof(T) % sizeof(long) == 0){
+		factor = sizeof(T) / sizeof(long);
+		dtype = MPI_LONG;
+	    } else if(sizeof(T) % sizeof(int) == 0) {
+		factor = sizeof(T) / sizeof(int);
+		dtype = MPI_INT;
+	    }
+	    S64 dsize = (S64)n * (S64)factor;
+	    if(dsize < dlimit){
+		MPI_Bcast(val, (int)dsize, dtype, src, comm_);
+	    } else {
+		MPI_Bcast(val, n, GetDataType<T>(), src, comm_);
+	    }
 #endif
         }
 
@@ -1645,7 +1681,7 @@ namespace ParticleSimulator{
             std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
             std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
             std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-            std::cerr << "     ||     Version 7.0 (2021/08)        ||"   << std::endl;
+            std::cerr << "     ||     Version 7.1 (2021/10)        ||"   << std::endl;
             std::cerr << "     \\\\==================================//" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
@@ -2023,6 +2059,7 @@ namespace ParticleSimulator{
         F64 write_back; // new but default
 
         // not public
+        F64 morton_key_local_tree;
         F64 morton_sort_local_tree;
         F64 link_cell_local_tree;
         F64 morton_sort_global_tree;
@@ -2046,6 +2083,9 @@ namespace ParticleSimulator{
         F64 exchange_particle__find_particle_2;
         F64 exchange_particle__find_particle_3;
         F64 exchange_particle__exchange_particle;
+        F64 exchange_particle__exchange_particle_1;
+        F64 exchange_particle__exchange_particle_2;
+        F64 exchange_particle__exchange_particle_3;
 
         F64 decompose_domain__sort_particle_1st;
         F64 decompose_domain__sort_particle_2nd;
@@ -2058,6 +2098,8 @@ namespace ParticleSimulator{
         F64 decompose_domain__determine_coord_2nd;
         F64 decompose_domain__determine_coord_3rd;
         F64 decompose_domain__exchange_pos_domain;
+        F64 decompose_domain__barrier;
+        F64 decompose_domain__postprocess;
 
         F64 exchange_LET_1st__a2a_n;
         F64 exchange_LET_1st__icomm_ptcl;
@@ -2118,6 +2160,7 @@ namespace ParticleSimulator{
             collect_sample_particle = decompose_domain = exchange_particle = set_particle_local_tree = set_particle_global_tree = make_local_tree = make_global_tree = set_root_cell
                 = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd 
                 = exchange_LET_1st = exchange_LET_2nd = 0.0;
+	    morton_key_local_tree = 0;
             morton_sort_local_tree = link_cell_local_tree
                 = morton_sort_global_tree = link_cell_global_tree = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
@@ -2130,6 +2173,7 @@ namespace ParticleSimulator{
             decompose_domain__sort_particle_1st = decompose_domain__sort_particle_2nd = decompose_domain__sort_particle_3rd = decompose_domain__gather_particle = 0.0;
             decompose_domain__setup = decompose_domain__determine_coord_1st = decompose_domain__migrae_particle_1st = decompose_domain__determine_coord_2nd 
                 = decompose_domain__determine_coord_3rd = decompose_domain__exchange_pos_domain = 0.0;
+	    decompose_domain__barrier=decompose_domain__postprocess=0;
             exchange_LET_1st__a2a_n = exchange_LET_1st__a2a_sp = exchange_LET_1st__icomm_ptcl = exchange_LET_1st__a2a_ep = 0.0;
 
             add_moment_as_sp_local = add_moment_as_sp_global = 0.0;
@@ -2215,6 +2259,7 @@ namespace ParticleSimulator{
         void clear(){
             collect_sample_particle = decompose_domain = exchange_particle = make_local_tree = make_global_tree = set_particle_local_tree = set_particle_global_tree = set_root_cell
                 = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd = exchange_LET_1st = exchange_LET_2nd = 0.0;
+	    morton_key_local_tree = 0;
             morton_sort_local_tree = link_cell_local_tree 
                 = morton_sort_global_tree = link_cell_global_tree = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
@@ -2225,7 +2270,9 @@ namespace ParticleSimulator{
             calc_force__core__retrieve  = 0.0;
             calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
             exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
-
+	    exchange_particle__exchange_particle_1 = 0.0;
+	    exchange_particle__exchange_particle_2 = 0.0;
+	    exchange_particle__exchange_particle_3 = 0.0;
 	    exchange_particle__find_particle_2 = exchange_particle__find_particle_3 = 0.0;
 
             decompose_domain__sort_particle_1st = decompose_domain__sort_particle_2nd = decompose_domain__sort_particle_3rd = decompose_domain__gather_particle = 0.0;
@@ -2539,6 +2586,7 @@ PS_OMP_PARALLEL
         operator unsigned int() const {return (unsigned int)hi_;}
         operator long() const {return (long)hi_;}
         operator unsigned long() const {return (unsigned long)hi_;}
+        operator double() const {return (double)hi_;}
 
         template<typename T>
         KeyT operator << (const T & s) const {
@@ -2664,7 +2712,7 @@ PS_OMP_PARALLEL
 #ifdef LOOP_TREE
     static const S32 ADR_TREE_CELL_NULL = 1;
     static const S32 SIMD_VEC_LEN = 8;
-    static const S32 N_THREAD_LIMIT = 12;
+    static const S32 N_THREAD_LIMIT = 64;
     static const S32 BUF_SIZE_INTERACTION_LIST = 100000;
 #endif
 

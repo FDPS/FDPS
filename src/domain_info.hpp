@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef PARTICLE_SIMULATOR_USE_SAMPLE_SORT
+#include"samplesortlib.hpp"
+#endif
+
 #include<iostream>
 #include<fstream>
 #include<functional>
@@ -277,7 +281,6 @@ namespace ParticleSimulator{
 	    auto nproc  = comm_info_.getNumberOfProc();
             auto myrank = comm_info_.getRank();
             comm_info_.allGather(&number_of_sample_particle_loc_, 1, n_smp_array_);
-
             n_smp_disp_array_[0] = 0;
             for(S32 i=0; i<nproc; i++){
                 n_smp_disp_array_[i+1] = n_smp_disp_array_[i] + n_smp_array_[i];
@@ -294,17 +297,28 @@ namespace ParticleSimulator{
             
             //comm_info_.allGatherV(&pos_sample_loc_[0], number_of_sample_particle_loc_, &pos_sample_tot_[0], n_smp_array_, n_smp_disp_array_);
             comm_info_.allGatherV(pos_sample_loc_.getPointer(), number_of_sample_particle_loc_, pos_sample_tot_.getPointer(), n_smp_array_, n_smp_disp_array_);
+	    auto toffset2=GetWtime() ;
+            time_profile_.decompose_domain__gather_particle += toffset2- time_offset;
 
             number_of_sample_particle_tot_ = n_smp_disp_array_[nproc];
 
             // ****************************************************
             // *** decompose domain *******************************
-            if(myrank == 0) {
+	    bool decompose_in_all_processes=true;
+            if(myrank == 0 ||decompose_in_all_processes) {
                 S32 * istart = new S32[nproc];
                 S32 * iend   = new S32[nproc];
                 // --- x direction --------------------------
 		//std::sort(pos_sample_tot_, pos_sample_tot_+number_of_sample_particle_tot_, Cmpvec(&F64vec::x));
+		F64 wtmp = GetWtime();
+#if defined(PARTICLE_SIMULATOR_USE_SAMPLE_SORT)
+                SampleSortLib::samplesort_bodies(pos_sample_tot_.getPointer(),
+						 number_of_sample_particle_tot_,
+						 [](const F64vec & v )
+						 ->auto{return v.x;});
+#else		
                 std::sort(pos_sample_tot_.getPointer(), pos_sample_tot_.getPointer(number_of_sample_particle_tot_), Cmpvec(&F64vec::x));
+#endif
                 for(S32 i = 0; i < nproc; i++) {
                     istart[i] = ((S64)(i) * (S64)(number_of_sample_particle_tot_)) / (S64)(nproc);
                     if(i > 0)
@@ -324,10 +338,13 @@ namespace ParticleSimulator{
                     }
                 }
 
+		time_profile_.decompose_domain__sort_particle_1st += GetWtime()- wtmp;		
 
                 
                 // ------------------------------------------
                 // --- y direction --------------------------
+		wtmp = GetWtime();
+PS_OMP_PARALLEL_FOR_G
                 for(S32 ix = 0; ix < n_domain_[0]; ix++) {
                     S32 ix0 =  ix      * n_domain_[1] * n_domain_[2];
                     S32 ix1 = (ix + 1) * n_domain_[1] * n_domain_[2];
@@ -336,7 +353,7 @@ namespace ParticleSimulator{
                     //std::sort(&pos_sample_tot_[istart[ix0]], &pos_sample_tot_[(iend[ix1-1]+1)], Cmpvec(&F64vec::y));
                     std::sort(pos_sample_tot_.getPointer(istart[ix0]), pos_sample_tot_.getPointer((iend[ix1-1]+1)), Cmpvec(&F64vec::y));
 /*
-                    for(S32 i=istart[ix0]; i<iend[ix1-1]+1; i++){
+		      for(S32 i=istart[ix0]; i<iend[ix1-1]+1; i++){
                         if(pos_sample_tot_[i+1].y < pos_sample_tot_[i].y){
                             std::cout<<"y sort is wrong: i="<<i<<std::endl;
                             std::cout<<"pos_sample_tot_[i+1]="<<pos_sample_tot_[i+1]<<std::endl;
@@ -362,9 +379,12 @@ namespace ParticleSimulator{
                         }
                     }
                 }
+		time_profile_.decompose_domain__sort_particle_2nd += GetWtime()- wtmp;		
 #ifndef PARTICLE_SIMULATOR_TWO_DIMENSION
+		wtmp = GetWtime();
                 // ------------------------------------------
                 // --- z direction --------------------------
+PS_OMP_PARALLEL_FOR_G
                 for(S32 ix = 0; ix < n_domain_[0]; ix++) {
                     S32 ix0 = ix * n_domain_[1] * n_domain_[2];
                     for(S32 iy = 0; iy < n_domain_[1]; iy++) {
@@ -388,6 +408,7 @@ namespace ParticleSimulator{
                         }
                     }
                 }
+		time_profile_.decompose_domain__sort_particle_3rd += GetWtime()- wtmp;		
 #endif // PARTICLE_SIMULATOR_TWO_DIMENSION
                 // ------------------------------------------
                 // --- process first ------------------------
@@ -408,13 +429,19 @@ namespace ParticleSimulator{
                 delete [] istart;
                 delete [] iend;
             }
+	    F64 wtmp = GetWtime();
             // ****************************************************
             // *** broad cast pos_domain_ *************************
-            comm_info_.broadcast(pos_domain_, nproc);
+            comm_info_.barrier();
+	    F64 wtmp2 = GetWtime();
+	    if (!decompose_in_all_processes){
+		comm_info_.broadcast(pos_domain_, nproc);
+	    }
             if(first_call_by_decomposeDomain) {
                 first_call_by_decomposeDomain = false;            
-                comm_info_.broadcast(&first_call_by_decomposeDomain, 1);
+		//     comm_info_.broadcast(&first_call_by_decomposeDomain, 1);
             }
+	    F64 wtmp3 = GetWtime();
             //std::cout<<"end of bcast: "<<"time: "<<GetWtime() - Tbegin<<std::endl;
             //Comm::broadcast(pos_domain_, nproc);
             // ****************************************************
@@ -430,6 +457,11 @@ namespace ParticleSimulator{
             pos_sample_tot_.freeMem();
             pos_sample_loc_.freeMem();
             
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
+            time_profile_.decompose_domain__barrier += wtmp2 - wtmp;
+            time_profile_.decompose_domain__exchange_pos_domain += wtmp3-wtmp2;
+            time_profile_.decompose_domain__postprocess += GetWtime() - wtmp3;
+#endif
             time_profile_.decompose_domain += GetWtime() - time_offset;
         }
 
@@ -622,7 +654,7 @@ namespace ParticleSimulator{
                 }
             }
             for(S32 i=0; i<DIMENSION; i++){
-	        if( periodic_axis_[i] == false ) continue;
+	        //if( periodic_axis_[i] == false ) continue;
 		if(low[i] < high[i]){
 		    pos_root_domain_.low_[i] = low[i];
 		    pos_root_domain_.high_[i] = high[i];
@@ -1480,10 +1512,8 @@ namespace ParticleSimulator{
         template<class Tpsys>
         void decomposeDomainAll2(Tpsys & psys){
             const F64 wgh = psys.getNumberOfParticleLocal();
-            const bool clear = true;
             decomposeDomainAll2(psys, wgh);
         }
-        
     };
 }
 

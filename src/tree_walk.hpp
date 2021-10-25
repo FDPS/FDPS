@@ -6,13 +6,6 @@ namespace ParticleSimulator{
 
     ////////////
     // walk mode
-    //struct TagWalkModeNormal{};
-    //struct TagWalkModeNearestImage{};
-    // walk mode
-    ////////////
-
-    ////////////
-    // walk mode
     struct TagChopLeafTrue{};
     struct TagChopLeafFalse{};
     // walk mode
@@ -104,10 +97,14 @@ namespace ParticleSimulator{
         void set(const Tipg & ipg){
             vertex_in_ = ipg.vertex_in_;
         }
-        template<class Tep>
+        template<class Tep, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
         inline bool isInEpList(const ReallocatableArray<Tep> & ep_first,
-                               const S32 adr) const {
-            const F64 dis_sq = vertex_in_.getDistanceMinSQ(ep_first[adr].getPos());
+                               const S32 adr,
+                               const F64vec & len_peri) const {
+            //const auto dis_sq = vertex_in_.getDistanceMinSQ(ep_first[adr].getPos());
+            const F64vec ep_pos = ep_first[adr].getPos();
+            //const auto dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(vertex_in_, ep_pos, len_peri);
+            const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(vertex_in_, ep_pos, len_peri);
             const F64 r_crit_sq = ep_first[adr].getRSearch() * ep_first[adr].getRSearch();
             return dis_sq <= r_crit_sq;
         }
@@ -122,12 +119,19 @@ namespace ParticleSimulator{
             vertex_out_ = ipg.vertex_out_;
             vertex_in_ = ipg.vertex_in_;
         }
-        template<class Tep>
+        template<class Tep, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
         inline bool isInEpList(const ReallocatableArray<Tep> & ep_first,
-                               const S32 adr) const {
-            const F64 dis_sq = vertex_in_.getDistanceMinSQ(ep_first[adr].getPos());
+                               const S32 adr,
+                               const F64vec & len_peri) const {
+            //const F64 dis_sq = vertex_in_.getDistanceMinSQ(ep_first[adr].getPos());
+	    const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(vertex_in_, ep_first[adr].getPos(), len_peri);
             const F64 r_crit_sq = ep_first[adr].getRSearch() * ep_first[adr].getRSearch();
+#if 1
+            //const F64 dis_sq_2 = GetDistanceMinSq<CALC_DISTANCE_TYPE>(vertex_out_, ep_first[adr].getPos(), len_peri);
+            return (dis_sq <= r_crit_sq) || IsOverlapped<CALC_DISTANCE_TYPE>(vertex_out_, ep_first[adr].getPos(), len_peri);
+#else
             return (dis_sq <= r_crit_sq) || (vertex_out_.overlapped(ep_first[adr].getPos()));
+#endif
         }
     };
   
@@ -138,10 +142,14 @@ namespace ParticleSimulator{
         void set(const Tipg & ipg){
             vertex_out_ = ipg.vertex_out_;
         }
-        template<class Tep>
+        template<class Tep, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
         inline bool isInEpList(const ReallocatableArray<Tep> & ep_first,
-                               const S32 adr) const {
-            return vertex_out_.overlapped(ep_first[adr].getPos());
+                               const S32 adr,
+                               const F64vec & len_peri) const {
+            return IsOverlapped<CALC_DISTANCE_TYPE>(vertex_out_, ep_first[adr].getPos(), len_peri);
+	    //const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(vertex_out_, ep_first[adr].getPos(), len_peri);
+            //return dis_sq;
+            //return vertex_out_.overlapped(ep_first[adr].getPos());
         }
     };
     // targe box class
@@ -190,64 +198,92 @@ namespace ParticleSimulator{
     
     ///////////
     // IS OPEN
-    template<class TSM, class Ttc>
+    template<enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE, class TSM, class Ttc>
     inline bool IsOpen(TagSearchLong,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> target_box){
+                       const TargetBox<TSM> target_box,
+                       const F64vec & len_peri){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
     
-    template<class TSM, class Ttc>
+    template<enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE, class TSM, class Ttc>
     inline bool IsOpen(TagSearchLongScatter,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> target_box){
+                       const TargetBox<TSM> target_box,
+                       const F64vec & len_peri){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
 
-    template<class TSM, class Ttc>
+    template<enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE, class TSM, class Ttc>
     inline bool IsOpen(TagSearchLongSymmetry,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> target_box){
+                       const TargetBox<TSM> target_box,
+                       const F64vec & len_peri){
         return (tc_first[adr_tc].n_ptcl_ > 0);
     }
 
-    template<class TSM, class Ttc>
+    template<enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE, class TSM, class Ttc>
     inline bool IsOpen(TagSearchLongCutoff,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> target_box){
+                       const TargetBox<TSM> target_box,
+                       const F64vec & len_peri){
+#if 1
+        return ( IsOverlapped<CALC_DISTANCE_TYPE>(target_box.vertex_, tc_first[adr_tc].geo_.getVertexOut(), len_peri)
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+#else
         return ( (target_box.vertex_.overlapped(tc_first[adr_tc].geo_.getVertexOut()))
-                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );        
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+#endif
     }
     
-    template<class TSM, class Ttc>
+    template<enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE, class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortScatter,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> target_box){
+                       const TargetBox<TSM> target_box,
+                       const F64vec & len_peri){
+#if 1
+        return ( IsOverlapped<CALC_DISTANCE_TYPE>(target_box.vertex_in_, tc_first[adr_tc].geo_.getVertexOut(), len_peri)
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+#else
         return ( (target_box.vertex_in_.overlapped(tc_first[adr_tc].geo_.getVertexOut()))
-                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );        
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+#endif
     }
     
-    template<class TSM, class Ttc>
+    template<enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE, class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortSymmetry,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> target_box){
+                       const TargetBox<TSM> target_box,
+                       const F64vec & len_peri){
+#if 1
+        return ( (IsOverlapped<CALC_DISTANCE_TYPE>(target_box.vertex_in_, tc_first[adr_tc].geo_.getVertexOut(), len_peri)
+                  || target_box.vertex_out_.overlapped(tc_first[adr_tc].geo_.getVertexIn()))
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+#else
         return ( ( (target_box.vertex_in_.overlapped(tc_first[adr_tc].geo_.getVertexOut()))
-                 || (target_box.vertex_out_.overlapped(tc_first[adr_tc].geo_.getVertexIn())) )
-                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );        
+                   || (target_box.vertex_out_.overlapped(tc_first[adr_tc].geo_.getVertexIn())) )
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+#endif
     }
-    template<class TSM, class Ttc>
+    template<enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE, class TSM, class Ttc>
     inline bool IsOpen(TagSearchShortGather,
                        const ReallocatableArray<Ttc> & tc_first,
                        const S32 adr_tc,
-                       const TargetBox<TSM> target_box){
+                       const TargetBox<TSM> target_box,
+                       const F64vec & len_peri){
+#if 1
+        return ( IsOverlapped<CALC_DISTANCE_TYPE>(target_box.vertex_out_, tc_first[adr_tc].geo_.getVertexIn(), len_peri)
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+#else
         return ( target_box.vertex_out_.overlapped(tc_first[adr_tc].geo_.getVertexIn())
-                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );        
+                 &&  (tc_first[adr_tc].n_ptcl_ > 0) );
+#endif
     }    
     // IS OPEN
     ///////////
@@ -269,7 +305,7 @@ namespace ParticleSimulator{
 
     ///////////
     // COPY INFO CLOSE
-    template<class TSM, class Ttp, class Tep, class Tsp>
+    template<class TSM, class Ttp, class Tep, class Tsp, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void CopyInfoClose(TagForceLong,
                               TagChopLeafTrue,
                               TagCopyInfoCloseNoSp,
@@ -280,7 +316,8 @@ namespace ParticleSimulator{
                               ReallocatableArray<S32> & adr_ep_list,
                               const ReallocatableArray<Tsp> & sp_first,
                               ReallocatableArray<S32> & adr_sp_list,
-                              const TargetBox<TSM> & target_box){
+                              const TargetBox<TSM> & target_box,
+                              const F64vec & len_peri){
         S32 cnt_adr_ptcl = adr_ptcl;
         adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
         for(S32 ip=0; ip<n_ptcl; ip++, cnt_adr_ptcl++){
@@ -288,7 +325,7 @@ namespace ParticleSimulator{
             adr_ep_list.pushBackNoCheck(cnt_adr_ptcl);
         }
     }
-    template<class TSM, class Ttp, class Tep, class Tsp>
+    template<class TSM, class Ttp, class Tep, class Tsp, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void CopyInfoClose(TagForceLong,
                               TagChopLeafFalse,
                               TagCopyInfoCloseNoSp,
@@ -299,7 +336,8 @@ namespace ParticleSimulator{
                               ReallocatableArray<S32> & adr_ep_list,
                               const ReallocatableArray<Tsp> & sp_first,
                               ReallocatableArray<S32> & adr_sp_list,
-                              const TargetBox<TSM> & target_box){
+                              const TargetBox<TSM> & target_box,
+                              const F64vec & len_peri){
         S32 cnt_adr_ptcl = adr_ptcl;
         adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
         for(S32 ip=0; ip<n_ptcl; ip++, cnt_adr_ptcl++){
@@ -308,7 +346,7 @@ namespace ParticleSimulator{
         }
     }
 
-    template<class TSM, class Ttp, class Tep, class Tsp>
+    template<class TSM, class Ttp, class Tep, class Tsp, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void CopyInfoClose(TagForceLong,
                               TagChopLeafTrue,
                               TagCopyInfoCloseWithTpAdrptcl,
@@ -319,7 +357,8 @@ namespace ParticleSimulator{
                               ReallocatableArray<S32> & adr_ep_list,
                               const ReallocatableArray<Tsp> & sp_first,
                               ReallocatableArray<S32> & adr_sp_list,
-                              const TargetBox<TSM> & target_box){
+                              const TargetBox<TSM> & target_box,
+                              const F64vec & len_peri){
         S32 cnt_adr_ptcl = adr_ptcl;
         adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
         adr_sp_list.reserveEmptyAreaAtLeast(n_ptcl);
@@ -334,7 +373,7 @@ namespace ParticleSimulator{
             }
         }
     }
-    template<class TSM, class Ttp, class Tep, class Tsp>
+    template<class TSM, class Ttp, class Tep, class Tsp, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void CopyInfoClose(TagForceLong,
                               TagChopLeafFalse,
                               TagCopyInfoCloseWithTpAdrptcl,
@@ -345,7 +384,8 @@ namespace ParticleSimulator{
                               ReallocatableArray<S32> & adr_ep_list,
                               const ReallocatableArray<Tsp> & sp_first,
                               ReallocatableArray<S32> & adr_sp_list,
-                              const TargetBox<TSM> & target_box){
+                              const TargetBox<TSM> & target_box,
+                              const F64vec & len_peri){
         S32 cnt_adr_ptcl = adr_ptcl;
         adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
         adr_sp_list.reserveEmptyAreaAtLeast(n_ptcl);
@@ -361,7 +401,7 @@ namespace ParticleSimulator{
         }
     }
 
-    template<class TSM, class Ttp, class Tep, class Tsp>
+    template<class TSM, class Ttp, class Tep, class Tsp, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void CopyInfoClose(TagForceShort,
                               TagChopLeafTrue,
                               TagCopyInfoCloseNoSp,
@@ -372,16 +412,27 @@ namespace ParticleSimulator{
                               ReallocatableArray<S32> & adr_ep_list,
                               const ReallocatableArray<Tsp> & sp_first,
                               ReallocatableArray<S32> & adr_sp_list,
-                              const TargetBox<TSM> & target_box){
+                              const TargetBox<TSM> & target_box,
+                              const F64vec & len_peri){
         adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
         for(S32 ip=0; ip<n_ptcl; ip++){
             const S32 adr = adr_ptcl + ip;
+            /*
+#if 1
+	    const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box, ep_first[adr].getPos(), len_peri);
+            if( dis_sq <= 0.0 ){
+#else
             if( target_box.isInEpList(ep_first, adr) ){
+#endif
+            */
+            //if( target_box.isInEpList<Tep, CALC_DISTANCE_TYPE>(ep_first, adr, len_peri) ){
+            if( target_box.template isInEpList<Tep, CALC_DISTANCE_TYPE>(ep_first, adr, len_peri) ){
                 adr_ep_list.pushBackNoCheck(adr);
             }
+
         }
     }
-    template<class TSM, class Ttp, class Tep, class Tsp>
+    template<class TSM, class Ttp, class Tep, class Tsp, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline void CopyInfoClose(TagForceShort,
                               TagChopLeafFalse,
                               TagCopyInfoCloseNoSp,
@@ -392,7 +443,8 @@ namespace ParticleSimulator{
                               ReallocatableArray<S32> & adr_ep_list,
                               const ReallocatableArray<Tsp> & sp_first,
                               ReallocatableArray<S32> & adr_sp_list,
-                              const TargetBox<TSM> & target_box){
+                              const TargetBox<TSM> & target_box,
+                              const F64vec & len_peri){
         adr_ep_list.reserveEmptyAreaAtLeast(n_ptcl);
         for(S32 ip=0; ip<n_ptcl; ip++){
             const S32 adr = adr_ptcl + ip;
@@ -425,7 +477,7 @@ namespace ParticleSimulator{
     }
 
     template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
-    inline U32 GetOpenBit(TagSearchLongScatter,
+    inline U32 GetOpenBitOld(TagSearchLongScatter,
                           const ReallocatableArray<Ttc> & tc_first,
                           const S32 adr_tc,
                           const TargetBox<TSM> & target_box,
@@ -455,6 +507,39 @@ namespace ParticleSimulator{
         }
         return open_bit;
     }
+    template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
+    inline U32 GetOpenBit(TagSearchLongScatter,
+                          const ReallocatableArray<Ttc> & tc_first,
+                          const S32 adr_tc,
+                          const TargetBox<TSM> & target_box,
+                          const F64vec & len_peri,
+                          const F64 inv_theta_sq){
+        U32 open_bit = 0;
+	//	std::cerr << "GetOpenBit long scatter  called\n";
+        for(S32 i=0; i<N_CHILDREN; i++){
+	    if(  tc_first[adr_tc+i].n_ptcl_ >0){
+		const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
+		const F64 size = tc_first[adr_tc+i].geo_.getSize();
+		const F64 r_crit_sq = size*size*inv_theta_sq;
+		
+		const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, pos, len_peri);
+		open_bit |= ( GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri) <= 0.0 || dis_sq <= r_crit_sq) << i;
+		
+		
+		//const F64 dis_sq = target_box.vertex_.getDistanceMinSq(pos);
+		//open_bit |= ( target_box.vertex_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut()) || dis_sq <= r_crit_sq) << i;
+		//if(Comm::getRank()==0){
+		//  std::cerr<<"target_box.vertex_= "<<target_box.vertex_<<" tc_first[adr_tc+i].geo_.getVertexOut()= "<<tc_first[adr_tc+i].geo_.getVertexOut()
+		//	       <<" dis= "<<GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri)
+		//	       <<std::endl;
+		//}
+		
+		
+		open_bit |= ( 1<< (i + N_CHILDREN) ); // if true, it should be checked
+	    }
+        }
+        return open_bit;
+    }
 
     template<class TSM, class Ttc, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     inline U32 GetOpenBit(TagSearchLongSymmetry,
@@ -470,7 +555,8 @@ namespace ParticleSimulator{
 #if 0
             const F64 dis_sq = target_box.vertex_in_.getDistanceMinSq(tc_first[adr_tc+i].geo_.getVertexOut());
 #else
-            const F64 dis_sq = target_box.vertex_in_.getDistanceMinSq(pos);
+            //const F64 dis_sq = target_box.vertex_in_.getDistanceMinSq(pos);
+            const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_in_, pos, len_peri);
 #endif
             const F64 size = tc_first[adr_tc+i].geo_.getSize();
             const F64 r_crit_sq = size*size*inv_theta_sq;
@@ -478,9 +564,17 @@ namespace ParticleSimulator{
             open_bit |= (dis_sq <= r_crit_sq) << i; // OK
             //open_bit |= (target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) || dis_sq <= r_crit_sq) << i;
 #else
-            open_bit |= ( (target_box.vertex_in_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut())
-                           || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) )
+            //open_bit |= ( (target_box.vertex_in_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut())
+            //               || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) )
+            //              || dis_sq <= r_crit_sq) << i;
+            /*
+            open_bit |= ( GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_in_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri) <= 0.0
+                          || GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_out_, tc_first[adr_tc+i].geo_.getVertexIn(), len_peri) <= 0.0
                           || dis_sq <= r_crit_sq) << i;
+            */
+            open_bit |= ( IsOverlapped<CALC_DISTANCE_TYPE>(target_box.vertex_in_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri)
+                          || IsOverlapped<CALC_DISTANCE_TYPE>(target_box.vertex_out_, tc_first[adr_tc+i].geo_.getVertexIn(), len_peri)
+                          || dis_sq <= r_crit_sq ) << i;
 #endif
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0)
                           << (i + N_CHILDREN) ); // if true, it should be checked
@@ -499,6 +593,15 @@ namespace ParticleSimulator{
         if (inv_theta_sq > 0.0) {
             // theta_ > 0 case
             for(S32 i=0; i<N_CHILDREN; i++){
+#if 1
+                const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
+                const F64 dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, pos, len_peri);
+                const F64 size = tc_first[adr_tc+i].geo_.getSize();
+                const F64 r_crit_sq = size*size*inv_theta_sq;
+                open_bit |= (dis_sq <= r_crit_sq) << i;
+                const F64 dis_sq_2 = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri);
+                open_bit |= ((dis_sq_2 <= 0.0) && (tc_first[adr_tc+i].n_ptcl_ > 0)) << (i + N_CHILDREN); // if true, it should be checked
+#else
                 const F64vec pos = tc_first[adr_tc+i].mom_.getPos();
                 const F64 dis_sq = target_box.vertex_.getDistanceMinSq(pos);
                 const F64 size = tc_first[adr_tc+i].geo_.getSize();
@@ -509,7 +612,8 @@ namespace ParticleSimulator{
                 //              << (i + N_CHILDREN) ); // if true, it should be checked
                 open_bit |= ( ( (target_box.vertex_.overlapped( tc_first[adr_tc+i].geo_.getVertexOut()))
                                 && (tc_first[adr_tc+i].n_ptcl_ > 0) )
-                              << (i + N_CHILDREN) ); // if true, it should be checked                
+                              << (i + N_CHILDREN) ); // if true, it should be checked
+#endif
             }
         }
         else {
@@ -536,8 +640,13 @@ namespace ParticleSimulator{
                           const F64 inv_theta_sq){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
+#if 1
+            const auto dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_in_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri);
+            open_bit |= ( dis_sq <= 0.0 ) << i;
+#else
             //open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut()) ) << i;
             open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut()) ) << i;
+#endif
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0) << (i + N_CHILDREN) ); // if true, it should be checked
         }
         return open_bit;
@@ -552,10 +661,16 @@ namespace ParticleSimulator{
                           const F64 inv_theta_sq){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
+#if 1
+            const auto dis_sq = std::min( GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_in_, tc_first[adr_tc+i].geo_.getVertexOut(), len_peri),
+                                          GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_out_, tc_first[adr_tc+i].geo_.getVertexIn(), len_peri) );
+            open_bit |= ( dis_sq <= 0.0 ) << i;
+#else
             //open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].mom_.getVertexOut())
             //              || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()) ) << i;
             open_bit |= ( target_box.vertex_in_.overlapped(tc_first[adr_tc+i].geo_.getVertexOut())
                           || target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) ) << i;
+#endif
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0)
                           << (i + N_CHILDREN) ); // if true, it should be checked
         }
@@ -571,8 +686,13 @@ namespace ParticleSimulator{
                           const F64 inv_theta_sq){
         U32 open_bit = 0;
         for(S32 i=0; i<N_CHILDREN; i++){
+#if 1
+            const auto dis_sq = GetDistanceMinSq<CALC_DISTANCE_TYPE>(target_box.vertex_out_, tc_first[adr_tc+i].geo_.getVertexIn(), len_peri);
+            open_bit |= ( dis_sq <= 0.0 ) << i;
+#else
             //open_bit |= ( target_box.vertex_out_.overlapped(tc_first[adr_tc+i].mom_.getVertexIn()) ) << i;
             open_bit |= ( target_box.vertex_out_.overlapped(tc_first[adr_tc+i].geo_.getVertexIn()) ) << i;
+#endif
             open_bit |= ( (tc_first[adr_tc+i].n_ptcl_ > 0) << (i + N_CHILDREN) ); // if true, it should be checked
         }
         return open_bit;
@@ -620,8 +740,9 @@ namespace ParticleSimulator{
             }
         }
         else{ //leaf
-            CopyInfoClose(typename TSM::force_type(), Tchopleaf(), Tcopyinfoclose(), tp_first, adr_ptcl_child, n_ptcl,
-                          ep_first, adr_ep_list, sp_first, adr_sp_list, target_box);
+            CopyInfoClose<TSM, Ttp, Tep, Tsp, CALC_DISTANCE_TYPE>
+                (typename TSM::force_type(), Tchopleaf(), Tcopyinfoclose(), tp_first, adr_ptcl_child, n_ptcl,
+                 ep_first, adr_ep_list, sp_first, adr_sp_list, target_box, len_peri);
         }
     }
 
@@ -646,7 +767,7 @@ namespace ParticleSimulator{
       //std::cerr<<"CALC_DISTANCE_TYPE_NORMAL= "<<CALC_DISTANCE_TYPE_NORMAL<<std::endl;
         if ((theta > 0.0) || (typeid(TSM) == typeid(SEARCH_MODE_LONG_CUTOFF))) {
             // theta_ > 0 case or PS::SEARCH_MODE_LONG_CUTOFF
-            if( IsOpen(typename TSM::search_type(), tc_first, adr_tc, target_box) ){
+            if( IsOpen<CALC_DISTANCE_TYPE>(typename TSM::search_type(), tc_first, adr_tc, target_box, len_peri) ){
   	        MakeListUsingTreeRecursive<TSM, Ttc, Ttp, Tep, Tsp, Tchopleaf, Tcopyinfoclose, CALC_DISTANCE_TYPE>
                     (tc_first, adr_tc, tp_first, ep_first, adr_ep_list, sp_first,
                      adr_sp_list, target_box, n_leaf_limit,
@@ -657,8 +778,9 @@ namespace ParticleSimulator{
             // theta_ = 0 case with the modes other than PS::SEARCH_MODE_LONG_CUTOFF
             const S32 n_ptcl = tc_first[0].n_ptcl_;
             S32 adr_ptcl = tc_first[0].adr_ptcl_;
-            CopyInfoClose(typename TSM::force_type(), Tchopleaf(), Tcopyinfoclose(), tp_first, adr_ptcl, n_ptcl,
-                          ep_first, adr_ep_list, sp_first, adr_sp_list, target_box);
+            CopyInfoClose<TSM, Ttp, Tep, Tsp, CALC_DISTANCE_TYPE>
+                (typename TSM::force_type(), Tchopleaf(), Tcopyinfoclose(), tp_first, adr_ptcl, n_ptcl,
+                 ep_first, adr_ep_list, sp_first, adr_sp_list, target_box, len_peri);
         }
     }
 

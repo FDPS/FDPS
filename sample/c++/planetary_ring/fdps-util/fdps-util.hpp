@@ -271,6 +271,7 @@ namespace FDPS_UTIL{
 		return MyLexical<std::string>(options_[index].val_str_);
 	    }
 	    else{
+                std::cerr<<"name= "<<name<<std::endl;
 		assert(0);
 	    }
 	}
@@ -283,6 +284,7 @@ namespace FDPS_UTIL{
 		return LexicalCastImpl<Tout>(options_[index].val_str_);
 	    }
 	    else{
+                std::cerr<<"name= "<<name<<std::endl;
 		assert(0);
 	    }
 	}

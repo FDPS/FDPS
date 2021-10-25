@@ -59,7 +59,6 @@ namespace  ParticleSimulator{
         const auto dx0 = al - bh;
         const auto dx1 = bl - ah;
         const auto dis0 = std::max(dx0, dx1);
-	//const auto dis1 = len + std::min(dx0, dx1);
 	const auto dis1 = std::max( (len + std::min(dx0, dx1)), 0.0 );
 	const auto dis  = (dx0*dx1 >= 0.0) ? 0.0 : std::min(dis0, dis1);
 	return dis;
@@ -213,6 +212,11 @@ namespace  ParticleSimulator{
         return dis;
     }
 
+    PS_INLINE F64 GetDistanceMinSq(const F64vec & pos0,
+				   const F64ort & pos1){
+        return GetDistanceMinSq(pos1, pos0);
+    }
+
     template<int bits>
     PS_INLINE F64 GetDistanceMinSq(const F64ort & pos0,
 				   const F64vec & pos1,
@@ -226,7 +230,93 @@ namespace  ParticleSimulator{
 #endif
         return dis;
     }
-  
+
+    template<int bits>
+    PS_INLINE F64 GetDistanceMinSq(const F64vec & pos0,
+				   const F64ort & pos1,
+				   const F64vec & len_peri){
+        return GetDistanceMinSq<bits>(pos1, pos0, len_peri);
+    }
+
+
+    //////////////////
+    // over lapped functions
+#if __cplusplus >= PS_CPLUSPLUS_17
+    template<typename ...>
+    constexpr bool FALSE_V = false;
+    template<typename T0, typename T1>
+    PS_INLINE bool IsOverlapped(const T0 & pos0,
+                                const T1 & pos1){
+        if constexpr( (std::is_same_v<T0, F64vec> && std::is_same_v<T1, F64vec>)
+                      || (std::is_same_v<T0, F64ort> && std::is_same_v<T1, F64ort>)
+                      || (std::is_same_v<T0, F64vec> && std::is_same_v<T1, F64ort>)
+                      || (std::is_same_v<T0, F64ort> && std::is_same_v<T1, F64vec>)){
+                //asm("#IF TRUE");
+            return GetDistanceMinSq(pos0, pos1) <= 0.0;
+        }
+        else{
+            //asm("#IF FALSE");
+            static_assert(FALSE_V<T0, T1>);
+        }
+    }
+    template<int bits, typename T0, typename T1>
+    PS_INLINE bool IsOverlapped(const T0 & pos0,
+                                const T1 & pos1,
+                                const F64vec & len_peri){
+        if constexpr( (std::is_same_v<T0, F64vec> && std::is_same_v<T1, F64vec>)
+                      || (std::is_same_v<T0, F64ort> && std::is_same_v<T1, F64ort>)
+                      || (std::is_same_v<T0, F64vec> && std::is_same_v<T1, F64ort>)
+                      || (std::is_same_v<T0, F64ort> && std::is_same_v<T1, F64vec>)){
+                return GetDistanceMinSq<bits>(pos0, pos1, len_peri) <= 0.0;
+        }
+        else{
+            static_assert(FALSE_V<T0, T1>);
+        }
+    }
+#else
+    PS_INLINE bool IsOverlapped(const F64ort & pos0,
+                                const F64ort & pos1){
+        return GetDistanceMinSq(pos0, pos1) <= 0.0;
+    }
+    PS_INLINE bool IsOverlapped(const F64vec & pos0,
+                                const F64vec & pos1){
+        return GetDistanceMinSq(pos0, pos1) <= 0.0;
+    }
+    PS_INLINE bool IsOverlapped(const F64ort & pos0,
+                                const F64vec & pos1){
+        return GetDistanceMinSq(pos0, pos1) <= 0.0;
+    }
+    PS_INLINE bool IsOverlapped(const F64vec & pos0,
+                                const F64ort & pos1){
+        return GetDistanceMinSq(pos0, pos1) <= 0.0;
+    }
+
+    template<int bits>
+    PS_INLINE bool IsOverlapped(const F64ort & pos0,
+                                const F64ort & pos1,
+                                const F64vec & len_peri){
+        return GetDistanceMinSq<bits>(pos0, pos1, len_peri) <= 0.0;
+    }
+    template<int bits>
+    PS_INLINE bool IsOverlapped(const F64vec & pos0,
+                                const F64vec & pos1,
+                                const F64vec & len_peri){
+        return GetDistanceMinSq<bits>(pos0, pos1, len_peri) <= 0.0;
+    }
+    template<int bits>
+    PS_INLINE bool IsOverlapped(const F64ort & pos0,
+                                const F64vec & pos1,
+                                const F64vec & len_peri){
+        return GetDistanceMinSq<bits>(pos0, pos1, len_peri) <= 0.0;
+    }
+    template<int bits>
+    PS_INLINE bool IsOverlapped(const F64vec & pos0,
+                                const F64ort & pos1,
+                                const F64vec & len_peri){
+        return GetDistanceMinSq<bits>(pos0, pos1, len_peri) <= 0.0;
+    }
+#endif
+    
     struct CopyPos{
         template<typename Tsrc, typename Tdst> 
         void operator()(Tsrc & src, Tdst & dst){
@@ -609,9 +699,11 @@ namespace  ParticleSimulator{
 
 	rank_1d = GetRank1d(rank_glb_tmp, n_domain, cid);
 	dnp_1d = std::abs(rank_1d-rank_1d_org);
+	auto dnp_1d2  = n_domain[cid]-dnp_1d;
+	if (dnp_1d > dnp_1d2) dnp_1d = dnp_1d2;
     }
 
-    static int GetColorForCommSplit(const int my_rank_glb, const int * n_domain, const int dim, const int cid){
+    static inline int GetColorForCommSplit(const int my_rank_glb, const int * n_domain, const int dim, const int cid){
 	const auto my_rank_1d = GetRank1d(my_rank_glb, n_domain, cid);
 	int tmp = 1;
 	for(auto i=dim-1; i>cid; i--){
@@ -758,7 +850,7 @@ namespace  ParticleSimulator{
     static inline void MyAlltoallReuse(const ReallocatableArray<T> & send_buf, int cnt, ReallocatableArray<T> * send_buf_multi_dim, ReallocatableArray<T> * recv_buf_multi_dim, const S32 n_domain[], const S32 dim, const CommInfo & comm_info){
 	const auto n_proc_glb = comm_info.getNumberOfProc();
 	const auto my_rank_glb = comm_info.getRank();
-	const auto n_recv_tot = cnt * n_proc_glb;
+	//const auto n_recv_tot = cnt * n_proc_glb;
 	for(auto d=dim-1; d>=0; d--){
 	    const auto radix = n_proc_glb / n_domain[d];
 	    const auto color = GetColorForCommSplit(my_rank_glb, n_domain, dim, d);

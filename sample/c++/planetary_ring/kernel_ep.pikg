@@ -15,17 +15,14 @@ pot_sprg_tmp = 0.0f
 pot_grav_tmp = 0.0f
 
 
-if EPI.id != EPJ.id
-
-    rij = EPI.pos - EPJ.pos
+rij = EPI.pos - EPJ.pos
+r_real_sq = rij * rij + eps2
+if r_real_sq != eps2
     r_coll_tmp = EPI.r_coll + EPJ.r_coll
     r_coll_sq = r_coll_tmp * r_coll_tmp
-    r_real_sq = rij * rij + eps2
     over_r_real    = rsqrt(r_real_sq)
     over_r_real_sq = over_r_real * over_r_real
-    
     if  r_coll_sq > r_real_sq
-
         r_coll_cu = r_coll_sq * r_coll_tmp
 	over_r_coll_cu = 1.0f / r_coll_cu
 	tmp0 = -1.0f*EPJ.mass

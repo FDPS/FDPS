@@ -3,7 +3,9 @@
 
 #include"tree_walk.hpp"
 #include"tree_for_force_impl_exlet.hpp"
-
+#ifdef PARTICLE_SIMULATOR_USE_SAMPLE_SORT
+#include"samplesortlib.hpp"
+#endif
 namespace ParticleSimulator{
 
     template<class TSM, class Tforce, class Tepi, class Tepj,
@@ -277,6 +279,7 @@ PS_OMP_CRITICAL
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     mortonSortLocalTreeOnly(const bool reuse){
         const F64 wtime_offset = GetWtime();
+        F64 wtime_offset2;
         epi_sorted_.resizeNoInitialize(n_loc_tot_);
         epj_sorted_.resizeNoInitialize(n_loc_tot_);
         adr_org_from_adr_sorted_loc_.resizeNoInitialize(n_loc_tot_);
@@ -285,15 +288,20 @@ PS_OMP_CRITICAL
             ReallocatableArray<TreeParticle> tp_buf(n_loc_tot_, n_loc_tot_, MemoryAllocMode::Pool);
             morton_key_.initialize( length_ * 0.5, center_);
 PS_OMP_PARALLEL_FOR
-            for(S32 i=0; i<n_loc_tot_; i++){
-                tp_glb_[i].setFromEP(epj_org_[i], i, morton_key_);
+           for(S32 i=0; i<n_loc_tot_; i++){
+        	tp_glb_[i].setFromEP(epj_org_[i], i, morton_key_);
             }
+            wtime_offset2 = GetWtime();
 #if defined(PARTICLE_SIMULATOR_USE_RADIX_SORT)
             rs_.lsdSort(tp_glb_.getPointer(), tp_buf.getPointer(), 0, n_loc_tot_-1);
 #elif defined(PARTICLE_SIMULATOR_USE_STD_SORT)
             std::sort(tp_glb_.getPointer(), tp_glb_.getPointer()+n_loc_tot_, 
                       [](const TreeParticle & l, const TreeParticle & r )
                       ->bool{return l.getKey() < r.getKey();} );
+#elif defined(PARTICLE_SIMULATOR_USE_SAMPLE_SORT)
+            SampleSortLib::samplesort_bodies(tp_glb_.getPointer(), n_loc_tot_, 
+					    [](const TreeParticle & l )
+					     ->auto{return l.getKey();});
 #else
 	    MergeSortOmp(tp_glb_, 0, n_loc_tot_,
 			 [](const TreeParticle & l, const TreeParticle & r )
@@ -316,6 +324,7 @@ PS_OMP_PARALLEL_FOR
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"epi_sorted_.size()="<<epi_sorted_.size()<<" epj_sorted_.size()="<<epj_sorted_.size()<<std::endl;
 #endif
+        time_profile_.morton_key_local_tree += wtime_offset2 - wtime_offset;
         time_profile_.morton_sort_local_tree += GetWtime() - wtime_offset;
         time_profile_.make_local_tree += GetWtime() - wtime_offset;
     }
@@ -398,6 +407,10 @@ PS_OMP_PARALLEL_FOR
             std::sort(tp_glb_.getPointer(), tp_glb_.getPointer()+n_glb_tot_, 
                       [](const TreeParticle & l, const TreeParticle & r )
                       ->bool{return l.getKey() < r.getKey();} );
+#elif defined(PARTICLE_SIMULATOR_USE_SAMPLE_SORT)
+            SampleSortLib::samplesort_bodies(tp_glb_.getPointer(), n_glb_tot_, 
+                      [](const TreeParticle & l )
+					     ->auto{return l.getKey() ;});
 #else
             const S32 n_add = n_glb_tot_ - n_loc_tot_;
 	    ReallocatableArray<TreeParticle> tp_add_buf(n_add, n_add, MemoryAllocMode::Pool);
@@ -824,18 +837,32 @@ PS_OMP_PARALLEL_FOR
             }
         }
         length_ = 0.0;
+	F64vec len_dim;
         for(S32 cid=0; cid<DIMENSION; cid++){
             if (pa[cid]) {
                 F64 length_tmp = (2*num_shift_max[cid]+1)*shift[cid];
                 if(length_tmp > length_) length_ = length_tmp;
                 center_[cid] = root_domain.getCenter()[cid];
+		len_dim[cid]= length_tmp;
             } else {
                 F64 length_tmp = my_outer_boundary.getFullLength()[cid];
                 if (length_tmp > length_) length_ = length_tmp;
                 center_[cid] = my_outer_boundary.getCenter()[cid];
+		len_dim[cid]= length_tmp;
             }
         }
+	//	std::cerr << "center before"<< center_ << "\n";
+	
+	for(S32 cid=0; cid<DIMENSION; cid++){
+	    //	    std::cerr << "cid "<< cid<< " " << len_dim[cid] << " " <<length_<<"\n";
+	    if (len_dim[cid] < 0.1 * length_){
+		center_[cid] -= len_dim[cid]*0.51;
+	    }
+	}
+	//	std::cerr << "center after"<< center_ << "\n";
+
         length_ *= 1.000001;
+
         pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
         pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
     }
