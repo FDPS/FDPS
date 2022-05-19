@@ -1,9 +1,8 @@
 PS_PATH = ../../../src/
 INC = -I$(PS_PATH)
-
 CC = time g++
 #CC = time mpicxx
-CFLAGS = -std=c++11 -O3
+CFLAGS = -std=c++17 -O3
 #CFLAGS += -Wall
 #CFLAGS += -ffast-math
 #CFLAGS += -funroll-loops

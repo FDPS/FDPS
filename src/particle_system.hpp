@@ -57,6 +57,34 @@ namespace ParticleSimulator{
 #endif
         }
 
+#if 1
+        PS_INLINE S32 searchWhichDomainParticleGoTo(const F64vec & pos,
+						    const S32 n_domain[DIMENSION_LIMIT],
+						    const F64ort domain [],
+						    const S32 rank_start,
+                                                    S32vec & dnp){
+	    if(domain[rank_start].contained(pos)){
+		return rank_start;
+	    }
+	    const auto rank_vec_org = GetRankVec(n_domain, rank_start, DIMENSION);
+	    auto rank_vec = rank_vec_org;
+	    auto rank_new =  rank_start;
+	    rank_vec.x = GetAppropriateRank1D(pos, rank_new, n_domain, domain, 0);
+            dnp.x = GetDistanceMin1DImpl(rank_vec.x, rank_vec_org.x, n_domain[0]);
+	    rank_new = GetRankGlb(rank_vec, n_domain);
+            
+	    rank_vec.y = GetAppropriateRank1D(pos, rank_new, n_domain, domain, 1);
+            dnp.y = GetDistanceMin1DImpl(rank_vec.y, rank_vec_org.y, n_domain[1]);
+	    rank_new = GetRankGlb(rank_vec, n_domain);
+            
+#if !defined(PARTICLE_SIMULATOR_TWO_DIMENSION)
+            rank_vec.z = GetAppropriateRank1D(pos, rank_new, n_domain, domain, 2);
+            dnp.z = GetDistanceMin1DImpl(rank_vec.z, rank_vec_org.z, n_domain[2]);
+	    rank_new = GetRankGlb(rank_vec, n_domain);
+#endif
+	    return rank_new;
+        }
+#else
         PS_INLINE S32 searchWhichDomainParticleGoTo(const F64vec & pos,
 						    const S32 n_domain[DIMENSION_LIMIT],
 						    const F64ort domain [],
@@ -75,6 +103,7 @@ namespace ParticleSimulator{
 	    auto rank_new =  rank_start;
             dnp = S32vec(0);
 	    dis_domain = F64vec(0.0);
+            // original
 	    CalcRank1D(rank_vec.x, dnp.x, dis_domain.x, pos, rank_new, n_domain, domain, len_peri.x, pa[0], 0);
 	    rank_new = GetRankGlb(rank_vec, n_domain);
 	    CalcRank1D(rank_vec.y, dnp.y, dis_domain.y, pos, rank_new, n_domain, domain, len_peri.y, pa[1], 1);
@@ -85,7 +114,9 @@ namespace ParticleSimulator{
 #endif
 	    return rank_new;
         }
-      
+#endif
+
+        
         S32 searchWhichDomainParticleGoToOpen(const F64vec & pos,
                                               const S32 n_domain [],
                                               const F64ort domain [],
@@ -739,14 +770,14 @@ namespace ParticleSimulator{
         void getSampleParticle2(const S32 & number_of_sample_particle,
                                 ReallocatableArray<F64vec> & pos_sample,
                                 const S32 offset_pos_sample){
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
             RandomSampling(ptcl_, pos_sample,  [](const Tptcl & src, F64vec & dst){dst = src.getPos();},
                            0, offset_pos_sample);
             return;
 #endif
         }
         
-        
+        /*        
         void getSampleParticle(S32 & number_of_sample_particle,
                                F64vec pos_sample[],
                                const F64 weight) {
@@ -795,51 +826,8 @@ namespace ParticleSimulator{
             return;
 #endif
         }
-
-	void exchangeParticleImpl(ReallocatableArray<S32> & rank_glb_comm,
-				  const S32 my_rank_glb,
-				  const S32vec & dnp,
-				  const F64vec & dis_domain_max,
-				  const F64ort domain[],
-				  const S32 n_domain[DIMENSION_LIMIT],
-				  const F64vec len_peri){
-	    const auto my_rank_vec = GetRankVec(n_domain, my_rank_glb, DIMENSION);
-	    const auto my_domain = domain[my_rank_glb];
-	    S32vec rank_vec_new = my_rank_vec;
-	    S32    rank_glb_new = 0;
-	    for(auto ix=0; ix<std::min(2*dnp.x+1, n_domain[0]); ix++){
-		const auto rank_x = (my_rank_vec.x - dnp.x + ix  + n_domain[0]) % n_domain[0];
-		rank_vec_new[0] = rank_x;
-		rank_glb_new    = GetRankGlb(rank_vec_new, n_domain);
-		F64 dx = GetDistanceMin1DPeriImpl(my_domain.low_.x, my_domain.high_.x, domain[rank_glb_new].low_.x, domain[rank_glb_new].high_.x, len_peri.x);
-		if(dx < dis_domain_max.x){
-
-		    for(auto iy=0; iy<std::min(2*dnp.y+1, n_domain[1]); iy++){
-			const auto rank_y = (my_rank_vec.y - dnp.y + iy  + n_domain[1]) % n_domain[1];
-			rank_vec_new[1] = rank_y;
-			rank_glb_new    = GetRankGlb(rank_vec_new, n_domain);
-			F64 dy = GetDistanceMin1DPeriImpl(my_domain.low_.y, my_domain.high_.y, domain[rank_glb_new].low_.y, domain[rank_glb_new].high_.y, len_peri.y);
-			if(dy < dis_domain_max.y){
-#if defined(PARTICLE_SIMULATOR_TWO_DIMENSION)
-			    rank_glb_comm.push_back(rank_glb_new);
-#else
-			    for(auto iz=0; iz<std::min(2*dnp.z+1, n_domain[2]); iz++){
-				const auto rank_z = (my_rank_vec.z - dnp.z + iz  + n_domain[2]) % n_domain[2];
-				rank_vec_new[2] = rank_z;
-				rank_glb_new    = GetRankGlb(rank_vec_new, n_domain);
-				F64 dz = GetDistanceMin1DPeriImpl(my_domain.low_.z, my_domain.high_.z, domain[rank_glb_new].low_.z, domain[rank_glb_new].high_.z, len_peri.z);
-				if(dz < dis_domain_max.z){
-				    rank_glb_comm.push_back(rank_glb_new);
-				}
-			    }
-#endif
-			}
-		    }
-			    
-		}
-	    }
-	}
-	
+        */
+        
         template<class Tdinfo>
         void exchangeParticle(Tdinfo & dinfo,
 			      const bool flag_serialize=false) {
@@ -855,23 +843,27 @@ namespace ParticleSimulator{
             const S32 n_proc = comm_info_.getNumberOfProc();
             const S32 * n_domain = dinfo.getPointerOfNDomain();
             const F64ort * pos_domain = dinfo.getPointerOfPosDomain();
-            ReallocatableArray<S32> n_send(n_proc, n_proc, MemoryAllocMode::Stack);
-            ReallocatableArray<S32> n_disp_send(n_proc+1, n_proc+1, MemoryAllocMode::Stack);
-            ReallocatableArray<S32> n_recv(n_proc, n_proc, MemoryAllocMode::Stack);
-            ReallocatableArray<S32> n_disp_recv(n_proc+1, n_proc+1, MemoryAllocMode::Stack);
-            ReallocatableArray<MPI_Request> req_send(n_proc, n_proc, MemoryAllocMode::Stack);
-            ReallocatableArray<MPI_Request> req_recv(n_proc, n_proc, MemoryAllocMode::Stack);
-            ReallocatableArray<MPI_Status> status(n_proc, n_proc, MemoryAllocMode::Stack);
-            ReallocatableArray<Tptcl> ptcl_send(0, 0, MemoryAllocMode::Stack);
-            ReallocatableArray<S32> rank_send(n_loc, n_loc, MemoryAllocMode::Stack);
+            //ReallocatableArray<S32> n_send(n_proc, n_proc, MemoryAllocMode::Stack);
+            //ReallocatableArray<S32> n_disp_send(n_proc+1, n_proc+1, MemoryAllocMode::Stack);
+            //ReallocatableArray<S32> n_recv(n_proc, n_proc, MemoryAllocMode::Stack);
+            //ReallocatableArray<S32> n_disp_recv(n_proc+1, n_proc+1, MemoryAllocMode::Stack);
+            S32 n_send[n_proc], n_disp_send[n_proc+1], n_recv[n_proc], n_disp_recv[n_proc+1];
             for(S32 i = 0; i < n_proc; i++) {
                 n_send[i] = n_disp_send[i] = n_recv[i] = n_disp_recv[i] = 0;
             }
             n_disp_send[n_proc] = n_disp_recv[n_proc] = 0;
+            //ReallocatableArray<MPI_Request> req_send(n_proc, n_proc, MemoryAllocMode::Stack);
+            //ReallocatableArray<MPI_Request> req_recv(n_proc, n_proc, MemoryAllocMode::Stack);
+            //ReallocatableArray<MPI_Status> status(n_proc, n_proc, MemoryAllocMode::Stack);
+            //ReallocatableArray<S32> rank_send(n_loc, n_loc, MemoryAllocMode::Stack);
+            MPI_Request req_send[n_proc], req_recv[n_proc];
+            MPI_Status status[n_proc];
+            S32 rank_send[n_loc];
+            ReallocatableArray<Tptcl> ptcl_send(0, 0, MemoryAllocMode::Pool);
 
             F64 time_offset_inner = GetWtime();
             F64ort pos_root_domain = dinfo.getPosRootDomain();
-            F64vec len_peri = pos_root_domain.high_ - pos_root_domain.low_;
+            //F64vec len_peri = pos_root_domain.high_ - pos_root_domain.low_;
             bool pa[DIMENSION_LIMIT];
             dinfo.getPeriodicAxis(pa);
             //F64vec dis_domain_max_loc = 0;
@@ -879,13 +871,23 @@ namespace ParticleSimulator{
 #if 1
             // parallel version
             const S32 n_thread = Comm::getNumberOfThread();
-            std::vector<ReallocatableArray<S32>> n_send_per_thread(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Stack));
-            std::vector<ReallocatableArray<S32>> n_disp_send_per_thread(n_thread+1, ReallocatableArray<S32>(MemoryAllocMode::Stack));
-	    ReallocatableArray<S32> adr_ptcl_send(n_loc, 0, MemoryAllocMode::Stack);
-	    std::vector<ReallocatableArray<S32>> adr_ptcl_send_per_thread(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Stack));
-	    ReallocatableArray<S32> adr_ptcl_remain(n_loc, 0, MemoryAllocMode::Stack);
-	    std::vector<ReallocatableArray<S32>> adr_ptcl_remain_per_thread(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Stack));
-	    ReallocatableArray<S32vec> dnp_max_loc_per_thread(n_thread, 0, MemoryAllocMode::Stack);
+            //std::vector<ReallocatableArray<S32>> n_send_per_thread(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Stack));
+            //std::vector<ReallocatableArray<S32>> n_disp_send_per_thread(n_thread+1, ReallocatableArray<S32>(MemoryAllocMode::Stack));
+            ReallocatableArray<S32> n_send_per_thread[n_thread];
+            ReallocatableArray<S32> n_disp_send_per_thread[n_thread+1];
+            
+
+	    ReallocatableArray<S32> adr_ptcl_send(n_loc, 0, MemoryAllocMode::Pool);
+            ReallocatableArray<S32> adr_ptcl_remain(n_loc, 0, MemoryAllocMode::Pool);
+            //ReallocatableArray<S32vec> dnp_max_loc_per_thread(n_thread, 0, MemoryAllocMode::Pool);
+            S32vec dnp_max_loc_per_thread[n_thread];
+
+            
+	    //std::vector<ReallocatableArray<S32>> adr_ptcl_send_per_thread(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Stack));
+	    //std::vector<ReallocatableArray<S32>> adr_ptcl_remain_per_thread(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Stack));
+            ReallocatableArray<S32> adr_ptcl_send_per_thread[n_thread];
+            ReallocatableArray<S32> adr_ptcl_remain_per_thread[n_thread];
+            
             for(S32 i=0; i<n_thread; i++){
 		dnp_max_loc_per_thread[i] = S32vec(0);
                 n_send_per_thread[i].resizeNoInitialize(n_proc);
@@ -909,8 +911,8 @@ PS_OMP_PARALLEL
 		S32vec dnp_max_tmp = 0;
                 for(S32 ip=ip_head; ip<ip_end; ip++){
                     S32vec dnp(0);
-		    F64vec dis_domain(0.0);
-                    S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain, comm_info_.getRank(), len_peri, pa, dnp, dis_domain);
+                    //S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain, comm_info_.getRank(), len_peri, pa, dnp, dis_domain);
+                    S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain, comm_info_.getRank(), dnp);
                     rank_send[ip] = srank;
                     n_send_per_thread[ith][srank]++;
 		    if(srank == my_rank){
@@ -978,8 +980,8 @@ PS_OMP_BARRIER
                     Abort(-1);
                 }
                 S32vec dnp;
-		F64vec dis_domain;
-                S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain, comm_info_.getRank(), len_peri, pa, dnp, dis_domain);
+                //S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain, comm_info_.getRank(), len_peri, pa, dnp, dis_domain);
+                S32 srank = searchWhichDomainParticleGoTo(ptcl_[ip].getPos(), n_domain, pos_domain, comm_info_.getRank(), dnp);
                 rank_send[ip] = my_rank;
                 if(srank == my_rank) continue;
                 std::swap(ptcl_[ip], ptcl_[iloc]);
@@ -1028,7 +1030,8 @@ PS_OMP_BARRIER
                 exchangeNumberOfPtcl(n_send, n_recv, n_domain, dnp_max_glb);
             }
             else{
-                comm_info_.allToAll(n_send.getPointer(), 1, n_recv.getPointer());
+                //comm_info_.allToAll(n_send.getPointer(), 1, n_recv.getPointer());
+                comm_info_.allToAll(n_send, 1, n_recv);
             }
             n_disp_recv[0] = 0;
             for(auto i=0; i<n_proc; i++){
@@ -1066,7 +1069,8 @@ PS_OMP_BARRIER
 
             }
             else{
-                comm_info_.allToAllV(ptcl_send.getPointer(), n_send.getPointer(), n_disp_send.getPointer(), ptcl_.getPointer(n_remain), n_recv.getPointer(), n_disp_recv.getPointer());
+                //comm_info_.allToAllV(ptcl_send.getPointer(), n_send.getPointer(), n_disp_send.getPointer(), ptcl_.getPointer(n_remain), n_recv.getPointer(), n_disp_recv.getPointer());
+                comm_info_.allToAllV(ptcl_send.getPointer(), n_send, n_disp_send, ptcl_.getPointer(n_remain), n_recv, n_disp_recv);
             }
             n_ptcl_send_ += n_disp_send[n_proc];
             n_ptcl_recv_ += n_disp_recv[n_proc];
@@ -1080,13 +1084,13 @@ PS_OMP_BARRIER
             time_profile_.exchange_particle__exchange_particle_1 += etime1 - time_offset_inner;
             time_profile_.exchange_particle__exchange_particle_2 += etime2 - etime1;
             time_profile_.exchange_particle__exchange_particle_3 += etime3 - etime2;
-            n_send.freeMem();
-            n_disp_send.freeMem();
-            n_recv.freeMem();
-            n_disp_recv.freeMem();
-            req_send.freeMem();
-            req_recv.freeMem();
-            status.freeMem();
+            //n_send.freeMem();
+            //n_disp_send.freeMem();
+            //n_recv.freeMem();
+            //n_disp_recv.freeMem();
+            //req_send.freeMem();
+            //req_recv.freeMem();
+            //status.freeMem();
             ptcl_send.freeMem();
 #else // PARTICLE_SIMULATOR_MPI_PARALLEL
             n_ptcl_send_ = 0;
@@ -1250,15 +1254,17 @@ PS_OMP_PARALLEL_FOR
 
 
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-        void exchangeNumberOfPtcl(ReallocatableArray<S32> & n_send, // const
-				  ReallocatableArray<S32> & n_recv,
+        void exchangeNumberOfPtcl(const S32 n_send[], // const
+				  S32 n_recv[],
 				  const S32 n_domain[],
 				  const S32vec & dnp_max){
             const auto my_rank = comm_info_.getRank();
             const auto n_proc  = comm_info_.getNumberOfProc();
-            ReallocatableArray<MPI_Request> req_recv(n_proc, n_proc, MemoryAllocMode::Stack);
-            ReallocatableArray<MPI_Status> status(n_proc, n_proc, MemoryAllocMode::Stack);
-
+            //ReallocatableArray<MPI_Request> req_recv(n_proc, n_proc, MemoryAllocMode::Stack);
+            MPI_Request req_recv[n_proc];
+            //ReallocatableArray<MPI_Status> status(n_proc, n_proc, MemoryAllocMode::Stack);
+            MPI_Status status[n_proc];
+            
 	    auto rank_vec_org = GetRankVec(n_domain, my_rank, DIMENSION);
 	    auto dnp_head = -dnp_max;
 	    auto dnp_tail =  dnp_max;
@@ -1273,7 +1279,7 @@ PS_OMP_PARALLEL_FOR
 		}
 	    }
 #if 1
-            ReallocatableArray<S32> rank_comm(n_proc, 0, MemoryAllocMode::Stack);
+            ReallocatableArray<S32> rank_comm(n_proc, 0, MemoryAllocMode::Pool);
 	    S32vec rank_vec_tmp = 0;
             for(auto i=dnp_head.x; i<=dnp_tail.x; i++){
                 rank_vec_tmp.x = (rank_vec_org.x+n_domain[0]+i) % n_domain[0];
@@ -1297,6 +1303,7 @@ PS_OMP_PARALLEL_FOR
 		MPI_Send(&n_send[rank_comm[i]], 1, GetDataType<S32>(), rank_comm[i], 0, comm_info_.getCommunicator());
 	    }
             MPI_Waitall(rank_comm.size(), &req_recv[0], &status[0]);
+            rank_comm.freeMem();
 #else
             const auto rank_x_org = my_rank / (n_domain[1]*n_domain[2]);
             const auto rank_y_org = (my_rank / n_domain[2]) % n_domain[1];
@@ -1417,4 +1424,8 @@ PS_OMP_PARALLEL_FOR
             }
         }
     };
+    
+    template<typename T>  struct IsParticleSystem : std::false_type{};
+    template<typename T>  struct IsParticleSystem< ParticleSystem<T> > : std::true_type{};
+    template<typename T>  struct IsParticleSystem< const ParticleSystem<T> > : std::true_type{};
 }

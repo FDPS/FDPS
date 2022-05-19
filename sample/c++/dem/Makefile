@@ -1,7 +1,7 @@
 INC = -I ../../../src
 CC = g++
 #CC = mpic++
-CFLAGS = -O3 -ffast-math -funroll-loops -std=c++11
+CFLAGS = -O3 -ffast-math -funroll-loops -std=c++17
 
 #FDPS FLAGS
 #CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp

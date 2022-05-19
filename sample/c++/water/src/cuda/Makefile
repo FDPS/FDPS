@@ -5,11 +5,11 @@
 FDPS_LOC = ../../../../../
 FDPS_INC = -I$(FDPS_LOC)/src -I../../inc
 
-CXXFLAGS_COMMON = -std=c++11 -O3 -ffast-math -funroll-loops $(FDPS_INC)
+CXXFLAGS_COMMON = -std=c++17 -O3 -ffast-math -funroll-loops $(FDPS_INC)
 
 CUDAPATH?=/usr/local/cuda
 NVCC=$(CUDAPATH)/bin/nvcc
-NVCCFLAGS= -std=c++11 -I$(CUDAPATH)/include -I$(CUDAPATH)/samples/common/inc -L$(CUDAPATH)/lib64 $(FDPS_INC) -Xcompiler "-std=c++11 -O3"
+NVCCFLAGS= -std=c++17 -I$(CUDAPATH)/include -I$(CUDAPATH)/samples/common/inc -L$(CUDAPATH)/lib64 $(FDPS_INC) -Xcompiler "-std=c++17 -O3"
 
 LDFLAGS+=-L$(CUDAPATH)/lib64  -lcudart
 

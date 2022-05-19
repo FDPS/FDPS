@@ -43,6 +43,7 @@ namespace ParticleSimulator{
         CommInfo comm_info_;
         MortonKey morton_key_;
         F64ort inner_boundary_of_local_tree_;
+        F64ort outer_boundary_of_local_tree_;
         F64 length_; // length of a side of the root cell
         F64vec center_; // new member (not used)
         F64ort pos_root_cell_;
@@ -296,27 +297,27 @@ PS_OMP_PARALLEL_FOR
 	
         void freeObjectFromMemoryPool(){
 #ifdef PARTICLE_SIMULATOR_USE_MEMORY_POOL
-            epi_sorted_.freeMem(1);
-            spj_sorted_.freeMem(1);
-            force_sorted_.freeMem(1);
+            epi_sorted_.freeMem();
+            spj_sorted_.freeMem();
+            force_sorted_.freeMem();
             for(int i=0; i<Comm::getNumberOfThread(); i++){
-                epj_for_force_[i].freeMem(1);
-                spj_for_force_[i].freeMem(1);
+                epj_for_force_[i].freeMem();
+                spj_for_force_[i].freeMem();
             }
-            epi_org_.freeMem(1);
-            spj_org_.freeMem(1);
-            epj_org_.freeMem(1);
-            epj_send_.freeMem(1);
-            spj_send_.freeMem(1);
+            epi_org_.freeMem();
+            spj_org_.freeMem();
+            epj_org_.freeMem();
+            epj_send_.freeMem();
+            spj_send_.freeMem();
             assert(MemoryPool::getSize() == 0);
 #else
             for(int i=0; i<Comm::getNumberOfThread(); i++){
-                spj_for_force_[i].freeMem(1);
-                epj_for_force_[i].freeMem(1);
+                spj_for_force_[i].freeMem();
+                epj_for_force_[i].freeMem();
             }
-            spj_send_.freeMem(1);
-            epj_send_.freeMem(1);
-            epi_org_.freeMem(1);
+            spj_send_.freeMem();
+            epj_send_.freeMem();
+            epi_org_.freeMem();
 #endif
         }
         
@@ -418,51 +419,7 @@ PS_OMP_PARALLEL_FOR
         void clearSizeOfArray();
         
         //#if __cplusplus <= 201112L
-#ifdef TEST_VARIADIC_TEMPLATE
-    #if 0
-        template<class Tail>
-        void setParticleLocalTreeRecursive(bool & first_set, Tail & tail){
-        }
-        template<class Head, class ... Tail>
-        void setParticleLocalTreeRecursive(bool & first_set, Head & head, Tail & ... tail){
-            bool clear = false;
-            if(first_set){
-                clear = true;
-                first_set = false;
-            }
-            setParticleLocalTreeImpl(head, clear);
-            setParticleLocalTreeRecursive(first_set, tail ...);
-        }
-        template<class... Args>
-        void setParticleLocalTree(Args & ... args){
-            std::cerr<<"check"<<std::endl;
-            bool first_set = true;
-            setParticleLocalTreeRecursive(first_set, args ...);
-        }
-    #endif
-        // tuple version
-        template<int N, class Ttpl>
-        void setParticleLocalTreeTplRecursive(Ttpl & sys_tpl){}
-        template<int N, class Ttpl, class Head, class ... Tail>
-        void setParticleLocalTreeTplRecursive(Ttpl & sys_tpl){
-            bool clear = false;
-            if(N == 0) clear = true;
-            setParticleLocalTreeImpl(std::get<N>(sys_tpl), clear);
-            setParticleLocalTreeTplRecursive<N+1, Ttpl, Tail...>(sys_tpl);
-        }
-        template<class... Args>
-        void setParticleLocalTree(std::tuple<Args...> & sys_tpl){
-            setParticleLocalTreeTplRecursive<0, std::tuple<Args...>, Args...>(sys_tpl);
-        }
-        /*
-        template<class Tpsys>
-        void setParticleLocalTreeImpl(const Tpsys & psys, const bool clear);
-        template<class Tpsys>
-        void setParticleLocalTree(const Tpsys & psys, const bool clear=true){
-            setParticleLocalTreeImpl(psys, clear);
-        };
-        */
-#endif
+
         template<class Tpsys>
         void setParticleLocalTreeImpl(const Tpsys & psys, const bool clear);
         template<class Tpsys>
@@ -808,7 +765,7 @@ PS_OMP_PARALLEL_FOR
                 
                 mortonSortLocalTreeOnly();
 
-                epi_org_.freeMem(1);
+                epi_org_.freeMem();
 
                 linkCellLocalTreeOnly();
 
@@ -817,20 +774,16 @@ PS_OMP_PARALLEL_FOR
                 exchangeLocalEssentialTree(dinfo, false);
 
                 setLocalEssentialTreeToGlobalTree();
-
-
 		
-                epj_send_.freeMem(1);
+                epj_send_.freeMem();
 
                 mortonSortGlobalTreeOnly();
 
                 linkCellGlobalTreeOnly();
 
-                spj_org_.freeMem(1);
+                spj_org_.freeMem();
                 
                 calcMomentGlobalTreeOnly();
-
-
 		
                 makeIPGroup();
 
@@ -846,16 +799,16 @@ PS_OMP_PARALLEL_FOR
             else if(list_mode == REUSE_LIST){
                 mortonSortLocalTreeOnly(true);
 
-                epi_org_.freeMem(1);
+                epi_org_.freeMem();
                 
                 exchangeLocalEssentialTree(dinfo, true);
                 setLocalEssentialTreeToGlobalTree(true);
 
-                epj_send_.freeMem(1);
+                epj_send_.freeMem();
                 
                 mortonSortGlobalTreeOnly(true);
 
-                spj_org_.freeMem(1);
+                spj_org_.freeMem();
                 
                 n_walk_local_ += ipg_.size();
                 calcForceNoWalk(pfunc_ep_ep, clear_force);
@@ -871,6 +824,125 @@ PS_OMP_PARALLEL_FOR
 #endif
         }
 
+        ////////////////////////////
+        // variadic template version
+        template<typename Head, typename... Tail >
+	void countNumberOfParticleSystems(Head & head, Tail &&... tail){
+            if constexpr (IsParticleSystem<Head>::value == true){
+                n_loc_tot_ += head.getNumberOfParticleLocal();
+            }
+            if constexpr (sizeof...(tail) > 0){
+		countNumberOfParticleSystems(tail...);
+            }
+	}
+        template<typename Head, typename ... Tail>
+        void setParticleLocalTreeVAImpl(Head & head, Tail & ... tail){
+            if constexpr (IsParticleSystem<Head>::value){
+                const auto n_thread = Comm::getNumberOfThread();
+                F64ort inner[n_thread];
+                F64ort outer[n_thread];
+                const auto n0 = n_loc_tot_;
+                const auto n_loc = head.getNumberOfParticleLocal();
+                n_loc_tot_ += n_loc;
+PS_OMP_PARALLEL
+                {
+                    auto ith = Comm::getThreadNum();
+                    inner[ith].init();
+                    outer[ith].init();
+                    S32 idx0, idx1;
+                    CalcAdrToSplitData(idx0, idx1, ith, n_thread, n_loc);
+                    for(int i=idx0; i<idx1; i++){
+                        epi_org_[i+n0].copyFromFP( head[i] );
+                        epj_org_[i+n0].copyFromFP( head[i] );
+                        inner[ith].merge(head[i].getPos());
+                        if constexpr (HasgetRSearchMethod<Tepj>::value) {
+                            outer[ith].merge(epj_org_[i+n0].getPos(), epj_org_[i+n0].getRSearch()*1.000001);
+                        } else if constexpr (HasgetRSearchMethod<Tepi>::value) {
+                            outer[ith].merge(epi_org_[i+n0].getPos(), epi_org_[i+n0].getRSearch()*1.000001);
+                        } else {
+                            outer[ith].merge(epi_org_[i+n0].getPos());
+                        }
+                    }
+                } // PS_OMP_PARALLEL
+                for(S32 i=0; i<n_thread; i++){
+                    inner_boundary_of_local_tree_.merge(inner[i]);
+                    outer_boundary_of_local_tree_.merge(outer[i]);
+                }
+            }
+            if constexpr (sizeof...(tail) > 0){
+                setParticleLocalTreeVAImpl(tail...);
+            }
+	}
+      
+        template<typename... Args>
+        void setParticleLocalTreeVA(Args &&... args){
+            n_loc_tot_ = 0;
+	    countNumberOfParticleSystems(args...);
+	    epi_sorted_.resizeNoInitialize(n_loc_tot_);
+            epj_sorted_.resizeNoInitialize(n_loc_tot_);
+	    epi_org_.resizeNoInitialize(n_loc_tot_);
+            epj_org_.resizeNoInitialize(n_loc_tot_);
+            inner_boundary_of_local_tree_.init();
+	    outer_boundary_of_local_tree_.init();
+	    n_loc_tot_ = 0;
+	    setParticleLocalTreeVAImpl(args...);
+	}
+
+        template<typename Head, typename ... Tail>
+        void checkArgs(int & n_args, bool & clear_force, INTERACTION_LIST_MODE & list_mode, bool & flag_serialize, Head & head, Tail & ... tail){
+            if constexpr (std::is_same_v<Head, bool>){
+                if(n_args == 0) clear_force = head;
+                else if(n_args == 1) flag_serialize = head;
+                n_args++;
+            } else if constexpr (std::is_same_v<Head, INTERACTION_LIST_MODE>){
+                list_mode = head;
+            } else if constexpr(IsDomainInfo<Head>::value){
+                p_domain_info_ = const_cast<DomainInfo*>(&head);
+            }
+            if constexpr (sizeof...(tail) > 0){
+                checkArgs(n_args, clear_force, list_mode, flag_serialize, tail...);
+            }
+	}
+
+        template<typename T0, typename T1, typename... Args>
+        void calcForceAllVA(T0 x, T1 y, Args && ... args){
+	    setParticleLocalTreeVA(x, y, args...);
+	    auto clear_force = true;
+            auto list_mode = FDPS_DFLT_VAL_LIST_MODE;
+            auto flag_serialize = false;
+	    auto n_args = 0;
+	    checkArgs(n_args, clear_force, list_mode, flag_serialize, args...);
+            if constexpr (IsParticleSystem<T1>::value == true) {
+                calcForceMakingTree(x, *p_domain_info_, clear_force, list_mode, flag_serialize);
+            } else {
+                calcForceMakingTree(x, y, *p_domain_info_, clear_force, list_mode, flag_serialize);
+            }
+        }
+
+        template<typename Head, typename ... Tail>
+	void writeBackVA(S32 & offset, Head & head, Tail && ... tail){
+            if constexpr (IsParticleSystem<Head>::value) {
+	        const F64 time_offset = GetWtime();
+                const auto n_loc = head.getNumberOfParticleLocal();
+                PS_OMP_PARALLEL_FOR
+                    for(S32 i=0; i<n_loc; i++) head[i].copyFromForce(force_org_[i+offset]);
+                offset += n_loc;
+                time_profile_.write_back += GetWtime() - time_offset;                
+            }
+            if constexpr (sizeof...(tail) > 0){
+                writeBackVA(offset, tail...);
+            }
+	}      
+
+        template<typename... Args>
+        void calcForceAllAndWriteBackVA(Args && ... args){
+            calcForceAllVA(args...);
+	    S32 offset = 0;
+	    writeBackVA(offset, args...);
+        }
+        // variadic template version
+        ////////////////////////////
+      
         template<class Tfunc_ep_ep, class Tpsys>
         void calcForceAll(Tfunc_ep_ep pfunc_ep_ep,
                           Tpsys & psys,
@@ -1023,7 +1095,7 @@ PS_OMP_PARALLEL_FOR
 
 		DEBUG_PRINT_MAKING_TREE(comm_info_);
                 calcMomentGlobalTreeOnly();
-
+                
                 if(list_mode == MAKE_LIST){
 
 		    DEBUG_PRINT_MAKING_TREE(comm_info_);
@@ -1093,132 +1165,6 @@ PS_OMP_PARALLEL_FOR
 #endif
         }
 
-        
-#ifdef TEST_VARIADIC_TEMPLATE
-    #if 0 // variadic template version
-        template<class Tfunc0, class Tfunc1, class Tdinfo>
-        void calcForceAllImpl3l(std::true_type,
-                                bool & flag_first_set,
-                                Tfunc0 & func0,
-                                Tfunc1 & func1,
-                                Tdinfo & dinfo,
-                                bool  clear_force=true,
-                                INTERACTION_LIST_MODE list_mode=MAKE_LIST){
-            calcForceMakingTree(func0, func1, dinfo,
-                                clear_force, list_mode);
-        }
-        template<class Tfunc0, class Tfunc1, class Head0, class Head1,
-                 class ... Tail>
-        void calcForceAllImpl3l(std::false_type,
-                                bool & flag_first_set,
-                                Tfunc0 & func0,
-                                Tfunc1 & func1,
-                                Head0 & head0,
-                                Head1 & head1,
-                                Tail & ... tail){
-            bool flag_clear = false;
-            if(flag_first_set){
-                flag_clear = true;
-                flag_first_set = false;
-            }
-            setParticleLocalTree(head0, flag_clear);
-            calcForceAllImpl3l(typename IsDomainInfo<Head1>::value(), flag_first_set, func0, func1, head1, tail ...);
-        }
-        template<class Head0, class Head1, class ... Tail>
-        void calcForceAllImpl2(std::true_type,
-                               Head0 & head0,
-                               Head1 & head1,
-                               Tail & ... tail){
-            // head0 is a for function and head1 is a particle_system class
-            std::cerr<<"head1 is a particle_system class"<<std::endl;
-            //setParticleLocalTree(head1, true);
-            //calcForceAllImpl3s(head0, tail ...);
-        }
-        template<class Head0, class Head1, class Head2, class ... Tail>
-        void calcForceAllImpl2(std::false_type,
-                               Head0 & head0,
-                               Head1 & head1,
-                               Head2 & head2,
-                               Tail & ... tail){
-            // head0 and head1 are force function
-            std::cerr<<"head1 is a force function"<<std::endl;
-            bool flag_first_set = true;
-            calcForceAllImpl3l(typename IsDomainInfo<Head2>::value(), flag_first_set, head0, head1, head2, tail ...);
-        }
-        
-        template<class Head0, class Head1, class ... Tail>
-        void calcForceAllImpl(Head0 & head0,
-                              Head1 & head1,
-                              Tail & ... tail){
-            calcForceAllImpl2(typename IsParticleSystem<Head1>::value(),
-                              head0, head1, tail...);
-        }
-        template<class ... Args>
-        void calcForceAll(Args && ... args){
-            calcForceAllImpl(args ...);
-        }
-    #endif // variadic template version
-        // tuple version
-        template<class Tfunc_ep_ep, class ... Args >
-        void calcForceAll(Tfunc_ep_ep pfunc_ep_ep,
-                          std::tuple<Args ...> sys_tpl,
-                          DomainInfo & dinfo,
-                          const bool clear_force=true,
-                          const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
-            setParticleLocalTree(sys_tpl);
-            calcForceMakingTree(pfunc_ep_ep, dinfo, clear_force, list_mode);
-        }
-        template<class Tfunc_ep_ep, class Tfunc_ep_sp, class ... Args >
-        void calcForceAll(Tfunc_ep_ep pfunc_ep_ep,
-                          Tfunc_ep_sp pfunc_ep_sp,
-                          std::tuple<Args ...> sys_tpl,
-                          DomainInfo & dinfo,
-                          const bool clear_force=true,
-                          const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
-            setParticleLocalTree(sys_tpl);
-            calcForceMakingTree(pfunc_ep_ep, pfunc_ep_sp, dinfo, clear_force, list_mode);
-        }
-        template<size_t N, class Ttpl>
-        void setForceToParticleSystemImpl(S32 n_tot,
-                                          Ttpl & sys_tpl){ }
-        template<size_t N, class Ttpl, class Head, class ... Tail>
-        void setForceToParticleSystemImpl(S32 n_tot,
-                                          Ttpl & sys_tpl){
-            S32 n_loc = (std::get<N>(sys_tpl)).getNumberOfParticleLocal();
-            for(S32 i=0; i<n_loc; i++){
-                const S32 i_dst = i + n_tot;
-                (std::get<N>(sys_tpl))[i].copyFromForce(force_org_[i_dst]);
-            }
-            n_tot += n_loc;
-            setForceToParticleSystemImpl<N+1, Ttpl, Tail ...>(n_tot, sys_tpl);
-        }
-        template<class ... Args>
-        void setForceToParticleSystem(std::tuple<Args ... > sys_tpl){
-            S32 n_tot = 0;
-            setForceToParticleSystemImpl<0, std::tuple<Args ... >, Args ...>(n_tot, sys_tpl);
-        }
-        template<class Tfunc_ep_ep, class ... Args>
-        void calcForceAllAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
-                                      std::tuple<Args ...> sys_tpl,
-                                      DomainInfo & dinfo,
-                                      const bool clear_force=true,
-                                      const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
-            if(list_mode != REUSE_LIST){ clearSizeOfArray(); }
-            calcForceAll(pfunc_ep_ep, sys_tpl, dinfo, clear_force, list_mode);
-            setForceToParticleSystem(sys_tpl);
-        }
-        template<class Tfunc_ep_ep, class Tfunc_ep_sp, class ... Args>
-        void calcForceAllAndWriteBack(Tfunc_ep_ep pfunc_ep_ep,
-                                      Tfunc_ep_sp pfunc_ep_sp,
-                                      std::tuple<Args ...> sys_tpl,
-                                      DomainInfo & dinfo,
-                                      const bool clear_force=true,
-                                      const INTERACTION_LIST_MODE list_mode = FDPS_DFLT_VAL_LIST_MODE){
-            if(list_mode != REUSE_LIST){ clearSizeOfArray();}
-            calcForceAll(pfunc_ep_ep, pfunc_ep_sp, sys_tpl, dinfo, clear_force, list_mode);
-            setForceToParticleSystem(sys_tpl);
-        }
-#endif
         template<class Tfunc_ep_ep, class Tfunc_ep_sp, class Tpsys>
         void calcForceAll(Tfunc_ep_ep pfunc_ep_ep,
                           Tfunc_ep_sp pfunc_ep_sp,
@@ -1291,20 +1237,20 @@ PS_OMP_PARALLEL_FOR
                 setRootCell(dinfo);
                 mortonSortLocalTreeOnly();
 
-                epi_org_.freeMem(1);
+                epi_org_.freeMem();
                 
                 linkCellLocalTreeOnly();
                 calcMomentLocalTreeOnly();
                 exchangeLocalEssentialTree(dinfo, false);
                 setLocalEssentialTreeToGlobalTree(false);
 
-                epj_send_.freeMem(1);
-                spj_send_.freeMem(1);
+                epj_send_.freeMem();
+                spj_send_.freeMem();
                 
                 mortonSortGlobalTreeOnly();
                 linkCellGlobalTreeOnly();
 
-                spj_org_.freeMem(1);
+                spj_org_.freeMem();
                 
                 calcMomentGlobalTreeOnly();
 
@@ -1315,18 +1261,18 @@ PS_OMP_PARALLEL_FOR
             else if(list_mode == REUSE_LIST){
                 mortonSortLocalTreeOnly(true);
 
-                epi_org_.freeMem(1);
+                epi_org_.freeMem();
                 
                 calcMomentLocalTreeOnly();
                 exchangeLocalEssentialTree(dinfo, true);
                 setLocalEssentialTreeToGlobalTree(true);
 
-                epj_send_.freeMem(1);
-                spj_send_.freeMem(1);
+                epj_send_.freeMem();
+                spj_send_.freeMem();
                 
                 mortonSortGlobalTreeOnly(true);
 
-                spj_org_.freeMem(1);
+                spj_org_.freeMem();
                 
                 calcMomentGlobalTreeOnly();
                 AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_, spj_sorted_.size(), spj_sorted_);
@@ -1424,7 +1370,7 @@ PS_OMP_PARALLEL_FOR
 
 
                 
-                epi_org_.freeMem(1);
+                epi_org_.freeMem();
                 
                 linkCellLocalTreeOnly();
                 calcMomentLocalTreeOnly();
@@ -1445,14 +1391,13 @@ PS_OMP_PARALLEL_FOR
                 //         <<" epj_org_.size()= "<<epj_org_.size()
                 //         <<std::endl;
                 
-                epj_send_.freeMem(1);
-                spj_send_.freeMem(1);
+                epj_send_.freeMem();
+                spj_send_.freeMem();
                 
                 mortonSortGlobalTreeOnly();
                 linkCellGlobalTreeOnly();
 
-                //epj_org_.freeMem(1);
-                spj_org_.freeMem(1);
+                spj_org_.freeMem();
                 
                 calcMomentGlobalTreeOnly();
                 /*
@@ -1466,8 +1411,6 @@ PS_OMP_PARALLEL_FOR
                                   spj_sorted_.size(), spj_sorted_);
                 makeIPGroup();
 
-                //tc_loc_.freeMem(1);
-
                 //std::cerr<<"epj_sorted_.size()= "<<epj_sorted_.size()
                 //         <<" spj_sorted_.size()= "<<spj_sorted_.size()
                 //         <<std::endl;
@@ -1477,19 +1420,18 @@ PS_OMP_PARALLEL_FOR
             else if(list_mode == REUSE_LIST){
                 mortonSortLocalTreeOnly(true);
                 
-                epi_org_.freeMem(1);
+                epi_org_.freeMem();
                 
                 calcMomentLocalTreeOnly();
                 exchangeLocalEssentialTree(dinfo, true);
                 setLocalEssentialTreeToGlobalTree(true);
 
-                epj_send_.freeMem(1);
-                spj_send_.freeMem(1);
+                epj_send_.freeMem();
+                spj_send_.freeMem();
                 
                 mortonSortGlobalTreeOnly(true);
 
-                //epj_org_.freeMem(1);
-                spj_org_.freeMem(1);
+                spj_org_.freeMem();
                 
                 calcMomentGlobalTreeOnly();
                 AddMomentAsSpImpl(typename TSM::force_type(), tc_glb_, spj_sorted_.size(), spj_sorted_);

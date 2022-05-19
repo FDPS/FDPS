@@ -4,7 +4,7 @@
 
 FDPS_LOC = ../../../../../
 FDPS_INC = -I$(FDPS_LOC)/src
-CXXFLAGS_COMMON = -std=c++11 -O3 -ffast-math -funroll-loops $(FDPS_INC) -I../../inc
+CXXFLAGS_COMMON = -std=c++17 -O3 -ffast-math -funroll-loops $(FDPS_INC) -I../../inc
 #CXXFLAGS_COMMON = -std=c++11 -O0 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 
 #IPS_FLAGS = -DIPS_TREE_PSEUDOPARTICLE_QUADRUPOLE_MOMENT_CHECK

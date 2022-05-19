@@ -2,6 +2,10 @@
 
 #include<iostream>
 #include<iomanip>
+#include<cmath>
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
+#include<mpi.h>
+#endif
 
 namespace ParticleSimulator{
     template<class T>
@@ -121,11 +125,11 @@ namespace ParticleSimulator{
 
 #if 0
         const T & operator[](const int i) const {
-#ifdef PARTICLE_SIMULATOR_VECTOR_RANGE_CHECK
+#if defined(PARTICLE_SIMULATOR_VECTOR_RANGE_CHECK)
 	    if(i >= DIM || i < 0){
 		std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
 		std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
 		MPI_Abort(MPI_COMM_WORLD,-1);
 #else
 		exit(-1);
@@ -136,11 +140,11 @@ namespace ParticleSimulator{
         }
 
         T & operator[](const int i){
-#ifdef PARTICLE_SIMULATOR_VECTOR_RANGE_CHECK
+#if defined(PARTICLE_SIMULATOR_VECTOR_RANGE_CHECK)
 	    if(i >= DIM || i < 0){
 		std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
 		std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
 		MPI_Abort(MPI_COMM_WORLD,-1);
 #else
 		exit(-1);
@@ -156,7 +160,7 @@ namespace ParticleSimulator{
             if(2==i) return z;
             std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
             std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
             MPI_Abort(MPI_COMM_WORLD,-1);
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
             exit(-1);
@@ -170,7 +174,7 @@ namespace ParticleSimulator{
             if(2==i) return z;
             std::cout<<"PS_ERROR: Vector invalid access. \n"<<"function: "<<__FUNCTION__<<", line: "<<__LINE__<<", file: "<<__FILE__<<std::endl;		
             std::cerr<<"Vector element="<<i<<" is not valid."<<std::endl;
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
             MPI_Abort(MPI_COMM_WORLD,-1);
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
             exit(-1);

@@ -64,8 +64,6 @@ static inline __m256 _mm256_set_m128_forgcc(__m128 hi, __m128 lo){
 
 namespace ParticleSimulator{
 
-
-
     template<class Tptcl>
     inline void AllGatherParticle(Tptcl *& ptcl,
                                   S32 *&n_ptcl,
@@ -93,7 +91,7 @@ namespace ParticleSimulator{
                                   const CommInfo & comm_info){
         S32 * n_tmp;
         S32 * n_disp_tmp;
-        AllGatherParticle(ptcl, n_tmp, n_disp_tmp, ptcl_org, n_loc);
+        AllGatherParticle(ptcl, n_tmp, n_disp_tmp, ptcl_org, n_loc, comm_info);
         n_tot = n_disp_tmp[comm_info.getNumberOfProc()];
         delete [] n_tmp;
         delete [] n_disp_tmp;
@@ -162,7 +160,7 @@ namespace ParticleSimulator{
                                   const CommInfo & comm_info){
         S32 * n_tmp;
         S32 * n_disp_tmp;
-        AllGatherParticle(ptcl, n_tmp, n_disp_tmp, ptcl_org, n_loc, pos_root_domain, pos_root_cell, periodic_axis);
+        AllGatherParticle(ptcl, n_tmp, n_disp_tmp, ptcl_org, n_loc, pos_root_domain, pos_root_cell, periodic_axis, comm_info);
         n_tot = n_disp_tmp[comm_info.getNumberOfProc()];
         delete [] n_tmp;
         delete [] n_disp_tmp;

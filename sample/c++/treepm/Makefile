@@ -1,6 +1,6 @@
 CC := mpicc
 CXX := mpicxx
-CFLAGS = -std=c++11 -O3 
+CFLAGS = -std=c++17 -O3 
 # Note that in some environment, the options -ffast-math funroll-loops
 # results in an irreproducible error.
 CFLAGS += -Wall
@@ -11,7 +11,7 @@ CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 # (DO NOT CHANGE THE LINE ABOVE AND ITS POSITION MUST BE
 #  JUST BEFORE THE LINE BELOW)
 CXXFLAGS := $(CFLAGS)
-CXXFLAGS += -std=c++11
+CXXFLAGS += -std=c++17
 
 all: treepm
 

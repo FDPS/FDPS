@@ -189,62 +189,62 @@ PS_OMP_CRITICAL
         if(clear){
             n_loc_tot_ = 0;
             inner_boundary_of_local_tree_.init();
+	    outer_boundary_of_local_tree_.init();
         }
         const S32 offset = n_loc_tot_;
         n_loc_tot_ += nloc;
         epj_org_.resizeNoInitialize(n_loc_tot_);
         epi_org_.resizeNoInitialize(n_loc_tot_);
-#ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL)
         const S32 n_thread = Comm::getNumberOfThread();
-        ReallocatableArray<F64ort> inner(n_thread, n_thread, MemoryAllocMode::Pool);
+        F64ort inner[n_thread];
+	F64ort outer[n_thread];
 #pragma omp parallel
         {
             const S32 ith = Comm::getThreadNum();
             inner[ith].init();
-            if(clear){
+	    outer[ith].init();
 #pragma omp for
-                for(S32 i=0; i<nloc; i++){
-                    epi_org_[i].copyFromFP( psys[i] );
-                    epj_org_[i].copyFromFP( psys[i] );
-                    inner[ith].merge(psys[i].getPos());
-                }
-            }
-            else{
-#pragma omp for
-                for(S32 i=0; i<nloc; i++){
-                    epi_org_[i+offset].copyFromFP( psys[i] );
-                    epj_org_[i+offset].copyFromFP( psys[i] );
-                    inner[ith].merge(psys[i].getPos());
-                }
-            }
+	    for(S32 i=0; i<nloc; i++){
+	        epi_org_[i+offset].copyFromFP( psys[i] );
+	        epj_org_[i+offset].copyFromFP( psys[i] );
+		inner[ith].merge(psys[i].getPos());
+		if constexpr (HasgetRSearchMethod<Tepj>::value){
+		    outer[ith].merge(psys[i].getPos(), epj_org_[i+offset].getRSearch());
+		} else if constexpr (HasgetRSearchMethod<Tepi>::value){
+		    outer[ith].merge(psys[i].getPos(), epi_org_[i+offset].getRSearch());
+		} else {
+		    outer[ith].merge(psys[i].getPos());
+		}
+	    }
         } // end of OMP scope
         for(S32 i=0; i<n_thread; i++){
             inner_boundary_of_local_tree_.merge(inner[i]);
+	    outer_boundary_of_local_tree_.merge(outer[i]);
         }
 #else //PARTICLE_SIMULATOR_THREAD_PARALLEL
-        if(clear){
-            for(S32 i=0; i<nloc; i++){
-                epi_org_[i].copyFromFP( psys[i] );
-                epj_org_[i].copyFromFP( psys[i] );
-                inner_boundary_of_local_tree_.merge(psys[i].getPos());
-            }
-        }
-        else{
-            for(S32 i=0; i<nloc; i++){
-                epi_org_[i+offset].copyFromFP( psys[i] );
-                epj_org_[i+offset].copyFromFP( psys[i] );
-                inner_boundary_of_local_tree_.merge(psys[i].getPos());
-            }
+	for(S32 i=0; i<nloc; i++){
+	    epi_org_[i+offset].copyFromFP( psys[i] );
+	    epj_org_[i+offset].copyFromFP( psys[i] );
+	    inner_boundary_of_local_tree_.merge(psys[i].getPos());
+	    if constexpr (HasgetRSearchMethod<Tepj>::value){
+		outer_boundary_of_local_tree_.merge(psys[i].getPos(), epj_org_[i+offset].getRSearch());
+	    } else if constexpr (HasgetRSearchMethod<Tepi>::value){
+		outer_boundary_of_local_tree_.merge(psys[i].getPos(), epi_org_[i+offset].getRSearch());
+	    } else {
+	        outer_boundary_of_local_tree_.merge(psys[i].getPos());
+	    }
         }
 #endif //PARTICLE_SIMULATOR_THREAD_PARALLEL
-#ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
+#if defined(PARTICLE_SIMULATOR_DEBUG_PRINT)
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"nloc="<<nloc<<std::endl;
         std::cout<<"n_loc_tot_="<<n_loc_tot_<<std::endl;
 #endif
         time_profile_.set_particle_local_tree += GetWtime() - time_offset;
     }
-    
+
+  /*
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
@@ -261,7 +261,77 @@ PS_OMP_CRITICAL
 #endif
         time_profile_.set_root_cell += GetWtime() - time_offset;
     }
+  */
 
+    template<class TSM, class Tforce, class Tepi, class Tepj,
+             class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
+    void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
+    setRootCell(const DomainInfo & dinfo){
+        const F64 time_offset = GetWtime();
+#if 0
+        calcCenterAndLengthOfRootCell(typename TSM::search_type(), dinfo);
+#else
+        F64vec xlow_glb  = comm_info_.getMinValue(outer_boundary_of_local_tree_.low_);
+        F64vec xhigh_glb = comm_info_.getMaxValue(outer_boundary_of_local_tree_.high_);
+        const F64ort my_outer_boundary(xlow_glb, xhigh_glb);
+        const F64ort root_domain = dinfo.getPosRootDomain();
+        const F64vec shift = root_domain.high_ - root_domain.low_;
+        bool pa[DIMENSION_LIMIT];
+        dinfo.getPeriodicAxis(pa);
+        S32 num_shift_p[DIMENSION_LIMIT];
+        S32 num_shift_n[DIMENSION_LIMIT];
+        S32 num_shift_max[DIMENSION_LIMIT];
+        for(S32 cid=0; cid<DIMENSION; cid++){
+            if (pa[cid]) {
+                num_shift_p[cid] = num_shift_n[cid] = 0;
+                F64vec shift_tmp(0.0);
+                shift_tmp[cid] = shift[cid];
+                CalcNumShift(root_domain, my_outer_boundary, shift_tmp, num_shift_p[cid]);
+                CalcNumShift(root_domain, my_outer_boundary, -shift_tmp, num_shift_n[cid]);
+                num_shift_max[cid] = std::max(num_shift_p[cid], num_shift_n[cid]);
+            } else {
+                num_shift_max[cid] = 0;
+            }
+        }
+        length_ = 0.0;
+	F64vec len_dim;
+        for(S32 cid=0; cid<DIMENSION; cid++){
+            if (pa[cid]) {
+                F64 length_tmp = (2*num_shift_max[cid]+1)*shift[cid];
+                if(length_tmp > length_) length_ = length_tmp;
+                center_[cid] = root_domain.getCenter()[cid];
+		len_dim[cid]= length_tmp;
+            } else {
+                F64 length_tmp = my_outer_boundary.getFullLength()[cid];
+                if (length_tmp > length_) length_ = length_tmp;
+                center_[cid] = my_outer_boundary.getCenter()[cid];
+		len_dim[cid]= length_tmp;
+            }
+        }
+	//	std::cerr << "center before"<< center_ << "\n";
+	
+	for(S32 cid=0; cid<DIMENSION; cid++){
+	    //	    std::cerr << "cid "<< cid<< " " << len_dim[cid] << " " <<length_<<"\n";
+	    if (len_dim[cid] < 0.1 * length_){
+		center_[cid] -= len_dim[cid]*0.51;
+	    }
+	}
+	//	std::cerr << "center after"<< center_ << "\n";
+        length_ *= 1.000001;
+        pos_root_cell_.low_ = center_ - F64vec(length_*0.5);
+        pos_root_cell_.high_ = center_ + F64vec(length_*0.5);
+#endif
+	
+#if defined(PARTICLE_SIMULATOR_DEBUG_PRINT)
+        if(comm_info_.getRank()==0){
+            PARTICLE_SIMULATOR_PRINT_LINE_INFO();
+            std::cout<<"length_="<<length_<<" center_="<<center_<<std::endl;
+            std::cout<<"pos_root_cell="<<getPosRootCell<<std::endl;
+        }
+#endif
+        time_profile_.set_root_cell += GetWtime() - time_offset;
+    }
+  
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
@@ -555,6 +625,13 @@ PS_OMP_PARALLEL_FOR
     calcMomentGlobalTreeOnly(){
         const F64 time_offset = GetWtime();
         calcMomentGlobalTreeOnlyImpl(typename TSM::force_type());
+        if constexpr (std::is_same<TSM, SEARCH_MODE_LONG_CUTOFF>::value == true){
+                SetOuterBoxGlobalTreeForLongCutoffTop(typename TSM::search_type(),
+                                                      tc_glb_.getPointer(),
+                                                      epj_sorted_.getPointer(), //to get rcut
+                                                      n_leaf_limit_,
+                                                      length_*0.5, center_);
+        }
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
 #endif
@@ -748,7 +825,7 @@ PS_OMP_PARALLEL_FOR
     }
 
 
-
+  /*
     inline void CalcNumShift(const F64ort root_domain,
                              const F64ort my_outer_boundary,
                              const F64vec shift,
@@ -762,7 +839,8 @@ PS_OMP_PARALLEL_FOR
             n_shift++;
         }        
     }
-
+  */
+  
     template<class TSM, class Tforce, class Tepi, class Tepj,
              class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     template<class Tep2>

@@ -417,8 +417,7 @@ void CalcForceFromArray(const Tpi & pi, const Tpj * pj, const PS::S32 nj, Tforce
 
 	    const auto vij = pi.vel_full - pj[j].vel_full;
 	    const auto rv  = rij * vij;
-	    ai_dash += eta * m_red * rv * over_r_real_sq * rij;
-
+	    ai_dash -= eta * m_red * rv * over_r_real_sq * rij;
 	}
 	else{
 	    const auto m_over_r_real = pj[j].mass * over_r_real;

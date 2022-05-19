@@ -13,7 +13,7 @@
 #include<map>
 #include<random>
 
-#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
 #include"mpi.h"
 #endif
 
@@ -64,15 +64,7 @@
     } while(0);							\
 
 #include"memory_pool.hpp"
-#include"vector2.hpp"
-#include"vector3.hpp"
-#include"orthotope2.hpp"
-#include"orthotope3.hpp"
-#include"orthotope2i.hpp"
-#include"orthotope3i.hpp"
-#include"matrix_sym2.hpp"
-#include"matrix_sym3.hpp"
-#include"matrix2.hpp"
+#include"ps_types.hpp"
 
 #define PS_DEBUG_CALL(func) \
     do {                                              \
@@ -140,45 +132,8 @@ namespace ParticleSimulator{
 #include"reallocatable_array.hpp"
 
 namespace ParticleSimulator{
-    typedef int S32;
-    typedef unsigned int U32;
-#ifdef PARTICLE_SIMULATOR_ALL_64BIT_PRECISION
-    typedef double F32;
-#else
-    typedef float F32;
-#endif
-    typedef long long int S64;
-    typedef unsigned long long int U64;
-    typedef double F64;
-    typedef Vector2<S32> S32vec2;
-    typedef Vector3<S32> S32vec3;
-    typedef Vector2<U64> U64vec2;
-    typedef Vector3<U64> U64vec3;
-    typedef Vector2<F32> F32vec2;
-    typedef Vector3<F32> F32vec3;
-    typedef Vector2<F64> F64vec2;
-    typedef Vector3<F64> F64vec3;
-    typedef MatrixSym2<F32> F32mat2;
-    typedef MatrixSym3<F32> F32mat3;
-    typedef MatrixSym2<F64> F64mat2;
-    typedef MatrixSym3<F64> F64mat3;
-    typedef Orthotope2i<S32> S32ort2;
-    typedef Orthotope3i<S32> S32ort3;
-    typedef Orthotope2<F32> F32ort2;
-    typedef Orthotope3<F32> F32ort3;
-    typedef Orthotope2<F64> F64ort2;
-    typedef Orthotope3<F64> F64ort3;
-
     static const S32 DIMENSION_LIMIT = 3;
-#ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
-    typedef S32vec2 S32vec;
-    typedef F32vec2 F32vec;
-    typedef F64vec2 F64vec;
-    typedef F32mat2 F32mat;
-    typedef F64mat2 F64mat;
-    typedef S32ort2 S32ort;
-    typedef F32ort2 F32ort;
-    typedef F64ort2 F64ort;
+#if defined(PARTICLE_SIMULATOR_TWO_DIMENSION)
     static const S32 DIMENSION = 2;
     static const S32 N_CHILDREN = 4;
     static const S32 TREE_LEVEL_LIMIT = 30;
@@ -186,14 +141,6 @@ namespace ParticleSimulator{
         { F64vec(-0.5, -0.5), F64vec(-0.5, 0.5),
           F64vec( 0.5, -0.5), F64vec( 0.5, 0.5) };
 #else
-    typedef S32vec3 S32vec;
-    typedef F32vec3 F32vec;
-    typedef F64vec3 F64vec;
-    typedef F32mat3 F32mat;
-    typedef F64mat3 F64mat;
-    typedef S32ort3 S32ort;
-    typedef F32ort3 F32ort;
-    typedef F64ort3 F64ort;
     static const S32 DIMENSION = 3;
     static const S32 N_CHILDREN = 8;
 #if defined(PARTICLE_SIMULATOR_USE_64BIT_KEY)
@@ -212,18 +159,6 @@ namespace ParticleSimulator{
           F64vec(-0.5,  0.5, -0.5), F64vec(-0.5,  0.5,  0.5),
           F64vec( 0.5, -0.5, -0.5), F64vec( 0.5, -0.5,  0.5),
           F64vec( 0.5,  0.5, -0.5), F64vec( 0.5,  0.5,  0.5) };
-#endif
-    
-#ifdef PARTICLE_SIMULATOR_SPMOM_F32
-    typedef S32    SSP;
-    typedef F32    FSP;
-    typedef F32vec FSPvec;
-    typedef F32mat FSPmat;
-#else
-    typedef S64    SSP;
-    typedef F64    FSP;
-    typedef F64vec FSPvec;
-    typedef F64mat FSPmat;
 #endif
     typedef U64 CountT;
     typedef CountT Count_t;
@@ -1141,11 +1076,11 @@ namespace ParticleSimulator{
 
 
         template<class T>
-        inline void allGatherV(T * val_send, // in
-                               int n_send,   // in
+        inline void allGatherV(const T * val_send, // in
+                               const int n_send,   // in
                                T * val_recv, // out
-                               int * n_recv, // in
-                               int * n_recv_disp //in
+                               const int * n_recv, // in
+                               const int * n_recv_disp //in
                                ) const {
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
             MPI_Allgatherv(val_send, n_send, GetDataType<T>(),
@@ -1681,7 +1616,7 @@ namespace ParticleSimulator{
             std::cerr << "     || ::      ::::::' ::      `......' ||"   << std::endl;
             std::cerr << "     ||     Framework for Developing     ||"   << std::endl;
             std::cerr << "     ||        Particle Simulator        ||"   << std::endl;
-            std::cerr << "     ||     Version 7.1 (2021/10)        ||"   << std::endl;
+            std::cerr << "     ||     Version 7.1a (2022/05)       ||"   << std::endl;
             std::cerr << "     \\\\==================================//" << std::endl;
             std::cerr << "" << std::endl;
             std::cerr << "       Home   : https://github.com/fdps/fdps " << std::endl;
@@ -2038,7 +1973,7 @@ namespace ParticleSimulator{
     F64 GetMyRSearch(Tptcl ptcl) {
        return GetMyRSearch(ptcl, std::integral_constant<bool, HasgetRSearchMethod<Tptcl>::value>());
     }
-    
+  
     class TimeProfile{
     public:
         F64 collect_sample_particle;

@@ -5,6 +5,20 @@ namespace  ParticleSimulator{
     ///   calc distance
     //////////////////
     // between points
+    template<typename T>
+    PS_INLINE T GetDistanceMin1DImpl(const T a,
+                                     const T b){
+        return std::abs(a-b);
+    }
+    template<typename T>
+    PS_INLINE T GetDistanceMin1DPeriImpl(const T a,
+                                         const T b,
+                                         const T len){
+        const auto h0 = std::abs(a-b);
+	const auto h1 = len - h0;
+	return std::min(h0, h1);
+    }    
+    /*
     PS_INLINE F64 GetDistanceMin1DImpl(const F64 a,
 				       const F64 b){
         return std::fabs(a-b);
@@ -17,7 +31,8 @@ namespace  ParticleSimulator{
 	const auto h1 = len - h0;
 	return std::min(h0, h1);
     }    
-
+    */
+    
     template<int bit>  
     PS_INLINE F64 GetDistanceMin1D(const F64 a,
 				   const F64 b,
@@ -656,7 +671,45 @@ namespace  ParticleSimulator{
 	    rank_new /= n_domain[i];
 	}
 	return rank_new % n_domain[cid];
-    }    
+    }
+
+
+    static PS_INLINE S32 GetAppropriateRank1D(const F64vec & pos, const S32 rank_glb_org, const S32 n_domain[DIMENSION_LIMIT], const F64ort domain[], const int cid){
+        // rank_glb_org don't have to be my_rank. It is just a start rank to search new rank.
+        const auto pos_1d = pos[cid];
+        const auto rank_vec_org = GetRankVec(n_domain, rank_glb_org, DIMENSION);
+        const auto rank_1d_org = rank_vec_org[cid];
+        const auto rank_1d_mid = (rank_1d_org + n_domain[cid] + n_domain[cid]/2 ) % n_domain[cid];
+        auto rank_vec_mid = rank_vec_org;
+        rank_vec_mid[cid] = rank_1d_mid;
+        const auto rank_glb_mid = GetRankGlb(rank_vec_mid, n_domain);
+        // set shift
+        S32 shift = 1;
+#if defined(PARTICLE_SIMULATOR_TWO_DIMENSION)
+        if(cid == 0) shift = n_domain[1];
+#else
+        if(cid == 1) shift = n_domain[2];
+        else if(cid == 0) shift = n_domain[1] * n_domain[2];
+#endif
+        auto rank_vec_start = rank_vec_org;
+        if(rank_1d_org > rank_1d_mid && domain[rank_glb_mid].low_[cid] > pos_1d ){
+            rank_vec_start[cid] = 0;
+        } else if(rank_1d_org < rank_1d_mid && domain[rank_glb_mid].high_[cid] <= pos_1d ) {
+            rank_vec_start[cid] = n_domain[cid]-1;
+        }
+        auto rank_glb_tmp = GetRankGlb(rank_vec_start, n_domain);
+        //int n_shift = 0;
+        while( pos_1d >= domain[rank_glb_tmp].high_[cid] ){
+            rank_glb_tmp += shift;
+            //n_shift++;
+        }
+        while( pos_1d < domain[rank_glb_tmp].low_[cid] ){
+            rank_glb_tmp -= shift;
+            //n_shift++;
+        }
+        //std::cerr<<"n_shift= "<<n_shift<<std::endl;
+        return GetRank1d(rank_glb_tmp, n_domain, cid);
+    }
 
     static PS_INLINE void CalcRank1D(S32 & rank_1d, S32 & dnp_1d, F64 & dis_domain_1d, const F64vec & pos, const S32 rank_glb_org, const S32 n_domain[DIMENSION_LIMIT], const F64ort domain[], const F64 len_peri, const bool pa, const int cid){
 	// rank_glb_org don't have to be my_rank. It is just a start rank to search new rank.
@@ -703,6 +756,7 @@ namespace  ParticleSimulator{
 	if (dnp_1d > dnp_1d2) dnp_1d = dnp_1d2;
     }
 
+    
     static inline int GetColorForCommSplit(const int my_rank_glb, const int * n_domain, const int dim, const int cid){
 	const auto my_rank_1d = GetRank1d(my_rank_glb, n_domain, cid);
 	int tmp = 1;
@@ -713,6 +767,20 @@ namespace  ParticleSimulator{
     }
 
 
+    inline void CalcNumShift(const F64ort root_domain,
+                             const F64ort my_outer_boundary,
+                             const F64vec shift,
+                             S32 & n_shift){
+        F64ort root_domain_tmp = root_domain;
+        root_domain_tmp.high_ += shift;
+        root_domain_tmp.low_ += shift;
+        while(my_outer_boundary.overlapped(root_domain_tmp)){
+            root_domain_tmp.high_ += shift;
+            root_domain_tmp.low_ += shift;
+            n_shift++;
+        }        
+    }
+  
 
 #if defined(PARTICLE_SIMULATOR_MPI_PARALLEL)
     template<typename T>
@@ -935,7 +1003,8 @@ namespace  ParticleSimulator{
 	}
     }
 
-    
+
+  
 #endif //PARTICLE_SIMULATOR_MPI_PARALLEL
   
 }

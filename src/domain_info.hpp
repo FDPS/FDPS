@@ -9,6 +9,8 @@
 #include<functional>
 #include<algorithm>
 
+
+
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 #include<mpi.h>
 #endif
@@ -17,7 +19,8 @@ constexpr bool DEBUG_FLAG_DD = false;
 
 
 namespace ParticleSimulator{
-    
+    template<typename T>  struct IsParticleSystem;
+
     inline void CommunicatorSplit(S32 np[],
                                   CommInfo & comm_info_src,
                                   CommInfo comm_info_1d[],
@@ -41,12 +44,16 @@ namespace ParticleSimulator{
         ReallocatableArray<F64vec> pos_sample_tot_;
         ReallocatableArray<F64vec> pos_sample_loc_;
 
-        F64ort * pos_domain_;
-        F64ort * pos_domain_temp_;
-        
-        S32 * n_smp_array_;
-        S32 * n_smp_disp_array_;
-
+        //F64ort * pos_domain_;
+        //F64ort * pos_domain_temp_;
+        ReallocatableArray<F64ort> pos_domain_;
+        ReallocatableArray<F64ort> pos_domain_temp_;
+            
+        //S32 * n_smp_array_;
+        //S32 * n_smp_disp_array_;
+        ReallocatableArray<S32> n_smp_array_;
+        ReallocatableArray<S32> n_smp_disp_array_;
+    
         F32 coef_ema_;
         S32 target_number_of_sample_particle_;
         S32 number_of_sample_particle_tot_;
@@ -102,20 +109,27 @@ namespace ParticleSimulator{
     public:
         
         void initialize_impl(const F64 coef_ema){
-            DeleteArray(n_smp_array_);
-            DeleteArray(n_smp_disp_array_);
-            DeleteArray(pos_domain_);
-            DeleteArray(pos_domain_temp_);
+            //DeleteArray(n_smp_array_);
+            //DeleteArray(n_smp_disp_array_);
+            //DeleteArray(pos_domain_);
+            //DeleteArray(pos_domain_temp_);
             const S32 n_proc = comm_info_.getNumberOfProc();
             const S32 my_rank = comm_info_.getRank();
-            n_smp_array_ = new S32[n_proc];
-            n_smp_disp_array_ = new S32[n_proc + 1];
+
+            //n_smp_array_ = new S32[n_proc];
+            //n_smp_disp_array_ = new S32[n_proc + 1];
+            n_smp_array_.resizeNoInitialize(n_proc);
+            n_smp_disp_array_.resizeNoInitialize(n_proc+1);
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
-            pos_domain_      = new F64ort[n_proc];
-            pos_domain_temp_ = new F64ort[n_proc];
+            //pos_domain_      = new F64ort[n_proc];
+            //pos_domain_temp_ = new F64ort[n_proc];
+            pos_domain_.resizeNoInitialize(n_proc);
+            pos_domain_temp_.resizeNoInitialize(n_proc);
 #else
-            pos_domain_     = new F64ort[1];
-            pos_domain_temp_= new F64ort[1];
+            //pos_domain_     = new F64ort[1];
+            //pos_domain_temp_= new F64ort[1];
+            pos_domain_.resizeNoInitialize(1);
+            pos_domain_temp_.resizeNoInitialize(1);
 #endif
             coef_ema_ = coef_ema;
             target_number_of_sample_particle_ = 0;
@@ -150,10 +164,10 @@ namespace ParticleSimulator{
             first_call_by_decomposeDomain = true;
             pos_sample_tot_.setAllocMode(MemoryAllocMode::Pool);
             pos_sample_loc_.setAllocMode(MemoryAllocMode::Pool);
-            n_smp_array_ = nullptr;
-            n_smp_disp_array_ = nullptr;
-            pos_domain_ = nullptr;
-            pos_domain_temp_ = nullptr;
+            //n_smp_array_ = nullptr;
+            //n_smp_disp_array_ = nullptr;
+            //pos_domain_ = nullptr;
+            //pos_domain_temp_ = nullptr;
             periodic_axis_[0] = periodic_axis_[1] = false;
             pos_root_domain_.low_.x  = -LARGE_FLOAT;
             pos_root_domain_.high_.x = LARGE_FLOAT;
@@ -168,15 +182,19 @@ namespace ParticleSimulator{
             comm_info_.setCommunicator();
         }
         ~DomainInfo() {
-            delete [] n_smp_array_;
-            delete [] n_smp_disp_array_;
-            delete [] pos_domain_;
-            delete [] pos_domain_temp_;
+            //delete [] n_smp_array_;
+            //delete [] n_smp_disp_array_;
+            n_smp_array_.freeMem();
+            n_smp_disp_array_.freeMem();
+            //delete [] pos_domain_;
+            //delete [] pos_domain_temp_;
+            pos_domain_.freeMem();
+            pos_domain_temp_.freeMem();
             pos_sample_tot_.freeMem();
             pos_sample_loc_.freeMem();
         }
 
-        void initialize(const F32 coef_ema = FDPS_DFLT_VAL_COEF_EMA){
+        void initialize(const F32 coef_ema = FDPS_DFLT_VAL_COEF_EMA, MemoryAllocMode alloc_mode = MemoryAllocMode::Default){
             if( coef_ema < 0.0 || coef_ema > 1.0){
                 PARTICLE_SIMULATOR_PRINT_ERROR("The smoothing factor of an exponential moving average is must between 0 and 1.");
                 std::cerr<<"The smoothing factor of an exponential moving average is must between 0 and 1."<<std::endl;
@@ -219,8 +237,9 @@ namespace ParticleSimulator{
         template<class Tpsys>
         void collectSampleParticle(Tpsys & psys,
                                    const bool clear,
-                                   const F32 weight) {
+                                   const F64 weight) {
             F64 time_offset = GetWtime();
+            /*
             if(psys.getFirstCallByDomainInfoCollectSampleParticle()) {
                 ReallocatableArray<F64vec> temp_loc(target_number_of_sample_particle_, target_number_of_sample_particle_, MemoryAllocMode::Pool);
                 for(S32 i = 0; i < number_of_sample_particle_loc_; i++)
@@ -234,9 +253,11 @@ namespace ParticleSimulator{
                     pos_sample_loc_[i] = temp_loc[i];
                 temp_loc.freeMem();
             }
+            */
             if(clear) {
                 number_of_sample_particle_loc_ = 0;
             }
+
 #if 1
             const auto number_of_sample_particle = psys.getNumberOfSampleParticleLocal(weight);
             pos_sample_loc_.increaseSize(number_of_sample_particle);
@@ -280,7 +301,7 @@ namespace ParticleSimulator{
 #ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
 	    auto nproc  = comm_info_.getNumberOfProc();
             auto myrank = comm_info_.getRank();
-            comm_info_.allGather(&number_of_sample_particle_loc_, 1, n_smp_array_);
+            comm_info_.allGather(&number_of_sample_particle_loc_, 1, &n_smp_array_[0]);
             n_smp_disp_array_[0] = 0;
             for(S32 i=0; i<nproc; i++){
                 n_smp_disp_array_[i+1] = n_smp_disp_array_[i] + n_smp_array_[i];
@@ -296,7 +317,7 @@ namespace ParticleSimulator{
             */
             
             //comm_info_.allGatherV(&pos_sample_loc_[0], number_of_sample_particle_loc_, &pos_sample_tot_[0], n_smp_array_, n_smp_disp_array_);
-            comm_info_.allGatherV(pos_sample_loc_.getPointer(), number_of_sample_particle_loc_, pos_sample_tot_.getPointer(), n_smp_array_, n_smp_disp_array_);
+            comm_info_.allGatherV(pos_sample_loc_.getPointer(), number_of_sample_particle_loc_, pos_sample_tot_.getPointer(), &n_smp_array_[0], &n_smp_disp_array_[0]);
 	    auto toffset2=GetWtime() ;
             time_profile_.decompose_domain__gather_particle += toffset2- time_offset;
 
@@ -306,8 +327,10 @@ namespace ParticleSimulator{
             // *** decompose domain *******************************
 	    bool decompose_in_all_processes=true;
             if(myrank == 0 ||decompose_in_all_processes) {
-                S32 * istart = new S32[nproc];
-                S32 * iend   = new S32[nproc];
+                //S32 * istart = new S32[nproc];
+                //S32 * iend   = new S32[nproc];
+                S32 istart[nproc];
+                S32 iend[nproc];
                 // --- x direction --------------------------
 		//std::sort(pos_sample_tot_, pos_sample_tot_+number_of_sample_particle_tot_, Cmpvec(&F64vec::x));
 		F64 wtmp = GetWtime();
@@ -426,8 +449,8 @@ PS_OMP_PARALLEL_FOR_G
                     }
                 }
                 // ------------------------------------------
-                delete [] istart;
-                delete [] iend;
+                //delete [] istart;
+                //delete [] iend;
             }
 	    F64 wtmp = GetWtime();
             // ****************************************************
@@ -435,7 +458,7 @@ PS_OMP_PARALLEL_FOR_G
             comm_info_.barrier();
 	    F64 wtmp2 = GetWtime();
 	    if (!decompose_in_all_processes){
-		comm_info_.broadcast(pos_domain_, nproc);
+		comm_info_.broadcast(&pos_domain_[0], nproc);
 	    }
             if(first_call_by_decomposeDomain) {
                 first_call_by_decomposeDomain = false;            
@@ -528,7 +551,7 @@ PS_OMP_PARALLEL_FOR_G
 
         S32 * getPointerOfNDomain(){return n_domain_;};
 
-        F64ort * getPointerOfPosDomain(){return pos_domain_;};
+        F64ort * getPointerOfPosDomain(){return &pos_domain_[0];};
 
         // A. Tanikawa need this method for Particle Mesh...
         S32 getNDomain(const S32 dim) const {return n_domain_[dim];}
@@ -555,7 +578,8 @@ PS_OMP_PARALLEL_FOR_G
         // for DEBUG
         F64vec & getPosSample(const S32 id=0){return pos_sample_tot_[id];}
         // for DEBUG // A. Tanikawa would not like to delete this method...
-        F64ort & getPosDomain(const S32 id=0) const {return pos_domain_[id];}
+        //F64ort & getPosDomain(const S32 id=0) const {return pos_domain_[id];}
+        F64ort getPosDomain(const S32 id=0) const {return pos_domain_[id];}
         F64ort getPosDomain(const F64ort & box, const S32 id=0) const {
             F64ort ret = pos_domain_[id];
             if(periodic_axis_[0] == false){
@@ -1514,6 +1538,46 @@ PS_OMP_PARALLEL_FOR_G
             const F64 wgh = psys.getNumberOfParticleLocal();
             decomposeDomainAll2(psys, wgh);
         }
+
+        F64 getWeight(){
+            return 1.0;
+        }
+        template<typename Head, typename ... Tail>
+        F64 getWeight(Head & head, Tail && ... tail){
+            if constexpr (IsParticleSystem<Head>::value){
+                return getWeight();
+            } else {
+                return head;
+            }
+        }
+        template<typename Head, typename ... Tail>
+        void collectSampleParticleImplVA(bool & clear, Head & head, Tail && ... tail){
+            if constexpr (IsParticleSystem<Head>::value){
+                auto wgh = getWeight(tail...);
+                collectSampleParticle(head, clear, wgh);
+                clear = false;
+            }
+            if constexpr (sizeof...(tail) > 0){
+                collectSampleParticleImplVA(clear, tail...);
+            }
+        }
+
+        template<typename ... Args>
+        void collectSampleParticleVA(Args && ... args){
+            bool clear = true;
+            collectSampleParticleImplVA(clear, args...);
+        }
+        
+        template<typename ... Args>
+        void decomposeDomainAllVA(Args && ... args){
+            collectSampleParticleVA(args...);
+            decomposeDomain();
+        }
     };
+
+    template<typename T>  struct IsDomainInfo : std::false_type{};
+    template<>  struct IsDomainInfo< DomainInfo > : std::true_type{};
+    template<>  struct IsDomainInfo< const DomainInfo > : std::true_type{};
+    
 }
 
