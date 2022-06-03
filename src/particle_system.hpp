@@ -70,16 +70,17 @@ namespace ParticleSimulator{
 	    auto rank_vec = rank_vec_org;
 	    auto rank_new =  rank_start;
 	    rank_vec.x = GetAppropriateRank1D(pos, rank_new, n_domain, domain, 0);
-            dnp.x = GetDistanceMin1DImpl(rank_vec.x, rank_vec_org.x, n_domain[0]);
+            dnp.x = GetDistanceMin1DPeriImpl(rank_vec.x, rank_vec_org.x, n_domain[0]);
+            //dnp.x = GetDistanceMin1DImpl(rank_vec.x, rank_vec_org.x, n_domain[0]);
 	    rank_new = GetRankGlb(rank_vec, n_domain);
             
 	    rank_vec.y = GetAppropriateRank1D(pos, rank_new, n_domain, domain, 1);
-            dnp.y = GetDistanceMin1DImpl(rank_vec.y, rank_vec_org.y, n_domain[1]);
+            dnp.y = GetDistanceMin1DPeriImpl(rank_vec.y, rank_vec_org.y, n_domain[1]);
 	    rank_new = GetRankGlb(rank_vec, n_domain);
             
 #if !defined(PARTICLE_SIMULATOR_TWO_DIMENSION)
             rank_vec.z = GetAppropriateRank1D(pos, rank_new, n_domain, domain, 2);
-            dnp.z = GetDistanceMin1DImpl(rank_vec.z, rank_vec_org.z, n_domain[2]);
+            dnp.z = GetDistanceMin1DPeriImpl(rank_vec.z, rank_vec_org.z, n_domain[2]);
 	    rank_new = GetRankGlb(rank_vec, n_domain);
 #endif
 	    return rank_new;
@@ -1019,6 +1020,11 @@ PS_OMP_BARRIER
 	    etime1=GetWtime();
             auto dnp_max_glb = comm_info_.getMaxValue(dnp_max_loc);
 	    etime2=GetWtime();
+
+            //if(Comm::getRank()==0){
+            //    std::cerr<<"dnp_max_glb= "<<dnp_max_glb<<std::endl;
+            //}
+            
             /*
 #ifdef PARTICLE_SIMULATOR_TWO_DIMENSION
             if(2*dnp_max_glb[0]*2*dnp_max_glb[1] < nproc/4){
