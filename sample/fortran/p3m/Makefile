@@ -25,7 +25,7 @@ MPI_LIB  = -L$(MPI_LOC)/lib -lmpi -lmpi_f77 -lmpi_f90
 #CXXFLAGS = -std=c++11 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 # [Option 2] w/ optimization 
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
-CXXFLAGS = -std=c++11 -O3 -ffast-math -funroll-loops $(FFTW_INC) $(FDPS_INC)
+CXXFLAGS = -std=c++17 -O3 -ffast-math -funroll-loops $(FFTW_INC) $(FDPS_INC)
 LDFLAGS = -lgfortran $(FDPS_LIB) $(FFTW_LIB) $(MPI_LIB) 
 # Activate PM module
 FCFLAGS  += -DPARTICLE_SIMULATOR_USE_PM_MODULE

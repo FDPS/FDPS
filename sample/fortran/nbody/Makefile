@@ -22,7 +22,7 @@ CXX=g++
 #CXXFLAGS = -std=c++11 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 # [Option 2] w/ optimization 
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
-CXXFLAGS = -std=c++11 -O3 -ffast-math -funroll-loops $(FDPS_INC)
+CXXFLAGS = -std=c++17 -O3 -ffast-math -funroll-loops $(FDPS_INC)
 LDFLAGS = -lgfortran 
 # OpenMP options
 #FCFLAGS  += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
