@@ -375,6 +375,8 @@ namespace ParticleSimulator{
                         adr_epj_per_walk[iw] = adr_epj_for_force_[ith].getPointer(n_epj_disp_per_thread[ith][iwloc]);
                     }
                 } // end of OMP parallel scope
+                time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+		const F64 offset_calc_force__core__keep_lsit = GetWtime();
                 if(flag_keep_list){
                     interaction_list_.n_disp_ep_[0] = 0;
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -404,19 +406,25 @@ namespace ParticleSimulator{
                         }
                     }
                 }
-                time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+                time_profile_.calc_force__core__keep_list += GetWtime() - offset_calc_force__core__keep_lsit;
                 if(!first_loop){
+                    const F64 offset_retrieve = GetWtime();
                     ret += pfunc_retrieve(tag, n_walk_prev, n_epi_per_walk[lane_old].getPointer(), ptr_force_per_walk[lane_old].getPointer());
+		    time_profile_.calc_force__core__retrieve += GetWtime() - offset_retrieve;
                 } // retrieve
-                pfunc_dispatch(0, n_walk,
+                F64 offset_dispatch = GetWtime();
+		pfunc_dispatch(0, n_walk,
                                (const Tepi**)epi_per_walk.getPointer(),   n_epi_per_walk[lane_now].getPointer(),
                                (const S32**)adr_epj_per_walk.getPointer(), n_epj_per_walk.getPointer(),
                                epj_sorted_.getPointer(), epj_sorted_.size(),
                                false);
+		time_profile_.calc_force__core__dispatch += GetWtime() - offset_dispatch;
                 first_loop = false;
                 n_walk_prev = n_walk;
             } // end of walk group loop
+            F64 offset_retrieve = GetWtime();
             ret += pfunc_retrieve(tag, n_walk_prev, n_epi_per_walk[(n_loop_max+1)%2].getPointer(), ptr_force_per_walk[(n_loop_max+1)%2].getPointer());
+	    time_profile_.calc_force__core__retrieve += GetWtime() - offset_retrieve;
             n_interaction_ep_ep_local_ += n_interaction_ep_ep_tmp;
         } // if(n_ipg > 0)
         else{
@@ -596,6 +604,8 @@ namespace ParticleSimulator{
                         ptr_spj_per_walk[iw] = spj_for_force_[ith].getPointer(n_spj_disp_per_thread[ith][iw_loc]);
                     }
                 } // end of OMP parallel scope
+                time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+		const F64 offset_calc_force__core__keep_list = GetWtime();
                 if(flag_keep_list){
                     interaction_list_.n_disp_ep_[0] = interaction_list_.n_disp_sp_[0] = 0;
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -635,7 +645,7 @@ namespace ParticleSimulator{
                         }
                     }
                 }
-                time_profile_.calc_force__core__walk_tree += GetWtime() - offset_calc_force__core__walk_tree;
+                time_profile_.calc_force__core__keep_list += GetWtime() - offset_calc_force__core__keep_list;
                 if(!first_loop){
                     const F64 offset_retrieve = GetWtime();
                     ret += pfunc_retrieve(tag, n_walk_prev, n_epi_per_walk[lane_old].getPointer(), ptr_force_per_walk[lane_old].getPointer());
