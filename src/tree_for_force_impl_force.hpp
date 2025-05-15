@@ -1354,7 +1354,7 @@ namespace ParticleSimulator{
         S64 nj_tmp = 0;
         S64 n_interaction_ep_ep_tmp = 0;
         for(S32 i=0; i<Comm::getNumberOfThread(); i++) n_cell_open_[i] = 0;
-        F64 offset_walk_tree,offset_dispatch;
+        F64 offset_walk_tree,offset_kernel;
 
         if(n_ipg > 0){
 #ifdef PARTICLE_SIMULATOR_THREAD_PARALLEL
@@ -1370,9 +1370,9 @@ namespace ParticleSimulator{
                 ni_tmp += ipg_[i].n_ptcl_;
                 nj_tmp += epj_for_force_[Comm::getThreadNum()].size();
                 n_interaction_ep_ep_tmp += ipg_[i].n_ptcl_ * epj_for_force_[Comm::getThreadNum()].size();
-                offset_dispatch = GetWtime();
+                offset_kernel = GetWtime();
                 calcForceOnly( pfunc_ep_ep, i, clear);
-                time_profile_.calc_force__core__dispatch += GetWtime() - offset_dispatch;
+                time_profile_.calc_force__core__kernel += GetWtime() - offset_kernel;
             }
             ni_ave_ = ni_tmp / n_ipg;
             nj_ave_ = nj_tmp / n_ipg;
@@ -1765,8 +1765,8 @@ namespace ParticleSimulator{
           sum_kernel += time_kernel[i];
           sum_copy_ep += time_copy_ep[i];
         }
-        time_profile_.calc_force__core__dispatch += time_calc_force__core * (sum_kernel / (nth*time_calc_force__core));
-        time_profile_.calc_force__core__retrieve += time_calc_force__core * (sum_copy_ep / (nth*time_calc_force__core));
+        time_profile_.calc_force__core__kernel += time_calc_force__core * (sum_kernel / (nth*time_calc_force__core));
+        time_profile_.calc_force__core__copy_ep += time_calc_force__core * (sum_copy_ep / (nth*time_calc_force__core));
         time_profile_.calc_force__core += time_calc_force__core;
         n_interaction_ep_ep_local_ += n_interaction_ep_ep_tmp;
         const F64 offset_copy_original_order = GetWtime();
