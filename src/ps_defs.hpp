@@ -2013,6 +2013,7 @@ namespace ParticleSimulator{
         F64 calc_force__core__walk_tree;
         F64 calc_force__core__keep_list;
         F64 calc_force__core__copy_ep;
+        F64 calc_force__core__kernel;
         F64 calc_force__core__dispatch;
         F64 calc_force__core__retrieve;
 
@@ -2098,6 +2099,7 @@ namespace ParticleSimulator{
                 fout<<"      calc_force__core__walk_tree= "<<calc_force__core__walk_tree<<std::endl;
                 fout<<"      calc_force__core__keep_list= "<<calc_force__core__keep_list<<std::endl;
                 fout<<"      calc_force__core__copy_ep= "<<calc_force__core__copy_ep<<std::endl;
+                fout<<"      calc_force__core__kernel= "<<calc_force__core__kernel<<std::endl;
                 fout<<"      calc_force__core__dispatch= "<<calc_force__core__dispatch<<std::endl;
                 fout<<"      calc_force__core__retrieve= "<<calc_force__core__retrieve<<std::endl;
                 fout<<"    calc_force__copy_original_order= "<<calc_force__copy_original_order<<std::endl;
@@ -2132,7 +2134,7 @@ namespace ParticleSimulator{
             morton_sort_global_tree__sort = morton_sort_global_tree__copy_ep = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
             calc_force__make_ipgroup = calc_force__make_interaction_list_index = calc_force__core = calc_force__copy_original_order = 0.0;
-            calc_force__core__walk_tree = calc_force__core__keep_list = calc_force__core__copy_ep = calc_force__core__dispatch = calc_force__core__retrieve = 0.0;
+            calc_force__core__walk_tree = calc_force__core__keep_list = calc_force__core__copy_ep = calc_force__core__kernel = calc_force__core__dispatch = calc_force__core__retrieve = 0.0;
 
             exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
 
@@ -2184,6 +2186,7 @@ namespace ParticleSimulator{
             ret.clear_force = this->clear_force + rhs.clear_force;
             ret.calc_force__core__walk_tree = this->calc_force__core__walk_tree + rhs.calc_force__core__walk_tree;
             ret.calc_force__core__keep_list = this->calc_force__core__keep_list + rhs.calc_force__core__keep_list;
+            ret.calc_force__core__kernel = this->calc_force__core__kernel + rhs.calc_force__core__kernel;
             ret.calc_force__core__dispatch = this->calc_force__core__dispatch + rhs.calc_force__core__dispatch;
             ret.calc_force__core__copy_ep = this->calc_force__core__copy_ep + rhs.calc_force__core__copy_ep;
             ret.calc_force__core__retrieve = this->calc_force__core__retrieve + rhs.calc_force__core__retrieve;
@@ -2243,6 +2246,7 @@ namespace ParticleSimulator{
             calc_force__core__walk_tree = 0.0;
             calc_force__core__keep_list = 0.0;
             calc_force__core__copy_ep   = 0.0;
+            calc_force__core__kernel  = 0.0;
             calc_force__core__dispatch  = 0.0;
             calc_force__core__retrieve  = 0.0;
             calc_force__make_ipgroup = calc_force__make_interaction_list_index = calc_force__core = calc_force__copy_original_order = 0.0;

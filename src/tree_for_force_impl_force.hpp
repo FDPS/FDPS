@@ -1864,8 +1864,8 @@ namespace ParticleSimulator{
           sum_kernel += time_kernel[i];
           sum_copy_ep += time_copy_ep[i];
         }
-        time_profile_.calc_force__core__dispatch += time_calc_force__core * (sum_kernel / (nth*time_calc_force__core));
-        time_profile_.calc_force__core__retrieve += time_calc_force__core * (sum_copy_ep / (nth*time_calc_force__core));
+        time_profile_.calc_force__core__kernel += time_calc_force__core * (sum_kernel / (nth*time_calc_force__core));
+        time_profile_.calc_force__core__copy_ep += time_calc_force__core * (sum_copy_ep / (nth*time_calc_force__core));
         time_profile_.calc_force__core += time_calc_force__core;
         n_interaction_ep_ep_local_ += n_interaction_ep_ep_tmp;
         n_interaction_ep_sp_local_ += n_interaction_ep_sp_tmp;
