@@ -326,7 +326,7 @@ PS_OMP_CRITICAL
         if(comm_info_.getRank()==0){
             PARTICLE_SIMULATOR_PRINT_LINE_INFO();
             std::cout<<"length_="<<length_<<" center_="<<center_<<std::endl;
-            std::cout<<"pos_root_cell="<<getPosRootCell<<std::endl;
+            std::cout<<"pos_root_cell="<<getPosRootCell()<<std::endl;
         }
 #endif
         time_profile_.set_root_cell += GetWtime() - time_offset;
@@ -349,19 +349,22 @@ PS_OMP_CRITICAL
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     mortonSortLocalTreeOnly(const bool reuse){
         const F64 wtime_offset = GetWtime();
-        F64 wtime_offset2;
+        F64 wtime_offset2 = wtime_offset;
         epi_sorted_.resizeNoInitialize(n_loc_tot_);
         epj_sorted_.resizeNoInitialize(n_loc_tot_);
         adr_org_from_adr_sorted_loc_.resizeNoInitialize(n_loc_tot_);
         tp_glb_.resizeNoInitialize(n_loc_tot_);
         if(!reuse){
             ReallocatableArray<TreeParticle> tp_buf(n_loc_tot_, n_loc_tot_, MemoryAllocMode::Pool);
+	    F64 offset_set_tp = GetWtime();
             morton_key_.initialize( length_ * 0.5, center_);
 PS_OMP_PARALLEL_FOR
            for(S32 i=0; i<n_loc_tot_; i++){
         	tp_glb_[i].setFromEP(epj_org_[i], i, morton_key_);
             }
+	    time_profile_.morton_sort_local_tree__set_tp += GetWtime() - offset_set_tp;
             wtime_offset2 = GetWtime();
+	    F64 wtime_offset__sort = GetWtime();
 #if defined(PARTICLE_SIMULATOR_USE_RADIX_SORT)
             rs_.lsdSort(tp_glb_.getPointer(), tp_buf.getPointer(), 0, n_loc_tot_-1);
 #elif defined(PARTICLE_SIMULATOR_USE_STD_SORT)
@@ -377,6 +380,7 @@ PS_OMP_PARALLEL_FOR
 			 [](const TreeParticle & l, const TreeParticle & r )
 			 ->bool{return l.getKey() < r.getKey();} );
 #endif
+	    time_profile_.morton_sort_local_tree__sort += GetWtime() - wtime_offset__sort;
             for(S32 i=0; i<n_loc_tot_; i++){
                 //const S32 adr = tp_loc_[i].adr_ptcl_;
                 const S32 adr = tp_glb_[i].adr_ptcl_;
@@ -384,12 +388,14 @@ PS_OMP_PARALLEL_FOR
             }
             tp_buf.freeMem(1);
         } // end of if() no reuse
+	F64 wtime_offset__copy_ep = GetWtime();
 PS_OMP_PARALLEL_FOR
         for(S32 i=0; i<n_loc_tot_; i++){
             const S32 adr = adr_org_from_adr_sorted_loc_[i];
             epi_sorted_[i] = epi_org_[adr];
             epj_sorted_[i] = epj_org_[adr];
         }
+	time_profile_.morton_sort_local_tree__copy_ep += GetWtime() - wtime_offset__copy_ep;
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"epi_sorted_.size()="<<epi_sorted_.size()<<" epj_sorted_.size()="<<epj_sorted_.size()<<std::endl;
@@ -471,6 +477,7 @@ PS_OMP_PARALLEL_FOR
         adr_org_from_adr_sorted_glb_.resizeNoInitialize(n_glb_tot_);
         if(!reuse){
             ReallocatableArray<TreeParticle> tp_buf(n_glb_tot_, n_glb_tot_, MemoryAllocMode::Pool);
+	    const F64 wtime_offset__sort = GetWtime();
 #if defined(PARTICLE_SIMULATOR_USE_RADIX_SORT)
             rs_.lsdSort(tp_glb_.getPointer(), tp_buf.getPointer(), 0, n_glb_tot_-1);
 #elif defined(PARTICLE_SIMULATOR_USE_STD_SORT)
@@ -506,12 +513,14 @@ PS_OMP_PARALLEL_FOR
 			     ->bool{return l.getKey() < r.getKey();} );
 	    //for(S32 i=1; i<n_add; i++){ assert(tp_glb_[i-1].getKey() <= tp_glb_[i].getKey()); }
 #endif
+	    time_profile_.morton_sort_global_tree__sort += GetWtime() - wtime_offset__sort;
 PS_OMP_PARALLEL_FOR
             for(S32 i=0; i<n_glb_tot_; i++){
                 adr_org_from_adr_sorted_glb_[i] = tp_glb_[i].adr_ptcl_;
             }
             tp_buf.freeMem(1);
         }
+	const F64 wtime_offset__copy_ep = GetWtime();
         if( typeid(typename TSM::force_type) == typeid(TagForceLong)){
             //const S32 n_sp_tot = spj_recv_.size();
             const S32 n_sp_tot = spj_org_.size();
@@ -590,6 +599,7 @@ PS_OMP_PARALLEL_FOR
                 tp_glb_[i].adr_ptcl_ = i;
             }
         }
+	time_profile_.morton_sort_global_tree__copy_ep += GetWtime() - wtime_offset__copy_ep;
 #ifdef PARTICLE_SIMULATOR_DEBUG_PRINT
         PARTICLE_SIMULATOR_PRINT_LINE_INFO();
         std::cout<<"tp_glb_.size()="<<tp_glb_.size()<<std::endl;
@@ -1327,6 +1337,7 @@ PS_OMP_PARALLEL_FOR
              class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     makeInteractionListIndexShort(DomainInfo & dinfo){
+	const F64 offset = GetWtime();
         const S32 n_thread = Comm::getNumberOfThread();
         std::vector<ReallocatableArray<S32>> adr_epj_tmp(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Pool));
         std::vector<ReallocatableArray<S32>> adr_ipg_tmp(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Pool));
@@ -1386,6 +1397,8 @@ PS_OMP(omp for schedule(dynamic, 4))
                 }
             }
         }
+	time_profile_.calc_force__make_interaction_list_index += GetWtime() - offset;
+	time_profile_.calc_force += GetWtime() - offset;
     }
 
 
@@ -1393,6 +1406,7 @@ PS_OMP(omp for schedule(dynamic, 4))
              class Tmomloc, class Tmomglb, class Tspj, enum CALC_DISTANCE_TYPE CALC_DISTANCE_TYPE>
     void TreeForForce<TSM, Tforce, Tepi, Tepj, Tmomloc, Tmomglb, Tspj, CALC_DISTANCE_TYPE>::
     makeInteractionListIndexLong(DomainInfo & dinfo){
+	const F64 offset = GetWtime();
         const S32 n_thread = Comm::getNumberOfThread();
         std::vector<ReallocatableArray<S32>> adr_epj_tmp(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Pool));
         std::vector<ReallocatableArray<S32>> adr_spj_tmp(n_thread, ReallocatableArray<S32>(MemoryAllocMode::Pool));
@@ -1476,6 +1490,8 @@ PS_OMP_PARALLEL_FOR
                 }
             }
         }
+	time_profile_.calc_force__make_interaction_list_index += GetWtime() - offset;
+	time_profile_.calc_force += GetWtime() - offset;
     }
   
     template<class TSM, class Tforce, class Tepi, class Tepj,

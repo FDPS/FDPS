@@ -1984,6 +1984,7 @@ namespace ParticleSimulator{
         F64 make_local_tree;
         F64 make_global_tree;
         F64 set_root_cell;
+        F64 clear_force;
         F64 calc_force;
         F64 calc_moment_local_tree;
         F64 calc_moment_global_tree;
@@ -1996,8 +1997,13 @@ namespace ParticleSimulator{
         // not public
         F64 morton_key_local_tree;
         F64 morton_sort_local_tree;
+        F64 morton_sort_local_tree__set_tp;
+        F64 morton_sort_local_tree__sort;
+        F64 morton_sort_local_tree__copy_ep;
         F64 link_cell_local_tree;
         F64 morton_sort_global_tree;
+        F64 morton_sort_global_tree__sort;
+        F64 morton_sort_global_tree__copy_ep;
         F64 link_cell_global_tree;
 
         F64 make_local_tree_tot; // make_local_tree + calc_moment_local_tree
@@ -2011,8 +2017,10 @@ namespace ParticleSimulator{
         F64 calc_force__core__retrieve;
 
         F64 calc_force__make_ipgroup;
+        F64 calc_force__make_interaction_list_index;
         F64 calc_force__core;
         F64 calc_force__copy_original_order;
+        F64 calc_force__other;
 
         F64 exchange_particle__find_particle;
         F64 exchange_particle__find_particle_2;
@@ -2052,7 +2060,7 @@ namespace ParticleSimulator{
             return collect_sample_particle + decompose_domain + exchange_particle
                 + set_particle_local_tree + set_particle_global_tree
                 + set_root_cell
-                + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
+                + clear_force + calc_force + calc_moment_local_tree + calc_moment_global_tree + make_LET_1st + make_LET_2nd + exchange_LET_1st + exchange_LET_2nd
                 + morton_sort_local_tree + link_cell_local_tree 
                 + morton_sort_global_tree + link_cell_global_tree
                 + add_moment_as_sp_local + add_moment_as_sp_global
@@ -2069,10 +2077,32 @@ namespace ParticleSimulator{
             fout<<"  set_particle_global_tree= "<<set_particle_global_tree<<std::endl;
             fout<<"  set_root_cell= "<<set_root_cell<<std::endl;
             fout<<"  morton_sort_local_tree= "<<morton_sort_local_tree<<std::endl;
+            if(level > 0){
+              fout<<"    morton_sort_local_tree__set_tp= "<<morton_sort_local_tree__set_tp<<std::endl;
+              fout<<"    morton_sort_local_tree__sort= "<<morton_sort_local_tree__sort<<std::endl;
+              fout<<"    morton_sort_local_tree__copy_ep= "<<morton_sort_local_tree__copy_ep<<std::endl;
+            }
             fout<<"  link_cell_local_tree= "<<link_cell_local_tree<<std::endl;
             fout<<"  morton_sort_global_tree= "<<morton_sort_global_tree<<std::endl;
+            if(level > 0){
+              fout<<"    morton_sort_global_tree__sort= "<<morton_sort_global_tree__sort<<std::endl;
+              fout<<"    morton_sort_global_tree__copy_ep= "<<morton_sort_global_tree__copy_ep<<std::endl;
+            }
             fout<<"  link_cell_global_tree= "<<link_cell_global_tree<<std::endl;
+            fout<<"  clear_force= "<<clear_force<<std::endl;
             fout<<"  calc_force= "<<calc_force<<std::endl;
+            if(level > 0){
+                fout<<"    calc_force__make_ipgroup= "<<calc_force__make_ipgroup<<std::endl;
+                fout<<"    calc_force__make_interaction_list_index= "<<calc_force__make_interaction_list_index<<std::endl;
+                fout<<"    calc_force__core= "<<calc_force__core<<std::endl;
+                fout<<"      calc_force__core__walk_tree= "<<calc_force__core__walk_tree<<std::endl;
+                fout<<"      calc_force__core__keep_list= "<<calc_force__core__keep_list<<std::endl;
+                fout<<"      calc_force__core__copy_ep= "<<calc_force__core__copy_ep<<std::endl;
+                fout<<"      calc_force__core__dispatch= "<<calc_force__core__dispatch<<std::endl;
+                fout<<"      calc_force__core__retrieve= "<<calc_force__core__retrieve<<std::endl;
+                fout<<"    calc_force__copy_original_order= "<<calc_force__copy_original_order<<std::endl;
+                fout<<"    calc_force__other= "<<calc_force__other<<std::endl;
+            }
             fout<<"  calc_moment_local_tree= "<<calc_moment_local_tree<<std::endl;
             fout<<"  calc_moment_global_tree= "<<calc_moment_global_tree<<std::endl;
             fout<<"  add_moment_as_sp_global= "<<add_moment_as_sp_global<<std::endl;
@@ -2093,13 +2123,16 @@ namespace ParticleSimulator{
 
         TimeProfile () {
             collect_sample_particle = decompose_domain = exchange_particle = set_particle_local_tree = set_particle_global_tree = make_local_tree = make_global_tree = set_root_cell
-                = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd 
+                = clear_force = calc_force = calc_moment_local_tree = calc_moment_global_tree = make_LET_1st = make_LET_2nd
                 = exchange_LET_1st = exchange_LET_2nd = 0.0;
-	    morton_key_local_tree = 0;
+            morton_key_local_tree = 0;
             morton_sort_local_tree = link_cell_local_tree
                 = morton_sort_global_tree = link_cell_global_tree = 0.0;
+            morton_sort_local_tree__set_tp = morton_sort_local_tree__sort = morton_sort_local_tree__copy_ep = 0.0;
+            morton_sort_global_tree__sort = morton_sort_global_tree__copy_ep = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
-            calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
+            calc_force__make_ipgroup = calc_force__make_interaction_list_index = calc_force__core = calc_force__copy_original_order = 0.0;
+            calc_force__core__walk_tree = calc_force__core__keep_list = calc_force__core__copy_ep = calc_force__core__dispatch = calc_force__core__retrieve = 0.0;
 
             exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
 
@@ -2135,14 +2168,20 @@ namespace ParticleSimulator{
             ret.exchange_LET_2nd = this->exchange_LET_2nd + rhs.exchange_LET_2nd;
 
             ret.morton_sort_local_tree = this->morton_sort_local_tree + rhs.morton_sort_local_tree;
+            ret.morton_sort_local_tree__set_tp= this->morton_sort_local_tree__set_tp + rhs.morton_sort_local_tree__set_tp;
+            ret.morton_sort_local_tree__sort = this->morton_sort_local_tree__sort + rhs.morton_sort_local_tree__sort;
+            ret.morton_sort_local_tree__copy_ep = this->morton_sort_local_tree__copy_ep + rhs.morton_sort_local_tree__copy_ep;
             ret.link_cell_local_tree = this->link_cell_local_tree + rhs.link_cell_local_tree;
             ret.morton_sort_global_tree = this->morton_sort_global_tree + rhs.morton_sort_global_tree;
+            ret.morton_sort_global_tree__sort = this->morton_sort_global_tree__sort + rhs.morton_sort_global_tree__sort;
+            ret.morton_sort_global_tree__copy_ep = this->morton_sort_global_tree__copy_ep + rhs.morton_sort_global_tree__copy_ep;
             ret.link_cell_global_tree = this->link_cell_global_tree + rhs.link_cell_global_tree;
 
             ret.make_local_tree_tot = this->make_local_tree_tot + rhs.make_local_tree_tot;
             ret.make_global_tree_tot = this->make_global_tree_tot + rhs.make_global_tree_tot;
             ret.exchange_LET_tot = this->exchange_LET_tot + rhs.exchange_LET_tot;
 
+            ret.clear_force = this->clear_force + rhs.clear_force;
             ret.calc_force__core__walk_tree = this->calc_force__core__walk_tree + rhs.calc_force__core__walk_tree;
             ret.calc_force__core__keep_list = this->calc_force__core__keep_list + rhs.calc_force__core__keep_list;
             ret.calc_force__core__dispatch = this->calc_force__core__dispatch + rhs.calc_force__core__dispatch;
@@ -2150,6 +2189,7 @@ namespace ParticleSimulator{
             ret.calc_force__core__retrieve = this->calc_force__core__retrieve + rhs.calc_force__core__retrieve;
 
             ret.calc_force__make_ipgroup = this->calc_force__make_ipgroup + rhs.calc_force__make_ipgroup;
+            ret.calc_force__make_interaction_list_index = this->calc_force__make_interaction_list_index + rhs.calc_force__make_interaction_list_index;
             ret.calc_force__core = this->calc_force__core + rhs.calc_force__core;
             ret.calc_force__copy_original_order = this->calc_force__copy_original_order + rhs.calc_force__copy_original_order;
 
@@ -2197,13 +2237,15 @@ namespace ParticleSimulator{
 	    morton_key_local_tree = 0;
             morton_sort_local_tree = link_cell_local_tree 
                 = morton_sort_global_tree = link_cell_global_tree = 0.0;
+            morton_sort_local_tree__set_tp = morton_sort_local_tree__sort = morton_sort_local_tree__copy_ep = 0.0;
+            morton_sort_global_tree__sort = morton_sort_global_tree__copy_ep = 0.0;
             make_local_tree_tot = make_global_tree_tot = exchange_LET_tot = 0.0;
             calc_force__core__walk_tree = 0.0;
             calc_force__core__keep_list = 0.0;
             calc_force__core__copy_ep   = 0.0;
             calc_force__core__dispatch  = 0.0;
             calc_force__core__retrieve  = 0.0;
-            calc_force__make_ipgroup = calc_force__core = calc_force__copy_original_order = 0.0;
+            calc_force__make_ipgroup = calc_force__make_interaction_list_index = calc_force__core = calc_force__copy_original_order = 0.0;
             exchange_particle__find_particle = exchange_particle__exchange_particle = 0.0;
 	    exchange_particle__exchange_particle_1 = 0.0;
 	    exchange_particle__exchange_particle_2 = 0.0;
