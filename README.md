@@ -6,8 +6,8 @@ The current version is 7.1. The previous versions are [here](https://github.com/
 
 We maintain this from subversion-over-github interface.
 
-If you have some questions, please do not hesitate to contact us. Our
-e-mail address is fdps-support-@-mail.jmlab.jp (please replace -@- by @).
+If you have some questions, please do not hesitate to contact us through
+https://jmlab.jp/fdps/?page_id=201
 
 Tutorial of FDPS is here
 [doc/doc_tutorial_cpp_en.pdf](https://github.com/FDPS/FDPS/blob/master/doc/doc_tutorial_cpp_en.pdf?raw=true)
@@ -35,4 +35,4 @@ FDPSのチュートリアルは
 2ページでFDPSがわかるハンドアウトはこちらです
 [doc/doc_SC15_handout.pdf](https://github.com/FDPS/FDPS/blob/master/doc/doc_SC15_handout.pdf?raw=true)。
 
-ご質問などお問い合わせはfdps-support-@-mail.jmlab.jpにお願いいたします (-@-を@に置換して下さい)。
+ご質問などお問い合わせは https://jmlab.jp/fdps/?page_id=201 からお願いいたします。
