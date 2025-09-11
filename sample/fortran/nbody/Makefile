@@ -19,7 +19,7 @@ CXX=g++
 #CXX=mpicxx
 # [Option 1] w/o optimization
 #FCFLAGS = -std=f2003 -O0 -Wall
-#CXXFLAGS = -std=c++11 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
+#CXXFLAGS = -std=c++17 -Wall -Wextra -ftrapv -fexceptions -g3 $(FDPS_INC)
 # [Option 2] w/ optimization 
 FCFLAGS = -std=f2003 -O3 -ffast-math -funroll-loops -finline-functions
 CXXFLAGS = -std=c++17 -O3 -ffast-math -funroll-loops $(FDPS_INC)

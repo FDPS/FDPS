@@ -1,13 +1,14 @@
 PS_PATH = -I ../../../src/
 
-CC = time g++
+#CC = time g++
+CC = time mpicxx
 #CC = mpic++-mpich-gcc49
 CFLAGS = -std=c++17 -O3
 #CFLAGS += -ffast-math
 #CFLAGS += -funroll-loops 
-#CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL
-#CFLAGS += -fopenmp
-#CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL
+CFLAGS += -fopenmp
+CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 #CFLAGS += #-Wall -Wformat=2 -Wcast-qual -Wcast-align -Wwrite-strings -Wconversion -Wfloat-equal -Wpointer-arith
 
 # fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)

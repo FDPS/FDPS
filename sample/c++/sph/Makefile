@@ -1,10 +1,10 @@
 PS_PATH = -I ../../../src/
 
-CC = g++
-#CC = mpicxx
+#CC = g++
+CC = mpicxx
 CFLAGS = -std=c++17 -O3 -ffast-math -funroll-loops 
-#CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
-#CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
+CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
 
 # fdps-autotest-set-vars (DO NOT CHANGE THIS LINE)
 

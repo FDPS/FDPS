@@ -3,11 +3,12 @@ INC = -I$(PS_PATH)
 CC = time g++
 #CC = time mpicxx
 CFLAGS = -std=c++17 -O3
-#CFLAGS += -Wall
+CFLAGS += -Wall
 #CFLAGS += -ffast-math
 #CFLAGS += -funroll-loops
 #CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
 #CFLAGS += -DPARTICLE_SIMULATOR_MPI_PARALLEL
+#CFLAGS += -DPARTICLE_SIMULATOR_USE_64BIT_KEY
 
 #use_phantom_grape_x86 = yes
 #use_pikg_x86 = yes
@@ -32,12 +33,16 @@ endif
 ifeq ($(use_gpu_cuda),yes)
 CUDA_HOME = /usr/local/cuda
 #CUDA_HOME = /gwfefs/opt/x86_64/cuda/7.5
-NVCC = time $(CUDA_HOME)/bin/nvcc -std=c++11 -Xcompiler="-std=c++11 -O3"
-INC  += -I$(CUDA_HOME)/samples/common/inc/
+NVCC = time $(CUDA_HOME)/bin/nvcc -std=c++17 -Xcompiler="-std=c++17 -O3"
+#INC  += -I$(CUDA_HOME)/samples/common/inc/
+INC  += -I$(HOME)/opt/cuda-samples/Common
 CFLAGS  += -DENABLE_GPU_CUDA
+CUDAFLAGS += -gencode arch=compute_86,code=sm_86
+#CFLAGS  += -DMULTI_WALK_PTCL
+CFLAGS  += -DMULTI_WALK_INDEX
 CLIBS = -L$(CUDA_HOME)/lib64 -lcudart -lgomp
 force_gpu_cuda.o:force_gpu_cuda.cu
-	$(NVCC) $(INC) -c -o $@ $<
+	$(NVCC) $(INC) -c -o $@ $< $(CLIBS) $(CUDAFLAGS)
 OBJS = force_gpu_cuda.o
 endif
 
@@ -46,7 +51,7 @@ PIKG = $(PIKG_ROOT)/bin/pikg
 ifeq ($(use_pikg_x86),yes)
 INC += -I$(PIKG_ROOT)/inc
 CFLAGS+= -DUSE_PIKG_KERNEL -DPIKG_USE_FDPS_VECTOR
-
+PIKG_FILES = kernel_pikg.hpp
 # reference option
 CONVERSION_TYPE=reference
 
@@ -59,16 +64,12 @@ CONVERSION_TYPE=reference
 #CFLAGS+= -mavx512f -mavx512dq -ffast-math
 
 PIKG_FLAGS= --conversion-type $(CONVERSION_TYPE)
-PIKG_BUILD = make kernel_pikg.hpp
-else
-PIKG_BUILD = 
 endif
 
 
-nbody.out:nbody.cpp $(OBJS)
+nbody.out:nbody.cpp $(OBJS)  $(PIKG_FILES)
 	$(PG_BUILD)
-	$(PIKG_BUILD)
-	$(CC) $(INC) $(CFLAGS) -o $@ $^ $(CLIBS)
+	$(CC) $(INC) $(CFLAGS) $(OBJS) -o $@ nbody.cpp $(CLIBS)
 
 kernel_pikg.hpp:	kernel_epep.pikg
 	$(PIKG) $(PIKG_FLAGS) --epi-name Epi --epj-name Epj --force-name Force --kernel-name CalcGravityEpEp -i kernel_epep.pikg -o $@

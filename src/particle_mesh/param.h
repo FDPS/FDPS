@@ -151,45 +151,54 @@ const int COLORMAP = 0;  /* others:gray 1:blue 2:red */
 /* SIZE_OF_MESH       -> number of mesh of pm part (2*NUMBER_OF_PART**(1/3))*/
 /* SFT_FOR_PP         -> softening parameter (ref evolve.c:get_eps) (1.0/(10*NUMBER_OF_PART**(1/3))) */
 
-// A. Tanikawa defines this.
-#define N32_2H
 
+// A. Tanikawa defines this.
+//#define N32_2H
+#define N4_2H
+      
+#ifdef N4_2H
+#define NUMBER_OF_PART_ALL  (4096)
+#define NUMBER_OF_PART      (4096)
+#define SFT_FOR_PP          (0.0)
+#endif
+      
 #ifdef N32_2H
 #define NUMBER_OF_PART_ALL  (32768)
 #define NUMBER_OF_PART      (32768)
 // A. Tanikawa comments out this.
 //#define SIZE_OF_MESH        (16)
-#define SFT_FOR_PP          (2.5e-4)
+#define SFT_FOR_PP          (0.0)
 #endif
 
 #ifdef N128_2H
 #define NUMBER_OF_PART_ALL  (2097152)
 #define NUMBER_OF_PART      (2097152)
-#define SIZE_OF_MESH        (64)
+      //#define SIZE_OF_MESH        (64)
 #define SFT_FOR_PP          (2.5e-4)
 #endif
 
 #ifdef N256_H
 #define NUMBER_OF_PART_ALL  (16777216)
 #define NUMBER_OF_PART      (16777216)
-#define SIZE_OF_MESH        (256)
+      //#define SIZE_OF_MESH        (256)
 #define SFT_FOR_PP          (2.5e-4) 
 #endif
 
 #ifdef N256_2H
 #define NUMBER_OF_PART_ALL  (16777216)
 #define NUMBER_OF_PART      (16777216)
-#define SIZE_OF_MESH        (128)
+      //#define SIZE_OF_MESH        (128)
 #define SFT_FOR_PP          (2.5e-4) 
 #endif
 
 #ifdef N512_2H
 #define NUMBER_OF_PART_ALL  (134217728)
 #define NUMBER_OF_PART      (20000000)
-#define SIZE_OF_MESH        (256) 
+      //#define SIZE_OF_MESH        (256) 
 #define SFT_FOR_PP          (6.25e-5) 
 #endif
 
+      
 #define SIZE_OF_MESH_P2     (SIZE_OF_MESH+2)
 #define SIZE_OF_GREEN       (SIZE_OF_MESH/2+1)
 #define SFT_FOR_PM          (CUTOFF_RADIUS/SIZE_OF_MESH)
@@ -199,8 +208,8 @@ const int COLORMAP = 0;  /* others:gray 1:blue 2:red */
 #define _MIN_(a,b) ( ((a)<(b)) ? (a) : (b) )
 #define _MAX_(a,b) ( ((a)>(b)) ? (a) : (b) )
 
-const static long long int nleafmax = 
-  (long long int)NUMBER_OF_PART * (long long int)NLEAF / (long long int)NLEAF_PARALLEL_TREE_CONSTRUCTION;
+      //const static long long int nleafmax = 
+      //  (long long int)NUMBER_OF_PART * (long long int)NLEAF / (long long int)NLEAF_PARALLEL_TREE_CONSTRUCTION;
 
 
     } // namespace ParticleMesh

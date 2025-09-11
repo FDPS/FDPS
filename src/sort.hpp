@@ -3,7 +3,6 @@
 #include<reallocatable_array.hpp>
 
 namespace ParticleSimulator{
-
     template<class T>
     inline size_t MyGetClassSize(){
         return sizeof(T);
@@ -359,10 +358,11 @@ namespace ParticleSimulator{
     inline void MergeSortOmpImpl(T * first0, T * last0, T * first1, T * last1, T * res, Tpred pred){
         //const auto n0 = ne0 - nb0;
         //const auto n1 = ne1 - nb1;
+
+#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL)
         const auto n0 = last0 - first0;
         const auto n1 = last1 - first1;
         const auto n  = n0+n1;
-#if defined(PARTICLE_SIMULATOR_THREAD_PARALLEL)
         //T * big = (n0 >= n1) ? val0.getPointer(nb0) : val1.getPointer(nb1);
         //T * sml = (n0 < n1)  ? val0.getPointer(nb0) : val1.getPointer(nb1);
         T * big = (n0 >= n1) ? first0 : first1;

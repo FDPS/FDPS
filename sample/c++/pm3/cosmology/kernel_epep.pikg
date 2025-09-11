@@ -1,0 +1,19 @@
+EPI F32vec xi:pos
+
+EPJ F32vec xj:pos
+EPJ F32    mj:mass
+
+FORCE F32vec acc:acc
+FORCE F32    pot:pot
+
+F32 eps2
+
+rij    = xi - xj
+r2 = rij * rij + eps2
+r_inv  = rsqrt(r2)
+r2_inv = r_inv * r_inv
+mr_inv  = mj * r_inv
+mr3_inv = r2_inv * mr_inv
+acc -= mr3_inv * rij
+pot -= mr_inv
+

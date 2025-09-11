@@ -14,3 +14,7 @@
 ## Ver2.0
 * add functions for multi walk
 * add functions Comm::getRankMultiDim() and Comm::getNumberOfProcMultiDim().
+
+## Ver8.0
+* add PM3 module
+

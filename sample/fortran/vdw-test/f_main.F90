@@ -6,7 +6,7 @@ subroutine f_main()
    use user_defined_types
    implicit none
    !* Local parameters
-   integer, parameter :: ntot = 512
+   integer, parameter :: ntot = 8000
    !-(force parameters)
    real, parameter :: theta = 0.5
    integer, parameter :: n_leaf_limit = 8
@@ -18,7 +18,7 @@ subroutine f_main()
    double precision, parameter :: dt_snap = 1.0d0
    !-(domain parameters)
    real, parameter :: coef_ema = 0.3
-   double precision, parameter :: boxdh=5.0d0
+   double precision, parameter :: boxdh=15.0d0
    !* Local variables
    integer :: i,j,k,num_loop
    integer :: psys_num,dinfo_num,tree_num

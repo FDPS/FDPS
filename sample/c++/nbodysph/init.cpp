@@ -11,6 +11,7 @@ void SetupIC(PS::ParticleSystem<RealPtcl>& sph_system, PS::F64* end_time, PS::Do
 	const PS::F64 Radi = 1.0;
 	const PS::F64 Grav = 1.0;
 	*end_time = 0.77;
+	//const PS::F64 dx = 1.0 / 16.0;
 	const PS::F64 dx = 1.0 / 8.0;
 	PS::S32 id = 0;
 	for(PS::F64 x = -Radi ; x <= Radi ; x += dx){

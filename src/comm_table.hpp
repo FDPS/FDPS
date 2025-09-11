@@ -51,5 +51,16 @@ namespace ParticleSimulator{
             n_ep_per_image_.clearSize();
             n_sp_per_image_.clearSize();
         }
+        void dump(std::ostream &fout=std::cerr){
+            fout<<"n_ep_send_tot_="<<n_ep_send_tot_<<std::endl;
+            fout<<"n_ep_recv_tot_="<<n_ep_recv_tot_<<std::endl;
+            fout<<"n_sp_send_tot_="<<n_sp_send_tot_<<std::endl;
+            fout<<"n_sp_recv_tot_="<<n_sp_recv_tot_<<std::endl;
+            fout<<"rank_send_.size()="<<rank_send_.size()<<std::endl;
+            fout<<"rank_recv_.size()="<<rank_recv_.size()<<std::endl;
+            fout<<"rank_recv_allgather_.size()="<<rank_recv_allgather_.size()<<std::endl;
+            fout<<"pos_domain_allgather_.size()="<<pos_domain_allgather_.size()<<std::endl;
+
+        }
     };
 }

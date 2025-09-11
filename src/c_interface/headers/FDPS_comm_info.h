@@ -1,4 +1,7 @@
 #pragma once
+#ifdef PARTICLE_SIMULATOR_MPI_PARALLEL
+#include <mpi.h>
+#endif
 
 //**** PS::CommInfo
 #ifdef __cplusplus

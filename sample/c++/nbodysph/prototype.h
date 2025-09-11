@@ -11,5 +11,5 @@ void FinalKick(PS::ParticleSystem<RealPtcl>& sph_system, const PS::F64 dt);
 void Initialize(PS::ParticleSystem<RealPtcl>& sph_system);
 
 PS::F64 getTimeStepGlobal(const PS::ParticleSystem<RealPtcl>& sph_system);
-
-void CheckConservativeVariables(const PS::ParticleSystem<RealPtcl>& sph_system);
+void CalculateConservativeVariables(PS::F64 &Mass, PS::F64 &Eng, PS::F64vec &Mom, const PS::ParticleSystem<RealPtcl>& sph_system);
+//void CheckConservativeVariables(const PS::ParticleSystem<RealPtcl>& sph_system);

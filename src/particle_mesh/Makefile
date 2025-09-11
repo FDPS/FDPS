@@ -4,7 +4,8 @@ CC = mpicxx
 CFLAGS = -O3 -ffast-math -funroll-loops -DMPICH_IGNORE_CXX_SEEK #-Wall
 #CFLAGS = -O3 -Kfast
 
-INCLUDE_FFTW = -I/work4a/local/fftw/include
+#INCLUDE_FFTW = -I/work4a/local/fftw/include
+INCLUDE_FFTW = -I/usr/lib/x86_64-linux-gnu/include
 
 FFTW3_IDENTIFIER = FFTW3_PARALLEL
 
@@ -18,7 +19,7 @@ CFLAGS += -DUSING_MPI_PARTICLE
 CFLAGS += -DBOUNDARY_COMM_NONBLOCKING
 CFLAGS += -DBOUNDARY_COMM_NONBLOCKING_OVERLAP
 CFLAGS += -DGRAPE_OFF
-#CFLAGS += -DFFTW_DOUBLE
+CFLAGS += -DFFTW_DOUBLE
 
 OBJ = pm_parallel.o tools.o io.o evolve.o decomposition.o \
 	ptobmp.o pp2.o

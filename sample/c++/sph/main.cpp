@@ -98,7 +98,7 @@ struct FP{
    }
    void writeAscii(FILE* fp) const{
       fprintf(fp,
-              "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t"
+              "%" PRId64 "\t%lf\t%lf\t%lf\t%lf\t%lf\t"
               "%lf\t%lf\t%lf\t%lf\t%lf\n",
               this->id, this->mass,
               this->pos.x, this->pos.y, this->pos.z,
@@ -107,7 +107,7 @@ struct FP{
    }
    void readAscii(FILE* fp){
       fscanf(fp,
-             "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t"
+             "%" SCNd64 "\t%lf\t%lf\t%lf\t%lf\t%lf\t"
              "%lf\t%lf\t%lf\t%lf\t%lf\n",
              &this->id, &this->mass,
              &this->pos.x, &this->pos.y, &this->pos.z,
@@ -369,6 +369,20 @@ void setPressure(PS::ParticleSystem<FP>& sph_system){
    }
 }
 
+inline std::tuple<PS::F64, PS::F64vec> GetConservativeVariables(const PS::ParticleSystem<FP>& sph_system){
+   PS::F64vec Mom=0.0; // total momentum
+   PS::F64    Eng=0.0; // total enegry
+   for(PS::S32 i = 0; i < sph_system.getNumberOfParticleLocal(); ++ i){
+      Mom += sph_system[i].vel * sph_system[i].mass;
+      Eng += (sph_system[i].eng + 0.5 * sph_system[i].vel * sph_system[i].vel)
+            * sph_system[i].mass;
+   }
+   Eng = PS::Comm::getSum(Eng);
+   Mom = PS::Comm::getSum(Mom);
+   return std::make_tuple(Eng, Mom);
+}
+
+/*
 void CheckConservativeVariables(const PS::ParticleSystem<FP>& sph_system){
    PS::F64vec Mom=0.0; // total momentum
    PS::F64    Eng=0.0; // total enegry
@@ -386,6 +400,7 @@ void CheckConservativeVariables(const PS::ParticleSystem<FP>& sph_system){
         printf("%.16e\n", Mom.z);
     }
 }
+*/
 
 int main(int argc, char* argv[]){
    // Initialize FDPS
@@ -442,6 +457,7 @@ int main(int argc, char* argv[]){
    // Get timestep
    dt = getTimeStepGlobal(sph_system);
    // Main loop for time integration
+   auto [eng0, mom0] = GetConservativeVariables(sph_system);
    PS::S32 step = 0;
    for(PS::F64 time = 0 ; time < end_time ; time += dt, ++ step){
       // Leap frog: Initial Kick & Full Drift
@@ -485,7 +501,10 @@ int main(int argc, char* argv[]){
          std::cout << "step = " << step << std::endl;
          std::cout << "================================" << std::endl;
       }
-      CheckConservativeVariables(sph_system);
+      auto [eng1, mom1] = GetConservativeVariables(sph_system);
+      std::cout<<"relative energy err: "<<(eng1 - eng0)/ eng0<<std::endl;
+      std::cout<<"absolute momentum err: "<<(mom1 - mom0)<<std::endl;
+      //CheckConservativeVariables(sph_system);
    }
    // Finalize FDPS
    PS::Finalize();

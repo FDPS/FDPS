@@ -24,9 +24,10 @@ PM_ROOT=$(FDPS_ROOT)/src/particle_mesh
 CXXFLAGS += -I$(FDPS_ROOT)/src
 CXXFLAGS += -I$(PM_ROOT)
 
-FFTW_ROOT = /work4a/local/fftw
-FFTW_LIBS = -L$(FFTW_ROOT)/lib -lfftw3f_mpi -lfftw3f
-
+#FFTW_ROOT = /work4a/local/fftw
+FFTW_ROOT = /usr/lib/x86_64-linux-gnu
+#FFTW_LIBS = -L$(FFTW_ROOT)/lib -lfftw3f_mpi -lfftw3f
+FFTW_LIBS = -L$(FFTW_ROOT)/lib -lfftw3_mpi -lfftw3_omp -lfftw3
 CXXFLAGS += -I$(FFTW_ROOT)/include
 CFLAGS += -I$(FFTW_ROOT)/include
 CFLAGS += -I$(FDPS_ROOT)/src

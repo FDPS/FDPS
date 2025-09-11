@@ -4,13 +4,13 @@ public:
     PS::S64 n_body;
     PS::F64 time;
     PS::S32 readAscii(FILE * fp) {
-        fscanf(fp, "%lf\n", &time);
-        fscanf(fp, "%lld\n", &n_body);
+        if(fscanf(fp, "%lf\n", &time) != 1) exit(1);
+        if(fscanf(fp, "%ld\n", &n_body) != 1) exit(1);
         return n_body;
     }
     void writeAscii(FILE* fp) const {
         fprintf(fp, "%e\n", time);
-        fprintf(fp, "%lld\n", n_body);
+        fprintf(fp, "%ld\n", n_body);
     }
 };
 
@@ -21,8 +21,7 @@ public:
     PS::F64vec pos;
     PS::F64vec vel;
     PS::F64vec acc;
-    PS::F64    pot;    
-
+    PS::F64    pot;
     static PS::F64 eps;
 
     PS::F64vec getPos() const {
@@ -49,24 +48,21 @@ public:
     }
 
     void writeAscii(FILE* fp) const {
-        fprintf(fp, "%lld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", 
-                this->id, this->mass,
-                this->pos.x, this->pos.y, this->pos.z,
-                this->vel.x, this->vel.y, this->vel.z);
+        fprintf(fp, "%ld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", 
+		this->id, this->mass,
+		this->pos.x, this->pos.y, this->pos.z,
+		this->vel.x, this->vel.y, this->vel.z);
     }
 
     void readAscii(FILE* fp) {
-        fscanf(fp, "%lld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
-               &this->id, &this->mass,
-               &this->pos.x, &this->pos.y, &this->pos.z,
-               &this->vel.x, &this->vel.y, &this->vel.z);
+        if(fscanf(fp, "%ld\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
+		  &this->id, &this->mass,
+		  &this->pos.x, &this->pos.y, &this->pos.z,
+		  &this->vel.x, &this->vel.y, &this->vel.z) != 8) exit(-1);
         }
-
 };
 
-
 #ifdef ENABLE_PHANTOM_GRAPE_X86
-
 
 template <class TParticleJ>
 void CalcGravity(const FPGrav * iptcl,
@@ -130,6 +126,8 @@ struct Force{
   PS::F32    pot;
 };
 
+
+
 #include "kernel_pikg.hpp"
 
 template <class TParticleJ>
@@ -158,7 +156,6 @@ void CalcGravity(const FPGrav * ep_i,
   }
 }
 #else
-
 template <class TParticleJ>
 void CalcGravity(const FPGrav * ep_i,
                  const PS::S32 n_ip,
@@ -184,7 +181,6 @@ void CalcGravity(const FPGrav * ep_i,
         force[i].pot += poti;
     }
 }
-
 #endif
 
  

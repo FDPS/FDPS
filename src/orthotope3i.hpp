@@ -141,7 +141,7 @@ namespace ParticleSimulator{
         }
 
         const Vector3<T> getLength() const {
-            return (high_ - low_);
+            return (high_ - low_ + Vector3<T>(1));
         }
 
         const Vector3<T> getDistanceEach(const Vector3<T> & vec) const {
@@ -153,6 +153,11 @@ namespace ParticleSimulator{
             return Vector3<T>(dx, dy, dz);
         }
 
+        const T getVolume() const {
+            const Vector3<T> len = getLength();
+            return len.x * len.y * len.z;
+        }
+        
         bool calcIntersection(const Orthotope3i & tgt,
                               Orthotope3i & ret) const {
             if (overlapped(tgt)) {
@@ -166,6 +171,17 @@ namespace ParticleSimulator{
             } else {
                 return false;
             }
+        }
+
+        Orthotope3i getIntersectionNoCheck(const Orthotope3i & tgt) const {
+            Orthotope3i ret;
+            ret.low_.x  = std::max(this->low_.x, tgt.low_.x);
+            ret.high_.x = std::min(this->high_.x, tgt.high_.x);
+            ret.low_.y  = std::max(this->low_.y, tgt.low_.y);
+            ret.high_.y = std::min(this->high_.y, tgt.high_.y);
+            ret.low_.z  = std::max(this->low_.z, tgt.low_.z);
+            ret.high_.z = std::min(this->high_.z, tgt.high_.z);
+            return ret;
         }
         
         //Cast to Orthotope3<U>

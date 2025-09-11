@@ -1,3 +1,4 @@
+#include<cstdint>
 #include"vector2.hpp"
 #include"vector3.hpp"
 #include"orthotope2.hpp"
@@ -9,18 +10,24 @@
 #include"matrix2.hpp"
 
 namespace ParticleSimulator{
-    typedef int S32;
-    typedef unsigned int U32;
+    //typedef int S32;
+    //typedef unsigned int U32;
+    using S32 = std::int32_t;
+    using U32 = std::uint32_t;
 #if defined(PARTICLE_SIMULATOR_ALL_64BIT_PRECISION)
     typedef double F32;
 #else
     typedef float F32;
 #endif
-    typedef long long int S64;
-    typedef unsigned long long int U64;
+    //typedef long long int S64;
+    using S64 = std::int64_t;
+    //typedef unsigned long long int U64;
+    using U64 = std::uint64_t;
     typedef double F64;
     typedef Vector2<S32> S32vec2;
     typedef Vector3<S32> S32vec3;
+    typedef Vector2<S64> S64vec2;
+    typedef Vector3<S64> S64vec3;
     typedef Vector2<U64> U64vec2;
     typedef Vector3<U64> U64vec3;
     typedef Vector2<F32> F32vec2;
@@ -39,6 +46,7 @@ namespace ParticleSimulator{
     typedef Orthotope3<F64> F64ort3;
 #if defined(PARTICLE_SIMULATOR_TWO_DIMENSION)
     typedef S32vec2 S32vec;
+    typedef S64vec2 S64vec;
     typedef F32vec2 F32vec;
     typedef F64vec2 F64vec;
     typedef F32mat2 F32mat;
@@ -48,6 +56,7 @@ namespace ParticleSimulator{
     typedef F64ort2 F64ort;
 #else
     typedef S32vec3 S32vec;
+    typedef S64vec3 S64vec;
     typedef F32vec3 F32vec;
     typedef F64vec3 F64vec;
     typedef F32mat3 F32mat;
@@ -71,3 +80,4 @@ namespace ParticleSimulator{
     typedef U64 CountT;
     typedef CountT Count_t;
 }
+namespace PS = ParticleSimulator;

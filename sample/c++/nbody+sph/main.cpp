@@ -26,34 +26,30 @@
 #include "ic.hpp"
 #include "leapfrog.hpp"
 
-void makeOutputDirectory(char * dir_name) {
+void makeOutputDirectory(char* dir_name) {
     struct stat st;
     PS::S32 ret;
     if (PS::Comm::getRank() == 0) {
         if (stat(dir_name, &st) != 0) {
             ret = mkdir(dir_name, 0777);
         } else {
-            ret = 0; // the directory named dir_name already exists.
+            ret = 0;  // the directory named dir_name already exists.
         }
-    } 
+    }
     PS::Comm::broadcast(&ret, 1);
     if (ret == 0) {
-        if (PS::Comm::getRank() == 0)
-            fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
+        if (PS::Comm::getRank() == 0) fprintf(stderr, "Directory \"%s\" is successfully made.\n", dir_name);
     } else {
-        if (PS::Comm::getRank() == 0)
-            fprintf(stderr, "Directory %s fails to be made.\n", dir_name);
+        if (PS::Comm::getRank() == 0) fprintf(stderr, "Directory %s fails to be made.\n", dir_name);
         PS::Abort();
     }
 }
 
-void calcDensity(PS::ParticleSystem<FP_sph> & psys,
-                 PS::DomainInfo & dinfo, 
-                 PS::TreeForForceShort<Force_dens, EP_hydro, EP_hydro>::Gather & tree) {
+void calcDensity(PS::ParticleSystem<FP_sph>& psys, PS::DomainInfo& dinfo, PS::TreeForForceShort<Force_dens, EP_hydro, EP_hydro>::Gather& tree) {
 #if defined(ENABLE_VARIABLE_SMOOTHING_LENGTH)
     const PS::S32 n_loc = psys.getNumberOfParticleLocal();
     const PS::S64 n_glb = psys.getNumberOfParticleGlobal();
-    // Determine the density and the smoothing length so that Eq.(6) in Springel (2005) 
+    // Determine the density and the smoothing length so that Eq.(6) in Springel (2005)
     // holds within a specified accuracy.
     SCF_smth = 1.25;
     PS::S32 iter = 0;
@@ -77,24 +73,23 @@ void calcDensity(PS::ParticleSystem<FP_sph> & psys,
 #endif
 }
 
-void setEntropy(PS::ParticleSystem<FP_sph>& psys){
+void setEntropy(PS::ParticleSystem<FP_sph>& psys) {
     for (PS::S32 i = 0; i < psys.getNumberOfParticleLocal(); i++) {
         psys[i].setEntropy();
     }
 }
 
-void setPressure(PS::ParticleSystem<FP_sph>& psys){
+void setPressure(PS::ParticleSystem<FP_sph>& psys) {
     for (PS::S32 i = 0; i < psys.getNumberOfParticleLocal(); i++) {
         psys[i].setPressure();
     }
 }
 
-void setCircularVelocity(PS::ParticleSystem<FP_sph>& psys){
+void setCircularVelocity(PS::ParticleSystem<FP_sph>& psys) {
     for (PS::S32 i = 0; i < psys.getNumberOfParticleLocal(); i++) {
         const PS::F64vec acc = psys[i].acc_grav + psys[i].acc_hydro;
         const PS::F64 r = std::sqrt(psys[i].pos * psys[i].pos);
-        const PS::F64 R = std::sqrt(psys[i].pos.x * psys[i].pos.x 
-                                   +psys[i].pos.y * psys[i].pos.y);
+        const PS::F64 R = std::sqrt(psys[i].pos.x * psys[i].pos.x + psys[i].pos.y * psys[i].pos.y);
         const PS::F64 phi = std::atan2(psys[i].pos.y, psys[i].pos.x);
         const PS::F64 theta = std::atan2(R, psys[i].pos.z);
         PS::F64vec base_vect_r;
@@ -102,8 +97,8 @@ void setCircularVelocity(PS::ParticleSystem<FP_sph>& psys){
         base_vect_r.y = std::sin(theta) * std::sin(phi);
         base_vect_r.z = std::cos(theta);
         const PS::F64 vel_circ = std::sqrt(r * std::abs(acc * base_vect_r));
-        psys[i].vel.x = - vel_circ * std::sin(phi);
-        psys[i].vel.y =   vel_circ * std::cos(phi);
+        psys[i].vel.x = -vel_circ * std::sin(phi);
+        psys[i].vel.y = vel_circ * std::cos(phi);
         psys[i].vel.z = 0.0;
     }
 #if 0
@@ -148,32 +143,20 @@ void setCircularVelocity(PS::ParticleSystem<FP_sph>& psys){
 #endif
 }
 
-void setupIC(PS::ParticleSystem<FP_nbody>& psys_nbody,
-             PS::ParticleSystem<FP_sph>& psys_sph,
-             PS::DomainInfo& dinfo,
-             PS::F64 & time_dump,
-             PS::F64 & dt_dump,
-             PS::F64 & time_end) {
+void setupIC(PS::ParticleSystem<FP_nbody>& psys_nbody, PS::ParticleSystem<FP_sph>& psys_sph, PS::DomainInfo& dinfo, PS::F64& time_dump,
+             PS::F64& dt_dump, PS::F64& time_end) {
     // Make an initial condition at MPI rank 0.
     PS::BOUNDARY_CONDITION bc;
     PS::F64ort pos_root_domain;
     if (PS::Comm::getRank() == 0) {
 #if (INITIAL_CONDITION == 0)
-        GalaxyIC(psys_nbody, psys_sph,
-                 bc, pos_root_domain,
-                 time_dump, dt_dump, time_end);
+        GalaxyIC(psys_nbody, psys_sph, bc, pos_root_domain, time_dump, dt_dump, time_end);
 #elif (INITIAL_CONDITION == 1)
-        ColdCollapseTestIC(psys_nbody, psys_sph,
-                           bc, pos_root_domain,
-                           time_dump, dt_dump, time_end);
+        ColdCollapseTestIC(psys_nbody, psys_sph, bc, pos_root_domain, time_dump, dt_dump, time_end);
 #elif (INITIAL_CONDITION == 2)
-        EvrardTestIC(psys_nbody, psys_sph,
-                     bc, pos_root_domain,
-                     time_dump, dt_dump, time_end, 1);
+        EvrardTestIC(psys_nbody, psys_sph, bc, pos_root_domain, time_dump, dt_dump, time_end, 1);
 #elif (INITIAL_CONDITION == 3)
-        MakeGlassIC(psys_nbody, psys_sph,
-                    bc, pos_root_domain,
-                    time_dump, dt_dump, time_end);
+        MakeGlassIC(psys_nbody, psys_sph, bc, pos_root_domain, time_dump, dt_dump, time_end);
 #else
 #error Invalid IC number is specified.
 #endif
@@ -181,31 +164,23 @@ void setupIC(PS::ParticleSystem<FP_nbody>& psys_nbody,
         // Check the distribution of particles
         const std::string filename = "IC.txt";
         std::ofstream output_file;
-        output_file.open(filename.c_str(),std::ios::trunc);
-        output_file.setf(std::ios_base::scientific,
-                         std::ios_base::floatfield);
+        output_file.open(filename.c_str(), std::ios::trunc);
+        output_file.setf(std::ios_base::scientific, std::ios_base::floatfield);
         output_file << std::setprecision(15) << std::showpos;
         for (PS::S32 i = 0; i < psys_nbody.getNumberOfParticleLocal(); i++) {
-            output_file << psys_nbody[i].pos.x << " "
-                        << psys_nbody[i].pos.y << " "
-                        << psys_nbody[i].pos.z << " "
-                        << std::endl;
+            output_file << psys_nbody[i].pos.x << " " << psys_nbody[i].pos.y << " " << psys_nbody[i].pos.z << " " << std::endl;
         }
-        output_file << std::endl << std::endl; // separator
+        output_file << std::endl << std::endl;  // separator
         for (PS::S32 i = 0; i < psys_sph.getNumberOfParticleLocal(); i++) {
-           output_file << psys_sph[i].pos.x << " "
-                       << psys_sph[i].pos.y << " "
-                       << psys_sph[i].pos.z << " "
-                       << std::endl;
+            output_file << psys_sph[i].pos.x << " " << psys_sph[i].pos.y << " " << psys_sph[i].pos.z << " " << std::endl;
         }
         output_file.close();
-    }
-    else {
+    } else {
         psys_nbody.setNumberOfParticleLocal(0);
         psys_sph.setNumberOfParticleLocal(0);
     }
 
-    // Broadcast 
+    // Broadcast
     PS::Comm::broadcast(&bc, 1, 0);
     PS::Comm::broadcast(&pos_root_domain, 1, 0);
     PS::Comm::broadcast(&eps_grav, 1, 0);
@@ -217,94 +192,85 @@ void setupIC(PS::ParticleSystem<FP_nbody>& psys_nbody,
     // Set the boundary condition and the size of the computational domain if needed.
     dinfo.setBoundaryCondition(bc);
     if (bc != PS::BOUNDARY_CONDITION_OPEN) {
-        dinfo.setPosRootDomain(pos_root_domain.low_,
-                               pos_root_domain.high_);
+        dinfo.setPosRootDomain(pos_root_domain.low_, pos_root_domain.high_);
     }
 
     // Compute the average mass of SPH particles
-    PS::F64 m_sum_loc = 0.0; 
-    for (PS::S32 i = 0; i < psys_sph.getNumberOfParticleLocal(); i++)
-        m_sum_loc += psys_sph[i].getCharge();
+    PS::F64 m_sum_loc = 0.0;
+    for (PS::S32 i = 0; i < psys_sph.getNumberOfParticleLocal(); i++) m_sum_loc += psys_sph[i].getCharge();
     mass_avg = PS::Comm::getSum(m_sum_loc) / psys_sph.getNumberOfParticleGlobal();
 
     // Output information to stdout
-    if (PS::Comm::getRank() == 0)
-        std::cout << "setupIC() is completed." << std::endl;
-    //PS::Finalize();
-    //std::exit(0);
+    if (PS::Comm::getRank() == 0) std::cout << "setupIC() is completed." << std::endl;
+    // PS::Finalize();
+    // std::exit(0);
 }
 
+PS::F64 getTimeStep(const PS::ParticleSystem<FP_nbody>& psys_nbody, const PS::ParticleSystem<FP_sph>& psys_sph) {
+    PS::F64 dt = DBL_MAX;
+    if (dt_max > 0.0) dt = dt_max;
 
-PS::F64 getTimeStep(const PS::ParticleSystem<FP_nbody>& psys_nbody,
-                    const PS::ParticleSystem<FP_sph>& psys_sph) {
-   PS::F64 dt = DBL_MAX; 
-   if (dt_max > 0.0) dt = dt_max;
-
-   // Timescale for N-body system
+        // Timescale for N-body system
 #if defined(ENABLE_GRAVITY_INTERACT)
-   for (PS::S32 i = 0; i < psys_nbody.getNumberOfParticleLocal(); i++) {
-      const PS::F64 acc = std::sqrt(psys_nbody[i].acc * psys_nbody[i].acc);
-      if (acc > 0.0)
-          dt = std::min(dt, CFL_dyn * std::sqrt(eps_grav / acc));
-   }
+    for (PS::S32 i = 0; i < psys_nbody.getNumberOfParticleLocal(); i++) {
+        const PS::F64 acc = std::sqrt(psys_nbody[i].acc * psys_nbody[i].acc);
+        if (acc > 0.0) dt = std::min(dt, CFL_dyn * std::sqrt(eps_grav / acc));
+    }
 #endif
 
-   // Timescale for SPH system
-   for (PS::S32 i = 0; i < psys_sph.getNumberOfParticleLocal(); i++) {
+    // Timescale for SPH system
+    for (PS::S32 i = 0; i < psys_sph.getNumberOfParticleLocal(); i++) {
 #if defined(ENABLE_GRAVITY_INTERACT)
-      const PS::F64 acc = std::sqrt((psys_sph[i].acc_grav + psys_sph[i].acc_hydro)
-                                   *(psys_sph[i].acc_grav + psys_sph[i].acc_hydro));
-      if (acc > 0.0)
-          dt = std::min(dt, CFL_dyn * std::sqrt(eps_grav / acc));
+        const PS::F64 acc = std::sqrt((psys_sph[i].acc_grav + psys_sph[i].acc_hydro) * (psys_sph[i].acc_grav + psys_sph[i].acc_hydro));
+        if (acc > 0.0) dt = std::min(dt, CFL_dyn * std::sqrt(eps_grav / acc));
 #endif
 #if defined(ENABLE_HYDRO_INTERACT)
-      dt = std::min(dt, psys_sph[i].dt);
+        dt = std::min(dt, psys_sph[i].dt);
 #endif
-   }
-   return PS::Comm::getMinValue(dt);
+    }
+    return PS::Comm::getMinValue(dt);
 }
 
-void checkConservativeVariables(const PS::ParticleSystem<FP_nbody>& psys_nbody,
-                                const PS::ParticleSystem<FP_sph>& psys_sph) {
-    PS::F64    ekin_loc = 0.0;
-    PS::F64    epot_loc = 0.0;
-    PS::F64    eth_loc  = 0.0; 
-    PS::F64vec mom_loc  = 0.0; 
+void checkConservativeVariables(const PS::ParticleSystem<FP_nbody>& psys_nbody, const PS::ParticleSystem<FP_sph>& psys_sph) {
+    PS::F64 ekin_loc = 0.0;
+    PS::F64 epot_loc = 0.0;
+    PS::F64 eth_loc = 0.0;
+    PS::F64vec mom_loc = 0.0;
     for (PS::S32 i = 0; i < psys_nbody.getNumberOfParticleLocal(); i++) {
         ekin_loc += 0.5 * psys_nbody[i].mass * psys_nbody[i].vel * psys_nbody[i].vel;
         epot_loc += 0.5 * psys_nbody[i].mass * (psys_nbody[i].pot + psys_nbody[i].mass / eps_grav);
-        mom_loc  += psys_nbody[i].mass * psys_nbody[i].vel;
+        mom_loc += psys_nbody[i].mass * psys_nbody[i].vel;
     }
     for (PS::S32 i = 0; i < psys_sph.getNumberOfParticleLocal(); i++) {
         ekin_loc += 0.5 * psys_sph[i].mass * psys_sph[i].vel * psys_sph[i].vel;
         epot_loc += 0.5 * psys_sph[i].mass * (psys_sph[i].pot_grav + psys_sph[i].mass / eps_grav);
-        eth_loc  += psys_sph[i].mass * psys_sph[i].eng;
-        mom_loc  += psys_sph[i].mass * psys_sph[i].vel;
+        eth_loc += psys_sph[i].mass * psys_sph[i].eng;
+        mom_loc += psys_sph[i].mass * psys_sph[i].vel;
     }
-    PS::F64 ekin    = PS::Comm::getSum(ekin_loc);
-    PS::F64 epot    = PS::Comm::getSum(epot_loc);
-    PS::F64 eth     = PS::Comm::getSum(eth_loc);
-    PS::F64vec mom  = PS::Comm::getSum(mom_loc);
+    PS::F64 ekin = PS::Comm::getSum(ekin_loc);
+    PS::F64 epot = PS::Comm::getSum(epot_loc);
+    PS::F64 eth = PS::Comm::getSum(eth_loc);
+    PS::F64vec mom = PS::Comm::getSum(mom_loc);
 
     static bool is_initialized = false;
     static PS::F64 emech_ini, etot_ini;
     if (is_initialized == false) {
         emech_ini = ekin + epot;
-        etot_ini  = ekin + epot + eth;
+        etot_ini = ekin + epot + eth;
         is_initialized = true;
     }
 
-    if (PS::Comm::getRank() == 0){
+    if (PS::Comm::getRank() == 0) {
         const PS::F64 emech = ekin + epot;
-        const PS::F64 etot  = ekin + epot + eth;
-        const PS::F64 relerr_mech = std::fabs((emech - emech_ini)/emech_ini);
-        const PS::F64 relerr_tot  = std::fabs((etot  - etot_ini)/etot_ini);
+        const PS::F64 etot = ekin + epot + eth;
+        const PS::F64 relerr_mech = std::fabs((emech - emech_ini) / emech_ini);
+        const PS::F64 relerr_tot = std::fabs((etot - etot_ini) / etot_ini);
         std::cout << "-------------------------" << std::endl;
-        std::cout << "E_kin  = " << ekin  << std::endl;
-        std::cout << "E_pot  = " << epot  << std::endl;
-        std::cout << "E_th   = " << eth   << std::endl;
+        std::cout << "E_kin  = " << ekin << std::endl;
+        std::cout << "E_pot  = " << epot << std::endl;
+        std::cout << "E_th   = " << eth << std::endl;
         std::cout << "E_mech = " << emech << " (" << relerr_mech << ")" << std::endl;
-        std::cout << "E_tot  = " << etot  << " (" << relerr_tot  << ")" << std::endl;
+        std::cout << "E_tot  = " << etot << " (" << relerr_tot << ")" << std::endl;
         std::cout << "Mom (x) = " << mom.x << std::endl;
         std::cout << "Mom (y) = " << mom.y << std::endl;
         std::cout << "Mom (z) = " << mom.z << std::endl;
@@ -321,10 +287,9 @@ void checkDensityFluctuation(PS::ParticleSystem<FP_sph>& psys) {
     const PS::F64 dens_avg = PS::Comm::getSum(tmp) / n_glb;
     // Compute the dispersion of density
     tmp = 0.0;
-    for (PS::S32 i = 0; i < n_loc; i++) 
-        tmp += std::pow(psys[i].dens - dens_avg, 2.0);
-    const PS::F64 dens_disp = std::sqrt(PS::Comm::getSum(tmp)/n_glb);
-    // Output the status 
+    for (PS::S32 i = 0; i < n_loc; i++) tmp += std::pow(psys[i].dens - dens_avg, 2.0);
+    const PS::F64 dens_disp = std::sqrt(PS::Comm::getSum(tmp) / n_glb);
+    // Output the status
     const PS::F64 fluc_str = dens_disp / dens_avg;
     if (PS::Comm::getRank() == 0) {
         std::cout << "---------------------------" << std::endl;
@@ -340,17 +305,14 @@ void checkDensityFluctuation(PS::ParticleSystem<FP_sph>& psys) {
         psys.writeParticleBinary(filename, &FP_sph::writeBinaryPos);
         if (PS::Comm::getRank() == 0) {
             std::cout << "A glass-like distribution is obtained." << std::endl;
-            std::cout << "The particle position data is output as file " 
-                      << filename << std::endl;
+            std::cout << "The particle position data is output as file " << filename << std::endl;
         }
         PS::Finalize();
         std::exit(0);
     }
-
 }
 
-
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[]) {
     // Configure stdout & stderr
     std::cout << std::setprecision(15);
     std::cerr << std::setprecision(15);
@@ -360,7 +322,7 @@ int main(int argc, char* argv[]){
 
     // Make a directory
     char dir_name[1024];
-    sprintf(dir_name,"./result");
+    sprintf(dir_name, "./result");
     makeOutputDirectory(dir_name);
 
     // Display # of MPI processes and threads
@@ -368,10 +330,10 @@ int main(int argc, char* argv[]){
     PS::S32 nthrds = PS::Comm::getNumberOfThread();
     if (PS::Comm::getRank() == 0) {
         std::cout << "===========================================" << std::endl
-                  << " This is a sample program of "               << std::endl
-                  << " Nbody + SPH particle system on FDPS!"       << std::endl
-                  << " # of processes is " << nprocs               << std::endl
-                  << " # of thread is    " << nthrds               << std::endl
+                  << " This is a sample program of " << std::endl
+                  << " Nbody + SPH particle system on FDPS!" << std::endl
+                  << " # of processes is " << nprocs << std::endl
+                  << " # of thread is    " << nthrds << std::endl
                   << "===========================================" << std::endl;
     }
 
@@ -391,17 +353,17 @@ int main(int argc, char* argv[]){
     // Make an initial condition and initialize the particle systems
     setupIC(psys_nbody, psys_sph, dinfo, time_dump, dt_dump, time_end);
 
-    // Perform domain decomposition 
+    // Perform domain decomposition
     dinfo.collectSampleParticle(psys_nbody);
-    dinfo.collectSampleParticle(psys_sph,false);
+    dinfo.collectSampleParticle(psys_sph, false);
     dinfo.decomposeDomain();
-    
+
     // Perform particle exchange
     psys_nbody.exchangeParticle(dinfo);
     psys_sph.exchangeParticle(dinfo);
 
     // Make tree structures
-    const PS::S64 numPtclSPH = std::max(psys_sph.getNumberOfParticleLocal(),1);
+    const PS::S64 numPtclSPH = std::max(psys_sph.getNumberOfParticleLocal(), 1);
     const PS::S64 numPtclAll = psys_nbody.getNumberOfParticleLocal() + numPtclSPH;
 
     const PS::F32 theta_grav = 0.5;
@@ -419,21 +381,10 @@ int main(int argc, char* argv[]){
     g5_set_eps_to_all(eps_grav);
 #endif
 
-    // Peform force calculations 
+    // Peform force calculations
     //- Gravity calculations
 #if defined(ENABLE_GRAVITY_INTERACT)
-    tree_grav.setParticleLocalTree(psys_nbody);
-    tree_grav.setParticleLocalTree(psys_sph,false);
-    tree_grav.calcForceMakingTree(CalcGravity<EP_grav>,
-                                  CalcGravity<PS::SPJMonopole>,
-                                  dinfo);
-    for (PS::S32 i = 0; i < psys_nbody.getNumberOfParticleLocal(); i++) {
-        psys_nbody[i].copyFromForce(tree_grav.getForce(i));
-    }
-    const PS::S32 offset = psys_nbody.getNumberOfParticleLocal();
-    for (PS::S32 i = 0; i < psys_sph.getNumberOfParticleLocal(); i++) {
-        psys_sph[i].copyFromForce(tree_grav.getForce(i+offset));
-    }
+    tree_grav.calcForceAllAndWriteBack(CalcGravity<EP_grav>, CalcGravity<PS::SPJMonopole>, psys_nbody, psys_sph, dinfo);
 #endif
 
     //- SPH calculations
@@ -454,18 +405,14 @@ int main(int argc, char* argv[]){
     // Get timestep
     dt = getTimeStep(psys_nbody, psys_sph);
 
-    // Calculate energies 
+    // Calculate energies
     checkConservativeVariables(psys_nbody, psys_sph);
 
     // Main loop for time integration
     PS::S32 nstep = 1;
-    for (PS::F64 time = 0.0; time < time_end; time += dt, nstep++){
+    for (PS::F64 time = 0.0; time < time_end; time += dt, nstep++) {
         if (PS::Comm::getRank() == 0) {
-            std::cout << "nstep = " << nstep 
-                      << " dt = " << dt 
-                      << " time = " << time 
-                      << " time_end = " << time_end
-                      << std::endl;
+            std::cout << "nstep = " << nstep << " dt = " << dt << " time = " << time << " time_end = " << time_end << std::endl;
         }
 
         // Leap frog: Initial Kick & Full Drift
@@ -483,7 +430,7 @@ int main(int argc, char* argv[]){
 
         // Perform domain decomposition again
         dinfo.collectSampleParticle(psys_nbody);
-        dinfo.collectSampleParticle(psys_sph,false);
+        dinfo.collectSampleParticle(psys_sph, false);
         dinfo.decomposeDomain();
 
         // Exchange the particles between the (MPI) processes
@@ -491,27 +438,18 @@ int main(int argc, char* argv[]){
         psys_sph.exchangeParticle(dinfo);
 
         // Peform force calculations
-        PS::F64 t_start; 
+        PS::F64 t_start;
         //- Gravity calculations
-        PS::Comm::barrier(); t_start = PS::GetWtime();
+        PS::Comm::barrier();
+        t_start = PS::GetWtime();
 #if defined(ENABLE_GRAVITY_INTERACT)
-        tree_grav.setParticleLocalTree(psys_nbody);
-        tree_grav.setParticleLocalTree(psys_sph,false);
-        tree_grav.calcForceMakingTree(CalcGravity<EP_grav>,
-                                      CalcGravity<PS::SPJMonopole>,
-                                      dinfo);
-        for (PS::S32 i = 0; i < psys_nbody.getNumberOfParticleLocal(); i++) {
-            psys_nbody[i].copyFromForce(tree_grav.getForce(i));
-        }
-        const PS::S32 offset = psys_nbody.getNumberOfParticleLocal();
-        for (PS::S32 i = 0; i < psys_sph.getNumberOfParticleLocal(); i++) {
-            psys_sph[i].copyFromForce(tree_grav.getForce(i+offset));
-        }
+        tree_grav.calcForceAllAndWriteBack(CalcGravity<EP_grav>, CalcGravity<PS::SPJMonopole>, psys_nbody, psys_sph, dinfo);
 #endif
         PS::Comm::barrier();
         if (PS::Comm::getRank() == 0) std::cout << "t_grav = " << (PS::GetWtime() - t_start) << std::endl;
         //- SPH calculations
-        PS::Comm::barrier(); t_start = PS::GetWtime();
+        PS::Comm::barrier();
+        t_start = PS::GetWtime();
 #if defined(ENABLE_HYDRO_INTERACT)
         calcDensity(psys_sph, dinfo, tree_dens);
         setPressure(psys_sph);
@@ -528,25 +466,25 @@ int main(int argc, char* argv[]){
         FinalKick(psys_sph, dt);
 
         // Output result files
-        if (time > time_dump){
-           FileHeader header_nbody, header_sph;
-           header_nbody.time    = time;
-           header_nbody.numPtcl = psys_nbody.getNumberOfParticleGlobal();
-           header_sph.time      = time;
-           header_sph.numPtcl   = psys_sph.getNumberOfParticleGlobal();
-           char filename[256];
-           static int ndump = 1;
-           sprintf(filename, "result/nbody%05d.txt", ndump);
-           psys_nbody.writeParticleAscii(filename, header_nbody);
-           sprintf(filename, "result/sph%05d.txt", ndump);
-           psys_sph.writeParticleAscii(filename, header_sph);
-           if (PS::Comm::getRank() == 0){
-              std::cout << "============================================" << std::endl;
-              std::cout << "output " << filename << " at time = " << time << std::endl;
-              std::cout << "============================================" << std::endl;
-           }
-           time_dump += dt_dump;
-           ndump++;
+        if (time > time_dump) {
+            FileHeader header_nbody, header_sph;
+            header_nbody.time = time;
+            header_nbody.numPtcl = psys_nbody.getNumberOfParticleGlobal();
+            header_sph.time = time;
+            header_sph.numPtcl = psys_sph.getNumberOfParticleGlobal();
+            char filename[256];
+            static int ndump = 1;
+            sprintf(filename, "result/nbody%05d.txt", ndump);
+            psys_nbody.writeParticleAscii(filename, header_nbody);
+            sprintf(filename, "result/sph%05d.txt", ndump);
+            psys_sph.writeParticleAscii(filename, header_sph);
+            if (PS::Comm::getRank() == 0) {
+                std::cout << "============================================" << std::endl;
+                std::cout << "output " << filename << " at time = " << time << std::endl;
+                std::cout << "============================================" << std::endl;
+            }
+            time_dump += dt_dump;
+            ndump++;
         }
 
         // Calculate energies
@@ -554,10 +492,8 @@ int main(int argc, char* argv[]){
 
         // Check the amplitude of density fluctuation
 #if defined(CHECK_DENSITY_FLUCTUATION)
-        if (nstep % 100 == 0) 
-            checkDensityFluctuation(psys_sph);
+        if (nstep % 100 == 0) checkDensityFluctuation(psys_sph);
 #endif
-
     }
 
 #if defined(ENABLE_PHANTOM_GRAPE_X86)
@@ -567,4 +503,3 @@ int main(int argc, char* argv[]){
     PS::Finalize();
     return 0;
 }
-

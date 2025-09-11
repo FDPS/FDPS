@@ -179,6 +179,11 @@ namespace ParticleSimulator{
         const Vector3<T> getFullLength() const {
             return (high_ - low_);
         }
+        const Orthotope3<T> getExpandedBoxSize(const T ratio = 1.0e-6) const {
+            Vector3<T> dl = this->getFullLength() * ratio;
+            return Orthotope3<T>(low_-dl, high_+dl);
+        }
+
 
         const T getDistanceMinSQ(const Orthotope3 & ort) const {
             // it dose not work in the case of an orthotope with negative volume
@@ -258,5 +263,23 @@ namespace ParticleSimulator{
             c<<std::setprecision(15)<<u.low_<<"   "<<u.high_;
             return c;
         }
+        friend std::istream & operator >>(std::istream & c, Orthotope3 & u){
+            c>>u.low_;
+            c>>u.high_;
+            return c;
+        }
+
+        Orthotope3 getIntersectionNoCheck(const Orthotope3 & tgt) const {
+            Orthotope3 ret;
+            ret.low_.x  = std::max(this->low_.x, tgt.low_.x);
+            ret.high_.x = std::min(this->high_.x, tgt.high_.x);
+            ret.low_.y  = std::max(this->low_.y, tgt.low_.y);
+            ret.high_.y = std::min(this->high_.y, tgt.high_.y);
+            ret.low_.z  = std::max(this->low_.z, tgt.low_.z);
+            ret.high_.z = std::min(this->high_.z, tgt.high_.z);
+            return ret;
+        }
+        
+        
     };
 }
