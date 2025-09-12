@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
 
     // const PS::S32 n_leaf_limit = 1;
     const PS::U32 n_leaf_limit = 8;
-    const PS::U32 n_grp_limit = 2048;
+    const PS::U32 n_grp_limit = 256;
     treepm3.initialize(ptcl_pm3.getNumberOfParticleLocal(), this_run.theta, n_leaf_limit, n_grp_limit);
     PS::S32 n_cell = 8;
     PS::S32 i_cut = 2;
