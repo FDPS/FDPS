@@ -559,7 +559,7 @@ class MomentMonopoleCutoffScatter {
     }
     template <class Tepj>
     void accumulateAtLeaf2(const Tepj& epj) {}
-    void set() { pos = pos / mass; }
+    void set() { if (mass!=0.0) pos = pos / mass; }
     void accumulate(const MomentMonopoleCutoffScatter& mom) {
         this->mass += mom.mass;
         this->pos += mom.mass * mom.pos;
@@ -605,7 +605,7 @@ class MomentMonopole {
     }
     template <class Tepj>
     void accumulateAtLeaf2(const Tepj& epj) {}
-    void set() { pos = pos / mass; }
+    void set() { if (mass!=0.0) pos = pos / mass; }
     void accumulate(const MomentMonopole& mom) {
         mass += mom.mass;
         pos += mom.mass * mom.pos;
@@ -658,7 +658,7 @@ class MomentMonopoleCutoff {
     template <class Tepj>
     void accumulateAtLeaf2(Tepj& epj) {}
     void set() {
-        pos = pos / mass;
+        if (mass!=0.0) pos = pos / mass;
     }
     void accumulate(const MomentMonopoleCutoff& mom) {
         mass += mom.mass;
@@ -718,7 +718,7 @@ class MomentQuadrupole {
         // under construction
 #endif
     }
-    void set() { pos = pos / mass; }
+    void set() { if (mass!=0.0) pos = pos / mass; }
     void accumulate(const MomentQuadrupole& mom) {
         mass += mom.mass;
         pos += mom.mass * mom.pos;
